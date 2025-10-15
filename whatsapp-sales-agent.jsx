@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  initializeApp,
+  initializeApp
+} from 'firebase/app';
+import {
   getFirestore,
   doc,
   getDoc,
@@ -47,9 +49,13 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
+// Inicializar Firebase apenas se as variáveis estiverem disponíveis
+let app, db, auth;
+if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+  app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+  auth = getAuth(app);
+}
 
 // Configurações do app
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsapp-sales-agent';
