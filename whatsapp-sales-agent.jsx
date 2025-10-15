@@ -343,7 +343,7 @@ const WhatsAppSalesAgent = () => {
   const Dashboard = () => {
     const isCompanyConfigured = companyProfile.companyName && companyProfile.cnpj && companyProfile.whatsappNumber;
     const isCatalogConfigured = catalogItems.length > 0;
-    const isIntegrationsConfigured = integrationsConfig.asaasConfig || integrationsConfig.fiscalConfig;
+    const isIntegrationsConfigured = integrationsConfig.asaasConfig || integrationsConfig.fiscalConfig || integrationsConfig.openaiConfig;
     const isAssistantConfigured = assistantSettings.welcomeMessage && assistantSettings.enabledFeatures?.length > 0;
 
     return (
@@ -742,10 +742,22 @@ const WhatsAppSalesAgent = () => {
     const [fiscalConfig, setFiscalConfig] = useState({
       municipalRegistration: ''
     });
+    const [openaiConfig, setOpenaiConfig] = useState({
+      apiKey: '',
+      model: 'gpt-3.5-turbo',
+      maxTokens: 1000,
+      temperature: 0.7
+    });
 
     useEffect(() => {
       setAsaasConfig(integrationsConfig.asaasConfig || { asaasApiKey: '' });
       setFiscalConfig(integrationsConfig.fiscalConfig || { municipalRegistration: '' });
+      setOpenaiConfig(integrationsConfig.openaiConfig || { 
+        apiKey: '', 
+        model: 'gpt-3.5-turbo', 
+        maxTokens: 1000, 
+        temperature: 0.7 
+      });
     }, [integrationsConfig]);
 
     const saveAsaasConfig = () => {
@@ -759,6 +771,13 @@ const WhatsAppSalesAgent = () => {
       saveIntegrationsConfig({
         ...integrationsConfig,
         fiscalConfig
+      });
+    };
+
+    const saveOpenaiConfig = () => {
+      saveIntegrationsConfig({
+        ...integrationsConfig,
+        openaiConfig
       });
     };
 
@@ -790,6 +809,16 @@ const WhatsAppSalesAgent = () => {
                 }`}
               >
                 Fiscal
+              </button>
+              <button
+                onClick={() => setActiveTab('openai')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'openai'
+                    ? 'border-indigo-500 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                OpenAI
               </button>
             </nav>
           </div>
@@ -870,6 +899,102 @@ const WhatsAppSalesAgent = () => {
                       className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
                     >
                       Salvar Configuração Fiscal
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'openai' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">Configuração OpenAI</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        API Key do OpenAI
+                      </label>
+                      <input
+                        type="password"
+                        value={openaiConfig.apiKey}
+                        onChange={(e) => setOpenaiConfig({ ...openaiConfig, apiKey: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="sk-... (sua chave API do OpenAI)"
+                      />
+                      <p className="text-sm text-gray-500 mt-2">
+                        Sua chave API será armazenada de forma segura e usada para processar mensagens do assistente
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Modelo
+                        </label>
+                        <select
+                          value={openaiConfig.model}
+                          onChange={(e) => setOpenaiConfig({ ...openaiConfig, model: e.target.value })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        >
+                          <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                          <option value="gpt-4">GPT-4</option>
+                          <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Máximo de Tokens
+                        </label>
+                        <input
+                          type="number"
+                          value={openaiConfig.maxTokens}
+                          onChange={(e) => setOpenaiConfig({ ...openaiConfig, maxTokens: parseInt(e.target.value) })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          min="100"
+                          max="4000"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Temperatura (Criatividade)
+                      </label>
+                      <div className="flex items-center space-x-4">
+                        <input
+                          type="range"
+                          min="0"
+                          max="2"
+                          step="0.1"
+                          value={openaiConfig.temperature}
+                          onChange={(e) => setOpenaiConfig({ ...openaiConfig, temperature: parseFloat(e.target.value) })}
+                          className="flex-1"
+                        />
+                        <span className="text-sm font-medium text-gray-700 w-12">
+                          {openaiConfig.temperature}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-2">
+                        0 = Mais preciso e consistente | 2 = Mais criativo e variado
+                      </p>
+                    </div>
+
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                      <h4 className="font-medium text-blue-800 mb-2">💡 Como funciona:</h4>
+                      <ul className="text-sm text-blue-700 space-y-1">
+                        <li>• Sua API Key será usada para gerar respostas inteligentes</li>
+                        <li>• O assistente usará o modelo selecionado para processar conversas</li>
+                        <li>• A temperatura controla o nível de criatividade das respostas</li>
+                        <li>• Os tokens limitam o tamanho das respostas geradas</li>
+                      </ul>
+                    </div>
+
+                    <button
+                      onClick={saveOpenaiConfig}
+                      className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+                    >
+                      Salvar Configuração OpenAI
                     </button>
                   </div>
                 </div>
