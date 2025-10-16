@@ -214,16 +214,14 @@ const WhatsAppSalesAgent = () => {
 
     // Listener para usuários (apenas para Master)
     if (user.isMaster) {
-      const usersRef = collection(db, `artifacts/${appId}/users`);
+      // Buscar usuários criados via registro na landing page
+      const usersRef = collection(db, `artifacts/${appId}/registered_users`);
       const usersQuery = query(usersRef, orderBy('createdAt', 'desc'));
       onSnapshot(usersQuery, (snapshot) => {
         const usersList = [];
         snapshot.forEach((doc) => {
           const userData = doc.data();
-          // Não incluir o próprio master na lista
-          if (doc.id !== userId) {
-            usersList.push({ id: doc.id, ...userData });
-          }
+          usersList.push({ id: doc.id, ...userData });
         });
         setUsers(usersList);
       });
@@ -422,19 +420,20 @@ const WhatsAppSalesAgent = () => {
         ...userData,
         createdAt: editingUser ? userData.createdAt : new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        isMaster: false // Usuários criados pelo master nunca são master
+        isMaster: false, // Usuários criados pelo master nunca são master
+        registeredVia: editingUser ? userData.registeredVia : 'created_by_master'
       };
 
       if (editingUser) {
         // Atualizar usuário existente
         await updateDoc(
-          doc(db, `artifacts/${appId}/users/${editingUser.id}`),
+          doc(db, `artifacts/${appId}/registered_users/${editingUser.id}`),
           { ...userToSave, updatedAt: new Date().toISOString() }
         );
         showToast('Usuário atualizado com sucesso!');
       } else {
         // Criar novo usuário
-        await addDoc(collection(db, `artifacts/${appId}/users`), userToSave);
+        await addDoc(collection(db, `artifacts/${appId}/registered_users`), userToSave);
         showToast('Usuário criado com sucesso!');
       }
       
@@ -456,7 +455,7 @@ const WhatsAppSalesAgent = () => {
 
       if (confirm('Tem certeza que deseja excluir este usuário?')) {
         const appId = APP_ID;
-        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}`));
+        await deleteDoc(doc(db, `artifacts/${appId}/registered_users/${userId}`));
         showToast('Usuário excluído com sucesso!');
       }
     } catch (error) {
@@ -1305,6 +1304,7 @@ const WhatsAppSalesAgent = () => {
                     <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Usuário</th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Empresa</th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Status</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Origem</th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Criado em</th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Ações</th>
                   </tr>
@@ -1328,6 +1328,15 @@ const WhatsAppSalesAgent = () => {
                             : 'bg-red-100 text-red-800'
                         }`}>
                           {userData.isActive ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          userData.registeredVia === 'landing_page'
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-purple-100 text-purple-800'
+                        }`}>
+                          {userData.registeredVia === 'landing_page' ? 'Landing Page' : 'Criado pelo Master'}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-gray-900">

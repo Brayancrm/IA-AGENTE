@@ -8,6 +8,12 @@ import {
   signOut,
   sendPasswordResetEmail
 } from 'firebase/auth';
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  initializeApp
+} from 'firebase/firestore';
 import { 
   Eye, 
   EyeOff, 
@@ -17,6 +23,20 @@ import {
   AlertCircle,
   CheckCircle
 } from 'lucide-react';
+
+// Configuração do Firebase
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsapp-sales-agent';
 
 // Componente de Login
 export const LoginForm = ({ onLoginSuccess, onSwitchToRegister }) => {
@@ -214,8 +234,19 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
         formData.password
       );
 
-      // Salvar dados adicionais do usuário
-      // Aqui você pode salvar no Firestore se necessário
+      // Salvar dados adicionais do usuário na coleção registered_users
+      const userData = {
+        name: formData.name,
+        email: formData.email,
+        companyName: formData.companyName,
+        isActive: true,
+        isMaster: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        registeredVia: 'landing_page'
+      };
+
+      await addDoc(collection(db, `artifacts/${APP_ID}/registered_users`), userData);
       
       onRegisterSuccess(userCredential.user);
     } catch (error) {
