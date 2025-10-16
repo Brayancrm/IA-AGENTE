@@ -100,6 +100,7 @@ const WhatsAppSalesAgent = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
+  const [error, setError] = useState(null);
 
   // Estados dos dados
   const [companyProfile, setCompanyProfile] = useState({});
@@ -136,33 +137,44 @@ const WhatsAppSalesAgent = () => {
 
   // Inicialização
   useEffect(() => {
-    if (!auth) {
-      setLoading(false);
-      return;
-    }
-
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        // Verificar se é master baseado no email ou configuração
-        const isMaster = currentUser.email?.includes('master') || 
-                        currentUser.email?.includes('admin') ||
-                        currentUser.email === 'brayan@master.com' ||
-                        process.env.NEXT_PUBLIC_MASTER_EMAIL === currentUser.email;
-        
-        setUser({ 
-          ...currentUser, 
-          isMaster 
-        });
-        setIsAuthenticated(true);
-        setupFirestoreListeners();
-      } else {
-        setUser(null);
-        setIsAuthenticated(false);
+    try {
+      if (!auth) {
+        setLoading(false);
+        return;
       }
-      setLoading(false);
-    });
 
-    return () => unsubscribe();
+      const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        try {
+          if (currentUser) {
+            // Verificar se é master baseado no email ou configuração
+            const isMaster = currentUser.email?.includes('master') || 
+                            currentUser.email?.includes('admin') ||
+                            currentUser.email === 'brayan@master.com' ||
+                            process.env.NEXT_PUBLIC_MASTER_EMAIL === currentUser.email;
+            
+            setUser({ 
+              ...currentUser, 
+              isMaster 
+            });
+            setIsAuthenticated(true);
+            setupFirestoreListeners();
+          } else {
+            setUser(null);
+            setIsAuthenticated(false);
+          }
+        } catch (error) {
+          console.error('Erro na autenticação:', error);
+          setError('Erro na autenticação: ' + error.message);
+        }
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
+    } catch (error) {
+      console.error('Erro na inicialização:', error);
+      setError('Erro na inicialização: ' + error.message);
+      setLoading(false);
+    }
   }, [auth]);
 
   const handleLoginSuccess = () => {
@@ -177,7 +189,7 @@ const WhatsAppSalesAgent = () => {
   };
 
   const setupFirestoreListeners = () => {
-    if (!user) return;
+    if (!user || !db) return;
 
     const userId = user.uid;
     const appId = APP_ID;
@@ -273,8 +285,8 @@ const WhatsAppSalesAgent = () => {
 
   const saveIntegrationsConfig = async (data) => {
     try {
-      if (!user || !user.uid) {
-        showToast('Usuário não autenticado.', 'error');
+      if (!user || !user.uid || !db) {
+        showToast('Sistema não inicializado.', 'error');
         return;
       }
       
@@ -286,11 +298,6 @@ const WhatsAppSalesAgent = () => {
       
       const userId = user.uid;
       const appId = APP_ID;
-      
-      if (!db) {
-        showToast('Firebase não inicializado. Verifique as configurações.', 'error');
-        return;
-      }
       
       await setDoc(doc(db, `artifacts/${appId}/users/${userId}/integrations_config/config`), data, { merge: true });
       showToast('Configurações de integração salvas com sucesso!');
@@ -1574,6 +1581,53 @@ const WhatsAppSalesAgent = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar erro se houver algum
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-lg mb-4">
+            <p className="font-bold text-lg">Erro na Aplicação</p>
+            <p className="text-sm mt-2">{error}</p>
+            <p className="text-xs mt-3 text-red-600">
+              Se o problema persistir, verifique as configurações do Firebase.
+            </p>
+          </div>
+          <button 
+            onClick={() => {
+              setError(null);
+              window.location.reload();
+            }} 
+            className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            Tentar Novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Verificar se o Firebase foi inicializado corretamente
+  if (!auth && typeof window !== 'undefined') {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <p className="font-bold">Erro de Configuração</p>
+            <p className="text-sm">Firebase não foi inicializado corretamente.</p>
+            <p className="text-xs mt-2">Verifique as variáveis de ambiente.</p>
+          </div>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+          >
+            Recarregar Página
+          </button>
         </div>
       </div>
     );
