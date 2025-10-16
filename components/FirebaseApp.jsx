@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useFirebase } from '../hooks/useFirebase';
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as firebaseSignOut, sendPasswordResetEmail } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
-import LandingPageSimple from './LandingPageSimple';
+import SimpleLanding from './SimpleLanding';
 
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsapp-sales-agent';
 
@@ -342,7 +342,7 @@ const FirebaseApp = () => {
   if (!isAuthenticated) {
     return (
       <div>
-        <LandingPageSimple onLoginSuccess={() => setIsAuthenticated(true)} />
+        <SimpleLanding onLoginSuccess={() => setIsAuthenticated(true)} />
         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       </div>
     );
