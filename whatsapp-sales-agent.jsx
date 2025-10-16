@@ -698,8 +698,11 @@ const WhatsAppSalesAgent = () => {
               </label>
               <input
                 type="text"
-                value={formData.companyName}
-                onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                value={formData.companyName || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormData(prev => ({ ...prev, companyName: value }));
+                }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Digite o nome da sua empresa"
                 required
@@ -712,8 +715,11 @@ const WhatsAppSalesAgent = () => {
               </label>
               <input
                 type="text"
-                value={formData.cnpj}
-                onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                value={formData.cnpj || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormData(prev => ({ ...prev, cnpj: value }));
+                }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="00.000.000/0000-00"
                 required
@@ -726,8 +732,11 @@ const WhatsAppSalesAgent = () => {
               </label>
               <input
                 type="text"
-                value={formData.whatsappNumber}
-                onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
+                value={formData.whatsappNumber || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormData(prev => ({ ...prev, whatsappNumber: value }));
+                }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="+55 11 99999-9999"
                 required
@@ -847,8 +856,11 @@ const WhatsAppSalesAgent = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Nome</label>
                   <input
                     type="text"
-                    value={catalogForm.name}
-                    onChange={(e) => setCatalogForm({ ...catalogForm, name: e.target.value })}
+                    value={catalogForm.name || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setCatalogForm(prev => ({ ...prev, name: value }));
+                    }}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     required
                   />
@@ -857,8 +869,11 @@ const WhatsAppSalesAgent = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Descrição</label>
                   <textarea
-                    value={catalogForm.description}
-                    onChange={(e) => setCatalogForm({ ...catalogForm, description: e.target.value })}
+                    value={catalogForm.description || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setCatalogForm(prev => ({ ...prev, description: value }));
+                    }}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     rows="3"
                   />
@@ -895,8 +910,11 @@ const WhatsAppSalesAgent = () => {
                   <input
                     type="number"
                     step="0.01"
-                    value={catalogForm.price}
-                    onChange={(e) => setCatalogForm({ ...catalogForm, price: e.target.value })}
+                    value={catalogForm.price || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setCatalogForm(prev => ({ ...prev, price: value }));
+                    }}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     required
                   />
@@ -908,8 +926,11 @@ const WhatsAppSalesAgent = () => {
                   </label>
                   <input
                     type="number"
-                    value={catalogForm.stockQuantity}
-                    onChange={(e) => setCatalogForm({ ...catalogForm, stockQuantity: e.target.value })}
+                    value={catalogForm.stockQuantity || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setCatalogForm(prev => ({ ...prev, stockQuantity: value }));
+                    }}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     required
                   />
@@ -1328,8 +1349,11 @@ const WhatsAppSalesAgent = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Nome Completo</label>
                   <input
                     type="text"
-                    value={userForm.name}
-                    onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                    value={userForm.name || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setUserForm(prev => ({ ...prev, name: value }));
+                    }}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     required
                   />
@@ -1339,8 +1363,11 @@ const WhatsAppSalesAgent = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                   <input
                     type="email"
-                    value={userForm.email}
-                    onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                    value={userForm.email || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setUserForm(prev => ({ ...prev, email: value }));
+                    }}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     required
                   />
@@ -1352,8 +1379,11 @@ const WhatsAppSalesAgent = () => {
                   </label>
                   <input
                     type="password"
-                    value={userForm.password}
-                    onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                    value={userForm.password || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setUserForm(prev => ({ ...prev, password: value }));
+                    }}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     required={!editingUser}
                   />
@@ -1363,8 +1393,11 @@ const WhatsAppSalesAgent = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Nome da Empresa</label>
                   <input
                     type="text"
-                    value={userForm.companyName}
-                    onChange={(e) => setUserForm({ ...userForm, companyName: e.target.value })}
+                    value={userForm.companyName || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setUserForm(prev => ({ ...prev, companyName: value }));
+                    }}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
@@ -1373,8 +1406,11 @@ const WhatsAppSalesAgent = () => {
                   <label className="flex items-center space-x-3">
                     <input
                       type="checkbox"
-                      checked={userForm.isActive}
-                      onChange={(e) => setUserForm({ ...userForm, isActive: e.target.checked })}
+                      checked={userForm.isActive || false}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setUserForm(prev => ({ ...prev, isActive: checked }));
+                      }}
                       className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                     />
                     <span className="text-gray-700">Usuário ativo</span>
