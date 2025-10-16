@@ -124,13 +124,39 @@ const WhatsAppSalesAgent = () => {
         await signInWithCustomToken(auth, process.env.NEXT_PUBLIC_FIREBASE_AUTH_TOKEN);
       }
       const currentUser = auth.currentUser;
-      setUser(currentUser);
+      
+      // Se não há usuário autenticado, criar usuário master demo
+      if (!currentUser) {
+        // Usuário Master Demo - tem acesso a todas as configurações
+        setUser({ 
+          uid: 'master-user-demo', 
+          email: 'master@demo.com',
+          isMaster: true,
+          displayName: 'Usuário Master'
+        });
+      } else {
+        // Verificar se é master baseado no email ou configuração
+        const isMaster = currentUser.email?.includes('master') || 
+                        currentUser.email?.includes('admin') ||
+                        process.env.NEXT_PUBLIC_MASTER_EMAIL === currentUser.email;
+        
+        setUser({ 
+          ...currentUser, 
+          isMaster 
+        });
+      }
+      
       setupFirestoreListeners();
     } catch (error) {
       console.error('Erro na autenticação:', error);
       setToast({ message: 'Erro na autenticação', type: 'error' });
-      // Para desenvolvimento, continuar sem autenticação
-      setUser({ uid: 'demo-user' });
+      // Para desenvolvimento, continuar como master demo
+      setUser({ 
+        uid: 'master-user-demo', 
+        email: 'master@demo.com',
+        isMaster: true,
+        displayName: 'Usuário Master Demo'
+      });
       setupFirestoreListeners();
     } finally {
       setLoading(false);
@@ -220,7 +246,13 @@ const WhatsAppSalesAgent = () => {
   const saveIntegrationsConfig = async (data) => {
     try {
       if (!user || !user.uid) {
-        showToast('Usuário não autenticado. Usando modo demo.', 'error');
+        showToast('Usuário não autenticado.', 'error');
+        return;
+      }
+      
+      // Verificar se é usuário master
+      if (!user.isMaster) {
+        showToast('Apenas usuários Master podem configurar integrações.', 'error');
         return;
       }
       
@@ -233,7 +265,7 @@ const WhatsAppSalesAgent = () => {
       }
       
       await setDoc(doc(db, `artifacts/${appId}/users/${userId}/integrations_config/config`), data, { merge: true });
-      showToast('Configurações de integração salvas!');
+      showToast('Configurações de integração salvas com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar integrações:', error);
       showToast('Erro ao salvar configurações', 'error');
@@ -365,7 +397,14 @@ const WhatsAppSalesAgent = () => {
     return (
       <div className="w-64 bg-indigo-900 text-white min-h-screen fixed left-0 top-0 overflow-y-auto">
         <div className="p-6">
-          <h1 className="text-xl font-bold mb-8">WhatsApp Sales Agent</h1>
+          <div className="mb-6">
+            <h1 className="text-xl font-bold mb-2">WhatsApp Sales Agent</h1>
+            {user?.isMaster && (
+              <div className="bg-yellow-500 text-yellow-900 px-2 py-1 rounded-lg text-xs font-bold">
+                👑 USUÁRIO MASTER
+              </div>
+            )}
+          </div>
           <nav>
             <ul className="space-y-2">
               {menuItems.map((item) => {
@@ -789,7 +828,7 @@ const WhatsAppSalesAgent = () => {
 
   // Componente Integrações
   const Integrations = () => {
-    const [activeTab, setActiveTab] = useState('asaas');
+    const [activeTab, setActiveTab] = useState('openai');
     const [asaasConfig, setAsaasConfig] = useState({
       asaasApiKey: ''
     });
@@ -840,6 +879,20 @@ const WhatsAppSalesAgent = () => {
     return (
       <div className="p-6">
         <h2 className="text-3xl font-bold text-gray-800 mb-6">Integrações</h2>
+        
+        {!user?.isMaster && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <Settings className="w-4 h-4 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-medium text-blue-800">Integrações Configuradas pelo Master</h3>
+                <p className="text-sm text-blue-600">Você tem acesso a todas as funcionalidades de IA sem precisar configurar APIs.</p>
+              </div>
+            </div>
+          </div>
+        )}
         
         <div className="bg-white rounded-2xl shadow-lg border">
           <div className="border-b border-gray-200">
