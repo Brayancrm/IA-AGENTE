@@ -4,12 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { useFirebase } from '../hooks/useFirebase';
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as firebaseSignOut, sendPasswordResetEmail } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { getDatabase, ref, push, set, remove, onValue, off } from 'firebase/database';
 import SimpleLanding from './SimpleLanding';
 
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsapp-sales-agent';
 
 const FirebaseApp = () => {
-  const { app, db, auth, isReady, error } = useFirebase();
+  const { app, db, auth, database, isReady, error } = useFirebase();
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -129,62 +130,34 @@ const FirebaseApp = () => {
       setCatalogItems(items);
     });
 
-    // Se for usuário master, ouvir usuários registrados
-    if (user.isMaster) {
-      console.log('Configurando listener para usuários registrados');
+    // Se for usuário master, ouvir usuários registrados no Realtime Database
+    if (user.isMaster && database) {
+      console.log('Configurando listener para usuários registrados no Realtime Database');
       
-      // Listener para coleção principal
-      const usersRef = collection(db, `artifacts/${APP_ID}/registered_users`);
-      const usersQuery = query(usersRef, orderBy('createdAt', 'desc'));
-      onSnapshot(usersQuery, (snapshot) => {
-        console.log('Snapshot de usuários recebido:', snapshot.size, 'usuários');
+      const usersRef = ref(database, `artifacts/${APP_ID}/registered_users`);
+      
+      onValue(usersRef, (snapshot) => {
+        console.log('Snapshot de usuários recebido do Realtime Database:', snapshot.size(), 'usuários');
         const usersList = [];
-        snapshot.forEach((doc) => {
-          console.log('Usuário encontrado:', doc.id, doc.data());
-          usersList.push({ id: doc.id, ...doc.data() });
-        });
         
-        // Se não há usuários na coleção principal, tentar buscar no perfil do master
-        if (usersList.length === 0) {
-          console.log('Nenhum usuário na coleção principal, buscando no perfil do master');
-          const managedUsersRef = collection(db, `artifacts/${APP_ID}/users/${user.uid}/managed_users`);
-          onSnapshot(managedUsersRef, (managedSnapshot) => {
-            console.log('Snapshot de usuários gerenciados recebido:', managedSnapshot.size, 'usuários');
-            const managedUsersList = [];
-            managedSnapshot.forEach((doc) => {
-              console.log('Usuário gerenciado encontrado:', doc.id, doc.data());
-              managedUsersList.push({ id: doc.id, ...doc.data() });
-            });
-            console.log('Lista de usuários gerenciados atualizada:', managedUsersList);
-            setUsers(managedUsersList);
-          }, (error) => {
-            console.error('Erro no listener de usuários gerenciados:', error);
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          Object.keys(data).forEach((key) => {
+            console.log('Usuário encontrado:', key, data[key]);
+            usersList.push({ id: key, ...data[key] });
           });
-        } else {
-          console.log('Lista de usuários atualizada:', usersList);
-          setUsers(usersList);
         }
-      }, (error) => {
-        console.error('Erro no listener de usuários:', error);
         
-        // Se falhar a coleção principal, tentar o backup
-        console.log('Tentando listener de backup no perfil do master');
-        const managedUsersRef = collection(db, `artifacts/${APP_ID}/users/${user.uid}/managed_users`);
-        onSnapshot(managedUsersRef, (managedSnapshot) => {
-          console.log('Snapshot de backup recebido:', managedSnapshot.size, 'usuários');
-          const managedUsersList = [];
-          managedSnapshot.forEach((doc) => {
-            console.log('Usuário backup encontrado:', doc.id, doc.data());
-            managedUsersList.push({ id: doc.id, ...doc.data() });
-          });
-          console.log('Lista de backup atualizada:', managedUsersList);
-          setUsers(managedUsersList);
-        }, (backupError) => {
-          console.error('Erro no listener de backup:', backupError);
-        });
+        // Ordenar por data de criação (mais recente primeiro)
+        usersList.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        
+        console.log('Lista de usuários atualizada:', usersList);
+        setUsers(usersList);
+      }, (error) => {
+        console.error('Erro no listener de usuários do Realtime Database:', error);
       });
     } else {
-      console.log('Usuário não é master, não configurando listener de usuários');
+      console.log('Usuário não é master ou database não disponível, não configurando listener de usuários');
     }
   };
 
@@ -254,13 +227,13 @@ const FirebaseApp = () => {
 
   // Funções de gerenciamento de usuários (apenas para master)
   const saveUser = async (userData) => {
-    console.log('saveUser chamado:', { user, isMaster: user?.isMaster, db: !!db });
+    console.log('saveUser chamado:', { user, isMaster: user?.isMaster, database: !!database });
     
-    if (!user?.isMaster || !db || !auth) {
+    if (!user?.isMaster || !database || !auth) {
       console.error('Condições não atendidas:', { 
         hasUser: !!user, 
         isMaster: user?.isMaster, 
-        hasDb: !!db, 
+        hasDatabase: !!database, 
         hasAuth: !!auth 
       });
       showToast('Erro: Não é possível criar usuário', 'error');
@@ -269,11 +242,13 @@ const FirebaseApp = () => {
     
     try {
       if (editingUser) {
-        // Atualizar usuário existente
-        await updateDoc(doc(db, `artifacts/${APP_ID}/registered_users`, editingUser.id), {
+        // Atualizar usuário existente no Realtime Database
+        const userRef = ref(database, `artifacts/${APP_ID}/registered_users/${editingUser.id}`);
+        await set(userRef, {
           ...userData,
           updatedAt: new Date().toISOString()
         });
+        console.log('Usuário atualizado no Realtime Database:', editingUser.id);
         showToast('Usuário atualizado com sucesso!');
       } else {
         console.log('Criando novo usuário:', userData.email);
@@ -282,7 +257,7 @@ const FirebaseApp = () => {
         const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
         console.log('Usuário criado no Auth:', userCredential.user.uid);
         
-        // Salvar dados adicionais no Firestore
+        // Salvar dados adicionais no Realtime Database
         const userDoc = {
           name: userData.name,
           email: userData.email,
@@ -295,26 +270,14 @@ const FirebaseApp = () => {
           registeredVia: 'created_by_master'
         };
         
-        console.log('Salvando no Firestore:', userDoc);
+        console.log('Salvando no Realtime Database:', userDoc);
         
-        // Tentar salvar na coleção registered_users primeiro
-        try {
-          const docRef = await addDoc(collection(db, `artifacts/${APP_ID}/registered_users`), userDoc);
-          console.log('Documento criado com ID:', docRef.id);
-        } catch (firestoreError) {
-          console.error('Erro ao salvar em registered_users, tentando método alternativo:', firestoreError);
-          
-          // Método alternativo: salvar no perfil do usuário master
-          try {
-            const masterUserRef = doc(db, `artifacts/${APP_ID}/users/${user.uid}/managed_users`, userCredential.user.uid);
-            await setDoc(masterUserRef, userDoc);
-            console.log('Usuário salvo no perfil do master como backup');
-          } catch (backupError) {
-            console.error('Erro no método backup:', backupError);
-            throw firestoreError; // Re-throw o erro original
-          }
-        }
+        // Criar nova entrada no Realtime Database
+        const usersRef = ref(database, `artifacts/${APP_ID}/registered_users`);
+        const newUserRef = push(usersRef);
+        await set(newUserRef, userDoc);
         
+        console.log('Usuário criado no Realtime Database com ID:', newUserRef.key);
         showToast('Usuário criado com sucesso!');
       }
     } catch (error) {
@@ -324,19 +287,12 @@ const FirebaseApp = () => {
   };
 
   const deleteUser = async (userId) => {
-    if (!user?.isMaster || !db) return;
+    if (!user?.isMaster || !database) return;
     
     try {
-      // Tentar excluir da coleção principal primeiro
-      try {
-        await deleteDoc(doc(db, `artifacts/${APP_ID}/registered_users`, userId));
-        console.log('Usuário excluído da coleção principal');
-      } catch (mainError) {
-        console.log('Erro na coleção principal, tentando backup:', mainError);
-        // Tentar excluir do backup
-        await deleteDoc(doc(db, `artifacts/${APP_ID}/users/${user.uid}/managed_users`, userId));
-        console.log('Usuário excluído do backup');
-      }
+      const userRef = ref(database, `artifacts/${APP_ID}/registered_users/${userId}`);
+      await remove(userRef);
+      console.log('Usuário excluído do Realtime Database:', userId);
       showToast('Usuário excluído com sucesso!');
     } catch (error) {
       console.error('Erro ao excluir usuário:', error);

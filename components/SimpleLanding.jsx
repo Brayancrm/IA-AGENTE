@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { getDatabase, ref, push, set } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -16,11 +17,12 @@ const firebaseConfig = {
 
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsapp-sales-agent';
 
-let app, db, auth;
+let app, db, auth, database;
 if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
   app = initializeApp(firebaseConfig);
   db = getFirestore(app);
   auth = getAuth(app);
+  database = getDatabase(app);
 }
 
 const SimpleLanding = ({ onLoginSuccess }) => {
@@ -44,12 +46,13 @@ const SimpleLanding = ({ onLoginSuccess }) => {
         // Registrar usuário
         const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
         
-        // Salvar dados adicionais no Firestore
-        if (db) {
+        // Salvar dados adicionais no Realtime Database
+        if (database) {
           const userData = {
             name: formData.name,
             email: formData.email,
             companyName: formData.companyName,
+            uid: userCredential.user.uid,
             isActive: true,
             isMaster: false,
             createdAt: new Date().toISOString(),
@@ -57,7 +60,10 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             registeredVia: 'landing_page'
           };
 
-          await addDoc(collection(db, `artifacts/${APP_ID}/registered_users`), userData);
+          const usersRef = ref(database, `artifacts/${APP_ID}/registered_users`);
+          const newUserRef = push(usersRef);
+          await set(newUserRef, userData);
+          console.log('Usuário salvo no Realtime Database:', newUserRef.key);
         }
         
         onLoginSuccess();
