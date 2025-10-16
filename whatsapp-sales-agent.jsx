@@ -118,25 +118,12 @@ const WhatsAppSalesAgent = () => {
 
   const initializeAuth = async () => {
     try {
-      // Inicializar Firebase se ainda não foi inicializado
-      if (!app && typeof window !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
-        const firebaseApp = initializeApp(firebaseConfig);
-        const firestoreDb = getFirestore(firebaseApp);
-        const firebaseAuth = getAuth(firebaseApp);
-        
-        // Atualizar as variáveis globais
-        window.__firebase_app = firebaseApp;
-        window.__firebase_db = firestoreDb;
-        window.__firebase_auth = firebaseAuth;
-      }
-      
       // Para desenvolvimento local, você pode usar um token de teste
       // Em produção, configure a autenticação apropriada
-      if (process.env.NEXT_PUBLIC_FIREBASE_AUTH_TOKEN && auth) {
+      if (process.env.NEXT_PUBLIC_FIREBASE_AUTH_TOKEN) {
         await signInWithCustomToken(auth, process.env.NEXT_PUBLIC_FIREBASE_AUTH_TOKEN);
       }
-      
-      const currentUser = auth ? auth.currentUser : null;
+      const currentUser = auth.currentUser;
       setUser(currentUser);
       setupFirestoreListeners();
     } catch (error) {
@@ -213,15 +200,16 @@ const WhatsAppSalesAgent = () => {
         showToast('Usuário não autenticado. Usando modo demo.', 'error');
         return;
       }
-      const firebaseDb = db || window.__firebase_db;
-      if (!firebaseDb) {
-        showToast('Firebase não inicializado', 'error');
-        return;
-      }
       
       const userId = user.uid;
       const appId = APP_ID;
-      await setDoc(doc(firebaseDb, `artifacts/${appId}/users/${userId}/company_profile/config`), data, { merge: true });
+      
+      if (!db) {
+        showToast('Firebase não inicializado. Verifique as configurações.', 'error');
+        return;
+      }
+      
+      await setDoc(doc(db, `artifacts/${appId}/users/${userId}/company_profile/config`), data, { merge: true });
       showToast('Perfil da empresa salvo com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar perfil:', error);
@@ -235,15 +223,16 @@ const WhatsAppSalesAgent = () => {
         showToast('Usuário não autenticado. Usando modo demo.', 'error');
         return;
       }
-      const firebaseDb = db || window.__firebase_db;
-      if (!firebaseDb) {
-        showToast('Firebase não inicializado', 'error');
-        return;
-      }
       
       const userId = user.uid;
       const appId = APP_ID;
-      await setDoc(doc(firebaseDb, `artifacts/${appId}/users/${userId}/integrations_config/config`), data, { merge: true });
+      
+      if (!db) {
+        showToast('Firebase não inicializado. Verifique as configurações.', 'error');
+        return;
+      }
+      
+      await setDoc(doc(db, `artifacts/${appId}/users/${userId}/integrations_config/config`), data, { merge: true });
       showToast('Configurações de integração salvas!');
     } catch (error) {
       console.error('Erro ao salvar integrações:', error);
@@ -257,13 +246,15 @@ const WhatsAppSalesAgent = () => {
         showToast('Usuário não autenticado. Usando modo demo.', 'error');
         return;
       }
-      if (!db) {
-        showToast('Firebase não inicializado', 'error');
-        return;
-      }
       
       const userId = user.uid;
       const appId = APP_ID;
+      
+      if (!db) {
+        showToast('Firebase não inicializado. Verifique as configurações.', 'error');
+        return;
+      }
+      
       await setDoc(doc(db, `artifacts/${appId}/users/${userId}/assistant_settings/config`), data, { merge: true });
       showToast('Configurações do assistente salvas!');
     } catch (error) {
@@ -283,13 +274,14 @@ const WhatsAppSalesAgent = () => {
         showToast('Usuário não autenticado. Usando modo demo.', 'error');
         return;
       }
-      if (!db) {
-        showToast('Firebase não inicializado', 'error');
-        return;
-      }
       
       const userId = user.uid;
       const appId = APP_ID;
+      
+      if (!db) {
+        showToast('Firebase não inicializado. Verifique as configurações.', 'error');
+        return;
+      }
       const itemToSave = {
         ...itemData,
         price: parseFloat(itemData.price),
@@ -326,13 +318,15 @@ const WhatsAppSalesAgent = () => {
         showToast('Usuário não autenticado. Usando modo demo.', 'error');
         return;
       }
-      if (!db) {
-        showToast('Firebase não inicializado', 'error');
-        return;
-      }
       
       const userId = user.uid;
       const appId = APP_ID;
+      
+      if (!db) {
+        showToast('Firebase não inicializado. Verifique as configurações.', 'error');
+        return;
+      }
+      
       await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/company_profile/config/catalog_items/${itemId}`));
       showToast('Item excluído com sucesso!');
     } catch (error) {
