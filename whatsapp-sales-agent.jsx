@@ -19,8 +19,11 @@ import {
 } from 'firebase/firestore';
 import { 
   getAuth,
-  signInWithCustomToken
+  signInWithCustomToken,
+  onAuthStateChanged
 } from 'firebase/auth';
+import { LandingPage } from './components/LandingPage';
+import { LogoutButton } from './components/AuthComponents';
 import { 
   Home, 
   Building2, 
@@ -111,56 +114,44 @@ const WhatsAppSalesAgent = () => {
     type: 'product'
   });
 
+  // Estados de autenticação
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   // Inicialização
   useEffect(() => {
-    initializeAuth();
-  }, []);
-
-  const initializeAuth = async () => {
-    try {
-      // Para desenvolvimento local, você pode usar um token de teste
-      // Em produção, configure a autenticação apropriada
-      if (process.env.NEXT_PUBLIC_FIREBASE_AUTH_TOKEN) {
-        await signInWithCustomToken(auth, process.env.NEXT_PUBLIC_FIREBASE_AUTH_TOKEN);
-      }
-      const currentUser = auth.currentUser;
-      
-      // Se não há usuário autenticado, criar usuário master demo
-      if (!currentUser) {
-        // Usuário Master Demo - tem acesso a todas as configurações
-        setUser({ 
-          uid: 'master-user-demo', 
-          email: 'master@demo.com',
-          isMaster: true,
-          displayName: 'Usuário Master'
-        });
-      } else {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
         // Verificar se é master baseado no email ou configuração
         const isMaster = currentUser.email?.includes('master') || 
                         currentUser.email?.includes('admin') ||
+                        currentUser.email === 'brayan@master.com' ||
                         process.env.NEXT_PUBLIC_MASTER_EMAIL === currentUser.email;
         
         setUser({ 
           ...currentUser, 
           isMaster 
         });
+        setIsAuthenticated(true);
+        setupFirestoreListeners();
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
       }
-      
-      setupFirestoreListeners();
-    } catch (error) {
-      console.error('Erro na autenticação:', error);
-      setToast({ message: 'Erro na autenticação', type: 'error' });
-      // Para desenvolvimento, continuar como master demo
-      setUser({ 
-        uid: 'master-user-demo', 
-        email: 'master@demo.com',
-        isMaster: true,
-        displayName: 'Usuário Master Demo'
-      });
-      setupFirestoreListeners();
-    } finally {
       setLoading(false);
-    }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+    showToast('Login realizado com sucesso!', 'success');
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setIsAuthenticated(false);
+    showToast('Logout realizado com sucesso!', 'success');
   };
 
   const setupFirestoreListeners = () => {
@@ -427,6 +418,16 @@ const WhatsAppSalesAgent = () => {
               })}
             </ul>
           </nav>
+          
+          {/* Logout Button */}
+          <div className="mt-8 pt-6 border-t border-indigo-800">
+            <div className="px-4 py-2">
+              <div className="text-xs text-indigo-300 mb-2">
+                Logado como: {user?.displayName || user?.email}
+              </div>
+              <LogoutButton onLogout={handleLogout} />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1228,6 +1229,17 @@ const WhatsAppSalesAgent = () => {
     );
   }
 
+  // Se não está autenticado, mostrar landing page
+  if (!isAuthenticated) {
+    return (
+      <div>
+        <LandingPage onLoginSuccess={handleLoginSuccess} />
+        {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
+      </div>
+    );
+  }
+
+  // Se está autenticado, mostrar dashboard
   return (
     <div className="min-h-screen bg-gray-100">
       <Sidebar />
