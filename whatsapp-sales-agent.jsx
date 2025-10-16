@@ -56,12 +56,16 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Inicializar Firebase apenas se as variáveis estiverem disponíveis
+// Inicializar Firebase apenas no cliente
 let app, db, auth;
-if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
-  app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
-  auth = getAuth(app);
+if (typeof window !== 'undefined') {
+  try {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    auth = getAuth(app);
+  } catch (error) {
+    console.error('Erro ao inicializar Firebase:', error);
+  }
 }
 
 // Configurações do app
@@ -101,6 +105,7 @@ const WhatsAppSalesAgent = () => {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [error, setError] = useState(null);
+  const [firebaseReady, setFirebaseReady] = useState(false);
 
   // Estados dos dados
   const [companyProfile, setCompanyProfile] = useState({});
@@ -134,6 +139,15 @@ const WhatsAppSalesAgent = () => {
 
   // Estados de autenticação
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Verificar se Firebase está pronto
+  useEffect(() => {
+    if (typeof window !== 'undefined' && auth) {
+      setFirebaseReady(true);
+    } else {
+      setLoading(false);
+    }
+  }, [auth]);
 
   // Inicialização
   useEffect(() => {
@@ -1612,22 +1626,14 @@ const WhatsAppSalesAgent = () => {
     );
   }
 
-  // Verificar se o Firebase foi inicializado corretamente
-  if (!auth && typeof window !== 'undefined') {
+  // Aguardar Firebase estar pronto
+  if (!firebaseReady && typeof window !== 'undefined') {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            <p className="font-bold">Erro de Configuração</p>
-            <p className="text-sm">Firebase não foi inicializado corretamente.</p>
-            <p className="text-xs mt-2">Verifique as variáveis de ambiente.</p>
-          </div>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
-          >
-            Recarregar Página
-          </button>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Inicializando sistema...</p>
+          <p className="text-sm text-gray-500 mt-2">Configurando Firebase...</p>
         </div>
       </div>
     );
