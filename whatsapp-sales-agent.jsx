@@ -136,6 +136,11 @@ const WhatsAppSalesAgent = () => {
 
   // Inicialização
   useEffect(() => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         // Verificar se é master baseado no email ou configuração
@@ -158,7 +163,7 @@ const WhatsAppSalesAgent = () => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [auth]);
 
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);

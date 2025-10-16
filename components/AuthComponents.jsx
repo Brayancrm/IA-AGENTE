@@ -34,9 +34,14 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// Inicializar Firebase apenas se as variáveis estiverem disponíveis
+let app, db;
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsapp-sales-agent';
+
+if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+  app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+}
 
 // Componente de Login
 export const LoginForm = ({ onLoginSuccess, onSwitchToRegister }) => {
@@ -235,18 +240,20 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
       );
 
       // Salvar dados adicionais do usuário na coleção registered_users
-      const userData = {
-        name: formData.name,
-        email: formData.email,
-        companyName: formData.companyName,
-        isActive: true,
-        isMaster: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        registeredVia: 'landing_page'
-      };
+      if (db) {
+        const userData = {
+          name: formData.name,
+          email: formData.email,
+          companyName: formData.companyName,
+          isActive: true,
+          isMaster: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          registeredVia: 'landing_page'
+        };
 
-      await addDoc(collection(db, `artifacts/${APP_ID}/registered_users`), userData);
+        await addDoc(collection(db, `artifacts/${APP_ID}/registered_users`), userData);
+      }
       
       onRegisterSuccess(userCredential.user);
     } catch (error) {
