@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getDatabase } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -20,7 +19,6 @@ export const useFirebase = () => {
     app: null,
     db: null,
     auth: null,
-    database: null,
     isReady: false,
     error: null
   });
@@ -32,13 +30,11 @@ export const useFirebase = () => {
       const app = initializeApp(firebaseConfig);
       const db = getFirestore(app);
       const auth = getAuth(app);
-      const database = getDatabase(app);
 
       setFirebase({
         app,
         db,
         auth,
-        database,
         isReady: true,
         error: null
       });

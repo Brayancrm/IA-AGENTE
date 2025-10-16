@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { getDatabase, ref, push, set } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -17,12 +16,11 @@ const firebaseConfig = {
 
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsapp-sales-agent';
 
-let app, db, auth, database;
+let app, db, auth;
 if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
   app = initializeApp(firebaseConfig);
   db = getFirestore(app);
   auth = getAuth(app);
-  database = getDatabase(app);
 }
 
 const SimpleLanding = ({ onLoginSuccess }) => {
@@ -46,9 +44,10 @@ const SimpleLanding = ({ onLoginSuccess }) => {
         // Registrar usuário
         const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
         
-        // Salvar dados adicionais no Realtime Database
-        if (database) {
+        // Salvar dados adicionais no localStorage
+        if (typeof window !== 'undefined') {
           const userData = {
+            id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             name: formData.name,
             email: formData.email,
             companyName: formData.companyName,
@@ -60,10 +59,12 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             registeredVia: 'landing_page'
           };
 
-          const usersRef = ref(database, `artifacts/${APP_ID}/registered_users`);
-          const newUserRef = push(usersRef);
-          await set(newUserRef, userData);
-          console.log('Usuário salvo no Realtime Database:', newUserRef.key);
+          const savedUsers = localStorage.getItem(`${APP_ID}_registered_users`);
+          const usersList = savedUsers ? JSON.parse(savedUsers) : [];
+          usersList.unshift(userData); // Adicionar no início
+          
+          localStorage.setItem(`${APP_ID}_registered_users`, JSON.stringify(usersList));
+          console.log('Usuário salvo no localStorage:', userData.id);
         }
         
         onLoginSuccess();
