@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import MainAppSimple from '../components/MainAppSimple';
+import FirebaseApp from '../components/FirebaseApp';
 
 export default function Home() {
-  return <MainAppSimple />;
+  return <FirebaseApp />;
 }
