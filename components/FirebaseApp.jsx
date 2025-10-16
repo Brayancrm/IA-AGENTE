@@ -132,6 +132,8 @@ const FirebaseApp = () => {
     // Se for usuário master, ouvir usuários registrados
     if (user.isMaster) {
       console.log('Configurando listener para usuários registrados');
+      
+      // Listener para coleção principal
       const usersRef = collection(db, `artifacts/${APP_ID}/registered_users`);
       const usersQuery = query(usersRef, orderBy('createdAt', 'desc'));
       onSnapshot(usersQuery, (snapshot) => {
@@ -141,10 +143,45 @@ const FirebaseApp = () => {
           console.log('Usuário encontrado:', doc.id, doc.data());
           usersList.push({ id: doc.id, ...doc.data() });
         });
-        console.log('Lista de usuários atualizada:', usersList);
-        setUsers(usersList);
+        
+        // Se não há usuários na coleção principal, tentar buscar no perfil do master
+        if (usersList.length === 0) {
+          console.log('Nenhum usuário na coleção principal, buscando no perfil do master');
+          const managedUsersRef = collection(db, `artifacts/${APP_ID}/users/${user.uid}/managed_users`);
+          onSnapshot(managedUsersRef, (managedSnapshot) => {
+            console.log('Snapshot de usuários gerenciados recebido:', managedSnapshot.size, 'usuários');
+            const managedUsersList = [];
+            managedSnapshot.forEach((doc) => {
+              console.log('Usuário gerenciado encontrado:', doc.id, doc.data());
+              managedUsersList.push({ id: doc.id, ...doc.data() });
+            });
+            console.log('Lista de usuários gerenciados atualizada:', managedUsersList);
+            setUsers(managedUsersList);
+          }, (error) => {
+            console.error('Erro no listener de usuários gerenciados:', error);
+          });
+        } else {
+          console.log('Lista de usuários atualizada:', usersList);
+          setUsers(usersList);
+        }
       }, (error) => {
         console.error('Erro no listener de usuários:', error);
+        
+        // Se falhar a coleção principal, tentar o backup
+        console.log('Tentando listener de backup no perfil do master');
+        const managedUsersRef = collection(db, `artifacts/${APP_ID}/users/${user.uid}/managed_users`);
+        onSnapshot(managedUsersRef, (managedSnapshot) => {
+          console.log('Snapshot de backup recebido:', managedSnapshot.size, 'usuários');
+          const managedUsersList = [];
+          managedSnapshot.forEach((doc) => {
+            console.log('Usuário backup encontrado:', doc.id, doc.data());
+            managedUsersList.push({ id: doc.id, ...doc.data() });
+          });
+          console.log('Lista de backup atualizada:', managedUsersList);
+          setUsers(managedUsersList);
+        }, (backupError) => {
+          console.error('Erro no listener de backup:', backupError);
+        });
       });
     } else {
       console.log('Usuário não é master, não configurando listener de usuários');
@@ -259,8 +296,24 @@ const FirebaseApp = () => {
         };
         
         console.log('Salvando no Firestore:', userDoc);
-        const docRef = await addDoc(collection(db, `artifacts/${APP_ID}/registered_users`), userDoc);
-        console.log('Documento criado com ID:', docRef.id);
+        
+        // Tentar salvar na coleção registered_users primeiro
+        try {
+          const docRef = await addDoc(collection(db, `artifacts/${APP_ID}/registered_users`), userDoc);
+          console.log('Documento criado com ID:', docRef.id);
+        } catch (firestoreError) {
+          console.error('Erro ao salvar em registered_users, tentando método alternativo:', firestoreError);
+          
+          // Método alternativo: salvar no perfil do usuário master
+          try {
+            const masterUserRef = doc(db, `artifacts/${APP_ID}/users/${user.uid}/managed_users`, userCredential.user.uid);
+            await setDoc(masterUserRef, userDoc);
+            console.log('Usuário salvo no perfil do master como backup');
+          } catch (backupError) {
+            console.error('Erro no método backup:', backupError);
+            throw firestoreError; // Re-throw o erro original
+          }
+        }
         
         showToast('Usuário criado com sucesso!');
       }
@@ -274,7 +327,16 @@ const FirebaseApp = () => {
     if (!user?.isMaster || !db) return;
     
     try {
-      await deleteDoc(doc(db, `artifacts/${APP_ID}/registered_users`, userId));
+      // Tentar excluir da coleção principal primeiro
+      try {
+        await deleteDoc(doc(db, `artifacts/${APP_ID}/registered_users`, userId));
+        console.log('Usuário excluído da coleção principal');
+      } catch (mainError) {
+        console.log('Erro na coleção principal, tentando backup:', mainError);
+        // Tentar excluir do backup
+        await deleteDoc(doc(db, `artifacts/${APP_ID}/users/${user.uid}/managed_users`, userId));
+        console.log('Usuário excluído do backup');
+      }
       showToast('Usuário excluído com sucesso!');
     } catch (error) {
       console.error('Erro ao excluir usuário:', error);
