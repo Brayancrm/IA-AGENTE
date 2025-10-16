@@ -39,7 +39,11 @@ import {
   AlertCircle,
   CheckCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  Users,
+  UserPlus,
+  Key,
+  Mail
 } from 'lucide-react';
 
 // Configuração do Firebase
@@ -112,6 +116,18 @@ const WhatsAppSalesAgent = () => {
     price: '',
     stockQuantity: '',
     type: 'product'
+  });
+
+  // Estados para gerenciamento de usuários
+  const [users, setUsers] = useState([]);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [userForm, setUserForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    companyName: '',
+    isActive: true
   });
 
   // Estados de autenticação
@@ -194,6 +210,23 @@ const WhatsAppSalesAgent = () => {
       });
       setCatalogItems(items);
     });
+
+    // Listener para usuários (apenas para Master)
+    if (user.isMaster) {
+      const usersRef = collection(db, `artifacts/${appId}/users`);
+      const usersQuery = query(usersRef, orderBy('createdAt', 'desc'));
+      onSnapshot(usersQuery, (snapshot) => {
+        const usersList = [];
+        snapshot.forEach((doc) => {
+          const userData = doc.data();
+          // Não incluir o próprio master na lista
+          if (doc.id !== userId) {
+            usersList.push({ id: doc.id, ...userData });
+          }
+        });
+        setUsers(usersList);
+      });
+    }
   };
 
   // Funções utilitárias
@@ -375,6 +408,79 @@ const WhatsAppSalesAgent = () => {
     setShowCatalogModal(true);
   };
 
+  // Funções para gerenciamento de usuários
+  const saveUser = async (userData) => {
+    try {
+      if (!user?.isMaster) {
+        showToast('Apenas usuários Master podem gerenciar usuários.', 'error');
+        return;
+      }
+
+      const appId = APP_ID;
+      const userToSave = {
+        ...userData,
+        createdAt: editingUser ? userData.createdAt : new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isMaster: false // Usuários criados pelo master nunca são master
+      };
+
+      if (editingUser) {
+        // Atualizar usuário existente
+        await updateDoc(
+          doc(db, `artifacts/${appId}/users/${editingUser.id}`),
+          { ...userToSave, updatedAt: new Date().toISOString() }
+        );
+        showToast('Usuário atualizado com sucesso!');
+      } else {
+        // Criar novo usuário
+        await addDoc(collection(db, `artifacts/${appId}/users`), userToSave);
+        showToast('Usuário criado com sucesso!');
+      }
+      
+      setShowUserModal(false);
+      setEditingUser(null);
+      setUserForm({ name: '', email: '', password: '', companyName: '', isActive: true });
+    } catch (error) {
+      console.error('Erro ao salvar usuário:', error);
+      showToast('Erro ao salvar usuário', 'error');
+    }
+  };
+
+  const deleteUser = async (userId) => {
+    try {
+      if (!user?.isMaster) {
+        showToast('Apenas usuários Master podem excluir usuários.', 'error');
+        return;
+      }
+
+      if (confirm('Tem certeza que deseja excluir este usuário?')) {
+        const appId = APP_ID;
+        await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}`));
+        showToast('Usuário excluído com sucesso!');
+      }
+    } catch (error) {
+      console.error('Erro ao excluir usuário:', error);
+      showToast('Erro ao excluir usuário', 'error');
+    }
+  };
+
+  const openUserModal = (userData = null) => {
+    if (userData) {
+      setEditingUser(userData);
+      setUserForm({
+        name: userData.name || '',
+        email: userData.email || '',
+        password: '', // Não mostrar senha atual
+        companyName: userData.companyName || '',
+        isActive: userData.isActive !== undefined ? userData.isActive : true
+      });
+    } else {
+      setEditingUser(null);
+      setUserForm({ name: '', email: '', password: '', companyName: '', isActive: true });
+    }
+    setShowUserModal(true);
+  };
+
   // Componente Sidebar
   const Sidebar = () => {
     const menuItems = [
@@ -384,6 +490,11 @@ const WhatsAppSalesAgent = () => {
       { id: 'integrations', label: 'Integrações', icon: Settings },
       { id: 'assistant', label: 'Configuração do Assistente', icon: Bot }
     ];
+
+    // Adicionar gerenciamento de usuários apenas para Master
+    if (user?.isMaster) {
+      menuItems.push({ id: 'users', label: 'Gerenciar Usuários', icon: Users });
+    }
 
     return (
       <div className="w-64 bg-indigo-900 text-white min-h-screen fixed left-0 top-0 overflow-y-auto">
@@ -1114,6 +1225,185 @@ const WhatsAppSalesAgent = () => {
     );
   };
 
+  // Componente Gerenciamento de Usuários
+  const UsersManagement = () => {
+    return (
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-3xl font-bold text-gray-800">Gerenciar Usuários</h2>
+          <button
+            onClick={() => openUserModal()}
+            className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors flex items-center space-x-2"
+          >
+            <UserPlus className="w-5 h-5" />
+            <span>Adicionar Usuário</span>
+          </button>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-lg border overflow-hidden">
+          {users.length === 0 ? (
+            <div className="p-12 text-center">
+              <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-600 mb-2">Nenhum usuário encontrado</h3>
+              <p className="text-gray-500 mb-6">Comece criando o primeiro usuário do sistema</p>
+              <button
+                onClick={() => openUserModal()}
+                className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+              >
+                Criar Primeiro Usuário
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Usuário</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Empresa</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Status</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Criado em</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {users.map((userData) => (
+                    <tr key={userData.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <div>
+                          <div className="font-medium text-gray-900">{userData.name}</div>
+                          <div className="text-sm text-gray-500">{userData.email}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-gray-900">
+                        {userData.companyName || '-'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          userData.isActive 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {userData.isActive ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-gray-900">
+                        {userData.createdAt ? new Date(userData.createdAt).toLocaleDateString('pt-BR') : '-'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => openUserModal(userData)}
+                            className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
+                            title="Editar usuário"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteUser(userData.id)}
+                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                            title="Excluir usuário"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Modal de Usuário */}
+        {showUserModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
+              <h3 className="text-xl font-bold text-gray-800 mb-6">
+                {editingUser ? 'Editar Usuário' : 'Adicionar Usuário'}
+              </h3>
+              
+              <form onSubmit={(e) => { e.preventDefault(); saveUser(userForm); }} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nome Completo</label>
+                  <input
+                    type="text"
+                    value={userForm.name}
+                    onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <input
+                    type="email"
+                    value={userForm.email}
+                    onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {editingUser ? 'Nova Senha (deixe em branco para manter)' : 'Senha'}
+                  </label>
+                  <input
+                    type="password"
+                    value={userForm.password}
+                    onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    required={!editingUser}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nome da Empresa</label>
+                  <input
+                    type="text"
+                    value={userForm.companyName}
+                    onChange={(e) => setUserForm({ ...userForm, companyName: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      checked={userForm.isActive}
+                      onChange={(e) => setUserForm({ ...userForm, isActive: e.target.checked })}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    />
+                    <span className="text-gray-700">Usuário ativo</span>
+                  </label>
+                </div>
+
+                <div className="flex space-x-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowUserModal(false)}
+                    className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 bg-indigo-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+                  >
+                    {editingUser ? 'Atualizar' : 'Criar'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Componente Configuração do Assistente
   const AssistantConfig = () => {
     const [formData, setFormData] = useState({
@@ -1213,6 +1503,8 @@ const WhatsAppSalesAgent = () => {
         return <Integrations />;
       case 'assistant':
         return <AssistantConfig />;
+      case 'users':
+        return <UsersManagement />;
       default:
         return <Dashboard />;
     }
