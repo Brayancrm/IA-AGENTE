@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   initializeApp
 } from 'firebase/app';
@@ -129,6 +129,7 @@ const WhatsAppSalesAgent = () => {
     companyName: '',
     isActive: true
   });
+  const [userFormErrors, setUserFormErrors] = useState({});
 
   // Estados de autenticação
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -478,8 +479,30 @@ const WhatsAppSalesAgent = () => {
       setEditingUser(null);
       setUserForm({ name: '', email: '', password: '', companyName: '', isActive: true });
     }
+    setUserFormErrors({});
     setShowUserModal(true);
   };
+
+  // Handlers específicos para cada campo
+  const handleUserNameChange = useCallback((value) => {
+    setUserForm(prev => ({ ...prev, name: value }));
+  }, []);
+
+  const handleUserEmailChange = useCallback((value) => {
+    setUserForm(prev => ({ ...prev, email: value }));
+  }, []);
+
+  const handleUserPasswordChange = useCallback((value) => {
+    setUserForm(prev => ({ ...prev, password: value }));
+  }, []);
+
+  const handleUserCompanyChange = useCallback((value) => {
+    setUserForm(prev => ({ ...prev, companyName: value }));
+  }, []);
+
+  const handleUserActiveChange = useCallback((checked) => {
+    setUserForm(prev => ({ ...prev, isActive: checked }));
+  }, []);
 
   // Componente Sidebar
   const Sidebar = () => {
@@ -1339,7 +1362,7 @@ const WhatsAppSalesAgent = () => {
         {/* Modal de Usuário */}
         {showUserModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
+            <div key={editingUser?.id || 'new'} className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
               <h3 className="text-xl font-bold text-gray-800 mb-6">
                 {editingUser ? 'Editar Usuário' : 'Adicionar Usuário'}
               </h3>
@@ -1349,11 +1372,8 @@ const WhatsAppSalesAgent = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Nome Completo</label>
                   <input
                     type="text"
-                    value={userForm.name || ''}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setUserForm(prev => ({ ...prev, name: value }));
-                    }}
+                    value={userForm.name}
+                    onChange={(e) => handleUserNameChange(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     required
                   />
@@ -1363,11 +1383,8 @@ const WhatsAppSalesAgent = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                   <input
                     type="email"
-                    value={userForm.email || ''}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setUserForm(prev => ({ ...prev, email: value }));
-                    }}
+                    value={userForm.email}
+                    onChange={(e) => handleUserEmailChange(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     required
                   />
@@ -1379,11 +1396,8 @@ const WhatsAppSalesAgent = () => {
                   </label>
                   <input
                     type="password"
-                    value={userForm.password || ''}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setUserForm(prev => ({ ...prev, password: value }));
-                    }}
+                    value={userForm.password}
+                    onChange={(e) => handleUserPasswordChange(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     required={!editingUser}
                   />
@@ -1393,11 +1407,8 @@ const WhatsAppSalesAgent = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Nome da Empresa</label>
                   <input
                     type="text"
-                    value={userForm.companyName || ''}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setUserForm(prev => ({ ...prev, companyName: value }));
-                    }}
+                    value={userForm.companyName}
+                    onChange={(e) => handleUserCompanyChange(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
@@ -1406,11 +1417,8 @@ const WhatsAppSalesAgent = () => {
                   <label className="flex items-center space-x-3">
                     <input
                       type="checkbox"
-                      checked={userForm.isActive || false}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setUserForm(prev => ({ ...prev, isActive: checked }));
-                      }}
+                      checked={userForm.isActive}
+                      onChange={(e) => handleUserActiveChange(e.target.checked)}
                       className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                     />
                     <span className="text-gray-700">Usuário ativo</span>
