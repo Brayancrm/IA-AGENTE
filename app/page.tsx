@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import SimpleApp from '../components/SimpleApp';
+import MainAppSimple from '../components/MainAppSimple';
 
 export default function Home() {
-  return <SimpleApp />;
+  return <MainAppSimple />;
 }
