@@ -68,10 +68,17 @@ const FirebaseApp = () => {
                         currentUser.email?.includes('admin') ||
                         currentUser.email === 'brayan@master.com';
         
+        console.log('Usuário autenticado:', {
+          email: currentUser.email,
+          isMaster: isMaster,
+          uid: currentUser.uid
+        });
+        
         setUser({ ...currentUser, isMaster });
         setIsAuthenticated(true);
         setupFirestoreListeners();
       } else {
+        console.log('Usuário não autenticado');
         setUser(null);
         setIsAuthenticated(false);
       }
@@ -124,15 +131,23 @@ const FirebaseApp = () => {
 
     // Se for usuário master, ouvir usuários registrados
     if (user.isMaster) {
+      console.log('Configurando listener para usuários registrados');
       const usersRef = collection(db, `artifacts/${APP_ID}/registered_users`);
       const usersQuery = query(usersRef, orderBy('createdAt', 'desc'));
       onSnapshot(usersQuery, (snapshot) => {
+        console.log('Snapshot de usuários recebido:', snapshot.size, 'usuários');
         const usersList = [];
         snapshot.forEach((doc) => {
+          console.log('Usuário encontrado:', doc.id, doc.data());
           usersList.push({ id: doc.id, ...doc.data() });
         });
+        console.log('Lista de usuários atualizada:', usersList);
         setUsers(usersList);
+      }, (error) => {
+        console.error('Erro no listener de usuários:', error);
       });
+    } else {
+      console.log('Usuário não é master, não configurando listener de usuários');
     }
   };
 
@@ -202,7 +217,18 @@ const FirebaseApp = () => {
 
   // Funções de gerenciamento de usuários (apenas para master)
   const saveUser = async (userData) => {
-    if (!user?.isMaster || !db) return;
+    console.log('saveUser chamado:', { user, isMaster: user?.isMaster, db: !!db });
+    
+    if (!user?.isMaster || !db || !auth) {
+      console.error('Condições não atendidas:', { 
+        hasUser: !!user, 
+        isMaster: user?.isMaster, 
+        hasDb: !!db, 
+        hasAuth: !!auth 
+      });
+      showToast('Erro: Não é possível criar usuário', 'error');
+      return;
+    }
     
     try {
       if (editingUser) {
@@ -213,21 +239,29 @@ const FirebaseApp = () => {
         });
         showToast('Usuário atualizado com sucesso!');
       } else {
+        console.log('Criando novo usuário:', userData.email);
+        
         // Criar novo usuário no Firebase Auth
         const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
+        console.log('Usuário criado no Auth:', userCredential.user.uid);
         
         // Salvar dados adicionais no Firestore
         const userDoc = {
-          ...userData,
+          name: userData.name,
+          email: userData.email,
+          companyName: userData.companyName,
           uid: userCredential.user.uid,
-          isActive: true,
+          isActive: userData.isActive !== undefined ? userData.isActive : true,
           isMaster: false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           registeredVia: 'created_by_master'
         };
         
-        await addDoc(collection(db, `artifacts/${APP_ID}/registered_users`), userDoc);
+        console.log('Salvando no Firestore:', userDoc);
+        const docRef = await addDoc(collection(db, `artifacts/${APP_ID}/registered_users`), userDoc);
+        console.log('Documento criado com ID:', docRef.id);
+        
         showToast('Usuário criado com sucesso!');
       }
     } catch (error) {
