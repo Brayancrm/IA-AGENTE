@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useFirebase } from '../hooks/useFirebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as firebaseSignOut, sendPasswordResetEmail } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import LandingPageSimple from './LandingPageSimple';
 
@@ -21,6 +21,9 @@ const FirebaseApp = () => {
   const [integrationsConfig, setIntegrationsConfig] = useState({});
   const [assistantSettings, setAssistantSettings] = useState({});
   const [catalogItems, setCatalogItems] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
 
   // Função para mostrar toast
   const showToast = (message, type = 'success') => {
@@ -118,6 +121,19 @@ const FirebaseApp = () => {
       });
       setCatalogItems(items);
     });
+
+    // Se for usuário master, ouvir usuários registrados
+    if (user.isMaster) {
+      const usersRef = collection(db, `artifacts/${APP_ID}/registered_users`);
+      const usersQuery = query(usersRef, orderBy('createdAt', 'desc'));
+      onSnapshot(usersQuery, (snapshot) => {
+        const usersList = [];
+        snapshot.forEach((doc) => {
+          usersList.push({ id: doc.id, ...doc.data() });
+        });
+        setUsers(usersList);
+      });
+    }
   };
 
   // Funções de salvamento
@@ -177,11 +193,76 @@ const FirebaseApp = () => {
 
   const handleLogout = () => {
     if (auth) {
-      auth.signOut();
+      firebaseSignOut(auth);
     }
     setUser(null);
     setIsAuthenticated(false);
     showToast('Logout realizado com sucesso!', 'success');
+  };
+
+  // Funções de gerenciamento de usuários (apenas para master)
+  const saveUser = async (userData) => {
+    if (!user?.isMaster || !db) return;
+    
+    try {
+      if (editingUser) {
+        // Atualizar usuário existente
+        await updateDoc(doc(db, `artifacts/${APP_ID}/registered_users`, editingUser.id), {
+          ...userData,
+          updatedAt: new Date().toISOString()
+        });
+        showToast('Usuário atualizado com sucesso!');
+      } else {
+        // Criar novo usuário no Firebase Auth
+        const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
+        
+        // Salvar dados adicionais no Firestore
+        const userDoc = {
+          ...userData,
+          uid: userCredential.user.uid,
+          isActive: true,
+          isMaster: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          registeredVia: 'created_by_master'
+        };
+        
+        await addDoc(collection(db, `artifacts/${APP_ID}/registered_users`), userDoc);
+        showToast('Usuário criado com sucesso!');
+      }
+    } catch (error) {
+      console.error('Erro ao salvar usuário:', error);
+      showToast('Erro ao salvar usuário: ' + error.message, 'error');
+    }
+  };
+
+  const deleteUser = async (userId) => {
+    if (!user?.isMaster || !db) return;
+    
+    try {
+      await deleteDoc(doc(db, `artifacts/${APP_ID}/registered_users`, userId));
+      showToast('Usuário excluído com sucesso!');
+    } catch (error) {
+      console.error('Erro ao excluir usuário:', error);
+      showToast('Erro ao excluir usuário', 'error');
+    }
+  };
+
+  const openUserModal = (userData = null) => {
+    setEditingUser(userData);
+    setShowUserModal(true);
+  };
+
+  const resetUserPassword = async (email) => {
+    if (!user?.isMaster || !auth) return;
+    
+    try {
+      await sendPasswordResetEmail(auth, email);
+      showToast('Email de redefinição de senha enviado!');
+    } catch (error) {
+      console.error('Erro ao enviar email:', error);
+      showToast('Erro ao enviar email de redefinição', 'error');
+    }
   };
 
   // Se Firebase não está pronto
@@ -278,10 +359,18 @@ const FirebaseApp = () => {
         integrationsConfig={integrationsConfig}
         assistantSettings={assistantSettings}
         catalogItems={catalogItems}
+        users={users}
+        showUserModal={showUserModal}
+        setShowUserModal={setShowUserModal}
+        editingUser={editingUser}
         saveCompanyProfile={saveCompanyProfile}
         saveIntegrationsConfig={saveIntegrationsConfig}
         saveAssistantSettings={saveAssistantSettings}
         saveCatalogItem={saveCatalogItem}
+        saveUser={saveUser}
+        deleteUser={deleteUser}
+        openUserModal={openUserModal}
+        resetUserPassword={resetUserPassword}
         handleLogout={handleLogout}
       />
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
@@ -298,10 +387,18 @@ const DashboardWithFirebase = ({
   integrationsConfig,
   assistantSettings,
   catalogItems,
+  users,
+  showUserModal,
+  setShowUserModal,
+  editingUser,
   saveCompanyProfile,
   saveIntegrationsConfig,
   saveAssistantSettings,
   saveCatalogItem,
+  saveUser,
+  deleteUser,
+  openUserModal,
+  resetUserPassword,
   handleLogout
 }) => {
   const [isActive, setIsActive] = useState(assistantSettings.isActive || true);
@@ -327,6 +424,13 @@ const DashboardWithFirebase = ({
   const [assistantForm, setAssistantForm] = useState({
     welcomeMessage: '',
     enabledFeatures: []
+  });
+  const [userForm, setUserForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    companyName: '',
+    isActive: true
   });
 
   // Inicializar formulários com dados existentes
@@ -375,6 +479,41 @@ const DashboardWithFirebase = ({
       setEditingItem(null);
     }
     setShowCatalogModal(true);
+  };
+
+  // Handlers para usuário
+  const handleUserSubmit = (e) => {
+    e.preventDefault();
+    saveUser(userForm);
+    setShowUserModal(false);
+    setUserForm({
+      name: '',
+      email: '',
+      password: '',
+      companyName: '',
+      isActive: true
+    });
+  };
+
+  const handleOpenUserModal = (userData = null) => {
+    if (userData) {
+      setUserForm({
+        name: userData.name || '',
+        email: userData.email || '',
+        password: '', // Não mostrar senha existente
+        companyName: userData.companyName || '',
+        isActive: userData.isActive !== undefined ? userData.isActive : true
+      });
+    } else {
+      setUserForm({
+        name: '',
+        email: '',
+        password: '',
+        companyName: '',
+        isActive: true
+      });
+    }
+    openUserModal(userData);
   };
 
   const handleCatalogSubmit = (e) => {
@@ -830,6 +969,134 @@ const DashboardWithFirebase = ({
           </div>
         );
 
+      case 'users':
+        return (
+          <div style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937' }}>
+                Gerenciar Usuários
+              </h2>
+              <button
+                onClick={() => handleOpenUserModal()}
+                style={{
+                  backgroundColor: '#4f46e5',
+                  color: 'white',
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                + Adicionar Usuário
+              </button>
+            </div>
+            
+            <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
+              {users.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '48px', color: '#6b7280' }}>
+                  <p style={{ fontSize: '1.125rem', marginBottom: '8px' }}>Nenhum usuário cadastrado</p>
+                  <p style={{ fontSize: '0.875rem' }}>Adicione usuários clicando no botão acima</p>
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Nome</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Email</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Empresa</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Status</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Registrado via</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.map((userItem) => (
+                        <tr key={userItem.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                          <td style={{ padding: '12px' }}>{userItem.name}</td>
+                          <td style={{ padding: '12px' }}>{userItem.email}</td>
+                          <td style={{ padding: '12px' }}>{userItem.companyName || '-'}</td>
+                          <td style={{ padding: '12px' }}>
+                            <span style={{
+                              backgroundColor: userItem.isActive ? '#dcfce7' : '#fee2e2',
+                              color: userItem.isActive ? '#166534' : '#dc2626',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: 'bold'
+                            }}>
+                              {userItem.isActive ? 'Ativo' : 'Inativo'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            <span style={{
+                              backgroundColor: userItem.registeredVia === 'landing_page' ? '#dbeafe' : '#f3e8ff',
+                              color: userItem.registeredVia === 'landing_page' ? '#1e40af' : '#7c3aed',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: 'bold'
+                            }}>
+                              {userItem.registeredVia === 'landing_page' ? 'Landing Page' : 'Criado pelo Master'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button
+                                onClick={() => handleOpenUserModal(userItem)}
+                                style={{
+                                  backgroundColor: '#6b7280',
+                                  color: 'white',
+                                  padding: '6px 12px',
+                                  borderRadius: '6px',
+                                  border: 'none',
+                                  fontSize: '0.75rem',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => resetUserPassword(userItem.email)}
+                                style={{
+                                  backgroundColor: '#f59e0b',
+                                  color: 'white',
+                                  padding: '6px 12px',
+                                  borderRadius: '6px',
+                                  border: 'none',
+                                  fontSize: '0.75rem',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Reset Senha
+                              </button>
+                              <button
+                                onClick={() => deleteUser(userItem.id)}
+                                style={{
+                                  backgroundColor: '#dc2626',
+                                  color: 'white',
+                                  padding: '6px 12px',
+                                  borderRadius: '6px',
+                                  border: 'none',
+                                  fontSize: '0.75rem',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Excluir
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
       default:
         return (
           <div style={{ padding: '24px' }}>
@@ -849,7 +1116,8 @@ const DashboardWithFirebase = ({
     { id: 'company', label: 'Cadastro da Empresa', icon: '🏢' },
     { id: 'catalog', label: 'Catálogo (Itens)', icon: '📦' },
     { id: 'integrations', label: 'Integrações', icon: '⚙️' },
-    { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' }
+    { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' },
+    ...(user?.isMaster ? [{ id: 'users', label: 'Gerenciar Usuários', icon: '👥' }] : [])
   ];
 
   return (
@@ -1088,6 +1356,161 @@ const DashboardWithFirebase = ({
                   }}
                 >
                   {editingItem ? 'Atualizar' : 'Adicionar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Usuário */}
+      {showUserModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '24px',
+            width: '90%',
+            maxWidth: '500px',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '24px', color: '#1f2937' }}>
+              {editingUser ? 'Editar Usuário' : 'Adicionar Usuário'}
+            </h3>
+            
+            <form onSubmit={handleUserSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                  Nome Completo
+                </label>
+                <input
+                  type="text"
+                  value={userForm.name}
+                  onChange={(e) => setUserForm(prev => ({ ...prev, name: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    fontSize: '1rem'
+                  }}
+                  placeholder="Digite o nome completo"
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={userForm.email}
+                  onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    fontSize: '1rem'
+                  }}
+                  placeholder="usuario@empresa.com"
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                  Senha {editingUser && '(deixe em branco para manter a atual)'}
+                </label>
+                <input
+                  type="password"
+                  value={userForm.password}
+                  onChange={(e) => setUserForm(prev => ({ ...prev, password: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    fontSize: '1rem'
+                  }}
+                  placeholder="Digite a senha"
+                  required={!editingUser}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                  Nome da Empresa
+                </label>
+                <input
+                  type="text"
+                  value={userForm.companyName}
+                  onChange={(e) => setUserForm(prev => ({ ...prev, companyName: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    fontSize: '1rem'
+                  }}
+                  placeholder="Nome da empresa"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={userForm.isActive}
+                    onChange={(e) => setUserForm(prev => ({ ...prev, isActive: e.target.checked }))}
+                    style={{ width: '20px', height: '20px' }}
+                  />
+                  <span style={{ fontWeight: 'bold', color: '#374151' }}>Usuário Ativo</span>
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowUserModal(false)}
+                  style={{
+                    backgroundColor: '#6b7280',
+                    color: 'white',
+                    padding: '12px 24px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    backgroundColor: '#4f46e5',
+                    color: 'white',
+                    padding: '12px 24px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {editingUser ? 'Atualizar' : 'Criar Usuário'}
                 </button>
               </div>
             </form>
