@@ -26,33 +26,6 @@ const FirebaseApp = () => {
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
 
-  // Função para formatar CNPJ
-  const formatCNPJ = (value) => {
-    // Remove tudo que não é número
-    const numbers = value.replace(/\D/g, '');
-    
-    // Limita a 14 dígitos
-    const limitedNumbers = numbers.slice(0, 14);
-    
-    // Aplica a máscara XX.XXX.XXX/XXXX-XX
-    let formatted = limitedNumbers;
-    
-    if (limitedNumbers.length > 2) {
-      formatted = limitedNumbers.slice(0, 2) + '.' + limitedNumbers.slice(2);
-    }
-    if (limitedNumbers.length > 5) {
-      formatted = limitedNumbers.slice(0, 2) + '.' + limitedNumbers.slice(2, 5) + '.' + limitedNumbers.slice(5);
-    }
-    if (limitedNumbers.length > 8) {
-      formatted = limitedNumbers.slice(0, 2) + '.' + limitedNumbers.slice(2, 5) + '.' + limitedNumbers.slice(5, 8) + '/' + limitedNumbers.slice(8);
-    }
-    if (limitedNumbers.length > 12) {
-      formatted = limitedNumbers.slice(0, 2) + '.' + limitedNumbers.slice(2, 5) + '.' + limitedNumbers.slice(5, 8) + '/' + limitedNumbers.slice(8, 12) + '-' + limitedNumbers.slice(12);
-    }
-    
-    return formatted;
-  };
-
   // Função para mostrar toast
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -772,7 +745,7 @@ const DashboardWithFirebase = ({
                   <input
                     type="text"
                     value={companyForm.cnpj}
-                    onChange={(e) => setCompanyForm(prev => ({ ...prev, cnpj: formatCNPJ(e.target.value) }))}
+                    onChange={(e) => setCompanyForm(prev => ({ ...prev, cnpj: e.target.value }))}
                     style={{
                       width: '100%',
                       padding: '12px',
@@ -781,7 +754,6 @@ const DashboardWithFirebase = ({
                       fontSize: '1rem'
                     }}
                     placeholder="00.000.000/0000-00"
-                    maxLength={18}
                   />
                 </div>
                 <div>
