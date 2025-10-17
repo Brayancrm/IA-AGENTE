@@ -1134,9 +1134,11 @@ const DashboardWithFirebase = ({
           </div>
         );
 
-      case 'assistant':
+      case 'assistant': {
+        // Garantir valores padrão para prevenir erros
         const currentWhatsappStatus = whatsappStatus || 'disconnected';
         const currentQRCode = whatsappQRCode || null;
+        const currentIsConnecting = isConnecting || false;
         
         return (
           <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
@@ -1217,18 +1219,18 @@ const DashboardWithFirebase = ({
                 {currentWhatsappStatus === 'disconnected' || currentWhatsappStatus === 'qrcode' ? (
                   <button
                     onClick={connectWhatsApp}
-                    disabled={isConnecting || currentWhatsappStatus === 'qrcode'}
+                    disabled={currentIsConnecting || currentWhatsappStatus === 'qrcode'}
                     style={{
-                      backgroundColor: (isConnecting || currentWhatsappStatus === 'qrcode') ? '#9ca3af' : '#10b981',
+                      backgroundColor: (currentIsConnecting || currentWhatsappStatus === 'qrcode') ? '#9ca3af' : '#10b981',
                       color: 'white',
                       padding: '12px 24px',
                       borderRadius: '8px',
                       border: 'none',
                       fontWeight: 'bold',
-                      cursor: (isConnecting || currentWhatsappStatus === 'qrcode') ? 'not-allowed' : 'pointer'
+                      cursor: (currentIsConnecting || currentWhatsappStatus === 'qrcode') ? 'not-allowed' : 'pointer'
                     }}
                   >
-                    {isConnecting ? '⏳ Conectando...' : currentWhatsappStatus === 'qrcode' ? '📱 Aguardando Escaneamento' : '🔌 Conectar WhatsApp'}
+                    {currentIsConnecting ? '⏳ Conectando...' : currentWhatsappStatus === 'qrcode' ? '📱 Aguardando Escaneamento' : '🔌 Conectar WhatsApp'}
                   </button>
                 ) : (
                   <button
@@ -1441,6 +1443,7 @@ const DashboardWithFirebase = ({
             </div>
           </div>
         );
+      }
 
       case 'users':
         return (
