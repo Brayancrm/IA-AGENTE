@@ -12,7 +12,8 @@ const firebaseConfig = {
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  databaseURL: 'https://ia-agente-b2f46.firebaseio.com'
 };
 
 export const useFirebase = () => {
@@ -29,10 +30,18 @@ export const useFirebase = () => {
     if (typeof window === 'undefined') return;
 
     try {
+      console.log('Inicializando Firebase com Realtime Database...');
       const app = initializeApp(firebaseConfig);
       const db = getFirestore(app);
       const auth = getAuth(app);
       const database = getDatabase(app);
+      
+      console.log('Firebase inicializado com sucesso!', {
+        hasApp: !!app,
+        hasDb: !!db,
+        hasAuth: !!auth,
+        hasDatabase: !!database
+      });
 
       setFirebase({
         app,

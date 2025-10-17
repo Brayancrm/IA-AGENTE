@@ -4,12 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { useFirebase } from '../hooks/useFirebase';
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as firebaseSignOut, sendPasswordResetEmail } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { ref, push, set, remove, onValue, off } from 'firebase/database';
 import SimpleLanding from './SimpleLanding';
 
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsapp-sales-agent';
 
 const FirebaseApp = () => {
-  const { app, db, auth, isReady, error } = useFirebase();
+  const { app, db, auth, database, isReady, error } = useFirebase();
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -129,23 +130,42 @@ const FirebaseApp = () => {
       setCatalogItems(items);
     });
 
-    // Se for usuário master, carregar usuários do localStorage
-    if (user.isMaster) {
-      console.log('Carregando usuários do localStorage');
+    // Se for usuário master, ouvir usuários registrados no Realtime Database
+    if (user.isMaster && database) {
+      console.log('Configurando listener para usuários registrados no Realtime Database');
       
-      // Carregar usuários salvos no localStorage
-      const savedUsers = localStorage.getItem(`${APP_ID}_registered_users`);
-      if (savedUsers) {
-        try {
-          const usersList = JSON.parse(savedUsers);
-          console.log('Usuários carregados do localStorage:', usersList);
-          setUsers(usersList);
-        } catch (error) {
-          console.error('Erro ao carregar usuários do localStorage:', error);
+      const usersRef = ref(database, `artifacts/${APP_ID}/registered_users`);
+      
+      const unsubscribe = onValue(usersRef, (snapshot) => {
+        console.log('Snapshot de usuários recebido do Realtime Database');
+        const usersList = [];
+        
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          console.log('Dados recebidos:', data);
+          Object.keys(data).forEach((key) => {
+            usersList.push({ id: key, ...data[key] });
+          });
+        } else {
+          console.log('Nenhum usuário encontrado no Realtime Database');
         }
-      }
+        
+        // Ordenar por data de criação (mais recente primeiro)
+        usersList.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        
+        console.log('Lista de usuários atualizada:', usersList.length, 'usuários');
+        setUsers(usersList);
+      }, (error) => {
+        console.error('Erro no listener de usuários do Realtime Database:', error);
+      });
+      
+      // Retornar função de limpeza
+      return () => {
+        console.log('Limpando listener de usuários');
+        off(usersRef);
+      };
     } else {
-      console.log('Usuário não é master, não carregando lista de usuários');
+      console.log('Usuário não é master ou database não disponível');
     }
   };
 
@@ -215,12 +235,13 @@ const FirebaseApp = () => {
 
   // Funções de gerenciamento de usuários (apenas para master)
   const saveUser = async (userData) => {
-    console.log('saveUser chamado:', { user, isMaster: user?.isMaster });
+    console.log('saveUser chamado:', { user, isMaster: user?.isMaster, database: !!database });
     
-    if (!user?.isMaster || !auth) {
+    if (!user?.isMaster || !database || !auth) {
       console.error('Condições não atendidas:', { 
         hasUser: !!user, 
         isMaster: user?.isMaster, 
+        hasDatabase: !!database, 
         hasAuth: !!auth 
       });
       showToast('Erro: Não é possível criar usuário', 'error');
@@ -229,23 +250,21 @@ const FirebaseApp = () => {
     
     try {
       if (editingUser) {
-        // Atualizar usuário existente no localStorage
-        const savedUsers = localStorage.getItem(`${APP_ID}_registered_users`);
-        const usersList = savedUsers ? JSON.parse(savedUsers) : [];
+        console.log('Atualizando usuário existente:', editingUser.id);
         
-        const userIndex = usersList.findIndex(u => u.id === editingUser.id);
-        if (userIndex !== -1) {
-          usersList[userIndex] = {
-            ...usersList[userIndex],
-            ...userData,
-            updatedAt: new Date().toISOString()
-          };
-          
-          localStorage.setItem(`${APP_ID}_registered_users`, JSON.stringify(usersList));
-          setUsers(usersList);
-          console.log('Usuário atualizado no localStorage:', editingUser.id);
-          showToast('Usuário atualizado com sucesso!');
-        }
+        // Atualizar usuário existente no Realtime Database
+        const userRef = ref(database, `artifacts/${APP_ID}/registered_users/${editingUser.id}`);
+        
+        // Manter os dados existentes e atualizar apenas os campos editados
+        const updatedData = {
+          ...editingUser,
+          ...userData,
+          updatedAt: new Date().toISOString()
+        };
+        
+        await set(userRef, updatedData);
+        console.log('Usuário atualizado no Realtime Database:', editingUser.id);
+        showToast('Usuário atualizado com sucesso!');
       } else {
         console.log('Criando novo usuário:', userData.email);
         
@@ -253,9 +272,8 @@ const FirebaseApp = () => {
         const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
         console.log('Usuário criado no Auth:', userCredential.user.uid);
         
-        // Salvar dados adicionais no localStorage
+        // Salvar dados adicionais no Realtime Database
         const userDoc = {
-          id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           name: userData.name,
           email: userData.email,
           companyName: userData.companyName,
@@ -267,17 +285,14 @@ const FirebaseApp = () => {
           registeredVia: 'created_by_master'
         };
         
-        console.log('Salvando no localStorage:', userDoc);
+        console.log('Salvando no Realtime Database:', userDoc);
         
-        // Carregar usuários existentes e adicionar o novo
-        const savedUsers = localStorage.getItem(`${APP_ID}_registered_users`);
-        const usersList = savedUsers ? JSON.parse(savedUsers) : [];
-        usersList.unshift(userDoc); // Adicionar no início (mais recente primeiro)
+        // Criar nova entrada no Realtime Database
+        const usersRef = ref(database, `artifacts/${APP_ID}/registered_users`);
+        const newUserRef = push(usersRef);
+        await set(newUserRef, userDoc);
         
-        localStorage.setItem(`${APP_ID}_registered_users`, JSON.stringify(usersList));
-        setUsers(usersList);
-        
-        console.log('Usuário criado no localStorage com ID:', userDoc.id);
+        console.log('Usuário criado no Realtime Database com ID:', newUserRef.key);
         showToast('Usuário criado com sucesso!');
       }
     } catch (error) {
@@ -287,21 +302,17 @@ const FirebaseApp = () => {
   };
 
   const deleteUser = async (userId) => {
-    if (!user?.isMaster) return;
+    if (!user?.isMaster || !database) return;
     
     try {
-      const savedUsers = localStorage.getItem(`${APP_ID}_registered_users`);
-      const usersList = savedUsers ? JSON.parse(savedUsers) : [];
-      
-      const filteredUsers = usersList.filter(u => u.id !== userId);
-      localStorage.setItem(`${APP_ID}_registered_users`, JSON.stringify(filteredUsers));
-      setUsers(filteredUsers);
-      
-      console.log('Usuário excluído do localStorage:', userId);
+      console.log('Excluindo usuário:', userId);
+      const userRef = ref(database, `artifacts/${APP_ID}/registered_users/${userId}`);
+      await remove(userRef);
+      console.log('Usuário excluído do Realtime Database:', userId);
       showToast('Usuário excluído com sucesso!');
     } catch (error) {
       console.error('Erro ao excluir usuário:', error);
-      showToast('Erro ao excluir usuário', 'error');
+      showToast('Erro ao excluir usuário: ' + error.message, 'error');
     }
   };
 
