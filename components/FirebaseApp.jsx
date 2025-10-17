@@ -1188,24 +1188,48 @@ const DashboardWithFirebase = ({
                   <h4 style={{ fontSize: '1rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '16px' }}>
                     📱 Escaneie o QR Code com seu WhatsApp
                   </h4>
-                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', backgroundColor: 'white', padding: '20px' }}>
                     <img 
                       src={currentQRCode} 
                       alt="QR Code WhatsApp" 
                       style={{ 
-                        maxWidth: '300px', 
-                        border: '4px solid #4f46e5', 
-                        borderRadius: '12px',
-                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                        width: '400px',
+                        height: '400px',
+                        objectFit: 'contain',
+                        imageRendering: 'pixelated',
+                        border: '2px solid #e5e7eb', 
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                        backgroundColor: 'white'
                       }} 
                     />
                   </div>
-                  <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '12px' }}>
                     1. Abra o WhatsApp no celular<br />
                     2. Vá em Configurações → Aparelhos conectados<br />
                     3. Toque em "Conectar aparelho"<br />
                     4. Escaneie este QR Code
                   </p>
+                  <button
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = currentQRCode;
+                      link.download = 'whatsapp-qrcode.png';
+                      link.click();
+                    }}
+                    style={{
+                      backgroundColor: '#10b981',
+                      color: 'white',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      fontSize: '0.875rem',
+                      cursor: 'pointer',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    📥 Baixar QR Code
+                  </button>
                 </div>
               )}
               
