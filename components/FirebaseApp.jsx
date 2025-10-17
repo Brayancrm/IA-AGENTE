@@ -77,7 +77,6 @@ const FirebaseApp = () => {
         
         setUser({ ...currentUser, isMaster });
         setIsAuthenticated(true);
-        setupFirestoreListeners();
       } else {
         console.log('Usuário não autenticado');
         setUser(null);
@@ -88,6 +87,19 @@ const FirebaseApp = () => {
 
     return () => unsubscribe();
   }, [auth, isReady]);
+
+  // Listener separado para dados do Firestore e Realtime Database
+  useEffect(() => {
+    if (user && db && database) {
+      console.log('Configurando listeners com:', { 
+        hasUser: !!user, 
+        hasDb: !!db, 
+        hasDatabase: !!database,
+        isMaster: user.isMaster 
+      });
+      setupFirestoreListeners();
+    }
+  }, [user, db, database]);
 
   // Configurar listeners do Firestore
   const setupFirestoreListeners = () => {
