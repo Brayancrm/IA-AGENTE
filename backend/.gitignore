@@ -1,0 +1,29 @@
+# Dependências
+node_modules/
+package-lock.json
+
+# Credenciais do Firebase (NUNCA FAZER COMMIT!)
+serviceAccountKey.json
+
+# Variáveis de ambiente
+.env
+
+# Sessões do WPPConnect
+tokens/
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Logs
+*.log
+logs/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
