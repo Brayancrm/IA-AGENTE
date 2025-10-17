@@ -646,9 +646,9 @@ const DashboardWithFirebase = ({
   openUserModal,
   resetUserPassword,
   handleLogout,
-  whatsappStatus,
-  whatsappQRCode,
-  isConnecting,
+  whatsappStatus = 'disconnected',
+  whatsappQRCode = null,
+  isConnecting = false,
   connectWhatsApp,
   disconnectWhatsApp
 }) => {
