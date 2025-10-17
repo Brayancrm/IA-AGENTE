@@ -121,44 +121,54 @@ const FirebaseApp = () => {
     }
   }, [user, db, database]);
 
-  // Configurar listeners do Firestore
+  // Configurar listeners do Realtime Database
   const setupFirestoreListeners = () => {
-    if (!user || !db) return;
+    if (!user || !database) return;
 
     const userId = user.uid;
 
-    // Listener para perfil da empresa
-    const companyRef = doc(db, `artifacts/${APP_ID}/users/${userId}/company_profile/config`);
-    onSnapshot(companyRef, (doc) => {
-      if (doc.exists()) {
-        setCompanyProfile(doc.data());
+    // Listener para perfil da empresa no Realtime Database
+    const companyRef = ref(database, `users/data/${userId}/company_profile`);
+    onValue(companyRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setCompanyProfile(snapshot.val());
+      } else {
+        setCompanyProfile({});
       }
     });
 
-    // Listener para configurações de integração
-    const integrationsRef = doc(db, `artifacts/${APP_ID}/users/${userId}/integrations_config/config`);
-    onSnapshot(integrationsRef, (doc) => {
-      if (doc.exists()) {
-        setIntegrationsConfig(doc.data());
+    // Listener para configurações de integração no Realtime Database
+    const integrationsRef = ref(database, `users/data/${userId}/integrations_config`);
+    onValue(integrationsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setIntegrationsConfig(snapshot.val());
+      } else {
+        setIntegrationsConfig({});
       }
     });
 
-    // Listener para configurações do assistente
-    const assistantRef = doc(db, `artifacts/${APP_ID}/users/${userId}/assistant_settings/config`);
-    onSnapshot(assistantRef, (doc) => {
-      if (doc.exists()) {
-        setAssistantSettings(doc.data());
+    // Listener para configurações do assistente no Realtime Database
+    const assistantRef = ref(database, `users/data/${userId}/assistant_settings`);
+    onValue(assistantRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setAssistantSettings(snapshot.val());
+      } else {
+        setAssistantSettings({});
       }
     });
 
-    // Listener para itens do catálogo
-    const catalogRef = collection(db, `artifacts/${APP_ID}/users/${userId}/company_profile/config/catalog_items`);
-    const catalogQuery = query(catalogRef, orderBy('createdAt', 'desc'));
-    onSnapshot(catalogQuery, (snapshot) => {
+    // Listener para itens do catálogo no Realtime Database
+    const catalogRef = ref(database, `users/data/${userId}/catalog_items`);
+    onValue(catalogRef, (snapshot) => {
       const items = [];
-      snapshot.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() });
-      });
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        Object.keys(data).forEach((key) => {
+          items.push({ id: key, ...data[key] });
+        });
+        // Ordenar por data de criação (mais recente primeiro)
+        items.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      }
       setCatalogItems(items);
     });
 
@@ -201,12 +211,16 @@ const FirebaseApp = () => {
     }
   };
 
-  // Funções de salvamento
+  // Funções de salvamento no Realtime Database
   const saveCompanyProfile = async (data) => {
-    if (!user || !db) return;
+    if (!user || !database) return;
     
     try {
-      await setDoc(doc(db, `artifacts/${APP_ID}/users/${user.uid}/company_profile/config`), data, { merge: true });
+      const companyRef = ref(database, `users/data/${user.uid}/company_profile`);
+      await set(companyRef, {
+        ...data,
+        updatedAt: new Date().toISOString()
+      });
       showToast('Perfil da empresa salvo com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar perfil:', error);
@@ -215,10 +229,14 @@ const FirebaseApp = () => {
   };
 
   const saveIntegrationsConfig = async (data) => {
-    if (!user || !db) return;
+    if (!user || !database) return;
     
     try {
-      await setDoc(doc(db, `artifacts/${APP_ID}/users/${user.uid}/integrations_config/config`), data, { merge: true });
+      const integrationsRef = ref(database, `users/data/${user.uid}/integrations_config`);
+      await set(integrationsRef, {
+        ...data,
+        updatedAt: new Date().toISOString()
+      });
       showToast('Configurações de integração salvas com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar integrações:', error);
@@ -227,10 +245,14 @@ const FirebaseApp = () => {
   };
 
   const saveAssistantSettings = async (data) => {
-    if (!user || !db) return;
+    if (!user || !database) return;
     
     try {
-      await setDoc(doc(db, `artifacts/${APP_ID}/users/${user.uid}/assistant_settings/config`), data, { merge: true });
+      const assistantRef = ref(database, `users/data/${user.uid}/assistant_settings`);
+      await set(assistantRef, {
+        ...data,
+        updatedAt: new Date().toISOString()
+      });
       showToast('Configurações do assistente salvas com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar assistente:', error);
@@ -239,7 +261,7 @@ const FirebaseApp = () => {
   };
 
   const saveCatalogItem = async (itemData) => {
-    if (!user || !db) return;
+    if (!user || !database) return;
     
     try {
       const data = {
@@ -248,11 +270,27 @@ const FirebaseApp = () => {
         updatedAt: new Date().toISOString()
       };
       
-      await addDoc(collection(db, `artifacts/${APP_ID}/users/${user.uid}/company_profile/config/catalog_items`), data);
+      const catalogRef = ref(database, `users/data/${user.uid}/catalog_items`);
+      const newItemRef = push(catalogRef);
+      await set(newItemRef, data);
+      
       showToast('Item adicionado com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar item:', error);
       showToast('Erro ao salvar item', 'error');
+    }
+  };
+
+  const deleteCatalogItem = async (itemId) => {
+    if (!user || !database) return;
+    
+    try {
+      const itemRef = ref(database, `users/data/${user.uid}/catalog_items/${itemId}`);
+      await remove(itemRef);
+      showToast('Item excluído com sucesso!');
+    } catch (error) {
+      console.error('Erro ao excluir item:', error);
+      showToast('Erro ao excluir item', 'error');
     }
   };
 
