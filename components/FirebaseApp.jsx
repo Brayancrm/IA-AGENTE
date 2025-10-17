@@ -134,7 +134,7 @@ const FirebaseApp = () => {
     if (user.isMaster && database) {
       console.log('Configurando listener para usuários registrados no Realtime Database');
       
-      const usersRef = ref(database, `artifacts/${APP_ID}/registered_users`);
+      const usersRef = ref(database, 'users/registered');
       
       const unsubscribe = onValue(usersRef, (snapshot) => {
         console.log('Snapshot de usuários recebido do Realtime Database');
@@ -253,7 +253,7 @@ const FirebaseApp = () => {
         console.log('Atualizando usuário existente:', editingUser.id);
         
         // Atualizar usuário existente no Realtime Database
-        const userRef = ref(database, `artifacts/${APP_ID}/registered_users/${editingUser.id}`);
+        const userRef = ref(database, `users/registered/${editingUser.id}`);
         
         // Manter os dados existentes e atualizar apenas os campos editados
         const updatedData = {
@@ -288,7 +288,7 @@ const FirebaseApp = () => {
         console.log('Salvando no Realtime Database:', userDoc);
         
         // Criar nova entrada no Realtime Database
-        const usersRef = ref(database, `artifacts/${APP_ID}/registered_users`);
+        const usersRef = ref(database, 'users/registered');
         const newUserRef = push(usersRef);
         await set(newUserRef, userDoc);
         
@@ -306,7 +306,7 @@ const FirebaseApp = () => {
     
     try {
       console.log('Excluindo usuário:', userId);
-      const userRef = ref(database, `artifacts/${APP_ID}/registered_users/${userId}`);
+      const userRef = ref(database, `users/registered/${userId}`);
       await remove(userRef);
       console.log('Usuário excluído do Realtime Database:', userId);
       showToast('Usuário excluído com sucesso!');

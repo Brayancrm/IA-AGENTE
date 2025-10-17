@@ -63,7 +63,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
 
           console.log('Salvando usuário no Realtime Database:', userData);
           
-          const usersRef = ref(database, `artifacts/${APP_ID}/registered_users`);
+          const usersRef = ref(database, 'users/registered');
           const newUserRef = push(usersRef);
           await set(newUserRef, userData);
           
