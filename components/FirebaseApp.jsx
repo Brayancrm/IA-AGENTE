@@ -613,6 +613,11 @@ const FirebaseApp = () => {
         openUserModal={openUserModal}
         resetUserPassword={resetUserPassword}
         handleLogout={handleLogout}
+        whatsappStatus={whatsappStatus}
+        whatsappQRCode={whatsappQRCode}
+        isConnecting={isConnecting}
+        connectWhatsApp={connectWhatsApp}
+        disconnectWhatsApp={disconnectWhatsApp}
       />
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
@@ -640,7 +645,12 @@ const DashboardWithFirebase = ({
   deleteUser,
   openUserModal,
   resetUserPassword,
-  handleLogout
+  handleLogout,
+  whatsappStatus,
+  whatsappQRCode,
+  isConnecting,
+  connectWhatsApp,
+  disconnectWhatsApp
 }) => {
   const [isActive, setIsActive] = useState(assistantSettings.isActive || true);
   const [showCatalogModal, setShowCatalogModal] = useState(false);
