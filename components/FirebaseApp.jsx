@@ -25,6 +25,14 @@ const FirebaseApp = () => {
   const [users, setUsers] = useState([]);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  
+  // Estados do WhatsApp
+  const [whatsappStatus, setWhatsappStatus] = useState('disconnected');
+  const [whatsappQRCode, setWhatsappQRCode] = useState(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  
+  // URL do backend
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
 
   // Função para mostrar toast
   const showToast = (message, type = 'success') => {
@@ -120,6 +128,28 @@ const FirebaseApp = () => {
       setupFirestoreListeners();
     }
   }, [user, db, database]);
+
+  // Listener para status do WhatsApp
+  useEffect(() => {
+    if (!user || !database) return;
+
+    const sessionRef = ref(database, `whatsapp_sessions/${user.uid}`);
+    
+    const unsubscribe = onValue(sessionRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const session = snapshot.val();
+        setWhatsappStatus(session.status || 'disconnected');
+        setWhatsappQRCode(session.qrCode || null);
+        
+        console.log('Status WhatsApp atualizado:', session.status);
+      } else {
+        setWhatsappStatus('disconnected');
+        setWhatsappQRCode(null);
+      }
+    });
+
+    return () => off(sessionRef);
+  }, [user, database]);
 
   // Configurar listeners do Realtime Database
   const setupFirestoreListeners = () => {
@@ -301,6 +331,64 @@ const FirebaseApp = () => {
     setUser(null);
     setIsAuthenticated(false);
     showToast('Logout realizado com sucesso!', 'success');
+  };
+
+  // Funções do WhatsApp
+  const connectWhatsApp = async () => {
+    if (!user) {
+      showToast('Usuário não autenticado', 'error');
+      return;
+    }
+
+    setIsConnecting(true);
+    
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/sessions/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId: user.uid })
+      });
+
+      const data = await response.json();
+      
+      if (data.status === 'success' || data.status === 'already_active') {
+        showToast('Sessão WhatsApp iniciada! Aguarde o QR Code...', 'success');
+      } else {
+        throw new Error(data.error || 'Erro ao criar sessão');
+      }
+    } catch (error) {
+      console.error('Erro ao conectar WhatsApp:', error);
+      showToast('Erro ao conectar WhatsApp: ' + error.message, 'error');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const disconnectWhatsApp = async () => {
+    if (!user) return;
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/sessions/disconnect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId: user.uid })
+      });
+
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        showToast('WhatsApp desconectado com sucesso!', 'success');
+        setWhatsappStatus('disconnected');
+        setWhatsappQRCode(null);
+      }
+    } catch (error) {
+      console.error('Erro ao desconectar:', error);
+      showToast('Erro ao desconectar WhatsApp', 'error');
+    }
   };
 
   // Funções de gerenciamento de usuários (apenas para master)
@@ -1063,37 +1151,100 @@ const DashboardWithFirebase = ({
                 <div style={{
                   padding: '8px 16px',
                   borderRadius: '8px',
-                  backgroundColor: '#dcfce7',
-                  color: '#166534',
+                  backgroundColor: whatsappStatus === 'connected' ? '#dcfce7' : whatsappStatus === 'qrcode' ? '#fef3c7' : '#fee2e2',
+                  color: whatsappStatus === 'connected' ? '#166534' : whatsappStatus === 'qrcode' ? '#92400e' : '#dc2626',
                   fontWeight: 'bold',
                   fontSize: '0.875rem'
                 }}>
-                  ● Status: Aguardando Configuração
+                  ● Status: {
+                    whatsappStatus === 'connected' ? 'Conectado' :
+                    whatsappStatus === 'qrcode' ? 'Aguardando QR Code' :
+                    whatsappStatus === 'connecting' ? 'Conectando...' :
+                    'Desconectado'
+                  }
                 </div>
               </div>
               
-              <div style={{ padding: '16px', backgroundColor: '#fef3c7', borderRadius: '8px', marginBottom: '16px' }}>
-                <p style={{ fontSize: '0.875rem', color: '#92400e', margin: 0 }}>
-                  ⚠️ <strong>Backend Necessário:</strong> Para usar o assistente WhatsApp, você precisa configurar o servidor backend WPPConnect. 
-                  Consulte o arquivo <code>WPPCONNECT_SETUP.md</code> para instruções detalhadas.
-                </p>
-              </div>
+              {/* QR Code Display */}
+              {whatsappQRCode && whatsappStatus === 'qrcode' && (
+                <div style={{ padding: '24px', backgroundColor: '#f9fafb', borderRadius: '12px', marginBottom: '16px', textAlign: 'center' }}>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '16px' }}>
+                    📱 Escaneie o QR Code com seu WhatsApp
+                  </h4>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+                    <img 
+                      src={whatsappQRCode} 
+                      alt="QR Code WhatsApp" 
+                      style={{ 
+                        maxWidth: '300px', 
+                        border: '4px solid #4f46e5', 
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                      }} 
+                    />
+                  </div>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                    1. Abra o WhatsApp no celular<br />
+                    2. Vá em Configurações → Aparelhos conectados<br />
+                    3. Toque em "Conectar aparelho"<br />
+                    4. Escaneie este QR Code
+                  </p>
+                </div>
+              )}
+              
+              {/* Success Message */}
+              {whatsappStatus === 'connected' && (
+                <div style={{ padding: '16px', backgroundColor: '#dcfce7', borderRadius: '8px', marginBottom: '16px' }}>
+                  <p style={{ fontSize: '0.875rem', color: '#166534', margin: 0 }}>
+                    ✅ <strong>WhatsApp Conectado!</strong> Seu assistente está online e pronto para atender mensagens automaticamente.
+                  </p>
+                </div>
+              )}
+              
+              {/* Info Message */}
+              {whatsappStatus === 'disconnected' && (
+                <div style={{ padding: '16px', backgroundColor: '#fef3c7', borderRadius: '8px', marginBottom: '16px' }}>
+                  <p style={{ fontSize: '0.875rem', color: '#92400e', margin: 0 }}>
+                    💡 <strong>Dica:</strong> Certifique-se de que o servidor backend está rodando antes de conectar.
+                  </p>
+                </div>
+              )}
               
               <div style={{ display: 'flex', gap: '12px' }}>
+                {whatsappStatus === 'disconnected' || whatsappStatus === 'qrcode' ? (
+                  <button
+                    onClick={connectWhatsApp}
+                    disabled={isConnecting || whatsappStatus === 'qrcode'}
+                    style={{
+                      backgroundColor: (isConnecting || whatsappStatus === 'qrcode') ? '#9ca3af' : '#10b981',
+                      color: 'white',
+                      padding: '12px 24px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontWeight: 'bold',
+                      cursor: (isConnecting || whatsappStatus === 'qrcode') ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {isConnecting ? '⏳ Conectando...' : whatsappStatus === 'qrcode' ? '📱 Aguardando Escaneamento' : '🔌 Conectar WhatsApp'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={disconnectWhatsApp}
+                    style={{
+                      backgroundColor: '#ef4444',
+                      color: 'white',
+                      padding: '12px 24px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontWeight: 'bold',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    🔌 Desconectar WhatsApp
+                  </button>
+                )}
                 <button
-                  style={{
-                    backgroundColor: '#10b981',
-                    color: 'white',
-                    padding: '12px 24px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    fontWeight: 'bold',
-                    cursor: 'pointer'
-                  }}
-                >
-                  🔌 Conectar WhatsApp
-                </button>
-                <button
+                  onClick={() => window.open('/WPPCONNECT_SETUP.md', '_blank')}
                   style={{
                     backgroundColor: '#6b7280',
                     color: 'white',
