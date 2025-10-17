@@ -393,6 +393,47 @@ const FirebaseApp = () => {
     }
   };
 
+  const regenerateQRCode = async () => {
+    if (!user) return;
+
+    try {
+      // Primeiro desconecta
+      await fetch(`${BACKEND_URL}/api/sessions/disconnect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId: user.uid })
+      });
+
+      // Aguarda 1 segundo
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Depois reconecta para gerar novo QR Code
+      setIsConnecting(true);
+      const response = await fetch(`${BACKEND_URL}/api/sessions/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId: user.uid })
+      });
+
+      const data = await response.json();
+      
+      if (data.status === 'success' || data.status === 'already_active') {
+        showToast('Novo QR Code gerado! Escaneie rapidamente.', 'success');
+      } else {
+        throw new Error(data.error || 'Erro ao gerar novo QR Code');
+      }
+    } catch (error) {
+      console.error('Erro ao regenerar QR Code:', error);
+      showToast('Erro ao gerar novo QR Code: ' + error.message, 'error');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
   // Funções de gerenciamento de usuários (apenas para master)
   const saveUser = async (userData) => {
     console.log('saveUser chamado:', { user, isMaster: user?.isMaster, database: !!database });
@@ -620,6 +661,7 @@ const FirebaseApp = () => {
         isConnecting={isConnecting}
         connectWhatsApp={connectWhatsApp}
         disconnectWhatsApp={disconnectWhatsApp}
+        regenerateQRCode={regenerateQRCode}
       />
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
@@ -652,7 +694,8 @@ const DashboardWithFirebase = ({
   whatsappQRCode = null,
   isConnecting = false,
   connectWhatsApp,
-  disconnectWhatsApp
+  disconnectWhatsApp,
+  regenerateQRCode
 }) => {
   const [isActive, setIsActive] = useState(assistantSettings.isActive || true);
   const [showCatalogModal, setShowCatalogModal] = useState(false);
@@ -1251,23 +1294,56 @@ const DashboardWithFirebase = ({
                 </div>
               )}
               
-              <div style={{ display: 'flex', gap: '12px' }}>
-                {currentWhatsappStatus === 'disconnected' || currentWhatsappStatus === 'qrcode' ? (
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                {currentWhatsappStatus === 'disconnected' ? (
                   <button
                     onClick={connectWhatsApp}
-                    disabled={currentIsConnecting || currentWhatsappStatus === 'qrcode'}
+                    disabled={currentIsConnecting}
                     style={{
-                      backgroundColor: (currentIsConnecting || currentWhatsappStatus === 'qrcode') ? '#9ca3af' : '#10b981',
+                      backgroundColor: currentIsConnecting ? '#9ca3af' : '#10b981',
                       color: 'white',
                       padding: '12px 24px',
                       borderRadius: '8px',
                       border: 'none',
                       fontWeight: 'bold',
-                      cursor: (currentIsConnecting || currentWhatsappStatus === 'qrcode') ? 'not-allowed' : 'pointer'
+                      cursor: currentIsConnecting ? 'not-allowed' : 'pointer'
                     }}
                   >
-                    {currentIsConnecting ? '⏳ Conectando...' : currentWhatsappStatus === 'qrcode' ? '📱 Aguardando Escaneamento' : '🔌 Conectar WhatsApp'}
+                    {currentIsConnecting ? '⏳ Conectando...' : '🔌 Conectar WhatsApp'}
                   </button>
+                ) : currentWhatsappStatus === 'qrcode' ? (
+                  <>
+                    <button
+                      onClick={regenerateQRCode}
+                      disabled={currentIsConnecting}
+                      style={{
+                        backgroundColor: currentIsConnecting ? '#9ca3af' : '#f59e0b',
+                        color: 'white',
+                        padding: '12px 24px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        fontWeight: 'bold',
+                        cursor: currentIsConnecting ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      {currentIsConnecting ? '⏳ Gerando...' : '🔄 Gerar Novo QR Code'}
+                    </button>
+                    <button
+                      onClick={disconnectWhatsApp}
+                      disabled={currentIsConnecting}
+                      style={{
+                        backgroundColor: currentIsConnecting ? '#9ca3af' : '#ef4444',
+                        color: 'white',
+                        padding: '12px 24px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        fontWeight: 'bold',
+                        cursor: currentIsConnecting ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      ❌ Cancelar
+                    </button>
+                  </>
                 ) : (
                   <button
                     onClick={disconnectWhatsApp}
