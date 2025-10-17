@@ -280,6 +280,15 @@ const FirebaseApp = () => {
       } else {
         console.log('Criando novo usuário:', userData.email);
         
+        // Salvar o email do master atual para fazer re-login depois
+        const masterEmail = user.email;
+        const masterPassword = prompt('Para criar o usuário, confirme sua senha de master:');
+        
+        if (!masterPassword) {
+          showToast('Criação cancelada - senha não fornecida', 'error');
+          return;
+        }
+        
         // Criar novo usuário no Firebase Auth
         const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
         console.log('Usuário criado no Auth:', userCredential.user.uid);
@@ -305,6 +314,12 @@ const FirebaseApp = () => {
         await set(newUserRef, userDoc);
         
         console.log('Usuário criado no Realtime Database com ID:', newUserRef.key);
+        
+        // Fazer logout do novo usuário e re-login como master
+        await firebaseSignOut(auth);
+        await signInWithEmailAndPassword(auth, masterEmail, masterPassword);
+        console.log('Master re-logado com sucesso');
+        
         showToast('Usuário criado com sucesso!');
       }
     } catch (error) {
