@@ -63,11 +63,31 @@ const FirebaseApp = () => {
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        const isMaster = currentUser.email?.includes('master') || 
-                        currentUser.email?.includes('admin') ||
-                        currentUser.email === 'brayan@master.com';
+        // Verificar se é master apenas pelo email específico
+        let isMaster = currentUser.email === 'brayan@master.com';
+        
+        // Se não for o email master padrão, buscar no Realtime Database
+        if (!isMaster && database) {
+          try {
+            const usersRef = ref(database, 'users/registered');
+            const snapshot = await new Promise((resolve) => {
+              onValue(usersRef, resolve, { onlyOnce: true });
+            });
+            
+            if (snapshot.exists()) {
+              const users = snapshot.val();
+              // Procurar o usuário pelo UID
+              const userEntry = Object.values(users).find(u => u.uid === currentUser.uid);
+              if (userEntry && userEntry.isMaster === true) {
+                isMaster = true;
+              }
+            }
+          } catch (error) {
+            console.error('Erro ao verificar status de master:', error);
+          }
+        }
         
         console.log('Usuário autenticado:', {
           email: currentUser.email,
