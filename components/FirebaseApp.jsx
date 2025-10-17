@@ -7,7 +7,7 @@ import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, quer
 import { ref, push, set, remove, onValue, off } from 'firebase/database';
 import SimpleLanding from './SimpleLanding';
 
-const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsapp_sales_agent';
+const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsappsalesagent';
 
 const FirebaseApp = () => {
   const { app, db, auth, database, isReady, error } = useFirebase();

@@ -16,7 +16,7 @@ const firebaseConfig = {
   databaseURL: 'https://ia-agente-b2f46.firebaseio.com'
 };
 
-const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsapp_sales_agent';
+const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsappsalesagent';
 
 let app, db, auth, database;
 if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {

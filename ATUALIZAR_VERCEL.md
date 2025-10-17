@@ -19,8 +19,8 @@ O Realtime Database do Firebase **NÃO aceita traços (-)** em caminhos!
 1. No menu lateral, clique em **"Environment Variables"**
 2. Procure por: `NEXT_PUBLIC_APP_ID`
 3. **EDITE** o valor de:
-   - ❌ `whatsapp-sales-agent` (ERRADO - tem traço)
-   - ✅ `whatsapp_sales_agent` (CORRETO - tem underscore)
+   - ❌ `whatsapp-sales-agent` ou `whatsapp_sales_agent` (ERRADO)
+   - ✅ `whatsappsalesagent` (CORRETO - apenas letras!)
 
 ### Passo 3: Fazer Redeploy
 
@@ -41,10 +41,10 @@ NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=ia-agente-b2f46.firebasestorage.app
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=915148785133
 NEXT_PUBLIC_FIREBASE_APP_ID=1:915148785133:web:90e381fe612842769e53e4
 NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=G-QTLFRJE275
-NEXT_PUBLIC_APP_ID=whatsapp_sales_agent
+NEXT_PUBLIC_APP_ID=whatsappsalesagent
 ```
 
-⚠️ **ATENÇÃO:** O mais importante é `NEXT_PUBLIC_APP_ID=whatsapp_sales_agent` (com **underscore**, não traço!)
+⚠️ **ATENÇÃO:** O mais importante é `NEXT_PUBLIC_APP_ID=whatsappsalesagent` (apenas **letras**, sem caracteres especiais!)
 
 ## 🔍 Como Testar
 
@@ -54,13 +54,13 @@ Após o redeploy:
 2. Faça login como master
 3. Tente criar um usuário
 4. Deve funcionar sem erros!
-5. Verifique no Firebase Console em: `artifacts/whatsapp_sales_agent/registered_users`
+5. Verifique no Firebase Console em: `artifacts/whatsappsalesagent/registered_users`
 
 ## 📂 Novo Caminho no Realtime Database
 
 ```
 artifacts/
-  └── whatsapp_sales_agent/    ← Agora com underscore!
+  └── whatsappsalesagent/    ← Apenas letras!
       └── registered_users/
           ├── -N123abc...
           └── -N456def...
