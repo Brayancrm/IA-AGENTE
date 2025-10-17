@@ -142,6 +142,8 @@ const FirebaseApp = () => {
         setWhatsappQRCode(session.qrCode || null);
         
         console.log('Status WhatsApp atualizado:', session.status);
+        console.log('QR Code recebido (primeiros 50 caracteres):', session.qrCode ? session.qrCode.substring(0, 50) : 'null');
+        console.log('QR Code tem prefixo data:image?', session.qrCode ? session.qrCode.startsWith('data:image') : false);
       } else {
         setWhatsappStatus('disconnected');
         setWhatsappQRCode(null);
