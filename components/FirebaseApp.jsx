@@ -1048,18 +1048,164 @@ const DashboardWithFirebase = ({
 
       case 'assistant':
         return (
-          <div style={{ padding: '24px' }}>
+          <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
             <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
-              Configuração do Assistente
+              🤖 Assistente Virtual - WhatsApp + IA
             </h2>
-            <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
+            
+            {/* Status de Conexão WhatsApp */}
+            <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '24px', marginBottom: '24px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '16px' }}>
+                📱 Conexão WhatsApp
+              </h3>
+              
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  backgroundColor: '#dcfce7',
+                  color: '#166534',
+                  fontWeight: 'bold',
+                  fontSize: '0.875rem'
+                }}>
+                  ● Status: Aguardando Configuração
+                </div>
+              </div>
+              
+              <div style={{ padding: '16px', backgroundColor: '#fef3c7', borderRadius: '8px', marginBottom: '16px' }}>
+                <p style={{ fontSize: '0.875rem', color: '#92400e', margin: 0 }}>
+                  ⚠️ <strong>Backend Necessário:</strong> Para usar o assistente WhatsApp, você precisa configurar o servidor backend WPPConnect. 
+                  Consulte o arquivo <code>WPPCONNECT_SETUP.md</code> para instruções detalhadas.
+                </p>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  style={{
+                    backgroundColor: '#10b981',
+                    color: 'white',
+                    padding: '12px 24px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🔌 Conectar WhatsApp
+                </button>
+                <button
+                  style={{
+                    backgroundColor: '#6b7280',
+                    color: 'white',
+                    padding: '12px 24px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                >
+                  📖 Ver Documentação
+                </button>
+              </div>
+            </div>
+
+            {/* Configuração de IA */}
+            <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '24px', marginBottom: '24px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '16px' }}>
+                🧠 Configuração de Inteligência Artificial
+              </h3>
+              
               <form onSubmit={handleAssistantSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                    Provedor de IA
+                  </label>
+                  <select
+                    value={assistantForm.aiProvider || 'openai'}
+                    onChange={(e) => setAssistantForm(prev => ({ ...prev, aiProvider: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '1rem'
+                    }}
+                  >
+                    <option value="openai">OpenAI (GPT-3.5 / GPT-4)</option>
+                    <option value="anthropic">Anthropic (Claude)</option>
+                    <option value="google">Google (Gemini)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                    API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={assistantForm.apiKey || ''}
+                    onChange={(e) => setAssistantForm(prev => ({ ...prev, apiKey: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '1rem'
+                    }}
+                    placeholder="sk-..."
+                  />
+                  <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '4px' }}>
+                    Sua chave API será criptografada e armazenada com segurança
+                  </p>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                    Modelo
+                  </label>
+                  <select
+                    value={assistantForm.model || 'gpt-3.5-turbo'}
+                    onChange={(e) => setAssistantForm(prev => ({ ...prev, model: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '1rem'
+                    }}
+                  >
+                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Rápido e Econômico)</option>
+                    <option value="gpt-4">GPT-4 (Mais Inteligente)</option>
+                    <option value="gpt-4-turbo">GPT-4 Turbo (Equilibrado)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                    Prompt do Sistema
+                  </label>
+                  <textarea
+                    value={assistantForm.systemPrompt || ''}
+                    onChange={(e) => setAssistantForm(prev => ({ ...prev, systemPrompt: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '1rem',
+                      minHeight: '120px',
+                      resize: 'vertical'
+                    }}
+                    placeholder="Você é um assistente virtual prestativo que ajuda clientes da empresa X..."
+                  />
+                </div>
+
                 <div>
                   <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
                     Mensagem de Boas-vindas
                   </label>
                   <textarea
-                    value={assistantForm.welcomeMessage}
+                    value={assistantForm.welcomeMessage || ''}
                     onChange={(e) => setAssistantForm(prev => ({ ...prev, welcomeMessage: e.target.value }))}
                     style={{
                       width: '100%',
@@ -1067,7 +1213,7 @@ const DashboardWithFirebase = ({
                       borderRadius: '8px',
                       border: '1px solid #d1d5db',
                       fontSize: '1rem',
-                      minHeight: '100px',
+                      minHeight: '80px',
                       resize: 'vertical'
                     }}
                     placeholder="Olá! Como posso ajudá-lo hoje?"
@@ -1080,18 +1226,18 @@ const DashboardWithFirebase = ({
                   </label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {[
-                      { id: 'sales', label: 'Vendas', description: 'Processar pedidos e vendas' },
-                      { id: 'support', label: 'Suporte', description: 'Atendimento ao cliente' },
-                      { id: 'stock', label: 'Estoque', description: 'Consultar disponibilidade' },
-                      { id: 'pricing', label: 'Preços', description: 'Informar valores' },
-                      { id: 'schedule', label: 'Agendamento', description: 'Agendar serviços' }
+                      { id: 'sales', label: '💰 Vendas', description: 'Processar pedidos e fechar vendas' },
+                      { id: 'support', label: '🎧 Suporte', description: 'Atendimento ao cliente e resolução de problemas' },
+                      { id: 'stock', label: '📦 Estoque', description: 'Consultar disponibilidade de produtos' },
+                      { id: 'pricing', label: '💵 Preços', description: 'Informar valores e condições de pagamento' },
+                      { id: 'schedule', label: '📅 Agendamento', description: 'Agendar serviços e consultas' }
                     ].map((feature) => (
-                      <label key={feature.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+                      <label key={feature.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', backgroundColor: '#f9fafb', borderRadius: '8px', cursor: 'pointer' }}>
                         <input
                           type="checkbox"
-                          checked={assistantForm.enabledFeatures.includes(feature.id)}
+                          checked={assistantForm.enabledFeatures?.includes(feature.id) || false}
                           onChange={() => handleFeatureToggle(feature.id)}
-                          style={{ width: '20px', height: '20px' }}
+                          style={{ width: '20px', height: '20px', cursor: 'pointer' }}
                         />
                         <div>
                           <div style={{ fontWeight: 'bold', color: '#1f2937' }}>{feature.label}</div>
@@ -1115,9 +1261,29 @@ const DashboardWithFirebase = ({
                     alignSelf: 'flex-start'
                   }}
                 >
-                  Salvar Configurações
+                  💾 Salvar Configurações
                 </button>
               </form>
+            </div>
+
+            {/* Estatísticas */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+              <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#4f46e5' }}>0</div>
+                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '4px' }}>Conversas Ativas</div>
+              </div>
+              <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#10b981' }}>0</div>
+                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '4px' }}>Mensagens Hoje</div>
+              </div>
+              <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#f59e0b' }}>-</div>
+                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '4px' }}>Tempo Médio</div>
+              </div>
+              <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#ef4444' }}>-</div>
+                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '4px' }}>Taxa de Satisfação</div>
+              </div>
             </div>
           </div>
         );
