@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import WhatsAppSalesAgent from '../whatsapp-sales-agent';
+import FirebaseApp from '../components/FirebaseApp';
 
 export default function Home() {
-  return <WhatsAppSalesAgent />;
+  return <FirebaseApp />;
 }

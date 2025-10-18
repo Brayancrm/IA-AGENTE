@@ -705,8 +705,21 @@ const DashboardWithFirebase = ({
     description: '',
     price: '',
     stockQuantity: '',
-    type: 'product'
+    type: 'product',
+    category: '',
+    sku: '',
+    image: '',
+    featured: false,
+    minStock: 5
   });
+
+  // Estados do Catálogo Avançado
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [catalogFilter, setCatalogFilter] = useState('all');
+  const [catalogCategory, setCatalogCategory] = useState('all');
+  const [catalogView, setCatalogView] = useState('grid');
+  const [showImportModal, setShowImportModal] = useState(false);
+
   const [companyForm, setCompanyForm] = useState({
     companyName: '',
     cnpj: '',
@@ -773,7 +786,12 @@ const DashboardWithFirebase = ({
         description: item.description || '',
         price: item.price || '',
         stockQuantity: item.stockQuantity || '',
-        type: item.type || 'product'
+        type: item.type || 'product',
+        category: item.category || '',
+        sku: item.sku || '',
+        image: item.image || '',
+        featured: item.featured || false,
+        minStock: item.minStock || 5
       });
       setEditingItem(item);
     } else {
@@ -782,7 +800,12 @@ const DashboardWithFirebase = ({
         description: '',
         price: '',
         stockQuantity: '',
-        type: 'product'
+        type: 'product',
+        category: '',
+        sku: '',
+        image: '',
+        featured: false,
+        minStock: 5
       });
       setEditingItem(null);
     }
