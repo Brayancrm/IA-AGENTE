@@ -1363,115 +1363,319 @@ const WhatsAppSalesAgent = () => {
           </div>
         )}
 
-        {/* Modal do Catálogo */}
+        {/* Modal do Catálogo Avançado */}
         {showCatalogModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
-              <h3 className="text-xl font-bold text-gray-800 mb-6">
-                {editingItem ? 'Editar Item' : 'Adicionar Item'}
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center space-x-2">
+                <Package className="w-6 h-6 text-indigo-600" />
+                <span>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</span>
               </h3>
               
-              <form onSubmit={(e) => { e.preventDefault(); saveCatalogItem(catalogForm); }} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nome</label>
-                  <input
-                    type="text"
-                    value={catalogForm.name || ''}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setCatalogForm(prev => ({ ...prev, name: value }));
-                    }}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    required
-                  />
+              <form onSubmit={(e) => { e.preventDefault(); saveCatalogItem(catalogForm); }} className="space-y-5">
+                {/* Grid de 2 colunas para campos principais */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Nome *</label>
+                    <input
+                      type="text"
+                      value={catalogForm.name || ''}
+                      onChange={(e) => setCatalogForm(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Ex: Notebook Dell"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">SKU / Código</label>
+                    <input
+                      type="text"
+                      value={catalogForm.sku || ''}
+                      onChange={(e) => setCatalogForm(prev => ({ ...prev, sku: e.target.value }))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono"
+                      placeholder="Ex: PROD-001"
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Descrição</label>
                   <textarea
                     value={catalogForm.description || ''}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setCatalogForm(prev => ({ ...prev, description: value }));
-                    }}
+                    onChange={(e) => setCatalogForm(prev => ({ ...prev, description: e.target.value }))}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     rows="3"
+                    placeholder="Descreva o produto ou serviço..."
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
-                  <div className="flex space-x-4">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        value="product"
-                        checked={catalogForm.type === 'product'}
-                        onChange={(e) => setCatalogForm({ ...catalogForm, type: e.target.value })}
-                        className="mr-2"
-                      />
-                      Produto
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        value="service"
-                        checked={catalogForm.type === 'service'}
-                        onChange={(e) => setCatalogForm({ ...catalogForm, type: e.target.value })}
-                        className="mr-2"
-                      />
-                      Serviço
-                    </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Tipo *</label>
+                    <div className="flex space-x-4">
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          value="product"
+                          checked={catalogForm.type === 'product'}
+                          onChange={(e) => setCatalogForm({ ...catalogForm, type: e.target.value })}
+                          className="text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span>Produto</span>
+                      </label>
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          value="service"
+                          checked={catalogForm.type === 'service'}
+                          onChange={(e) => setCatalogForm({ ...catalogForm, type: e.target.value })}
+                          className="text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span>Serviço</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Categoria</label>
+                    <input
+                      type="text"
+                      value={catalogForm.category || ''}
+                      onChange={(e) => setCatalogForm(prev => ({ ...prev, category: e.target.value }))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Ex: Eletrônicos, Roupas..."
+                      list="categories-list"
+                    />
+                    <datalist id="categories-list">
+                      {categories.map(cat => (
+                        <option key={cat} value={cat} />
+                      ))}
+                    </datalist>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Preço (R$)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={catalogForm.price || ''}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setCatalogForm(prev => ({ ...prev, price: value }));
-                    }}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    required
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Preço (R$) *</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">R$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={catalogForm.price || ''}
+                        onChange={(e) => setCatalogForm(prev => ({ ...prev, price: e.target.value }))}
+                        className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="0,00"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {catalogForm.type === 'product' ? 'Estoque *' : 'Capacidade *'}
+                    </label>
+                    <input
+                      type="number"
+                      value={catalogForm.stockQuantity || ''}
+                      onChange={(e) => setCatalogForm(prev => ({ ...prev, stockQuantity: e.target.value }))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="0"
+                      required
+                    />
+                  </div>
+
+                  {catalogForm.type === 'product' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Estoque Mínimo</label>
+                      <input
+                        type="number"
+                        value={catalogForm.minStock || 5}
+                        onChange={(e) => setCatalogForm(prev => ({ ...prev, minStock: e.target.value }))}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="5"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {catalogForm.type === 'product' ? 'Qtd. em Estoque' : 'Capacidade/Horas (Simulado)'}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">URL da Imagem</label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="url"
+                      value={catalogForm.image || ''}
+                      onChange={(e) => setCatalogForm(prev => ({ ...prev, image: e.target.value }))}
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="https://exemplo.com/imagem.jpg"
+                    />
+                    {catalogForm.image && (
+                      <div className="w-16 h-16 rounded-lg border-2 border-gray-300 overflow-hidden flex-shrink-0">
+                        <img src={catalogForm.image} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Cole a URL de uma imagem online</p>
+                </div>
+
+                <div className="flex items-center space-x-2 p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+                  <input
+                    type="checkbox"
+                    id="featured"
+                    checked={catalogForm.featured || false}
+                    onChange={(e) => setCatalogForm(prev => ({ ...prev, featured: e.target.checked }))}
+                    className="w-5 h-5 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="featured" className="flex items-center space-x-2 cursor-pointer text-sm font-medium text-gray-700">
+                    <Star className="w-5 h-5 text-yellow-500" />
+                    <span>Marcar como Destaque</span>
                   </label>
-                  <input
-                    type="number"
-                    value={catalogForm.stockQuantity || ''}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setCatalogForm(prev => ({ ...prev, stockQuantity: value }));
-                    }}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    required
-                  />
                 </div>
 
-                <div className="flex space-x-4 pt-4">
+                <div className="flex space-x-4 pt-4 border-t">
                   <button
                     type="button"
                     onClick={() => setShowCatalogModal(false)}
-                    className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
+                    className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 bg-indigo-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+                    className="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg"
                   >
-                    {editingItem ? 'Atualizar' : 'Adicionar'}
+                    {editingItem ? '✓ Atualizar' : '+ Adicionar'}
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Importação/Exportação */}
+        {showImportModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-lg mx-4">
+              <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center space-x-2">
+                <Upload className="w-6 h-6 text-indigo-600" />
+                <span>Importar/Exportar Catálogo</span>
+              </h3>
+
+              <div className="space-y-4">
+                {/* Exportar */}
+                <div className="p-4 bg-green-50 rounded-xl border border-green-200">
+                  <h4 className="font-bold text-gray-800 mb-2 flex items-center space-x-2">
+                    <Download className="w-5 h-5 text-green-600" />
+                    <span>Exportar Catálogo</span>
+                  </h4>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Baixe todos os itens do catálogo em formato JSON
+                  </p>
+                  <button
+                    onClick={() => {
+                      const dataStr = JSON.stringify(catalogItems, null, 2);
+                      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                      const url = URL.createObjectURL(dataBlob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = `catalogo-${new Date().toISOString().split('T')[0]}.json`;
+                      link.click();
+                      URL.revokeObjectURL(url);
+                      alert('✓ Catálogo exportado com sucesso!');
+                    }}
+                    className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Baixar JSON</span>
+                  </button>
+                </div>
+
+                {/* Importar */}
+                <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                  <h4 className="font-bold text-gray-800 mb-2 flex items-center space-x-2">
+                    <Upload className="w-5 h-5 text-blue-600" />
+                    <span>Importar Catálogo</span>
+                  </h4>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Carregue um arquivo JSON com itens do catálogo
+                  </p>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={async (e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      
+                      try {
+                        const text = await file.text();
+                        const items = JSON.parse(text);
+                        
+                        if (!Array.isArray(items)) {
+                          alert('❌ Formato inválido! O arquivo deve conter um array de itens.');
+                          return;
+                        }
+
+                        // Validar estrutura básica
+                        const validItems = items.filter(item => 
+                          item.name && item.price && item.type
+                        );
+
+                        if (validItems.length === 0) {
+                          alert('❌ Nenhum item válido encontrado no arquivo!');
+                          return;
+                        }
+
+                        // Importar itens
+                        const promises = validItems.map(item => {
+                          const itemData = {
+                            ...item,
+                            id: item.id || Date.now() + Math.random(),
+                            createdAt: item.createdAt || new Date().toISOString()
+                          };
+                          return set(ref(database, `${APP_ID}/users/${user.uid}/catalog/${itemData.id}`), itemData);
+                        });
+
+                        await Promise.all(promises);
+                        alert(`✓ ${validItems.length} itens importados com sucesso!`);
+                        setShowImportModal(false);
+                      } catch (error) {
+                        console.error('Erro ao importar:', error);
+                        alert('❌ Erro ao importar arquivo. Verifique o formato.');
+                      }
+                    }}
+                    className="w-full px-4 py-2 border-2 border-dashed border-blue-300 rounded-lg hover:border-blue-500 cursor-pointer transition-colors text-sm"
+                  />
+                </div>
+
+                {/* Exemplo */}
+                <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <h4 className="font-bold text-gray-800 mb-2 text-sm">Formato do Arquivo JSON:</h4>
+                  <pre className="text-xs bg-gray-800 text-green-400 p-3 rounded-lg overflow-x-auto">
+{`[
+  {
+    "name": "Produto 1",
+    "description": "Descrição",
+    "price": 99.90,
+    "type": "product",
+    "stockQuantity": 10,
+    "category": "Categoria",
+    "sku": "PROD-001",
+    "featured": false
+  }
+]`}
+                  </pre>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <button
+                  onClick={() => setShowImportModal(false)}
+                  className="w-full px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         )}
