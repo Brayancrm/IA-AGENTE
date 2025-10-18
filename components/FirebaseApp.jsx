@@ -331,15 +331,28 @@ const FirebaseApp = () => {
   };
 
   const deleteCatalogItem = async (itemId) => {
-    if (!user || !database) return;
+    if (!user || !database) {
+      showToast('Erro: Usuário não autenticado', 'error');
+      return;
+    }
+
+    if (!itemId) {
+      showToast('Erro: ID do item inválido', 'error');
+      return;
+    }
+
+    // Confirmação antes de deletar
+    if (!window.confirm('Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita.')) {
+      return;
+    }
     
     try {
       const itemRef = ref(database, `users/data/${user.uid}/catalog_items/${itemId}`);
       await remove(itemRef);
-      showToast('Item excluído com sucesso!');
+      showToast('✅ Item excluído com sucesso!', 'success');
     } catch (error) {
       console.error('Erro ao excluir item:', error);
-      showToast('Erro ao excluir item', 'error');
+      showToast('❌ Erro ao excluir item: ' + error.message, 'error');
     }
   };
 
@@ -668,6 +681,7 @@ const FirebaseApp = () => {
         saveIntegrationsConfig={saveIntegrationsConfig}
         saveAssistantSettings={saveAssistantSettings}
         saveCatalogItem={saveCatalogItem}
+        deleteCatalogItem={deleteCatalogItem}
         saveUser={saveUser}
         deleteUser={deleteUser}
         openUserModal={openUserModal}
@@ -702,6 +716,7 @@ const DashboardWithFirebase = ({
   saveIntegrationsConfig,
   saveAssistantSettings,
   saveCatalogItem,
+  deleteCatalogItem,
   saveUser,
   deleteUser,
   openUserModal,
