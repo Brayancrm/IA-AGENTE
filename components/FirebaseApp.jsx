@@ -723,7 +723,9 @@ const DashboardWithFirebase = ({
     model: 'gpt-3.5-turbo',
     systemPrompt: '',
     welcomeMessage: '',
-    enabledFeatures: []
+    enabledFeatures: [],
+    includeCatalogProducts: false,
+    includeCatalogServices: false
   });
   const [userForm, setUserForm] = useState({
     name: '',
@@ -757,7 +759,9 @@ const DashboardWithFirebase = ({
       model: assistantSettings.model || 'gpt-3.5-turbo',
       systemPrompt: assistantSettings.systemPrompt || '',
       welcomeMessage: assistantSettings.welcomeMessage || '',
-      enabledFeatures: assistantSettings.enabledFeatures || []
+      enabledFeatures: assistantSettings.enabledFeatures || [],
+      includeCatalogProducts: assistantSettings.includeCatalogProducts || false,
+      includeCatalogServices: assistantSettings.includeCatalogServices || false
     });
   }, [assistantSettings]);
 
@@ -1536,6 +1540,88 @@ const DashboardWithFirebase = ({
                       </label>
                     ))}
                   </div>
+                </div>
+
+                {/* Contexto de Catálogo */}
+                <div>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '16px', color: '#374151' }}>
+                    🛍️ Contexto de Catálogo (O que a IA pode oferecer)
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', backgroundColor: '#f0fdf4', borderRadius: '8px', cursor: 'pointer', border: '2px solid #86efac' }}>
+                      <input
+                        type="checkbox"
+                        checked={assistantForm.includeCatalogProducts || false}
+                        onChange={(e) => setAssistantForm(prev => ({ ...prev, includeCatalogProducts: e.target.checked }))}
+                        style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 'bold', color: '#1f2937', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          📦 Incluir Produtos do Catálogo
+                        </div>
+                        <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                          A IA terá acesso aos produtos cadastrados e poderá oferecê-los aos clientes
+                        </div>
+                        {catalogItems.filter(item => item.type === 'product').length > 0 && (
+                          <div style={{ fontSize: '0.75rem', color: '#16a34a', marginTop: '4px' }}>
+                            ✓ {catalogItems.filter(item => item.type === 'product').length} produto(s) cadastrado(s)
+                          </div>
+                        )}
+                      </div>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', backgroundColor: '#eff6ff', borderRadius: '8px', cursor: 'pointer', border: '2px solid #93c5fd' }}>
+                      <input
+                        type="checkbox"
+                        checked={assistantForm.includeCatalogServices || false}
+                        onChange={(e) => setAssistantForm(prev => ({ ...prev, includeCatalogServices: e.target.checked }))}
+                        style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 'bold', color: '#1f2937', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          🛠️ Incluir Serviços do Catálogo
+                        </div>
+                        <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                          A IA terá acesso aos serviços cadastrados e poderá oferecê-los aos clientes
+                        </div>
+                        {catalogItems.filter(item => item.type === 'service').length > 0 && (
+                          <div style={{ fontSize: '0.75rem', color: '#2563eb', marginTop: '4px' }}>
+                            ✓ {catalogItems.filter(item => item.type === 'service').length} serviço(s) cadastrado(s)
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Aviso se não houver itens cadastrados */}
+                  {catalogItems.length === 0 && (
+                    <div style={{ padding: '12px', backgroundColor: '#fef3c7', borderRadius: '8px', marginTop: '12px', border: '1px solid #fbbf24' }}>
+                      <p style={{ fontSize: '0.875rem', color: '#92400e', margin: 0 }}>
+                        ⚠️ <strong>Atenção:</strong> Você ainda não possui produtos ou serviços cadastrados. Vá até a página <strong>"Catálogo (Itens)"</strong> para adicionar itens.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Preview dos itens que serão incluídos */}
+                  {(assistantForm.includeCatalogProducts || assistantForm.includeCatalogServices) && catalogItems.length > 0 && (
+                    <div style={{ padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', marginTop: '12px', border: '1px solid #e5e7eb' }}>
+                      <p style={{ fontSize: '0.875rem', fontWeight: 'bold', color: '#374151', marginBottom: '8px' }}>
+                        📋 Prévia - A IA terá acesso a:
+                      </p>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280', maxHeight: '150px', overflowY: 'auto' }}>
+                        {assistantForm.includeCatalogProducts && catalogItems.filter(item => item.type === 'product').map((item, index) => (
+                          <div key={index} style={{ padding: '6px', marginBottom: '4px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #d1d5db' }}>
+                            📦 <strong>{item.name}</strong> - R$ {item.price} {item.stockQuantity && `(Estoque: ${item.stockQuantity})`}
+                          </div>
+                        ))}
+                        {assistantForm.includeCatalogServices && catalogItems.filter(item => item.type === 'service').map((item, index) => (
+                          <div key={index} style={{ padding: '6px', marginBottom: '4px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #d1d5db' }}>
+                            🛠️ <strong>{item.name}</strong> - R$ {item.price} {item.stockQuantity && `(Capacidade: ${item.stockQuantity})`}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <button
