@@ -718,6 +718,10 @@ const DashboardWithFirebase = ({
     municipalRegistration: ''
   });
   const [assistantForm, setAssistantForm] = useState({
+    aiProvider: 'openai',
+    apiKey: '',
+    model: 'gpt-3.5-turbo',
+    systemPrompt: '',
     welcomeMessage: '',
     enabledFeatures: []
   });
@@ -748,6 +752,10 @@ const DashboardWithFirebase = ({
 
   useEffect(() => {
     setAssistantForm({
+      aiProvider: assistantSettings.aiProvider || 'openai',
+      apiKey: assistantSettings.apiKey || '',
+      model: assistantSettings.model || 'gpt-3.5-turbo',
+      systemPrompt: assistantSettings.systemPrompt || '',
       welcomeMessage: assistantSettings.welcomeMessage || '',
       enabledFeatures: assistantSettings.enabledFeatures || []
     });
