@@ -114,7 +114,7 @@ async function createSession(userId) {
       logQR: false,
       disableWelcome: true,
       updatesLog: false,
-      autoClose: 60000, // 60 segundos
+      autoClose: 180000, // 180 segundos (3 minutos)
       puppeteerOptions: {
         headless: true,
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || '/nix/store/chromium/bin/chromium',
@@ -147,7 +147,7 @@ async function createSession(userId) {
     console.error('❌ Erro ao criar sessão:', error);
     sessionRef.update({
       status: 'error',
-      error: error.message,
+      error: error.message || error.toString() || 'Erro desconhecido',
       lastActivity: new Date().toISOString()
     });
     throw error;
