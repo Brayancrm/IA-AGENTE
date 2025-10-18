@@ -2355,6 +2355,127 @@ const DashboardWithFirebase = ({
                 />
               </div>
 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                    SKU / Código
+                  </label>
+                  <input
+                    type="text"
+                    value={catalogForm.sku || ''}
+                    onChange={(e) => setCatalogForm(prev => ({ ...prev, sku: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '1rem',
+                      fontFamily: 'monospace'
+                    }}
+                    placeholder="Ex: PROD-001"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                    Categoria
+                  </label>
+                  <input
+                    type="text"
+                    value={catalogForm.category || ''}
+                    onChange={(e) => setCatalogForm(prev => ({ ...prev, category: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '1rem'
+                    }}
+                    placeholder="Ex: Eletrônicos"
+                  />
+                </div>
+              </div>
+
+              {catalogForm.type === 'product' && (
+                <div>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                    Estoque Mínimo (para alertas)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={catalogForm.minStock || 5}
+                    onChange={(e) => setCatalogForm(prev => ({ ...prev, minStock: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '1rem'
+                    }}
+                    placeholder="5"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                  URL da Imagem
+                </label>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                  <input
+                    type="url"
+                    value={catalogForm.image || ''}
+                    onChange={(e) => setCatalogForm(prev => ({ ...prev, image: e.target.value }))}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '1rem'
+                    }}
+                    placeholder="https://exemplo.com/imagem.jpg"
+                  />
+                  {catalogForm.image && (
+                    <div style={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '8px',
+                      border: '2px solid #d1d5db',
+                      overflow: 'hidden',
+                      flexShrink: 0
+                    }}>
+                      <img 
+                        src={catalogForm.image} 
+                        alt="Preview" 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    </div>
+                  )}
+                </div>
+                <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '4px' }}>
+                  Cole a URL de uma imagem online (Imgur, Cloudinary, etc)
+                </p>
+              </div>
+
+              <div style={{
+                padding: '12px',
+                backgroundColor: '#fef3c7',
+                borderRadius: '8px',
+                border: '1px solid #fbbf24'
+              }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={catalogForm.featured || false}
+                    onChange={(e) => setCatalogForm(prev => ({ ...prev, featured: e.target.checked }))}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                  <span style={{ fontWeight: 'bold', color: '#374151' }}>⭐ Marcar como Destaque</span>
+                </label>
+              </div>
+
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px' }}>
                 <button
                   type="button"
@@ -2387,6 +2508,202 @@ const DashboardWithFirebase = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Importação/Exportação */}
+      {showImportModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '24px',
+            width: '90%',
+            maxWidth: '600px',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '24px', color: '#1f2937', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Upload style={{ width: '24px', height: '24px', color: '#4f46e5' }} />
+              Importar/Exportar Catálogo
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Exportar */}
+              <div style={{ padding: '16px', backgroundColor: '#dcfce7', borderRadius: '12px', border: '1px solid #10b981' }}>
+                <h4 style={{ fontWeight: 'bold', marginBottom: '8px', color: '#1f2937', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Download style={{ width: '20px', height: '20px', color: '#10b981' }} />
+                  Exportar Catálogo
+                </h4>
+                <p style={{ fontSize: '0.875rem', color: '#374151', marginBottom: '12px' }}>
+                  Baixe todos os itens do catálogo em formato JSON
+                </p>
+                <button
+                  onClick={() => {
+                    const dataStr = JSON.stringify(catalogItems, null, 2);
+                    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(dataBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `catalogo-${new Date().toISOString().split('T')[0]}.json`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    alert('✓ Catálogo exportado com sucesso!');
+                  }}
+                  style={{
+                    width: '100%',
+                    backgroundColor: '#10b981',
+                    color: 'white',
+                    padding: '10px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <Download style={{ width: '16px', height: '16px' }} />
+                  Baixar JSON
+                </button>
+              </div>
+
+              {/* Importar */}
+              <div style={{ padding: '16px', backgroundColor: '#dbeafe', borderRadius: '12px', border: '1px solid #3b82f6' }}>
+                <h4 style={{ fontWeight: 'bold', marginBottom: '8px', color: '#1f2937', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Upload style={{ width: '20px', height: '20px', color: '#3b82f6' }} />
+                  Importar Catálogo
+                </h4>
+                <p style={{ fontSize: '0.875rem', color: '#374151', marginBottom: '12px' }}>
+                  Carregue um arquivo JSON com itens do catálogo
+                </p>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    try {
+                      const text = await file.text();
+                      const items = JSON.parse(text);
+                      
+                      if (!Array.isArray(items)) {
+                        alert('❌ Formato inválido! O arquivo deve conter um array de itens.');
+                        return;
+                      }
+
+                      const validItems = items.filter(item => item.name && item.price && item.type);
+
+                      if (validItems.length === 0) {
+                        alert('❌ Nenhum item válido encontrado no arquivo!');
+                        return;
+                      }
+
+                      const promises = validItems.map(item => {
+                        const itemData = {
+                          ...item,
+                          id: item.id || Date.now() + Math.random(),
+                          createdAt: item.createdAt || new Date().toISOString()
+                        };
+                        return set(ref(database, `${APP_ID}/users/${user.uid}/catalog_items/${itemData.id}`), itemData);
+                      });
+
+                      await Promise.all(promises);
+                      alert(`✓ ${validItems.length} itens importados com sucesso!`);
+                      setShowImportModal(false);
+                      e.target.value = '';
+                    } catch (error) {
+                      console.error('Erro ao importar:', error);
+                      alert('❌ Erro ao importar arquivo. Verifique o formato.');
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '2px dashed #3b82f6',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                />
+              </div>
+
+              {/* Exemplo */}
+              <div style={{ padding: '16px', backgroundColor: '#f3f4f6', borderRadius: '12px', border: '1px solid #d1d5db' }}>
+                <h4 style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '0.875rem', color: '#1f2937' }}>
+                  📋 Formato do Arquivo JSON:
+                </h4>
+                <pre style={{
+                  fontSize: '0.75rem',
+                  backgroundColor: '#1f2937',
+                  color: '#10b981',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  overflow: 'auto',
+                  maxHeight: '200px'
+                }}>
+{`[
+  {
+    "name": "Queijo Fresco",
+    "description": "Queijo Leiteiro Premium",
+    "price": 49.90,
+    "type": "product",
+    "stockQuantity": 10,
+    "category": "Laticínios",
+    "sku": "QF-001",
+    "image": "https://exemplo.com/queijo.jpg",
+    "featured": true,
+    "minStock": 5
+  },
+  {
+    "name": "Consultoria",
+    "description": "Serviço de consultoria",
+    "price": 500.00,
+    "type": "service",
+    "stockQuantity": 20,
+    "category": "Serviços",
+    "sku": "CONS-001",
+    "image": "",
+    "featured": false,
+    "minStock": 0
+  }
+]`}
+                </pre>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '20px' }}>
+              <button
+                onClick={() => setShowImportModal(false)}
+                style={{
+                  width: '100%',
+                  padding: '12px 24px',
+                  border: '2px solid #d1d5db',
+                  backgroundColor: 'white',
+                  color: '#374151',
+                  borderRadius: '8px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}
