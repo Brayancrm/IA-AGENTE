@@ -1,26 +1,16 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  initializeApp
-} from 'firebase/app';
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  collection,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  onSnapshot,
-  query,
-  orderBy
-} from 'firebase/firestore';
+import { initializeApp } from 'firebase/app';
+import { getDatabase, ref, set, push, remove, onValue, off } from 'firebase/database';
 import { 
   getAuth,
   signInWithCustomToken,
-  onAuthStateChanged
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { LandingPage } from './components/LandingPage';
 import { LogoutButton } from './components/AuthComponents';
@@ -63,6 +53,7 @@ import {
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
@@ -70,11 +61,11 @@ const firebaseConfig = {
 };
 
 // Inicializar Firebase apenas no cliente
-let app, db, auth;
+let app, database, auth;
 if (typeof window !== 'undefined') {
   try {
     app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
+    database = getDatabase(app);
     auth = getAuth(app);
   } catch (error) {
     console.error('Erro ao inicializar Firebase:', error);
