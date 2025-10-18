@@ -172,18 +172,43 @@ async function handleIncomingMessage(userId, message, client) {
       if (aiConfig && !aiConfig.apiKey) {
         console.log('📌 Usuário comum detectado, buscando API Key do master...');
         
-        // Buscar usuário master (brayan@master.com ou primeiro usuário com isMaster: true)
-        const usersSnapshot = await db.ref('users/registered').once('value');
         let masterUserId = null;
+        
+        // Estratégia 1: Buscar em users/registered
+        const usersSnapshot = await db.ref('users/registered').once('value');
         
         if (usersSnapshot.exists()) {
           const users = usersSnapshot.val();
+          console.log('🔍 Buscando master entre', Object.keys(users).length, 'usuários em users/registered...');
+          
           const masterUser = Object.values(users).find(u => 
             u.email === 'brayan@master.com' || u.isMaster === true
           );
           
           if (masterUser) {
             masterUserId = masterUser.uid;
+            console.log('✅ Master encontrado em users/registered:', masterUser.email, 'UID:', masterUserId);
+          }
+        }
+        
+        // Estratégia 2: Se não encontrou, buscar todas as configurações em users/data até encontrar uma com API Key
+        if (!masterUserId) {
+          console.log('🔍 Master não encontrado em users/registered, buscando em users/data...');
+          
+          const allDataSnapshot = await db.ref('users/data').once('value');
+          
+          if (allDataSnapshot.exists()) {
+            const allUsersData = allDataSnapshot.val();
+            console.log('🔍 Verificando', Object.keys(allUsersData).length, 'usuários em users/data...');
+            
+            // Procurar o primeiro usuário que tem API Key configurada
+            for (const [uid, userData] of Object.entries(allUsersData)) {
+              if (userData.assistant_settings && userData.assistant_settings.apiKey) {
+                masterUserId = uid;
+                console.log('✅ Encontrada API Key no UID:', uid);
+                break;
+              }
+            }
           }
         }
         
@@ -191,6 +216,8 @@ async function handleIncomingMessage(userId, message, client) {
         if (masterUserId) {
           const masterConfigSnapshot = await db.ref(`users/data/${masterUserId}/assistant_settings`).once('value');
           const masterConfig = masterConfigSnapshot.val();
+          
+          console.log('🔍 Configuração do master:', masterConfig ? 'Encontrada' : 'Não encontrada');
           
           if (masterConfig && masterConfig.apiKey) {
             // Usar API Key do master, mas manter outras configs do usuário
@@ -200,8 +227,12 @@ async function handleIncomingMessage(userId, message, client) {
               aiProvider: masterConfig.aiProvider || 'openai',
               model: aiConfig.model || masterConfig.model || 'gpt-3.5-turbo'
             };
-            console.log('✅ Usando API Key do master');
+            console.log('✅ Usando API Key do master (primeiros 10 caracteres):', masterConfig.apiKey.substring(0, 10) + '...');
+          } else {
+            console.log('❌ Master não tem API Key configurada');
           }
+        } else {
+          console.log('❌ Nenhuma API Key de master encontrada no sistema');
         }
       }
       
@@ -257,13 +288,33 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
     const companySnapshot = await db.ref(`users/data/${userId}/company_profile`).once('value');
     const company = companySnapshot.val() || {};
     
-    // Buscar catálogo de produtos/serviços
+    // Buscar configurações do assistente para verificar o que incluir
+    const assistantSettingsSnapshot = await db.ref(`users/data/${userId}/assistant_settings`).once('value');
+    const assistantSettings = assistantSettingsSnapshot.val() || {};
+    
+    // Buscar catálogo de produtos/serviços (respeitando as configurações)
     const catalogSnapshot = await db.ref(`users/data/${userId}/catalog_items`).once('value');
-    const catalogItems = [];
+    const catalogProducts = [];
+    const catalogServices = [];
+    
     if (catalogSnapshot.exists()) {
       catalogSnapshot.forEach((child) => {
         const item = child.val();
-        catalogItems.push(`${item.name} - R$ ${item.price}`);
+        if (item.type === 'product' && assistantSettings.includeCatalogProducts) {
+          catalogProducts.push({
+            name: item.name,
+            description: item.description || '',
+            price: item.price,
+            stock: item.stockQuantity || 0
+          });
+        } else if (item.type === 'service' && assistantSettings.includeCatalogServices) {
+          catalogServices.push({
+            name: item.name,
+            description: item.description || '',
+            price: item.price,
+            capacity: item.stockQuantity || 0
+          });
+        }
       });
     }
     
@@ -278,8 +329,35 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       systemPrompt += `\nNúmero de contato: ${company.whatsappNumber}`;
     }
     
-    if (catalogItems.length > 0) {
-      systemPrompt += `\n\nProdutos/Serviços disponíveis:\n${catalogItems.join('\n')}`;
+    // Incluir produtos no contexto se habilitado
+    if (catalogProducts.length > 0) {
+      systemPrompt += `\n\n📦 PRODUTOS DISPONÍVEIS:\n`;
+      catalogProducts.forEach((product, index) => {
+        systemPrompt += `${index + 1}. ${product.name} - R$ ${product.price}`;
+        if (product.description) systemPrompt += ` - ${product.description}`;
+        if (product.stock > 0) systemPrompt += ` (Estoque: ${product.stock} unidades)`;
+        systemPrompt += '\n';
+      });
+    }
+    
+    // Incluir serviços no contexto se habilitado
+    if (catalogServices.length > 0) {
+      systemPrompt += `\n\n🛠️ SERVIÇOS DISPONÍVEIS:\n`;
+      catalogServices.forEach((service, index) => {
+        systemPrompt += `${index + 1}. ${service.name} - R$ ${service.price}`;
+        if (service.description) systemPrompt += ` - ${service.description}`;
+        if (service.capacity > 0) systemPrompt += ` (Capacidade: ${service.capacity})`;
+        systemPrompt += '\n';
+      });
+    }
+    
+    // Instruções adicionais se houver produtos/serviços
+    if (catalogProducts.length > 0 || catalogServices.length > 0) {
+      systemPrompt += `\n⚠️ INSTRUÇÕES IMPORTANTES:
+- Você DEVE mencionar e oferecer esses produtos/serviços quando relevante
+- Seja proativo e sugira produtos/serviços que possam ajudar o cliente
+- Forneça informações detalhadas sobre preços e disponibilidade
+- Ajude o cliente a tomar a melhor decisão de compra`;
     }
     
     if (aiConfig.enabledFeatures && aiConfig.enabledFeatures.length > 0) {
