@@ -1391,49 +1391,63 @@ const DashboardWithFirebase = ({
                 🧠 Configuração de Inteligência Artificial
               </h3>
               
-              <form onSubmit={handleAssistantSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
-                    Provedor de IA
-                  </label>
-                  <select
-                    value={assistantForm.aiProvider || 'openai'}
-                    onChange={(e) => setAssistantForm(prev => ({ ...prev, aiProvider: e.target.value }))}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      borderRadius: '8px',
-                      border: '1px solid #d1d5db',
-                      fontSize: '1rem'
-                    }}
-                  >
-                    <option value="openai">OpenAI (GPT-3.5 / GPT-4)</option>
-                    <option value="anthropic">Anthropic (Claude)</option>
-                    <option value="google">Google (Gemini)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
-                    API Key
-                  </label>
-                  <input
-                    type="password"
-                    value={assistantForm.apiKey || ''}
-                    onChange={(e) => setAssistantForm(prev => ({ ...prev, apiKey: e.target.value }))}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      borderRadius: '8px',
-                      border: '1px solid #d1d5db',
-                      fontSize: '1rem'
-                    }}
-                    placeholder="sk-..."
-                  />
-                  <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '4px' }}>
-                    Sua chave API será criptografada e armazenada com segurança
+              {/* Aviso para usuários comuns */}
+              {!user.isMaster && (
+                <div style={{ padding: '16px', backgroundColor: '#dbeafe', borderRadius: '8px', marginBottom: '24px' }}>
+                  <p style={{ fontSize: '0.875rem', color: '#1e40af', margin: 0 }}>
+                    ℹ️ <strong>Informação:</strong> A API Key e o Provedor de IA são gerenciados pelo administrador master. Você pode personalizar apenas as configurações específicas do seu assistente.
                   </p>
                 </div>
+              )}
+              
+              <form onSubmit={handleAssistantSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {/* Campos visíveis apenas para o Master */}
+                {user.isMaster && (
+                  <>
+                    <div>
+                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                        Provedor de IA
+                      </label>
+                      <select
+                        value={assistantForm.aiProvider || 'openai'}
+                        onChange={(e) => setAssistantForm(prev => ({ ...prev, aiProvider: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '8px',
+                          border: '1px solid #d1d5db',
+                          fontSize: '1rem'
+                        }}
+                      >
+                        <option value="openai">OpenAI (GPT-3.5 / GPT-4)</option>
+                        <option value="anthropic">Anthropic (Claude)</option>
+                        <option value="google">Google (Gemini)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                        API Key
+                      </label>
+                      <input
+                        type="password"
+                        value={assistantForm.apiKey || ''}
+                        onChange={(e) => setAssistantForm(prev => ({ ...prev, apiKey: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '8px',
+                          border: '1px solid #d1d5db',
+                          fontSize: '1rem'
+                        }}
+                        placeholder="sk-..."
+                      />
+                      <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '4px' }}>
+                        Sua chave API será criptografada e armazenada com segurança
+                      </p>
+                    </div>
+                  </>
+                )}
 
                 <div>
                   <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>

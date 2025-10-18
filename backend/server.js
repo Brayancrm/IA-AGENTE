@@ -129,6 +129,12 @@ async function createSession(userId) {
   }
 }
 
+// Função para sanitizar número do WhatsApp para uso como chave no Firebase
+// Remove caracteres proibidos: ".", "#", "$", "[", "]", "@"
+function sanitizePhoneNumber(phoneNumber) {
+  return phoneNumber.replace(/[\.\#\$\[\]@]/g, '_');
+}
+
 // Handler de mensagens recebidas
 async function handleIncomingMessage(userId, message, client) {
   try {
@@ -139,42 +145,82 @@ async function handleIncomingMessage(userId, message, client) {
       return;
     }
     
+    // Sanitizar número do WhatsApp para usar como chave no Firebase
+    const sanitizedNumber = sanitizePhoneNumber(message.from);
+    
     // Salvar mensagem no Realtime Database
-    const messageRef = db.ref(`conversations/${userId}/${message.from}/messages`).push();
+    const messageRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
     await messageRef.set({
-      from: message.from,
-      to: message.to,
-      body: message.body,
+      from: message.from || '',
+      to: message.to || '',
+      body: message.body || '',
       timestamp: new Date().toISOString(),
-      type: message.type,
-      isFromMe: message.isFromMe,
-      messageId: message.id
+      type: message.type || 'chat',
+      isFromMe: message.isFromMe || false,
+      messageId: message.id || ''
     });
     
     console.log('💾 Mensagem salva no banco de dados');
     
     // Se não for mensagem enviada pelo usuário, processar com IA
     if (!message.isFromMe) {
-      // Buscar configuração de IA
+      // Buscar configuração de IA do usuário
       const aiConfigSnapshot = await db.ref(`users/data/${userId}/assistant_settings`).once('value');
-      const aiConfig = aiConfigSnapshot.val();
+      let aiConfig = aiConfigSnapshot.val();
+      
+      // Se o usuário não tiver API Key (usuário comum), buscar do master
+      if (aiConfig && !aiConfig.apiKey) {
+        console.log('📌 Usuário comum detectado, buscando API Key do master...');
+        
+        // Buscar usuário master (brayan@master.com ou primeiro usuário com isMaster: true)
+        const usersSnapshot = await db.ref('users/registered').once('value');
+        let masterUserId = null;
+        
+        if (usersSnapshot.exists()) {
+          const users = usersSnapshot.val();
+          const masterUser = Object.values(users).find(u => 
+            u.email === 'brayan@master.com' || u.isMaster === true
+          );
+          
+          if (masterUser) {
+            masterUserId = masterUser.uid;
+          }
+        }
+        
+        // Se encontrou o master, buscar suas configurações
+        if (masterUserId) {
+          const masterConfigSnapshot = await db.ref(`users/data/${masterUserId}/assistant_settings`).once('value');
+          const masterConfig = masterConfigSnapshot.val();
+          
+          if (masterConfig && masterConfig.apiKey) {
+            // Usar API Key do master, mas manter outras configs do usuário
+            aiConfig = {
+              ...aiConfig,
+              apiKey: masterConfig.apiKey,
+              aiProvider: masterConfig.aiProvider || 'openai',
+              model: aiConfig.model || masterConfig.model || 'gpt-3.5-turbo'
+            };
+            console.log('✅ Usando API Key do master');
+          }
+        }
+      }
       
       if (aiConfig && aiConfig.apiKey) {
         console.log('🤖 Gerando resposta com IA...');
         
         // Gerar resposta com IA
-        const aiResponse = await generateAIResponse(userId, message.from, message.body, aiConfig);
+        const aiResponse = await generateAIResponse(userId, sanitizedNumber, message.body, aiConfig);
         
         // Enviar resposta
         await client.sendText(message.from, aiResponse);
         console.log('✅ Resposta enviada:', aiResponse);
         
         // Salvar resposta da IA
-        const responseRef = db.ref(`conversations/${userId}/${message.from}/messages`).push();
+        const responseRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
         await responseRef.set({
-          from: message.to,
-          to: message.from,
-          body: aiResponse,
+          from: message.to || '',
+          to: message.from || '',
+          body: aiResponse || '',
           timestamp: new Date().toISOString(),
           type: 'chat',
           isFromMe: true,
