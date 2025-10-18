@@ -6,6 +6,23 @@ import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndP
 import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { ref, push, set, remove, onValue, off } from 'firebase/database';
 import SimpleLanding from './SimpleLanding';
+import {
+  Package,
+  Plus,
+  Edit,
+  Trash2,
+  AlertCircle,
+  Search,
+  Filter,
+  Star,
+  Grid,
+  List,
+  Upload,
+  Download,
+  Tag,
+  ShoppingCart,
+  DollarSign
+} from 'lucide-react';
 
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsappsalesagent';
 
