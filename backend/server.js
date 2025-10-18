@@ -9,17 +9,34 @@ console.log('🚀 Iniciando servidor WPPConnect + IA...');
 
 // Inicializar Firebase Admin
 let serviceAccount;
+
+// Tentar carregar de arquivo (desenvolvimento local)
 try {
   serviceAccount = require('./serviceAccountKey.json');
+  console.log('✅ serviceAccountKey.json carregado do arquivo');
 } catch (error) {
-  console.error('❌ Erro: serviceAccountKey.json não encontrado!');
-  console.log('📝 Por favor, baixe o arquivo do Firebase Console:');
-  console.log('   1. Vá para: https://console.firebase.google.com');
-  console.log('   2. Selecione seu projeto: ia-agente-b2f46');
-  console.log('   3. Project Settings → Service Accounts');
-  console.log('   4. "Generate New Private Key"');
-  console.log('   5. Salve como: backend/serviceAccountKey.json');
-  process.exit(1);
+  // Se não encontrar arquivo, tentar variável de ambiente (produção)
+  if (process.env.SERVICE_ACCOUNT_KEY) {
+    try {
+      serviceAccount = JSON.parse(process.env.SERVICE_ACCOUNT_KEY);
+      console.log('✅ serviceAccountKey carregado da variável de ambiente');
+    } catch (parseError) {
+      console.error('❌ Erro ao fazer parse da variável SERVICE_ACCOUNT_KEY:', parseError.message);
+      process.exit(1);
+    }
+  } else {
+    console.error('❌ Erro: serviceAccountKey não encontrado!');
+    console.log('📝 Para desenvolvimento local, baixe o arquivo do Firebase Console:');
+    console.log('   1. Vá para: https://console.firebase.google.com');
+    console.log('   2. Selecione seu projeto: ia-agente-b2f46');
+    console.log('   3. Project Settings → Service Accounts');
+    console.log('   4. "Generate New Private Key"');
+    console.log('   5. Salve como: backend/serviceAccountKey.json');
+    console.log('');
+    console.log('📝 Para produção (Railway/Render), adicione a variável de ambiente:');
+    console.log('   SERVICE_ACCOUNT_KEY = [conteúdo completo do JSON]');
+    process.exit(1);
+  }
 }
 
 admin.initializeApp({
