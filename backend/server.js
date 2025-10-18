@@ -34,9 +34,14 @@ const app = express();
 app.use(cors({
   origin: [
     'http://localhost:3000',
-    'https://ia-agente.vercel.app'
+    'http://localhost:3001',
+    'https://ia-agente.vercel.app',
+    'https://ia-agente.vercel.app/',
+    /\.vercel\.app$/  // Permite todos os subdomínios da Vercel
   ],
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 

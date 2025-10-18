@@ -224,7 +224,27 @@ vercel --prod
 - `NEXT_PUBLIC_FIREBASE_API_KEY`
 - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
 - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+- `NEXT_PUBLIC_BACKEND_URL` ⚠️ **IMPORTANTE!**
 - E outras do Firebase
+
+### ⚠️ ATENÇÃO: Backend em Produção
+
+O site na Vercel (https://ia-agente.vercel.app/) **NÃO FUNCIONA** com `localhost:3001`!
+
+Você precisa:
+
+1. ✅ Fazer deploy do backend em um servidor público (Railway, Render, VPS)
+2. ✅ Configurar `NEXT_PUBLIC_BACKEND_URL` na Vercel com a URL pública
+
+📖 **Guias completos:**
+- [DEPLOY_BACKEND.md](./DEPLOY_BACKEND.md) - Como fazer deploy do backend
+- [CONFIGURACAO_VERCEL.md](./CONFIGURACAO_VERCEL.md) - Como configurar a Vercel
+
+| Cenário | Frontend | Backend | Funciona? |
+|---------|----------|---------|-----------|
+| **Local** | localhost:3000 | localhost:3001 | ✅ Sim |
+| **Produção** | vercel.app | localhost:3001 | ❌ NÃO! |
+| **Produção** | vercel.app | railway/render/vps | ✅ Sim! |
 
 ---
 

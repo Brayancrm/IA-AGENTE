@@ -70,6 +70,7 @@ if (typeof window !== 'undefined') {
 
 // Configurações do app
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsapp-sales-agent';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
 
 // Componente Toast
 const Toast = ({ message, type, onClose }) => {
@@ -286,7 +287,7 @@ const WhatsAppSalesAgent = () => {
     if (!user) return;
     
     try {
-      const response = await fetch(`http://localhost:3001/api/sessions/status/${user.uid}`);
+      const response = await fetch(`${BACKEND_URL}/api/sessions/status/${user.uid}`);
       const data = await response.json();
       
       setWhatsappSession({
@@ -307,7 +308,7 @@ const WhatsAppSalesAgent = () => {
 
     setSessionLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/sessions/create', {
+      const response = await fetch(`${BACKEND_URL}/api/sessions/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -342,7 +343,7 @@ const WhatsAppSalesAgent = () => {
 
     setSessionLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/sessions/disconnect', {
+      const response = await fetch(`${BACKEND_URL}/api/sessions/disconnect`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
