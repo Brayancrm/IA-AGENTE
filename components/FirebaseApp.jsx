@@ -898,6 +898,372 @@ const DashboardWithFirebase = ({
     }));
   };
 
+  // Função para renderizar o catálogo avançado
+  const renderCatalog = () => {
+    // Calcular estatísticas
+    const stats = {
+      total: catalogItems.length,
+      products: catalogItems.filter(i => i.type === 'product').length,
+      services: catalogItems.filter(i => i.type === 'service').length,
+      totalValue: catalogItems.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * (parseInt(item.stockQuantity) || 0), 0),
+      lowStock: catalogItems.filter(i => i.type === 'product' && (parseInt(i.stockQuantity) || 0) < (i.minStock || 5)).length,
+      featured: catalogItems.filter(i => i.featured).length
+    };
+
+    // Filtrar itens
+    const filteredItems = catalogItems.filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+                           (item.description || '').toLowerCase().includes(catalogSearch.toLowerCase()) ||
+                           (item.sku || '').toLowerCase().includes(catalogSearch.toLowerCase());
+      const matchesFilter = catalogFilter === 'all' || item.type === catalogFilter;
+      const matchesCategory = catalogCategory === 'all' || item.category === catalogCategory;
+      return matchesSearch && matchesFilter && matchesCategory;
+    });
+
+    // Obter categorias únicas
+    const categories = [...new Set(catalogItems.map(i => i.category).filter(Boolean))];
+
+    return (
+      <div className="p-6 space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <h2 className="text-3xl font-bold text-gray-800">Catálogo (Itens)</h2>
+          <div className="flex space-x-3">
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl font-medium hover:bg-gray-200 transition-colors flex items-center space-x-2"
+            >
+              <Upload className="w-4 h-4" />
+              <span>Importar</span>
+            </button>
+            <button
+              onClick={() => openCatalogModal()}
+              className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors flex items-center space-x-2"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Novo Item</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Dashboard de Estatísticas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <Package className="w-8 h-8 opacity-80" />
+              <span className="text-3xl font-bold">{stats.products}</span>
+            </div>
+            <p className="text-blue-100">Produtos</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <ShoppingCart className="w-8 h-8 opacity-80" />
+              <span className="text-3xl font-bold">{stats.services}</span>
+            </div>
+            <p className="text-green-100">Serviços</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <AlertCircle className="w-8 h-8 opacity-80" />
+              <span className="text-3xl font-bold">{stats.lowStock}</span>
+            </div>
+            <p className="text-yellow-100">Estoque Baixo</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <DollarSign className="w-8 h-8 opacity-80" />
+              <span className="text-3xl font-bold">R$ {(stats.totalValue / 1000).toFixed(1)}k</span>
+            </div>
+            <p className="text-purple-100">Valor Total</p>
+          </div>
+        </div>
+
+        {/* Barra de Filtros e Busca */}
+        <div className="bg-white rounded-2xl p-4 shadow-lg border">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Busca */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Buscar por nome, descrição ou SKU..."
+                value={catalogSearch}
+                onChange={(e) => setCatalogSearch(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+
+            {/* Filtro por Tipo */}
+            <select
+              value={catalogFilter}
+              onChange={(e) => setCatalogFilter(e.target.value)}
+              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="all">Todos os Tipos</option>
+              <option value="product">Produtos</option>
+              <option value="service">Serviços</option>
+            </select>
+
+            {/* Filtro por Categoria */}
+            <select
+              value={catalogCategory}
+              onChange={(e) => setCatalogCategory(e.target.value)}
+              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="all">Todas Categorias</option>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+
+            {/* Toggle de Visualização */}
+            <div className="flex border border-gray-300 rounded-xl overflow-hidden">
+              <button
+                onClick={() => setCatalogView('grid')}
+                className={`px-4 py-3 ${catalogView === 'grid' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                <Grid className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setCatalogView('list')}
+                className={`px-4 py-3 ${catalogView === 'list' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                <List className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Lista de Itens */}
+        {filteredItems.length === 0 ? (
+          <div className="bg-white rounded-2xl shadow-lg border p-12 text-center">
+            <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-600 mb-2">
+              {catalogItems.length === 0 ? 'Nenhum item no catálogo' : 'Nenhum item encontrado'}
+            </h3>
+            <p className="text-gray-500 mb-6">
+              {catalogItems.length === 0 
+                ? 'Comece adicionando produtos ou serviços ao seu catálogo' 
+                : 'Tente ajustar os filtros ou busca'}
+            </p>
+            {catalogItems.length === 0 && (
+              <button
+                onClick={() => openCatalogModal()}
+                className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+              >
+                Adicionar Primeiro Item
+              </button>
+            )}
+          </div>
+        ) : catalogView === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredItems.map((item) => (
+              <div key={item.id} className="bg-white rounded-2xl shadow-lg border overflow-hidden hover:shadow-xl transition-all duration-300 group">
+                {/* Imagem */}
+                <div className="relative h-48 bg-gradient-to-br from-indigo-100 to-purple-100 overflow-hidden">
+                  {item.image ? (
+                    <img 
+                      src={item.image} 
+                      alt={item.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Package className="w-20 h-20 text-indigo-300" />
+                    </div>
+                  )}
+                  {/* Badge de Destaque */}
+                  {item.featured && (
+                    <div className="absolute top-3 right-3 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-1">
+                      <Star className="w-3 h-3 fill-current" />
+                      <span>Destaque</span>
+                    </div>
+                  )}
+                  {/* Badge de Tipo */}
+                  <div className="absolute top-3 left-3">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      item.type === 'product' 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-green-500 text-white'
+                    }`}>
+                      {item.type === 'product' ? 'Produto' : 'Serviço'}
+                    </span>
+                  </div>
+                  {/* Alerta de Estoque Baixo */}
+                  {item.type === 'product' && parseInt(item.stockQuantity) < (item.minStock || 5) && (
+                    <div className="absolute bottom-3 left-3 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-1">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>Estoque Baixo</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Conteúdo */}
+                <div className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-bold text-gray-900 text-lg line-clamp-1">{item.name}</h3>
+                    {item.sku && (
+                      <span className="text-xs text-gray-500 font-mono">{item.sku}</span>
+                    )}
+                  </div>
+                  
+                  {item.description && (
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
+                  )}
+
+                  {item.category && (
+                    <div className="flex items-center space-x-1 text-xs text-gray-500 mb-3">
+                      <Tag className="w-3 h-3" />
+                      <span>{item.category}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-2xl font-bold text-indigo-600">
+                        R$ {parseFloat(item.price).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500">Estoque</p>
+                      <p className={`text-sm font-bold ${
+                        item.type === 'product' && parseInt(item.stockQuantity) < (item.minStock || 5)
+                          ? 'text-red-600'
+                          : 'text-gray-900'
+                      }`}>
+                        {item.stockQuantity}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Ações */}
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => openCatalogModal(item)}
+                      className="flex-1 bg-indigo-50 text-indigo-600 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors flex items-center justify-center space-x-2"
+                    >
+                      <Edit className="w-4 h-4" />
+                      <span>Editar</span>
+                    </button>
+                    <button
+                      onClick={() => deleteCatalogItem(item.id)}
+                      className="bg-red-50 text-red-600 px-4 py-2 rounded-lg hover:bg-red-100 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-lg border overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Produto</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">SKU</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Categoria</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Preço</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Estoque</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Status</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {filteredItems.map((item) => (
+                    <tr key={item.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center flex-shrink-0">
+                            {item.image ? (
+                              <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" />
+                            ) : (
+                              <Package className="w-6 h-6 text-indigo-400" />
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900 flex items-center space-x-2">
+                              <span>{item.name}</span>
+                              {item.featured && <Star className="w-4 h-4 text-yellow-500 fill-current" />}
+                            </div>
+                            <div className="text-sm text-gray-500 truncate max-w-xs">{item.description}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm font-mono text-gray-600">{item.sku || '-'}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {item.category ? (
+                          <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            <Tag className="w-3 h-3" />
+                            <span>{item.category}</span>
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm font-bold text-gray-900">R$ {parseFloat(item.price).toFixed(2)}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`text-sm font-medium ${
+                          item.type === 'product' && parseInt(item.stockQuantity) < (item.minStock || 5)
+                            ? 'text-red-600'
+                            : 'text-gray-900'
+                        }`}>
+                          {item.stockQuantity}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col space-y-1">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium inline-block w-fit ${
+                            item.type === 'product' 
+                              ? 'bg-blue-100 text-blue-800' 
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {item.type === 'product' ? 'Produto' : 'Serviço'}
+                          </span>
+                          {item.type === 'product' && parseInt(item.stockQuantity) < (item.minStock || 5) && (
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 inline-flex items-center space-x-1 w-fit">
+                              <AlertCircle className="w-3 h-3" />
+                              <span>Baixo</span>
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => openCatalogModal(item)}
+                            className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteCatalogItem(item.id)}
+                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (currentPage) {
       case 'dashboard':
@@ -1028,81 +1394,7 @@ const DashboardWithFirebase = ({
         );
 
       case 'catalog':
-        return (
-          <div style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937' }}>
-                Catálogo (Itens)
-              </h2>
-              <button
-                onClick={() => openCatalogModal()}
-                style={{
-                  backgroundColor: '#4f46e5',
-                  color: 'white',
-                  padding: '12px 24px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  fontWeight: 'bold',
-                  cursor: 'pointer'
-                }}
-              >
-                + Adicionar Item
-              </button>
-            </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-              {catalogItems.map((item) => (
-                <div key={item.id} style={{ backgroundColor: 'white', borderRadius: '12px', padding: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
-                    <h3 style={{ fontWeight: 'bold', color: '#1f2937' }}>{item.name}</h3>
-                    <span style={{
-                      backgroundColor: item.type === 'product' ? '#dcfce7' : '#dbeafe',
-                      color: item.type === 'product' ? '#166534' : '#1e40af',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      fontSize: '0.75rem',
-                      fontWeight: 'bold'
-                    }}>
-                      {item.type === 'product' ? 'Produto' : 'Serviço'}
-                    </span>
-                  </div>
-                  <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '12px' }}>
-                    {item.description}
-                  </p>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 'bold', color: '#059669' }}>
-                      R$ {parseFloat(item.price || 0).toFixed(2)}
-                    </span>
-                    <button
-                      onClick={() => openCatalogModal(item)}
-                      style={{
-                        backgroundColor: '#6b7280',
-                        color: 'white',
-                        padding: '6px 12px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        fontSize: '0.75rem',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Editar
-                    </button>
-                  </div>
-                  <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#6b7280' }}>
-                    {item.type === 'product' ? 'Estoque' : 'Capacidade'}: {item.stockQuantity}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {catalogItems.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '48px', color: '#6b7280' }}>
-                <p style={{ fontSize: '1.125rem', marginBottom: '8px' }}>Nenhum item no catálogo</p>
-                <p style={{ fontSize: '0.875rem' }}>Adicione seu primeiro item clicando no botão acima</p>
-              </div>
-            )}
-          </div>
-        );
+        return renderCatalog();
 
       case 'integrations':
         return (
