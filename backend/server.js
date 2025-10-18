@@ -117,6 +117,7 @@ async function createSession(userId) {
       autoClose: 60000, // 60 segundos
       puppeteerOptions: {
         headless: true,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || '/nix/store/chromium/bin/chromium',
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -124,7 +125,9 @@ async function createSession(userId) {
           '--disable-accelerated-2d-canvas',
           '--no-first-run',
           '--no-zygote',
-          '--disable-gpu'
+          '--disable-gpu',
+          '--disable-software-rasterizer',
+          '--disable-dev-profile'
         ]
       }
     });
