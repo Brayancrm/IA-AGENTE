@@ -140,6 +140,14 @@ const WhatsAppSalesAgent = () => {
   // Estados de autenticação
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  // Estados da sessão WhatsApp
+  const [whatsappSession, setWhatsappSession] = useState({
+    status: 'disconnected',
+    qrCode: null,
+    isActive: false
+  });
+  const [sessionLoading, setSessionLoading] = useState(false);
+
   // Verificar se Firebase está pronto
   useEffect(() => {
     if (typeof window !== 'undefined' && auth) {
@@ -272,6 +280,103 @@ const WhatsAppSalesAgent = () => {
     navigator.clipboard.writeText(text);
     showToast('Copiado para a área de transferência!');
   };
+
+  // Funções de controle da sessão WhatsApp
+  const checkWhatsAppSession = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const response = await fetch(`http://localhost:3001/api/sessions/status/${user.uid}`);
+      const data = await response.json();
+      
+      setWhatsappSession({
+        status: data.status || 'disconnected',
+        qrCode: data.qrCode || null,
+        isActive: data.isActive || false
+      });
+    } catch (error) {
+      console.error('Erro ao verificar sessão WhatsApp:', error);
+    }
+  }, [user]);
+
+  const startWhatsAppSession = async () => {
+    if (!user) {
+      showToast('Usuário não autenticado', 'error');
+      return;
+    }
+
+    setSessionLoading(true);
+    try {
+      const response = await fetch('http://localhost:3001/api/sessions/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: user.uid }),
+      });
+
+      const data = await response.json();
+      
+      if (data.status === 'success' || data.status === 'already_active') {
+        showToast('Sessão WhatsApp iniciada! Escaneie o QR Code.', 'success');
+        // Iniciar verificação periódica do QR Code
+        const interval = setInterval(checkWhatsAppSession, 3000);
+        // Limpar intervalo após 2 minutos
+        setTimeout(() => clearInterval(interval), 120000);
+      } else {
+        showToast('Erro ao iniciar sessão WhatsApp', 'error');
+      }
+    } catch (error) {
+      console.error('Erro ao iniciar sessão:', error);
+      showToast('Erro ao conectar com o servidor', 'error');
+    } finally {
+      setSessionLoading(false);
+    }
+  };
+
+  const stopWhatsAppSession = async () => {
+    if (!user) {
+      showToast('Usuário não autenticado', 'error');
+      return;
+    }
+
+    setSessionLoading(true);
+    try {
+      const response = await fetch('http://localhost:3001/api/sessions/disconnect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: user.uid }),
+      });
+
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        showToast('Sessão WhatsApp desconectada!', 'success');
+        setWhatsappSession({
+          status: 'disconnected',
+          qrCode: null,
+          isActive: false
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao desconectar:', error);
+      showToast('Erro ao desconectar sessão', 'error');
+    } finally {
+      setSessionLoading(false);
+    }
+  };
+
+  // Verificar sessão WhatsApp ao carregar
+  useEffect(() => {
+    if (user) {
+      checkWhatsAppSession();
+      // Verificar status a cada 30 segundos
+      const interval = setInterval(checkWhatsAppSession, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user, checkWhatsAppSession]);
 
   // Funções de dados
   const saveCompanyProfile = async (data) => {
@@ -602,6 +707,71 @@ const WhatsAppSalesAgent = () => {
     return (
       <div className="p-6">
         <h2 className="text-3xl font-bold text-gray-800 mb-6">Dashboard</h2>
+        
+        {/* Card de Controle do WhatsApp */}
+        <div className="mb-8 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl p-6 shadow-lg text-white">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-2xl font-bold mb-2">Controle da Sessão WhatsApp</h3>
+              <p className="text-green-100">
+                Status: {whatsappSession.status === 'connected' ? '🟢 Conectado' : 
+                         whatsappSession.status === 'qrcode' ? '🟡 Aguardando QR Code' : 
+                         '🔴 Desconectado'}
+              </p>
+            </div>
+            <div className="flex gap-3">
+              {whatsappSession.status !== 'connected' ? (
+                <button
+                  onClick={startWhatsAppSession}
+                  disabled={sessionLoading}
+                  className="bg-white text-green-600 px-6 py-3 rounded-xl font-bold hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {sessionLoading ? 'Iniciando...' : 'Iniciar WhatsApp'}
+                </button>
+              ) : (
+                <button
+                  onClick={stopWhatsAppSession}
+                  disabled={sessionLoading}
+                  className="bg-red-500 text-white px-6 py-3 rounded-xl font-bold hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {sessionLoading ? 'Desconectando...' : 'Desconectar'}
+                </button>
+              )}
+              <button
+                onClick={checkWhatsAppSession}
+                className="bg-white bg-opacity-20 backdrop-blur-sm text-white px-4 py-3 rounded-xl font-bold hover:bg-opacity-30 transition-colors"
+              >
+                Atualizar Status
+              </button>
+            </div>
+          </div>
+          
+          {whatsappSession.qrCode && whatsappSession.status === 'qrcode' && (
+            <div className="mt-4 bg-white rounded-xl p-4">
+              <p className="text-gray-800 font-semibold mb-3 text-center">
+                Escaneie o QR Code com seu WhatsApp:
+              </p>
+              <div className="flex justify-center">
+                <img 
+                  src={whatsappSession.qrCode} 
+                  alt="QR Code WhatsApp" 
+                  className="w-64 h-64 border-4 border-green-500 rounded-lg"
+                />
+              </div>
+              <p className="text-gray-600 text-sm text-center mt-3">
+                Abra o WhatsApp → Configurações → Aparelhos Conectados → Conectar Aparelho
+              </p>
+            </div>
+          )}
+
+          {whatsappSession.status === 'connected' && (
+            <div className="mt-4 bg-white bg-opacity-20 backdrop-blur-sm rounded-xl p-4">
+              <p className="text-center font-semibold">
+                ✅ WhatsApp conectado e funcionando! O assistente está respondendo automaticamente.
+              </p>
+            </div>
+          )}
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-2xl p-6 shadow-lg border">

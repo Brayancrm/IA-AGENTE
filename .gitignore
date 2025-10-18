@@ -34,3 +34,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# backend
+backend/serviceAccountKey.json
+backend/node_modules
+backend/.env
+backend/logs/
+backend/.pm2/
+
+# tokens do wppconnect
+backend/tokens/

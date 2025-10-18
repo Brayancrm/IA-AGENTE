@@ -81,24 +81,58 @@ Cole estas regras:
 }
 ```
 
-### **Passo 5: Iniciar o Servidor**
+### **Passo 5: Iniciar o Servidor em Segundo Plano**
+
+🎯 **NOVIDADE:** Agora o backend roda em segundo plano com PM2!
+
+**Opção A - Script Automático (Windows):**
+
+Dê duplo clique em `start-backend.bat`
+
+**Opção B - Terminal:**
 
 ```bash
-npm start
+npm run pm2:start
 ```
 
-Ou em modo de desenvolvimento (auto-reload):
+**Verificar se está rodando:**
 
 ```bash
-npm run dev
+npm run pm2:status
 ```
 
 Você verá:
-
 ```
-✅ Servidor WPPConnect + IA rodando!
-📡 Porta: 3001
-🌐 URL: http://localhost:3001
+┌────┬─────────────────────┬─────────┬─────────┬──────────┐
+│ id │ name                │ mode    │ status  │ restart  │
+├────┼─────────────────────┼─────────┼─────────┼──────────┤
+│ 0  │ whatsapp-ia-backend │ fork    │ online  │ 0        │
+└────┴─────────────────────┴─────────┴─────────┴──────────┘
+```
+
+✅ **Vantagens:**
+- Roda em segundo plano (pode fechar o terminal!)
+- Reinicia automaticamente se cair
+- Logs salvos em arquivos
+- Pode iniciar com o Windows
+
+### **Comandos Úteis do PM2**
+
+| Comando | Descrição |
+|---------|-----------|
+| `npm run pm2:status` | Ver status do backend |
+| `npm run pm2:logs` | Ver logs em tempo real |
+| `npm run pm2:stop` | Parar o backend |
+| `npm run pm2:restart` | Reiniciar o backend |
+| `npm run pm2:delete` | Remover completamente |
+| `npm run pm2:monit` | Monitor de recursos (CPU/RAM) |
+
+### **Modo de Desenvolvimento (Terminal Aberto)**
+
+Se preferir desenvolvimento com auto-reload:
+
+```bash
+npm run dev
 ```
 
 ---
@@ -131,11 +165,13 @@ curl -X POST http://localhost:3001/api/sessions/create \
 
 ---
 
-## 📱 Como Usar no Dashboard
+## 🌐 Como Usar no Dashboard (NOVO!)
+
+🎉 **NOVIDADE:** Agora você controla TUDO pelo site, sem precisar do terminal!
 
 ### **1. Configure a API de IA**
 
-1. Acesse o dashboard: https://ia-agente.vercel.app
+1. Acesse o dashboard: `http://localhost:3000` ou https://ia-agente.vercel.app
 2. Faça login
 3. Vá em **"Configuração do Assistente"**
 4. Preencha:
@@ -147,14 +183,32 @@ curl -X POST http://localhost:3001/api/sessions/create \
 
 5. Clique em **"Salvar Configurações"**
 
-### **2. Conecte o WhatsApp**
+### **2. Conecte o WhatsApp (Pelo Site!)**
 
-1. No dashboard, clique em **"🔌 Conectar WhatsApp"**
-2. Aguarde o QR Code aparecer
-3. Abra o WhatsApp no celular
-4. Vá em **Configurações → Aparelhos conectados → Conectar aparelho**
-5. Escaneie o QR Code
-6. ✅ Pronto! Seu assistente está online
+1. No Dashboard, você verá um **card verde** com "Controle da Sessão WhatsApp"
+2. Clique em **"Iniciar WhatsApp"**
+3. O QR Code aparecerá automaticamente na tela
+4. Abra o WhatsApp no celular
+5. Vá em **Configurações → Aparelhos conectados → Conectar aparelho**
+6. Escaneie o QR Code mostrado no site
+7. ✅ Pronto! Status mudará para 🟢 **Conectado**
+
+### **3. Desconectar o WhatsApp**
+
+No mesmo card, clique em **"Desconectar"** quando quiser parar.
+
+### **4. Atualizar Status**
+
+Clique em **"Atualizar Status"** para verificar o estado da conexão.
+
+### **✨ Vantagens do Controle pelo Site:**
+
+- ✅ Sem precisar abrir terminal
+- ✅ QR Code aparece direto na tela
+- ✅ Status em tempo real
+- ✅ Controle fácil: Iniciar/Parar com um clique
+- ✅ Interface visual bonita
+- ✅ Backend sempre rodando em segundo plano
 
 ---
 
@@ -205,31 +259,61 @@ curl -X POST http://localhost:3001/api/sessions/create \
 ```
 backend/
 ├── server.js              ← Servidor principal
-├── package.json           ← Dependências
+├── package.json           ← Dependências (com PM2!)
+├── ecosystem.config.js    ← Configuração do PM2
 ├── env.example            ← Exemplo de configuração
 ├── serviceAccountKey.json ← Credenciais Firebase (não fazer commit!)
-└── README.md             ← Este arquivo
+├── start-backend.bat      ← Script para iniciar (Windows)
+├── stop-backend.bat       ← Script para parar (Windows)
+├── status-backend.bat     ← Script para ver status (Windows)
+├── logs/                  ← Logs do PM2
+│   ├── error.log          ← Erros
+│   ├── output.log         ← Saída normal
+│   └── combined.log       ← Todos os logs
+├── INICIO_RAPIDO.md       ← Guia rápido
+└── README.md              ← Este arquivo
 ```
+
+## 📚 Documentação
+
+- **[INICIO_RAPIDO.md](./INICIO_RAPIDO.md)** - Guia de início rápido
+- **[../COMO_USAR_WHATSAPP.md](../COMO_USAR_WHATSAPP.md)** - Guia completo e detalhado de uso
 
 ---
 
 ## 🚀 Deploy em Produção
 
-### **Opção 1: VPS/Servidor Dedicado**
+### **Opção 1: VPS/Servidor Dedicado (Recomendado)**
+
+O PM2 já está configurado! Basta usar:
 
 ```bash
-# Instalar PM2 para gerenciar o processo
-npm install -g pm2
+# Clonar repositório
+git clone seu-repo.git
+cd backend
 
-# Iniciar servidor
-pm2 start server.js --name whatsapp-ia
+# Instalar dependências
+npm install
+
+# Iniciar com PM2 (já configurado!)
+npm run pm2:start
+
+# Configurar para iniciar automaticamente no boot
+pm2 startup
+pm2 save
+
+# Ver status
+npm run pm2:status
 
 # Ver logs
-pm2 logs whatsapp-ia
-
-# Reiniciar
-pm2 restart whatsapp-ia
+npm run pm2:logs
 ```
+
+✅ **Pronto!** Seu backend está rodando em produção com:
+- Reinicialização automática
+- Logs salvos
+- Monitoramento de recursos
+- Inicia com o servidor
 
 ### **Opção 2: Railway.app**
 
