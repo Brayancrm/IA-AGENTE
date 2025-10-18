@@ -2420,12 +2420,67 @@ const DashboardWithFirebase = ({
 
               <div>
                 <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
-                  URL da Imagem
+                  Imagem do Produto
                 </label>
+                
+                {/* Upload de arquivo */}
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{
+                    display: 'inline-block',
+                    padding: '10px 16px',
+                    backgroundColor: '#4f46e5',
+                    color: 'white',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '0.875rem'
+                  }}>
+                    📁 Escolher Arquivo do PC
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          // Verificar tamanho (max 2MB)
+                          if (file.size > 2 * 1024 * 1024) {
+                            alert('❌ Imagem muito grande! Máximo 2MB.');
+                            return;
+                          }
+                          
+                          // Converter para Base64
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setCatalogForm(prev => ({ ...prev, image: reader.result }));
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                  <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '4px' }}>
+                    Envie do seu computador (máx. 2MB)
+                  </p>
+                </div>
+
+                {/* OU separador */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  margin: '12px 0',
+                  gap: '8px'
+                }}>
+                  <div style={{ flex: 1, height: '1px', backgroundColor: '#d1d5db' }}></div>
+                  <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 'bold' }}>OU</span>
+                  <div style={{ flex: 1, height: '1px', backgroundColor: '#d1d5db' }}></div>
+                </div>
+
+                {/* URL da imagem */}
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                   <input
                     type="url"
-                    value={catalogForm.image || ''}
+                    value={catalogForm.image && catalogForm.image.startsWith('http') ? catalogForm.image : ''}
                     onChange={(e) => setCatalogForm(prev => ({ ...prev, image: e.target.value }))}
                     style={{
                       flex: 1,
@@ -2441,9 +2496,10 @@ const DashboardWithFirebase = ({
                       width: '80px',
                       height: '80px',
                       borderRadius: '8px',
-                      border: '2px solid #d1d5db',
+                      border: '2px solid #10b981',
                       overflow: 'hidden',
-                      flexShrink: 0
+                      flexShrink: 0,
+                      boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
                     }}>
                       <img 
                         src={catalogForm.image} 
@@ -2457,6 +2513,27 @@ const DashboardWithFirebase = ({
                 <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '4px' }}>
                   Cole a URL de uma imagem online (Imgur, Cloudinary, etc)
                 </p>
+
+                {/* Botão para remover imagem */}
+                {catalogForm.image && (
+                  <button
+                    type="button"
+                    onClick={() => setCatalogForm(prev => ({ ...prev, image: '' }))}
+                    style={{
+                      marginTop: '8px',
+                      padding: '6px 12px',
+                      backgroundColor: '#fee2e2',
+                      color: '#dc2626',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    🗑️ Remover Imagem
+                  </button>
+                )}
               </div>
 
               <div style={{
