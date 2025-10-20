@@ -265,9 +265,10 @@ async function handleIncomingMessage(userId, message, client) {
         console.log('🤖 Gerando resposta com IA...');
         
         // Gerar resposta com IA
-        const aiResponse = await generateAIResponse(userId, sanitizedNumber, message.body, aiConfig);
+        const aiResult = await generateAIResponse(userId, sanitizedNumber, message.body, aiConfig);
+        const aiResponse = aiResult.text;
         
-        // Enviar resposta
+        // Enviar resposta de texto
         await client.sendText(message.from, aiResponse);
         console.log('✅ Resposta enviada:', aiResponse);
         
@@ -282,6 +283,54 @@ async function handleIncomingMessage(userId, message, client) {
           isFromMe: true,
           aiGenerated: true
         });
+        
+        // Detectar produtos mencionados e enviar imagens automaticamente
+        const mentionedItems = detectMentionedProducts(aiResponse, aiResult.catalogItemsMap);
+        
+        if (mentionedItems.length > 0) {
+          console.log(`📸 Detectados ${mentionedItems.length} produto(s) com imagem na resposta`);
+          
+          // Enviar imagens dos produtos mencionados
+          for (const item of mentionedItems) {
+            try {
+              console.log(`📤 Enviando imagem de: ${item.name}`);
+              
+              // Criar legenda para a imagem
+              const caption = `📦 *${item.name}*\n💰 R$ ${item.price}\n\n${item.description || ''}`;
+              
+              // Enviar imagem com legenda
+              await client.sendImage(
+                message.from,
+                item.image,
+                item.name,
+                caption
+              );
+              
+              console.log(`✅ Imagem enviada: ${item.name}`);
+              
+              // Salvar envio da imagem no histórico
+              const imageRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+              await imageRef.set({
+                from: message.to || '',
+                to: message.from || '',
+                body: caption,
+                imageUrl: item.image,
+                timestamp: new Date().toISOString(),
+                type: 'image',
+                isFromMe: true,
+                aiGenerated: true,
+                productName: item.name
+              });
+              
+              // Aguardar um pouco entre imagens para não sobrecarregar
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              
+            } catch (imageError) {
+              console.error(`❌ Erro ao enviar imagem de ${item.name}:`, imageError.message);
+              // Continuar mesmo se houver erro em uma imagem
+            }
+          }
+        }
       } else {
         console.log('⚠️ Configuração de IA não encontrada ou incompleta');
       }
@@ -321,24 +370,31 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
     const catalogSnapshot = await db.ref(`users/data/${userId}/catalog_items`).once('value');
     const catalogProducts = [];
     const catalogServices = [];
+    const catalogItemsMap = {}; // Mapa para buscar itens por nome
     
     if (catalogSnapshot.exists()) {
       catalogSnapshot.forEach((child) => {
         const item = child.val();
         if (item.type === 'product' && assistantSettings.includeCatalogProducts) {
-          catalogProducts.push({
+          const productData = {
             name: item.name,
             description: item.description || '',
             price: item.price,
-            stock: item.stockQuantity || 0
-          });
+            stock: item.stockQuantity || 0,
+            image: item.image || null
+          };
+          catalogProducts.push(productData);
+          catalogItemsMap[item.name.toLowerCase()] = productData;
         } else if (item.type === 'service' && assistantSettings.includeCatalogServices) {
-          catalogServices.push({
+          const serviceData = {
             name: item.name,
             description: item.description || '',
             price: item.price,
-            capacity: item.stockQuantity || 0
-          });
+            capacity: item.stockQuantity || 0,
+            image: item.image || null
+          };
+          catalogServices.push(serviceData);
+          catalogItemsMap[item.name.toLowerCase()] = serviceData;
         }
       });
     }
@@ -361,6 +417,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
         systemPrompt += `${index + 1}. ${product.name} - R$ ${product.price}`;
         if (product.description) systemPrompt += ` - ${product.description}`;
         if (product.stock > 0) systemPrompt += ` (Estoque: ${product.stock} unidades)`;
+        if (product.image) systemPrompt += ` [TEM FOTO DISPONÍVEL]`;
         systemPrompt += '\n';
       });
     }
@@ -372,6 +429,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
         systemPrompt += `${index + 1}. ${service.name} - R$ ${service.price}`;
         if (service.description) systemPrompt += ` - ${service.description}`;
         if (service.capacity > 0) systemPrompt += ` (Capacidade: ${service.capacity})`;
+        if (service.image) systemPrompt += ` [TEM FOTO DISPONÍVEL]`;
         systemPrompt += '\n';
       });
     }
@@ -382,7 +440,8 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
 - Você DEVE mencionar e oferecer esses produtos/serviços quando relevante
 - Seja proativo e sugira produtos/serviços que possam ajudar o cliente
 - Forneça informações detalhadas sobre preços e disponibilidade
-- Ajude o cliente a tomar a melhor decisão de compra`;
+- Ajude o cliente a tomar a melhor decisão de compra
+- Quando mencionar produtos/serviços com foto disponível, eu enviarei a imagem automaticamente para o cliente`;
     }
     
     if (aiConfig.enabledFeatures && aiConfig.enabledFeatures.length > 0) {
@@ -412,14 +471,44 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       }
     });
     
-    return response.data.choices[0].message.content;
+    const aiResponse = response.data.choices[0].message.content;
+    
+    // Retornar resposta e mapa de itens para detecção de imagens
+    return {
+      text: aiResponse,
+      catalogItemsMap: catalogItemsMap
+    };
     
   } catch (error) {
     console.error('❌ Erro ao gerar resposta IA:', error.response?.data || error.message);
     
     // Resposta padrão em caso de erro
-    return 'Desculpe, estou com dificuldades para processar sua mensagem no momento. Por favor, tente novamente em instantes.';
+    return {
+      text: 'Desculpe, estou com dificuldades para processar sua mensagem no momento. Por favor, tente novamente em instantes.',
+      catalogItemsMap: {}
+    };
   }
+}
+
+// Função para detectar produtos mencionados na resposta e retornar suas imagens
+function detectMentionedProducts(responseText, catalogItemsMap) {
+  const mentionedItems = [];
+  
+  // Percorrer todos os itens do catálogo
+  for (const [itemName, itemData] of Object.entries(catalogItemsMap)) {
+    // Verificar se o nome do produto aparece na resposta (case insensitive)
+    const regex = new RegExp(`\\b${itemName}\\b`, 'i');
+    if (regex.test(responseText.toLowerCase()) && itemData.image) {
+      mentionedItems.push({
+        name: itemData.name,
+        image: itemData.image,
+        price: itemData.price,
+        description: itemData.description
+      });
+    }
+  }
+  
+  return mentionedItems;
 }
 
 // ============================================
