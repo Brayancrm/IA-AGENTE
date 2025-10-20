@@ -46,7 +46,12 @@ import {
   BarChart3,
   TrendingUp,
   ShoppingCart,
-  DollarSign
+  DollarSign,
+  MessageSquare,
+  Calendar,
+  Phone,
+  Clock,
+  ExternalLink
 } from 'lucide-react';
 
 // Configuração do Firebase
@@ -165,6 +170,15 @@ const WhatsAppSalesAgent = () => {
     isActive: false
   });
   const [sessionLoading, setSessionLoading] = useState(false);
+
+  // Estados do CRM
+  const [crmTab, setCrmTab] = useState('clients'); // 'clients', 'conversations', 'orders'
+  const [crmClients, setCrmClients] = useState([]);
+  const [crmConversations, setCrmConversations] = useState([]);
+  const [crmOrders, setCrmOrders] = useState([]);
+  const [crmSearch, setCrmSearch] = useState('');
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [crmLoading, setCrmLoading] = useState(false);
 
   // Verificar se Firebase está pronto
   useEffect(() => {
@@ -658,6 +672,7 @@ const WhatsAppSalesAgent = () => {
       { id: 'dashboard', label: 'Dashboard', icon: Home },
       { id: 'company', label: 'Cadastro da Empresa', icon: Building2 },
       { id: 'catalog', label: 'Catálogo (Itens)', icon: Package },
+      { id: 'crm', label: 'CRM', icon: Users },
       { id: 'integrations', label: 'Integrações', icon: Settings },
       { id: 'assistant', label: 'Configuração do Assistente', icon: Bot }
     ];
@@ -2150,6 +2165,492 @@ const WhatsAppSalesAgent = () => {
     );
   };
 
+  // Componente CRM
+  const CRM = () => {
+    // Carregar dados do CRM quando a aba mudar
+    useEffect(() => {
+      if (user?.uid) {
+        loadCRMData();
+      }
+    }, [user, crmTab]);
+
+    const loadCRMData = async () => {
+      if (!user?.uid) return;
+      
+      setCrmLoading(true);
+      try {
+        if (crmTab === 'clients') {
+          await loadClients();
+        } else if (crmTab === 'conversations') {
+          await loadConversations();
+        } else if (crmTab === 'orders') {
+          await loadOrders();
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados do CRM:', error);
+        showToast('Erro ao carregar dados', 'error');
+      } finally {
+        setCrmLoading(false);
+      }
+    };
+
+    const loadClients = async () => {
+      const conversationsRef = ref(database, `conversations/${user.uid}`);
+      const snapshot = await onValue(conversationsRef, (snap) => {
+        const clients = [];
+        if (snap.exists()) {
+          const data = snap.val();
+          Object.keys(data).forEach(contactNumber => {
+            const messages = data[contactNumber].messages || {};
+            const messageArray = Object.values(messages);
+            const lastMessage = messageArray[messageArray.length - 1];
+            
+            clients.push({
+              phone: contactNumber,
+              name: contactNumber.replace('@c.us', ''),
+              lastContact: lastMessage?.timestamp || new Date().toISOString(),
+              messageCount: messageArray.length,
+              firstContact: messageArray[0]?.timestamp || new Date().toISOString()
+            });
+          });
+        }
+        setCrmClients(clients.sort((a, b) => new Date(b.lastContact) - new Date(a.lastContact)));
+      }, { onlyOnce: true });
+    };
+
+    const loadConversations = async () => {
+      const conversationsRef = ref(database, `conversations/${user.uid}`);
+      const snapshot = await onValue(conversationsRef, (snap) => {
+        const convs = [];
+        if (snap.exists()) {
+          const data = snap.val();
+          Object.keys(data).forEach(contactNumber => {
+            const messages = data[contactNumber].messages || {};
+            const messageArray = Object.entries(messages).map(([id, msg]) => ({
+              id,
+              ...msg
+            })).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            
+            convs.push({
+              phone: contactNumber,
+              name: contactNumber.replace('@c.us', ''),
+              messages: messageArray
+            });
+          });
+        }
+        setCrmConversations(convs);
+      }, { onlyOnce: true });
+    };
+
+    const loadOrders = async () => {
+      const ordersRef = ref(database, `orders/${user.uid}`);
+      const snapshot = await onValue(ordersRef, (snap) => {
+        const orders = [];
+        if (snap.exists()) {
+          const data = snap.val();
+          Object.entries(data).forEach(([orderId, order]) => {
+            orders.push({
+              id: orderId,
+              ...order
+            });
+          });
+        }
+        setCrmOrders(orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+      }, { onlyOnce: true });
+    };
+
+    const filteredClients = crmClients.filter(client =>
+      client.name.toLowerCase().includes(crmSearch.toLowerCase()) ||
+      client.phone.toLowerCase().includes(crmSearch.toLowerCase())
+    );
+
+    const filteredConversations = crmConversations.filter(conv =>
+      conv.name.toLowerCase().includes(crmSearch.toLowerCase()) ||
+      conv.phone.toLowerCase().includes(crmSearch.toLowerCase())
+    );
+
+    const filteredOrders = crmOrders.filter(order =>
+      order.customerPhone?.toLowerCase().includes(crmSearch.toLowerCase()) ||
+      order.customerName?.toLowerCase().includes(crmSearch.toLowerCase()) ||
+      order.description?.toLowerCase().includes(crmSearch.toLowerCase())
+    );
+
+    const formatPhone = (phone) => {
+      return phone.replace('@c.us', '').replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+    };
+
+    const formatDate = (dateString) => {
+      if (!dateString) return 'N/A';
+      const date = new Date(dateString);
+      return date.toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    };
+
+    const getStatusColor = (status) => {
+      const colors = {
+        pending: 'bg-yellow-100 text-yellow-800',
+        paid: 'bg-green-100 text-green-800',
+        confirmed: 'bg-blue-100 text-blue-800',
+        cancelled: 'bg-red-100 text-red-800',
+        overdue: 'bg-orange-100 text-orange-800'
+      };
+      return colors[status] || 'bg-gray-100 text-gray-800';
+    };
+
+    const getStatusLabel = (status) => {
+      const labels = {
+        pending: 'Pendente',
+        paid: 'Pago',
+        confirmed: 'Confirmado',
+        cancelled: 'Cancelado',
+        overdue: 'Vencido'
+      };
+      return labels[status] || status;
+    };
+
+    return (
+      <div className="p-6">
+        <div className="mb-6">
+          <h2 className="text-3xl font-bold text-gray-800 mb-2">CRM</h2>
+          <p className="text-gray-600">Gerencie seus clientes, conversas e pedidos</p>
+        </div>
+
+        {/* Abas */}
+        <div className="bg-white rounded-xl shadow-lg mb-6 overflow-hidden">
+          <nav className="flex border-b border-gray-200">
+            <button
+              onClick={() => setCrmTab('clients')}
+              className={`flex items-center space-x-2 px-6 py-4 font-medium text-sm border-b-2 ${
+                crmTab === 'clients'
+                  ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <Users className="w-5 h-5" />
+              <span>Lista de Clientes</span>
+              <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full text-xs font-bold">
+                {crmClients.length}
+              </span>
+            </button>
+            <button
+              onClick={() => setCrmTab('conversations')}
+              className={`flex items-center space-x-2 px-6 py-4 font-medium text-sm border-b-2 ${
+                crmTab === 'conversations'
+                  ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <MessageSquare className="w-5 h-5" />
+              <span>Histórico de Conversas</span>
+              <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full text-xs font-bold">
+                {crmConversations.length}
+              </span>
+            </button>
+            <button
+              onClick={() => setCrmTab('orders')}
+              className={`flex items-center space-x-2 px-6 py-4 font-medium text-sm border-b-2 ${
+                crmTab === 'orders'
+                  ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <ShoppingCart className="w-5 h-5" />
+              <span>Histórico de Compras</span>
+              <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full text-xs font-bold">
+                {crmOrders.length}
+              </span>
+            </button>
+          </nav>
+
+          {/* Barra de busca */}
+          <div className="p-6 bg-gray-50 border-b border-gray-200">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder={`Buscar ${crmTab === 'clients' ? 'clientes' : crmTab === 'conversations' ? 'conversas' : 'pedidos'}...`}
+                value={crmSearch}
+                onChange={(e) => setCrmSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+          </div>
+
+          {/* Conteúdo das abas */}
+          <div className="p-6">
+            {crmLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Carregando dados...</p>
+              </div>
+            ) : (
+              <>
+                {/* Lista de Clientes */}
+                {crmTab === 'clients' && (
+                  <div className="space-y-4">
+                    {filteredClients.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-500 text-lg font-medium">Nenhum cliente encontrado</p>
+                        <p className="text-gray-400 text-sm mt-2">
+                          {crmSearch ? 'Tente ajustar sua busca' : 'Os clientes aparecerão aqui após as primeiras conversas'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredClients.map((client) => (
+                          <div
+                            key={client.phone}
+                            className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-shadow cursor-pointer"
+                            onClick={() => setSelectedClient(client)}
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                                  <Users className="w-6 h-6 text-indigo-600" />
+                                </div>
+                                <div>
+                                  <h3 className="font-bold text-gray-800">{client.name}</h3>
+                                  <p className="text-sm text-gray-500 flex items-center space-x-1">
+                                    <Phone className="w-3 h-3" />
+                                    <span>{formatPhone(client.phone)}</span>
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2 text-sm">
+                              <div className="flex items-center justify-between text-gray-600">
+                                <span className="flex items-center space-x-1">
+                                  <Calendar className="w-4 h-4" />
+                                  <span>Primeiro contato:</span>
+                                </span>
+                                <span className="font-medium">{formatDate(client.firstContact).split(' ')[0]}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-gray-600">
+                                <span className="flex items-center space-x-1">
+                                  <Clock className="w-4 h-4" />
+                                  <span>Último contato:</span>
+                                </span>
+                                <span className="font-medium">{formatDate(client.lastContact).split(' ')[0]}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-gray-600">
+                                <span className="flex items-center space-x-1">
+                                  <MessageSquare className="w-4 h-4" />
+                                  <span>Mensagens:</span>
+                                </span>
+                                <span className="font-bold text-indigo-600">{client.messageCount}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Histórico de Conversas */}
+                {crmTab === 'conversations' && (
+                  <div className="space-y-6">
+                    {filteredConversations.length === 0 ? (
+                      <div className="text-center py-12">
+                        <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-500 text-lg font-medium">Nenhuma conversa encontrada</p>
+                        <p className="text-gray-400 text-sm mt-2">
+                          {crmSearch ? 'Tente ajustar sua busca' : 'As conversas aparecerão aqui após os primeiros atendimentos'}
+                        </p>
+                      </div>
+                    ) : (
+                      filteredConversations.map((conversation) => (
+                        <div key={conversation.phone} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                          {/* Header da conversa */}
+                          <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-4">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                                <Users className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h3 className="font-bold">{conversation.name}</h3>
+                                <p className="text-sm opacity-90 flex items-center space-x-1">
+                                  <Phone className="w-3 h-3" />
+                                  <span>{formatPhone(conversation.phone)}</span>
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Mensagens */}
+                          <div className="p-4 space-y-3 max-h-96 overflow-y-auto bg-gray-50">
+                            {conversation.messages.map((message, idx) => {
+                              const isBot = message.from !== conversation.phone;
+                              return (
+                                <div
+                                  key={message.id || idx}
+                                  className={`flex ${isBot ? 'justify-end' : 'justify-start'}`}
+                                >
+                                  <div className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                                    isBot 
+                                      ? 'bg-indigo-600 text-white' 
+                                      : 'bg-white border border-gray-200 text-gray-800'
+                                  }`}>
+                                    <p className="text-sm">{message.body}</p>
+                                    {message.imageUrl && (
+                                      <div className="mt-2">
+                                        <img 
+                                          src={message.imageUrl} 
+                                          alt="Imagem enviada"
+                                          className="rounded max-w-full h-auto"
+                                        />
+                                      </div>
+                                    )}
+                                    <p className={`text-xs mt-1 ${isBot ? 'text-indigo-200' : 'text-gray-500'}`}>
+                                      {formatDate(message.timestamp)}
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {/* Histórico de Compras */}
+                {crmTab === 'orders' && (
+                  <div className="space-y-4">
+                    {filteredOrders.length === 0 ? (
+                      <div className="text-center py-12">
+                        <ShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-500 text-lg font-medium">Nenhum pedido encontrado</p>
+                        <p className="text-gray-400 text-sm mt-2">
+                          {crmSearch ? 'Tente ajustar sua busca' : 'Os pedidos aparecerão aqui quando os clientes realizarem compras'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="bg-gray-100 border-b border-gray-200">
+                              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Cliente</th>
+                              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Descrição</th>
+                              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Valor</th>
+                              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Data</th>
+                              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
+                              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Ações</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {filteredOrders.map((order) => (
+                              <tr key={order.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-4">
+                                  <div>
+                                    <p className="font-medium text-gray-800">{order.customerName || 'Cliente WhatsApp'}</p>
+                                    <p className="text-sm text-gray-500">{formatPhone(order.customerPhone)}</p>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-4">
+                                  <p className="text-sm text-gray-800">{order.description}</p>
+                                </td>
+                                <td className="px-4 py-4">
+                                  <p className="font-bold text-green-600">
+                                    R$ {Number(order.value).toFixed(2)}
+                                  </p>
+                                </td>
+                                <td className="px-4 py-4">
+                                  <p className="text-sm text-gray-600">{formatDate(order.createdAt)}</p>
+                                </td>
+                                <td className="px-4 py-4">
+                                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(order.status)}`}>
+                                    {getStatusLabel(order.status)}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-4">
+                                  {order.invoiceUrl && (
+                                    <a
+                                      href={order.invoiceUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-indigo-600 hover:text-indigo-800 flex items-center space-x-1 text-sm font-medium"
+                                    >
+                                      <ExternalLink className="w-4 h-4" />
+                                      <span>Ver Cobrança</span>
+                                    </a>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Modal de Detalhes do Cliente */}
+        {selectedClient && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-6 rounded-t-2xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
+                      <Users className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold">{selectedClient.name}</h2>
+                      <p className="opacity-90 flex items-center space-x-1">
+                        <Phone className="w-4 h-4" />
+                        <span>{formatPhone(selectedClient.phone)}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelectedClient(null)}
+                    className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-blue-50 rounded-xl p-4">
+                    <p className="text-sm text-gray-600 mb-1">Primeiro Contato</p>
+                    <p className="font-bold text-gray-800">{formatDate(selectedClient.firstContact)}</p>
+                  </div>
+                  <div className="bg-green-50 rounded-xl p-4">
+                    <p className="text-sm text-gray-600 mb-1">Último Contato</p>
+                    <p className="font-bold text-gray-800">{formatDate(selectedClient.lastContact)}</p>
+                  </div>
+                  <div className="bg-purple-50 rounded-xl p-4">
+                    <p className="text-sm text-gray-600 mb-1">Total de Mensagens</p>
+                    <p className="font-bold text-gray-800 text-2xl">{selectedClient.messageCount}</p>
+                  </div>
+                  <div className="bg-yellow-50 rounded-xl p-4">
+                    <p className="text-sm text-gray-600 mb-1">Status</p>
+                    <p className="font-bold text-green-600">Ativo</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Componente Configuração do Assistente
   const AssistantConfig = () => {
     const [formData, setFormData] = useState({
@@ -2245,6 +2746,8 @@ const WhatsAppSalesAgent = () => {
         return <CompanySetup />;
       case 'catalog':
         return <Catalog />;
+      case 'crm':
+        return <CRM />;
       case 'integrations':
         return <Integrations />;
       case 'assistant':
