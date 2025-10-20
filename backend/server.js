@@ -357,11 +357,26 @@ async function handleIncomingMessage(userId, message, client) {
         if (hasPurchaseIntent && mentionedItems.length > 0) {
           console.log('🛒 Intenção de compra detectada!');
           
-          // Buscar configuração do Asaas no Firestore
+          // Buscar configuração do Asaas no Firestore ou Realtime Database
           const integrations = await getIntegrationsConfig(userId);
-          const asaasApiKey = integrations?.asaasConfig?.asaasApiKey;
           
-          console.log('🔍 API Key do Asaas:', asaasApiKey ? 'Encontrada ✅' : 'Não encontrada ❌');
+          // Tentar acessar a API Key em diferentes formatos
+          let asaasApiKey = null;
+          if (integrations) {
+            // Formato Firestore: integrations.asaasConfig.asaasApiKey
+            if (integrations.asaasConfig && integrations.asaasConfig.asaasApiKey) {
+              asaasApiKey = integrations.asaasConfig.asaasApiKey;
+              console.log('🔍 API Key do Asaas: Encontrada no formato Firestore ✅');
+            }
+            // Formato Realtime Database: integrations.asaasApiKey (direto)
+            else if (integrations.asaasApiKey) {
+              asaasApiKey = integrations.asaasApiKey;
+              console.log('🔍 API Key do Asaas: Encontrada no formato Realtime Database ✅');
+            }
+            else {
+              console.log('❌ API Key do Asaas: Não encontrada em nenhum formato');
+            }
+          }
           
           if (asaasApiKey) {
             try {
@@ -975,9 +990,20 @@ app.post('/api/asaas/create-charge', async (req, res) => {
       return res.status(400).json({ error: 'userId, customerData e items são obrigatórios' });
     }
     
-    // Buscar API Key do Asaas no Firestore
+    // Buscar API Key do Asaas no Firestore ou Realtime Database
     const integrations = await getIntegrationsConfig(userId);
-    const asaasApiKey = integrations?.asaasConfig?.asaasApiKey;
+    
+    let asaasApiKey = null;
+    if (integrations) {
+      // Formato Firestore
+      if (integrations.asaasConfig && integrations.asaasConfig.asaasApiKey) {
+        asaasApiKey = integrations.asaasConfig.asaasApiKey;
+      }
+      // Formato Realtime Database
+      else if (integrations.asaasApiKey) {
+        asaasApiKey = integrations.asaasApiKey;
+      }
+    }
     
     if (!asaasApiKey) {
       return res.status(400).json({ error: 'API Key do Asaas não configurada' });
