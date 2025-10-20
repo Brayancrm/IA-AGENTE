@@ -347,6 +347,93 @@ async function handleIncomingMessage(userId, message, client) {
             }
           }
         }
+        
+        // Detectar intenção de compra e gerar link de pagamento
+        const hasPurchaseIntent = detectPurchaseIntent(message.body);
+        
+        if (hasPurchaseIntent && mentionedItems.length > 0) {
+          console.log('🛒 Intenção de compra detectada!');
+          
+          // Buscar configuração do Asaas
+          const integrationsSnapshot = await db.ref(`users/data/${userId}/integrations_config`).once('value');
+          const integrations = integrationsSnapshot.val();
+          const asaasApiKey = integrations?.asaasConfig?.asaasApiKey;
+          
+          if (asaasApiKey) {
+            try {
+              // Preparar dados do cliente
+              const customerData = {
+                name: 'Cliente WhatsApp',
+                phone: message.from,
+                mobilePhone: message.from
+              };
+              
+              // Preparar itens do pedido
+              const orderItems = mentionedItems.map(item => ({
+                name: item.name,
+                price: item.price,
+                quantity: 1,
+                description: item.description
+              }));
+              
+              // Criar cobrança no Asaas
+              const chargeResult = await createAsaasCharge(asaasApiKey, customerData, orderItems, userId);
+              
+              if (chargeResult.success) {
+                // Salvar pedido no Firebase
+                const orderRef = db.ref(`orders/${userId}`).push();
+                await orderRef.set({
+                  orderId: orderRef.key,
+                  chargeId: chargeResult.chargeId,
+                  customer: customerData,
+                  items: orderItems,
+                  totalValue: chargeResult.value,
+                  status: 'pending',
+                  createdAt: new Date().toISOString(),
+                  paymentUrl: chargeResult.invoiceUrl
+                });
+                
+                // Enviar link de pagamento
+                const paymentMessage = `✅ *Pedido Criado!*\n\n` +
+                  `📦 Itens:\n` +
+                  orderItems.map(item => `• ${item.quantity}x ${item.name} - R$ ${parseFloat(item.price).toFixed(2)}`).join('\n') +
+                  `\n\n💰 *Total: R$ ${chargeResult.value.toFixed(2)}*\n\n` +
+                  `🔗 *Link de Pagamento:*\n${chargeResult.invoiceUrl}\n\n` +
+                  `💳 *Formas de pagamento:*\n` +
+                  `• Pix (instantâneo)\n` +
+                  `• Cartão de crédito\n` +
+                  `• Boleto bancário\n\n` +
+                  `Vencimento: ${new Date(chargeResult.dueDate).toLocaleDateString('pt-BR')}\n\n` +
+                  `Após o pagamento, você receberá uma confirmação automática! 🎉`;
+                
+                await client.sendText(message.from, paymentMessage);
+                console.log('✅ Link de pagamento enviado!');
+                
+                // Salvar mensagem no histórico
+                const paymentMsgRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+                await paymentMsgRef.set({
+                  from: message.to || '',
+                  to: message.from || '',
+                  body: paymentMessage,
+                  timestamp: new Date().toISOString(),
+                  type: 'payment_link',
+                  isFromMe: true,
+                  orderId: orderRef.key,
+                  chargeId: chargeResult.chargeId
+                });
+              } else {
+                console.error('❌ Erro ao criar cobrança:', chargeResult.error);
+                await client.sendText(message.from, 
+                  'Desculpe, tivemos um problema ao processar seu pedido. Por favor, tente novamente em instantes ou entre em contato conosco.'
+                );
+              }
+            } catch (paymentError) {
+              console.error('❌ Erro ao processar pagamento:', paymentError);
+            }
+          } else {
+            console.log('⚠️ API Key do Asaas não configurada');
+          }
+        }
       } else {
         console.log('⚠️ Configuração de IA não encontrada ou incompleta');
       }
@@ -527,6 +614,124 @@ function detectMentionedProducts(responseText, catalogItemsMap) {
   return mentionedItems;
 }
 
+// Função para detectar intenção de compra
+function detectPurchaseIntent(messageText) {
+  const purchaseKeywords = [
+    'quero comprar',
+    'vou comprar',
+    'quero levar',
+    'pode fazer o pedido',
+    'fechar pedido',
+    'confirmar pedido',
+    'finalizar compra',
+    'quero esse',
+    'quero este',
+    'vou levar',
+    'me vende',
+    'comprar',
+    'adquirir'
+  ];
+  
+  const lowerText = messageText.toLowerCase();
+  return purchaseKeywords.some(keyword => lowerText.includes(keyword));
+}
+
+// Função para gerar cobrança no Asaas
+async function createAsaasCharge(asaasApiKey, customerData, items, userId) {
+  try {
+    console.log('💳 Gerando cobrança no Asaas...');
+    
+    // Calcular valor total
+    const totalValue = items.reduce((sum, item) => {
+      return sum + (parseFloat(item.price) * (item.quantity || 1));
+    }, 0);
+    
+    // Criar descrição do pedido
+    const description = items.map(item => 
+      `${item.quantity || 1}x ${item.name}`
+    ).join(', ');
+    
+    // Criar ou buscar cliente no Asaas
+    let customerId;
+    
+    // Tentar criar cliente
+    try {
+      const customerResponse = await axios.post('https://www.asaas.com/api/v3/customers', {
+        name: customerData.name || 'Cliente WhatsApp',
+        cpfCnpj: customerData.cpfCnpj || null,
+        email: customerData.email || null,
+        phone: customerData.phone || null,
+        mobilePhone: customerData.mobilePhone || customerData.phone,
+        externalReference: `whatsapp_${userId}_${customerData.phone}`
+      }, {
+        headers: {
+          'access_token': asaasApiKey,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      customerId = customerResponse.data.id;
+      console.log('✅ Cliente criado no Asaas:', customerId);
+    } catch (error) {
+      // Se cliente já existe, buscar pelo externalReference
+      if (error.response?.status === 400) {
+        const searchResponse = await axios.get('https://www.asaas.com/api/v3/customers', {
+          params: {
+            externalReference: `whatsapp_${userId}_${customerData.phone}`
+          },
+          headers: {
+            'access_token': asaasApiKey
+          }
+        });
+        
+        if (searchResponse.data.data && searchResponse.data.data.length > 0) {
+          customerId = searchResponse.data.data[0].id;
+          console.log('✅ Cliente encontrado no Asaas:', customerId);
+        }
+      }
+    }
+    
+    if (!customerId) {
+      throw new Error('Não foi possível criar ou encontrar cliente no Asaas');
+    }
+    
+    // Criar cobrança
+    const chargeResponse = await axios.post('https://www.asaas.com/api/v3/payments', {
+      customer: customerId,
+      billingType: 'UNDEFINED', // Permite pix, cartão e boleto
+      value: totalValue,
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 dias
+      description: description,
+      externalReference: `order_${userId}_${Date.now()}`,
+      postalService: false
+    }, {
+      headers: {
+        'access_token': asaasApiKey,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('✅ Cobrança criada no Asaas:', chargeResponse.data.id);
+    
+    return {
+      success: true,
+      chargeId: chargeResponse.data.id,
+      invoiceUrl: chargeResponse.data.invoiceUrl,
+      bankSlipUrl: chargeResponse.data.bankSlipUrl,
+      pixQrCode: chargeResponse.data.pixQrCode,
+      value: totalValue,
+      dueDate: chargeResponse.data.dueDate
+    };
+    
+  } catch (error) {
+    console.error('❌ Erro ao criar cobrança no Asaas:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.errors?.[0]?.description || error.message
+    };
+  }
+}
+
 // ============================================
 // ROTAS DA API
 // ============================================
@@ -705,6 +910,133 @@ app.get('/api/conversations/:userId', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Erro ao buscar conversas:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Criar cobrança Asaas
+app.post('/api/asaas/create-charge', async (req, res) => {
+  try {
+    const { userId, customerData, items } = req.body;
+    
+    if (!userId || !customerData || !items) {
+      return res.status(400).json({ error: 'userId, customerData e items são obrigatórios' });
+    }
+    
+    // Buscar API Key do Asaas
+    const integrationsSnapshot = await db.ref(`users/data/${userId}/integrations_config`).once('value');
+    const integrations = integrationsSnapshot.val();
+    
+    const asaasApiKey = integrations?.asaasConfig?.asaasApiKey;
+    
+    if (!asaasApiKey) {
+      return res.status(400).json({ error: 'API Key do Asaas não configurada' });
+    }
+    
+    // Criar cobrança
+    const result = await createAsaasCharge(asaasApiKey, customerData, items, userId);
+    
+    if (result.success) {
+      // Salvar pedido no Firebase
+      const orderRef = db.ref(`orders/${userId}`).push();
+      await orderRef.set({
+        orderId: orderRef.key,
+        chargeId: result.chargeId,
+        customer: customerData,
+        items: items,
+        totalValue: result.value,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        paymentUrl: result.invoiceUrl
+      });
+      
+      res.json({
+        success: true,
+        orderId: orderRef.key,
+        ...result
+      });
+    } else {
+      res.status(400).json(result);
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao criar cobrança:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Webhook Asaas (receber notificações de pagamento)
+app.post('/api/asaas/webhook', async (req, res) => {
+  try {
+    console.log('📬 Webhook Asaas recebido:', req.body);
+    
+    const { event, payment } = req.body;
+    
+    if (!payment) {
+      return res.status(400).json({ error: 'Dados de pagamento não encontrados' });
+    }
+    
+    // Buscar pedido pelo externalReference
+    const ordersSnapshot = await db.ref('orders').once('value');
+    let userId, orderId, orderData;
+    
+    if (ordersSnapshot.exists()) {
+      ordersSnapshot.forEach((userOrders) => {
+        userOrders.forEach((order) => {
+          if (order.val().chargeId === payment.id) {
+            userId = userOrders.key;
+            orderId = order.key;
+            orderData = order.val();
+          }
+        });
+      });
+    }
+    
+    if (!userId || !orderId) {
+      console.log('⚠️ Pedido não encontrado para chargeId:', payment.id);
+      return res.json({ received: true });
+    }
+    
+    // Atualizar status do pedido
+    const newStatus = {
+      'PAYMENT_RECEIVED': 'paid',
+      'PAYMENT_CONFIRMED': 'paid',
+      'PAYMENT_OVERDUE': 'overdue',
+      'PAYMENT_DELETED': 'cancelled'
+    }[event] || 'pending';
+    
+    await db.ref(`orders/${userId}/${orderId}`).update({
+      status: newStatus,
+      updatedAt: new Date().toISOString(),
+      paymentData: payment
+    });
+    
+    console.log(`✅ Pedido ${orderId} atualizado para status: ${newStatus}`);
+    
+    // Se pagamento foi confirmado, enviar mensagem no WhatsApp
+    if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
+      const client = activeClients.get(userId);
+      
+      if (client && orderData.customer.phone) {
+        const successMessage = `✅ *Pagamento Confirmado!*\n\n` +
+          `Pedido #${orderId.substring(0, 8)}\n` +
+          `Valor: R$ ${payment.value.toFixed(2)}\n\n` +
+          `Obrigado pela sua compra! 🎉\n` +
+          `Em breve você receberá mais informações sobre a entrega.`;
+        
+        try {
+          await client.sendText(orderData.customer.phone, successMessage);
+          console.log('✅ Mensagem de confirmação enviada');
+        } catch (error) {
+          console.error('❌ Erro ao enviar mensagem de confirmação:', error);
+        }
+      }
+    }
+    
+    res.json({ received: true });
+    
+  } catch (error) {
+    console.error('❌ Erro no webhook Asaas:', error);
     res.status(500).json({ error: error.message });
   }
 });
