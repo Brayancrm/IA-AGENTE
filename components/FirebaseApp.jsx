@@ -1012,30 +1012,31 @@ const DashboardWithFirebase = ({
     }
   };
 
-  const loadCRMData = async () => {
+  // useEffect para carregar dados do CRM quando a página mudar para CRM
+  useEffect(() => {
+    if (currentPage === 'crm' && user?.uid && database && crmClients.length === 0) {
+      // Carregar clientes por padrão na primeira vez
+      setCrmLoading(true);
+      loadCRMClients().finally(() => setCrmLoading(false));
+    }
+  }, [currentPage, user, database]);
+
+  // Funções para trocar de aba no CRM e carregar dados
+  const handleCRMTabChange = async (tab) => {
+    setCrmTab(tab);
     setCrmLoading(true);
     try {
-      if (crmTab === 'clients' || currentPage === 'crm') {
+      if (tab === 'clients' && crmClients.length === 0) {
         await loadCRMClients();
-      } else if (crmTab === 'conversations') {
+      } else if (tab === 'conversations' && crmConversations.length === 0) {
         await loadCRMConversations();
-      } else if (crmTab === 'orders') {
+      } else if (tab === 'orders' && crmOrders.length === 0) {
         await loadCRMOrders();
       }
-    } catch (error) {
-      console.error('Erro ao carregar dados do CRM:', error);
-      showToast('Erro ao carregar dados do CRM', 'error');
     } finally {
       setCrmLoading(false);
     }
   };
-
-  // useEffect para carregar dados do CRM quando necessário
-  useEffect(() => {
-    if (currentPage === 'crm' && user?.uid && database) {
-      loadCRMData();
-    }
-  }, [currentPage, crmTab, user, database]);
 
   // Função para renderizar o catálogo avançado
   const renderCatalog = () => {
@@ -1605,7 +1606,7 @@ const DashboardWithFirebase = ({
               {/* Tabs */}
               <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb' }}>
                 <button
-                  onClick={() => setCrmTab('clients')}
+                  onClick={() => handleCRMTabChange('clients')}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1627,7 +1628,7 @@ const DashboardWithFirebase = ({
                   </span>
                 </button>
                 <button
-                  onClick={() => setCrmTab('conversations')}
+                  onClick={() => handleCRMTabChange('conversations')}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1649,7 +1650,7 @@ const DashboardWithFirebase = ({
                   </span>
                 </button>
                 <button
-                  onClick={() => setCrmTab('orders')}
+                  onClick={() => handleCRMTabChange('orders')}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
