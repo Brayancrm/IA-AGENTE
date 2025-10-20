@@ -80,6 +80,7 @@ if (typeof window !== 'undefined') {
 // Configurações do app
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsapp-sales-agent';
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+const APP_VERSION = '1.1.0'; // CRM v1.1.0
 
 // Componente Toast
 const Toast = ({ message, type, onClose }) => {
