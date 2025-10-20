@@ -723,14 +723,26 @@ async function createAsaasCharge(asaasApiKey, customerData, items, userId) {
     
     // Tentar criar cliente
     try {
-      const customerResponse = await axios.post('https://www.asaas.com/api/v3/customers', {
+      const customerPayload = {
         name: customerData.name || 'Cliente WhatsApp',
-        cpfCnpj: customerData.cpfCnpj || null,
-        email: customerData.email || null,
-        phone: customerData.phone || null,
         mobilePhone: customerData.mobilePhone || customerData.phone,
         externalReference: `whatsapp_${userId}_${customerData.phone}`
-      }, {
+      };
+      
+      // Adicionar campos opcionais apenas se existirem
+      if (customerData.cpfCnpj) {
+        customerPayload.cpfCnpj = customerData.cpfCnpj;
+      }
+      if (customerData.email) {
+        customerPayload.email = customerData.email;
+      }
+      if (customerData.phone) {
+        customerPayload.phone = customerData.phone;
+      }
+      
+      console.log('📝 Criando cliente no Asaas (sem CPF/CNPJ)...');
+      
+      const customerResponse = await axios.post('https://www.asaas.com/api/v3/customers', customerPayload, {
         headers: {
           'access_token': asaasApiKey,
           'Content-Type': 'application/json'
@@ -763,7 +775,12 @@ async function createAsaasCharge(asaasApiKey, customerData, items, userId) {
     }
     
     // Criar cobrança
-    const chargeResponse = await axios.post('https://www.asaas.com/api/v3/payments', {
+    console.log('💳 Criando cobrança no Asaas...');
+    console.log(`   Cliente ID: ${customerId}`);
+    console.log(`   Valor: R$ ${totalValue.toFixed(2)}`);
+    console.log(`   Descrição: ${description}`);
+    
+    const chargePayload = {
       customer: customerId,
       billingType: 'UNDEFINED', // Permite pix, cartão e boleto
       value: totalValue,
@@ -771,7 +788,9 @@ async function createAsaasCharge(asaasApiKey, customerData, items, userId) {
       description: description,
       externalReference: `order_${userId}_${Date.now()}`,
       postalService: false
-    }, {
+    };
+    
+    const chargeResponse = await axios.post('https://www.asaas.com/api/v3/payments', chargePayload, {
       headers: {
         'access_token': asaasApiKey,
         'Content-Type': 'application/json'
