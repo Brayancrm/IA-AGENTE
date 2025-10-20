@@ -298,13 +298,28 @@ async function handleIncomingMessage(userId, message, client) {
               // Criar legenda para a imagem
               const caption = `📦 *${item.name}*\n💰 R$ ${item.price}\n\n${item.description || ''}`;
               
-              // Enviar imagem com legenda
-              await client.sendImage(
-                message.from,
-                item.image,
-                item.name,
-                caption
-              );
+              // Verificar se é Base64 ou URL
+              const isBase64 = item.image.startsWith('data:image/');
+              
+              if (isBase64) {
+                console.log(`📸 Imagem em Base64 detectada para: ${item.name}`);
+                // Enviar imagem Base64 diretamente
+                await client.sendImageFromBase64(
+                  message.from,
+                  item.image,
+                  item.name,
+                  caption
+                );
+              } else {
+                console.log(`🌐 URL de imagem detectada para: ${item.name}`);
+                // Enviar imagem por URL
+                await client.sendImage(
+                  message.from,
+                  item.image,
+                  item.name,
+                  caption
+                );
+              }
               
               console.log(`✅ Imagem enviada: ${item.name}`);
               
@@ -314,7 +329,8 @@ async function handleIncomingMessage(userId, message, client) {
                 from: message.to || '',
                 to: message.from || '',
                 body: caption,
-                imageUrl: item.image,
+                imageUrl: isBase64 ? '[Base64 Image]' : item.image,
+                imageBase64: isBase64 ? item.image.substring(0, 100) + '...' : null,
                 timestamp: new Date().toISOString(),
                 type: 'image',
                 isFromMe: true,
