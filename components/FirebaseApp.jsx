@@ -1048,6 +1048,45 @@ const DashboardWithFirebase = ({
     }
   };
 
+  // Funções auxiliares do CRM
+  const formatPhone = (phone) => {
+    return phone.replace('@c.us', '').replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      pending: { bg: '#fef3c7', text: '#92400e' },
+      paid: { bg: '#d1fae5', text: '#065f46' },
+      confirmed: { bg: '#dbeafe', text: '#1e40af' },
+      cancelled: { bg: '#fee2e2', text: '#991b1b' },
+      overdue: { bg: '#fed7aa', text: '#9a3412' }
+    };
+    return colors[status] || { bg: '#f3f4f6', text: '#1f2937' };
+  };
+
+  const getStatusLabel = (status) => {
+    const labels = {
+      pending: 'Pendente',
+      paid: 'Pago',
+      confirmed: 'Confirmado',
+      cancelled: 'Cancelado',
+      overdue: 'Vencido'
+    };
+    return labels[status] || status;
+  };
+
   // Função para renderizar o catálogo avançado
   const renderCatalog = () => {
     // Calcular estatísticas
@@ -1546,46 +1585,7 @@ const DashboardWithFirebase = ({
       case 'catalog':
         return renderCatalog();
 
-      case 'crm': {
-        // Funções auxiliares do CRM
-        const formatPhone = (phone) => {
-          return phone.replace('@c.us', '').replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
-        };
-
-        const formatDate = (dateString) => {
-          if (!dateString) return 'N/A';
-          const date = new Date(dateString);
-          return date.toLocaleString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          });
-        };
-
-        const getStatusColor = (status) => {
-          const colors = {
-            pending: { bg: '#fef3c7', text: '#92400e' },
-            paid: { bg: '#d1fae5', text: '#065f46' },
-            confirmed: { bg: '#dbeafe', text: '#1e40af' },
-            cancelled: { bg: '#fee2e2', text: '#991b1b' },
-            overdue: { bg: '#fed7aa', text: '#9a3412' }
-          };
-          return colors[status] || { bg: '#f3f4f6', text: '#1f2937' };
-        };
-
-        const getStatusLabel = (status) => {
-          const labels = {
-            pending: 'Pendente',
-            paid: 'Pago',
-            confirmed: 'Confirmado',
-            cancelled: 'Cancelado',
-            overdue: 'Vencido'
-          };
-          return labels[status] || status;
-        };
-
+      case 'crm':
         // Filtrar dados
         const filteredClients = crmClients.filter(client =>
           client.name.toLowerCase().includes(crmSearch.toLowerCase()) ||
@@ -2002,7 +2002,6 @@ const DashboardWithFirebase = ({
             )}
           </div>
         );
-      }
 
       case 'integrations':
         return (
