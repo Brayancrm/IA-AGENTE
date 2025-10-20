@@ -1586,23 +1586,6 @@ const DashboardWithFirebase = ({
         return renderCatalog();
 
       case 'crm':
-        // Filtrar dados
-        const filteredClients = crmClients.filter(client =>
-          client.name.toLowerCase().includes(crmSearch.toLowerCase()) ||
-          client.phone.toLowerCase().includes(crmSearch.toLowerCase())
-        );
-
-        const filteredConversations = crmConversations.filter(conv =>
-          conv.name.toLowerCase().includes(crmSearch.toLowerCase()) ||
-          conv.phone.toLowerCase().includes(crmSearch.toLowerCase())
-        );
-
-        const filteredOrders = crmOrders.filter(order =>
-          order.customerPhone?.toLowerCase().includes(crmSearch.toLowerCase()) ||
-          order.customerName?.toLowerCase().includes(crmSearch.toLowerCase()) ||
-          order.description?.toLowerCase().includes(crmSearch.toLowerCase())
-        );
-
         return (
           <div style={{ padding: '24px' }}>
             <div style={{ marginBottom: '24px' }}>
@@ -1717,7 +1700,10 @@ const DashboardWithFirebase = ({
                   <>
                     {/* Lista de Clientes */}
                     {crmTab === 'clients' && (
-                      filteredClients.length === 0 ? (
+                      crmClients.filter(client =>
+                        client.name.toLowerCase().includes(crmSearch.toLowerCase()) ||
+                        client.phone.toLowerCase().includes(crmSearch.toLowerCase())
+                      ).length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '48px 24px' }}>
                           <div style={{ fontSize: '64px', marginBottom: '16px' }}>👥</div>
                           <p style={{ color: '#6b7280', fontSize: '18px', fontWeight: '500' }}>
@@ -1729,7 +1715,10 @@ const DashboardWithFirebase = ({
                         </div>
                       ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-                          {filteredClients.map((client) => (
+                          {crmClients.filter(client =>
+                            client.name.toLowerCase().includes(crmSearch.toLowerCase()) ||
+                            client.phone.toLowerCase().includes(crmSearch.toLowerCase())
+                          ).map((client) => (
                             <div
                               key={client.phone}
                               onClick={() => setSelectedClient(client)}
@@ -1774,7 +1763,10 @@ const DashboardWithFirebase = ({
 
                     {/* Histórico de Conversas */}
                     {crmTab === 'conversations' && (
-                      filteredConversations.length === 0 ? (
+                      crmConversations.filter(conv =>
+                        conv.name.toLowerCase().includes(crmSearch.toLowerCase()) ||
+                        conv.phone.toLowerCase().includes(crmSearch.toLowerCase())
+                      ).length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '48px 24px' }}>
                           <div style={{ fontSize: '64px', marginBottom: '16px' }}>💬</div>
                           <p style={{ color: '#6b7280', fontSize: '18px', fontWeight: '500' }}>
@@ -1786,7 +1778,10 @@ const DashboardWithFirebase = ({
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                          {filteredConversations.map((conversation) => (
+                          {crmConversations.filter(conv =>
+                            conv.name.toLowerCase().includes(crmSearch.toLowerCase()) ||
+                            conv.phone.toLowerCase().includes(crmSearch.toLowerCase())
+                          ).map((conversation) => (
                             <div key={conversation.phone} style={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden' }}>
                               {/* Header da conversa */}
                               <div style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color: 'white', padding: '16px' }}>
@@ -1837,7 +1832,11 @@ const DashboardWithFirebase = ({
 
                     {/* Histórico de Compras */}
                     {crmTab === 'orders' && (
-                      filteredOrders.length === 0 ? (
+                      crmOrders.filter(order =>
+                        order.customerPhone?.toLowerCase().includes(crmSearch.toLowerCase()) ||
+                        order.customerName?.toLowerCase().includes(crmSearch.toLowerCase()) ||
+                        order.description?.toLowerCase().includes(crmSearch.toLowerCase())
+                      ).length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '48px 24px' }}>
                           <div style={{ fontSize: '64px', marginBottom: '16px' }}>🛒</div>
                           <p style={{ color: '#6b7280', fontSize: '18px', fontWeight: '500' }}>
@@ -1861,7 +1860,11 @@ const DashboardWithFirebase = ({
                               </tr>
                             </thead>
                             <tbody>
-                              {filteredOrders.map((order) => {
+                              {crmOrders.filter(order =>
+                                order.customerPhone?.toLowerCase().includes(crmSearch.toLowerCase()) ||
+                                order.customerName?.toLowerCase().includes(crmSearch.toLowerCase()) ||
+                                order.description?.toLowerCase().includes(crmSearch.toLowerCase())
+                              ).map((order) => {
                                 const statusColors = getStatusColor(order.status);
                                 return (
                                   <tr key={order.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
