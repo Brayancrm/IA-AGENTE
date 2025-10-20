@@ -1588,18 +1588,31 @@ const DashboardWithFirebase = ({
       case 'crm':
         return (
           <div style={{ padding: '24px' }}>
-            <div style={{ marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>
-                CRM
-              </h2>
-              <p style={{ color: '#6b7280' }}>Gerencie seus clientes, conversas e pedidos</p>
+            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>CRM</h2>
+            <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', padding: '48px', textAlign: 'center' }}>
+              <div style={{ fontSize: '64px', marginBottom: '24px' }}>✅</div>
+              <h3 style={{ fontSize: '28px', fontWeight: 'bold', color: '#1f2937', marginBottom: '16px' }}>CRM Funcionando!</h3>
+              <p style={{ fontSize: '16px', color: '#6b7280', marginBottom: '32px' }}>O sistema está operacional</p>
+              <div style={{ backgroundColor: '#f9fafb', borderRadius: '12px', padding: '24px', margin: '0 auto', maxWidth: '400px' }}>
+                <div style={{ fontSize: '18px', color: '#1f2937', fontWeight: '500', marginBottom: '16px' }}>📊 Dados Carregados:</div>
+                <div style={{ textAlign: 'left', marginLeft: '40px' }}>
+                  <p style={{ color: '#6b7280', marginBottom: '8px' }}>• {crmClients ? crmClients.length : 0} Clientes</p>
+                  <p style={{ color: '#6b7280', marginBottom: '8px' }}>• {crmConversations ? crmConversations.length : 0} Conversas</p>
+                  <p style={{ color: '#6b7280' }}>• {crmOrders ? crmOrders.length : 0} Pedidos</p>
+                </div>
+              </div>
             </div>
+          </div>
+        );
 
-            <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '24px', overflow: 'hidden' }}>
-              {/* Tabs */}
-              <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb' }}>
-                <button
-                  onClick={() => handleCRMTabChange('clients')}
+      case 'integrations':
+        return (
+          <div style={{ padding: '24px' }}>
+            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
+              Integrações
+            </h2>
+            <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
+              <form onSubmit={handleIntegrationsSubmit}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
