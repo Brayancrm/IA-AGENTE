@@ -1014,12 +1014,22 @@ const DashboardWithFirebase = ({
 
   // useEffect para carregar dados do CRM quando a página mudar para CRM
   useEffect(() => {
-    if (currentPage === 'crm' && user?.uid && database && crmClients.length === 0) {
-      // Carregar clientes por padrão na primeira vez
-      setCrmLoading(true);
-      loadCRMClients().finally(() => setCrmLoading(false));
-    }
-  }, [currentPage, user, database]);
+    const loadInitialData = async () => {
+      if (currentPage === 'crm' && user?.uid && database && crmClients.length === 0) {
+        // Carregar clientes por padrão na primeira vez
+        setCrmLoading(true);
+        try {
+          await loadCRMClients();
+        } catch (error) {
+          console.error('Erro ao carregar dados iniciais do CRM:', error);
+        } finally {
+          setCrmLoading(false);
+        }
+      }
+    };
+    
+    loadInitialData();
+  }, [currentPage, user?.uid]);
 
   // Funções para trocar de aba no CRM e carregar dados
   const handleCRMTabChange = async (tab) => {
