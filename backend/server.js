@@ -618,21 +618,50 @@ function detectMentionedProducts(responseText, catalogItemsMap) {
   return mentionedItems;
 }
 
-// Função para buscar configurações do Firestore
+// Função para buscar configurações (Firestore e Realtime Database)
 async function getIntegrationsConfig(userId) {
   try {
-    const docRef = firestore.doc(`artifacts/${APP_ID}/users/${userId}/integrations_config/config`);
+    // Tentar buscar no Firestore primeiro
+    const firestorePath = `artifacts/${APP_ID}/users/${userId}/integrations_config/config`;
+    console.log(`🔍 Tentando buscar no Firestore:`);
+    console.log(`   Path: ${firestorePath}`);
+    console.log(`   UserId: ${userId}`);
+    
+    const docRef = firestore.doc(firestorePath);
     const doc = await docRef.get();
     
     if (doc.exists) {
-      console.log('✅ Configurações encontradas no Firestore');
-      return doc.data();
+      const data = doc.data();
+      console.log('✅ Configurações encontradas no Firestore!');
+      console.log('📄 Dados:', JSON.stringify(data, null, 2));
+      return data;
     }
     
-    console.log('⚠️ Configurações não encontradas no Firestore');
+    console.log('⚠️ Não encontrado no Firestore, tentando Realtime Database...');
+    
+    // Fallback: tentar buscar no Realtime Database
+    const realtimePath = `users/data/${userId}/integrations_config`;
+    console.log(`🔍 Tentando buscar no Realtime Database:`);
+    console.log(`   Path: ${realtimePath}`);
+    
+    const snapshot = await db.ref(realtimePath).once('value');
+    
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      console.log('✅ Configurações encontradas no Realtime Database!');
+      console.log('📄 Dados:', JSON.stringify(data, null, 2));
+      return data;
+    }
+    
+    console.log('❌ Configurações não encontradas em nenhum banco!');
+    console.log('💡 Verifique:');
+    console.log('   1. Se você salvou a API Key do Asaas no site');
+    console.log('   2. Se está logado com o mesmo usuário');
+    console.log('   3. Se o userId está correto:', userId);
+    
     return null;
   } catch (error) {
-    console.error('❌ Erro ao buscar configurações do Firestore:', error);
+    console.error('❌ Erro ao buscar configurações:', error);
     return null;
   }
 }
