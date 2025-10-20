@@ -972,8 +972,24 @@ app.post('/api/asaas/webhook', async (req, res) => {
     
     const { event, payment } = req.body;
     
+    // Ignorar eventos que não são de pagamento
+    const paymentEvents = [
+      'PAYMENT_RECEIVED',
+      'PAYMENT_CONFIRMED', 
+      'PAYMENT_OVERDUE',
+      'PAYMENT_DELETED',
+      'PAYMENT_CREATED',
+      'PAYMENT_UPDATED'
+    ];
+    
+    if (!paymentEvents.includes(event)) {
+      console.log(`⚠️ Evento ignorado (não é de pagamento): ${event}`);
+      return res.json({ received: true, ignored: true, reason: 'Evento não é relacionado a pagamento' });
+    }
+    
     if (!payment) {
-      return res.status(400).json({ error: 'Dados de pagamento não encontrados' });
+      console.log('⚠️ Webhook sem dados de pagamento');
+      return res.json({ received: true, ignored: true, reason: 'Sem dados de pagamento' });
     }
     
     // Buscar pedido pelo externalReference
