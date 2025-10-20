@@ -1411,6 +1411,104 @@ const DashboardWithFirebase = ({
       case 'catalog':
         return renderCatalog();
 
+      case 'crm':
+        return (
+          <div style={{ padding: '24px' }}>
+            <div style={{ marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>
+                CRM
+              </h2>
+              <p style={{ color: '#6b7280' }}>Gerencie seus clientes, conversas e pedidos</p>
+            </div>
+
+            <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '24px', overflow: 'hidden' }}>
+              {/* Tabs */}
+              <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb' }}>
+                <button
+                  onClick={() => setCurrentPage('crm-clients')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '16px 24px',
+                    fontWeight: '500',
+                    fontSize: '14px',
+                    borderBottom: currentPage === 'crm-clients' || currentPage === 'crm' ? '2px solid #6366f1' : '2px solid transparent',
+                    color: currentPage === 'crm-clients' || currentPage === 'crm' ? '#6366f1' : '#6b7280',
+                    backgroundColor: currentPage === 'crm-clients' || currentPage === 'crm' ? '#eef2ff' : 'transparent',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <span>👥</span>
+                  <span>Lista de Clientes</span>
+                </button>
+                <button
+                  onClick={() => setCurrentPage('crm-conversations')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '16px 24px',
+                    fontWeight: '500',
+                    fontSize: '14px',
+                    borderBottom: currentPage === 'crm-conversations' ? '2px solid #6366f1' : '2px solid transparent',
+                    color: currentPage === 'crm-conversations' ? '#6366f1' : '#6b7280',
+                    backgroundColor: currentPage === 'crm-conversations' ? '#eef2ff' : 'transparent',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <span>💬</span>
+                  <span>Histórico de Conversas</span>
+                </button>
+                <button
+                  onClick={() => setCurrentPage('crm-orders')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '16px 24px',
+                    fontWeight: '500',
+                    fontSize: '14px',
+                    borderBottom: currentPage === 'crm-orders' ? '2px solid #6366f1' : '2px solid transparent',
+                    color: currentPage === 'crm-orders' ? '#6366f1' : '#6b7280',
+                    backgroundColor: currentPage === 'crm-orders' ? '#eef2ff' : 'transparent',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <span>🛒</span>
+                  <span>Histórico de Compras</span>
+                </button>
+              </div>
+
+              {/* Content */}
+              <div style={{ padding: '24px' }}>
+                <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+                  <div style={{ fontSize: '64px', marginBottom: '16px' }}>
+                    {currentPage === 'crm-conversations' ? '💬' : currentPage === 'crm-orders' ? '🛒' : '👥'}
+                  </div>
+                  <p style={{ color: '#6b7280', fontSize: '18px', fontWeight: '500' }}>
+                    {currentPage === 'crm-conversations' 
+                      ? 'Nenhuma conversa encontrada'
+                      : currentPage === 'crm-orders'
+                      ? 'Nenhum pedido encontrado'
+                      : 'Nenhum cliente encontrado'}
+                  </p>
+                  <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '8px' }}>
+                    {currentPage === 'crm-conversations' 
+                      ? 'As conversas aparecerão aqui após os primeiros atendimentos'
+                      : currentPage === 'crm-orders'
+                      ? 'Os pedidos aparecerão aqui quando os clientes realizarem compras'
+                      : 'Os clientes aparecerão aqui após as primeiras conversas'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
       case 'integrations':
         return (
           <div style={{ padding: '24px' }}>
@@ -2158,9 +2256,10 @@ const DashboardWithFirebase = ({
     { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
     { id: 'company', label: 'Cadastro da Empresa', icon: '🏢' },
     { id: 'catalog', label: 'Catálogo (Itens)', icon: '📦' },
+    { id: 'crm', label: 'CRM', icon: '👥' },
     { id: 'integrations', label: 'Integrações', icon: '⚙️' },
     { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' },
-    ...(user?.isMaster ? [{ id: 'users', label: 'Gerenciar Usuários', icon: '👥' }] : [])
+    ...(user?.isMaster ? [{ id: 'users', label: 'Gerenciar Usuários', icon: '👤' }] : [])
   ];
 
   return (
