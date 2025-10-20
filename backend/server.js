@@ -5,6 +5,8 @@ const cors = require('cors');
 const axios = require('axios');
 require('dotenv').config();
 
+const APP_ID = 'whatsapp-sales-agent';
+
 console.log('🚀 Iniciando servidor WPPConnect + IA...');
 
 // Inicializar Firebase Admin
@@ -45,6 +47,7 @@ admin.initializeApp({
 });
 
 const db = admin.database();
+const firestore = admin.firestore();
 const app = express();
 
 // Middlewares
@@ -354,10 +357,11 @@ async function handleIncomingMessage(userId, message, client) {
         if (hasPurchaseIntent && mentionedItems.length > 0) {
           console.log('🛒 Intenção de compra detectada!');
           
-          // Buscar configuração do Asaas
-          const integrationsSnapshot = await db.ref(`users/data/${userId}/integrations_config`).once('value');
-          const integrations = integrationsSnapshot.val();
+          // Buscar configuração do Asaas no Firestore
+          const integrations = await getIntegrationsConfig(userId);
           const asaasApiKey = integrations?.asaasConfig?.asaasApiKey;
+          
+          console.log('🔍 API Key do Asaas:', asaasApiKey ? 'Encontrada ✅' : 'Não encontrada ❌');
           
           if (asaasApiKey) {
             try {
@@ -612,6 +616,25 @@ function detectMentionedProducts(responseText, catalogItemsMap) {
   }
   
   return mentionedItems;
+}
+
+// Função para buscar configurações do Firestore
+async function getIntegrationsConfig(userId) {
+  try {
+    const docRef = firestore.doc(`artifacts/${APP_ID}/users/${userId}/integrations_config/config`);
+    const doc = await docRef.get();
+    
+    if (doc.exists) {
+      console.log('✅ Configurações encontradas no Firestore');
+      return doc.data();
+    }
+    
+    console.log('⚠️ Configurações não encontradas no Firestore');
+    return null;
+  } catch (error) {
+    console.error('❌ Erro ao buscar configurações do Firestore:', error);
+    return null;
+  }
 }
 
 // Função para detectar intenção de compra
@@ -923,10 +946,8 @@ app.post('/api/asaas/create-charge', async (req, res) => {
       return res.status(400).json({ error: 'userId, customerData e items são obrigatórios' });
     }
     
-    // Buscar API Key do Asaas
-    const integrationsSnapshot = await db.ref(`users/data/${userId}/integrations_config`).once('value');
-    const integrations = integrationsSnapshot.val();
-    
+    // Buscar API Key do Asaas no Firestore
+    const integrations = await getIntegrationsConfig(userId);
     const asaasApiKey = integrations?.asaasConfig?.asaasApiKey;
     
     if (!asaasApiKey) {
