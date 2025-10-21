@@ -190,6 +190,13 @@ async function handleIncomingMessage(userId, message, client) {
     
     console.log('💾 Mensagem salva no banco de dados');
     
+    // ============================================
+    // DETECÇÃO E SALVAMENTO AUTOMÁTICO DE DADOS DO CLIENTE
+    // ============================================
+    if (!message.isFromMe) {
+      await detectAndSaveCustomerData(userId, message.from, message.body, sanitizedNumber);
+    }
+    
     // Se não for mensagem enviada pelo usuário, processar com IA
     if (!message.isFromMe) {
       // Buscar configuração de IA do usuário
@@ -696,6 +703,80 @@ async function getIntegrationsConfig(userId) {
   } catch (error) {
     console.error('❌ Erro ao buscar configurações:', error);
     return null;
+  }
+}
+
+// Função para detectar e salvar dados do cliente automaticamente
+async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNumber) {
+  try {
+    const phoneNumber = phone.replace(/[^0-9]/g, '');
+    const customerRef = db.ref(`customerData/${userId}/${phoneNumber}`);
+    
+    // Buscar dados existentes
+    const snapshot = await customerRef.once('value');
+    let customerData = snapshot.val() || {};
+    
+    let dataUpdated = false;
+    
+    // DETECÇÃO DE NOME
+    // Se ainda não tem nome E a mensagem parece ser um nome (2+ palavras, sem números, sem @)
+    if (!customerData.name && messageText) {
+      const words = messageText.trim().split(/\s+/);
+      const hasNoNumbers = !/\d/.test(messageText);
+      const hasNoSpecialChars = !/[@#$%&*()_+=\[\]{}|\\:;"'<>,.?/]/.test(messageText);
+      const isReasonableLength = messageText.length >= 5 && messageText.length <= 100;
+      
+      if (words.length >= 2 && hasNoNumbers && hasNoSpecialChars && isReasonableLength) {
+        customerData.name = messageText.trim();
+        dataUpdated = true;
+        console.log('✅ Nome detectado e salvo:', customerData.name);
+      }
+    }
+    
+    // DETECÇÃO DE EMAIL
+    // Formato básico de email: algo@algo.algo
+    const emailRegex = /[\w\.-]+@[\w\.-]+\.\w+/;
+    const emailMatch = messageText.match(emailRegex);
+    if (!customerData.email && emailMatch) {
+      customerData.email = emailMatch[0].toLowerCase().trim();
+      dataUpdated = true;
+      console.log('✅ Email detectado e salvo:', customerData.email);
+    }
+    
+    // DETECÇÃO DE CPF
+    // Remove tudo que não é número e verifica se tem 11 dígitos
+    const numbersOnly = messageText.replace(/[^0-9]/g, '');
+    if (!customerData.cpfCnpj && numbersOnly.length === 11) {
+      customerData.cpfCnpj = numbersOnly;
+      dataUpdated = true;
+      console.log('✅ CPF detectado e salvo:', numbersOnly);
+    }
+    
+    // DETECÇÃO DE CNPJ
+    // 14 dígitos
+    if (!customerData.cpfCnpj && numbersOnly.length === 14) {
+      customerData.cpfCnpj = numbersOnly;
+      dataUpdated = true;
+      console.log('✅ CNPJ detectado e salvo:', numbersOnly);
+    }
+    
+    // Se algum dado foi atualizado, salvar no Firebase
+    if (dataUpdated) {
+      customerData.phone = phone;
+      customerData.updatedAt = new Date().toISOString();
+      
+      await customerRef.set(customerData);
+      console.log('💾 Dados do cliente atualizados no Firebase');
+      
+      // Log de resumo dos dados coletados
+      console.log('📊 Dados coletados até agora:');
+      console.log('   Nome:', customerData.name || '❌ Ainda não coletado');
+      console.log('   Email:', customerData.email || '❌ Ainda não coletado');
+      console.log('   CPF/CNPJ:', customerData.cpfCnpj || '❌ Ainda não coletado');
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao detectar/salvar dados do cliente:', error);
   }
 }
 

@@ -2,7 +2,17 @@
 
 ## 🎯 O Que Foi Implementado
 
-O agente de WhatsApp agora **coleta automaticamente** os dados do cliente durante a conversa e **usa esses dados para preencher o pagamento no Asaas**!
+O agente de WhatsApp agora **coleta E SALVA automaticamente** os dados do cliente durante a conversa e **usa esses dados para preencher o pagamento no Asaas**!
+
+## 🚀 SALVAMENTO AUTOMÁTICO IMPLEMENTADO
+
+✅ **O backend agora detecta e salva automaticamente:**
+- Nome (quando cliente responde com 2+ palavras sem números)
+- Email (detecta formato email@dominio.com)
+- CPF (11 dígitos)
+- CNPJ (14 dígitos)
+
+**Não é necessário chamar nenhum endpoint manualmente!** O sistema faz tudo sozinho! 🎉
 
 ---
 
@@ -12,21 +22,48 @@ O agente de WhatsApp agora **coleta automaticamente** os dados do cliente durant
 O cliente fala com o bot sobre produtos, tira dúvidas, etc.
 
 ### 2. Bot Coleta Dados Durante a Conversa
-O bot pergunta (de forma natural):
+O bot pergunta (de forma natural configurada no prompt):
 - 📝 **Nome completo**
-- 📧 **E-mail**
+- 📧 **E-mail**  
 - 📱 **CPF ou CNPJ**
 - 📍 **Endereço** (opcional, para entrega)
 
-### 3. Dados São Salvos Automaticamente
-Tudo é salvo no Firebase em: `customerData/{userId}/{phone}`
+### 3. Backend Detecta e Salva AUTOMATICAMENTE ⚡
+**A cada mensagem do cliente**, o backend analisa:
+
+```javascript
+// DETECÇÃO DE NOME
+- Verifica se tem 2+ palavras
+- Verifica se NÃO tem números
+- Verifica se NÃO tem caracteres especiais (@, #, etc.)
+- Se passar nas validações → SALVA automaticamente ✅
+
+// DETECÇÃO DE EMAIL
+- Procura padrão: algo@algo.algo
+- Se encontrar → SALVA automaticamente ✅
+
+// DETECÇÃO DE CPF
+- Remove pontos, traços e espaços
+- Conta dígitos: 11 = CPF ✅
+- Se for 11 dígitos → SALVA automaticamente ✅
+
+// DETECÇÃO DE CNPJ
+- Remove pontos, traços e espaços
+- Conta dígitos: 14 = CNPJ ✅
+- Se for 14 dígitos → SALVA automaticamente ✅
+```
+
+**Local de salvamento:** `customerData/{userId}/{phone}`
 
 ### 4. Pagamento Usa os Dados Automaticamente
-Quando o cliente quer comprar, o Asaas recebe:
-- ✅ Nome completo
-- ✅ E-mail
-- ✅ CPF/CNPJ
-- ✅ Endereço (se fornecido)
+Quando o cliente quer comprar, o backend:
+1. 🔍 **Busca os dados salvos** no Firebase
+2. 📝 **Preenche automaticamente** no Asaas:
+   - ✅ Nome completo
+   - ✅ E-mail
+   - ✅ CPF/CNPJ
+   - ✅ Endereço (se fornecido)
+3. 💳 **Cria a cobrança** com todos os dados
 
 ---
 
