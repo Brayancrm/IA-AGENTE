@@ -48,7 +48,8 @@ const FirebaseApp = () => {
   const [whatsappQRCode, setWhatsappQRCode] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   
-  // Estados do CRM (vazio por enquanto - vamos construir passo a passo)
+  // Estados do CRM - Passo 1: Estados básicos
+  const [crmActiveTab, setCrmActiveTab] = useState('clients');
   
   // URL do backend
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
@@ -1428,21 +1429,103 @@ const DashboardWithFirebase = ({
               Gerencie seus clientes, conversas e pedidos em um só lugar
             </p>
             
+            {/* Card com abas */}
             <div style={{ 
               backgroundColor: 'white', 
               borderRadius: '16px', 
-              padding: '48px', 
               boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-              textAlign: 'center'
+              overflow: 'hidden'
             }}>
-              <div style={{ fontSize: '64px', marginBottom: '16px' }}>🚀</div>
-              <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
-                CRM em Construção
-              </h3>
-              <p style={{ color: '#6b7280', fontSize: '16px', lineHeight: '1.6' }}>
-                A funcionalidade de CRM será construída passo a passo.<br />
-                Em breve você poderá gerenciar clientes, conversas e pedidos aqui!
-              </p>
+              {/* Abas */}
+              <div style={{ display: 'flex', borderBottom: '2px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
+                <button
+                  onClick={() => setCrmActiveTab('clients')}
+                  style={{
+                    flex: 1,
+                    padding: '16px',
+                    backgroundColor: crmActiveTab === 'clients' ? '#6366f1' : 'transparent',
+                    color: crmActiveTab === 'clients' ? 'white' : '#6b7280',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  👥 Clientes
+                </button>
+                <button
+                  onClick={() => setCrmActiveTab('conversations')}
+                  style={{
+                    flex: 1,
+                    padding: '16px',
+                    backgroundColor: crmActiveTab === 'conversations' ? '#6366f1' : 'transparent',
+                    color: crmActiveTab === 'conversations' ? 'white' : '#6b7280',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  💬 Conversas
+                </button>
+                <button
+                  onClick={() => setCrmActiveTab('orders')}
+                  style={{
+                    flex: 1,
+                    padding: '16px',
+                    backgroundColor: crmActiveTab === 'orders' ? '#6366f1' : 'transparent',
+                    color: crmActiveTab === 'orders' ? 'white' : '#6b7280',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  🛒 Pedidos
+                </button>
+              </div>
+
+              {/* Conteúdo das abas */}
+              <div style={{ padding: '48px' }}>
+                {crmActiveTab === 'clients' && (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '64px', marginBottom: '16px' }}>👥</div>
+                    <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
+                      Lista de Clientes
+                    </h3>
+                    <p style={{ color: '#6b7280', fontSize: '16px' }}>
+                      Em breve você verá aqui todos os seus clientes do WhatsApp
+                    </p>
+                  </div>
+                )}
+
+                {crmActiveTab === 'conversations' && (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '64px', marginBottom: '16px' }}>💬</div>
+                    <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
+                      Histórico de Conversas
+                    </h3>
+                    <p style={{ color: '#6b7280', fontSize: '16px' }}>
+                      Em breve você verá aqui todas as conversas com seus clientes
+                    </p>
+                  </div>
+                )}
+
+                {crmActiveTab === 'orders' && (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '64px', marginBottom: '16px' }}>🛒</div>
+                    <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
+                      Histórico de Pedidos
+                    </h3>
+                    <p style={{ color: '#6b7280', fontSize: '16px' }}>
+                      Em breve você verá aqui todos os pedidos realizados
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         );
