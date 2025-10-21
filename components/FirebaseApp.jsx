@@ -1047,19 +1047,26 @@ const DashboardWithFirebase = ({
     });
   };
   
-  // useEffect para carregar dados quando entrar no CRM
-  useEffect(() => {
-    if (currentPage === 'crm' && user?.uid && database) {
-      // Carregar clientes por padrão
-      if (crmTab === 'clients' && crmClients.length === 0) {
-        loadCRMClients();
-      } else if (crmTab === 'conversations' && crmConversations.length === 0) {
-        loadCRMConversations();
-      } else if (crmTab === 'orders' && crmOrders.length === 0) {
-        loadCRMOrders();
-      }
+  // Função para trocar de aba e carregar dados
+  const handleCRMTabChange = (newTab) => {
+    setCrmTab(newTab);
+    
+    // Carregar dados da nova aba se ainda não foram carregados
+    if (newTab === 'clients' && crmClients.length === 0) {
+      loadCRMClients();
+    } else if (newTab === 'conversations' && crmConversations.length === 0) {
+      loadCRMConversations();
+    } else if (newTab === 'orders' && crmOrders.length === 0) {
+      loadCRMOrders();
     }
-  }, [currentPage, crmTab, user?.uid, database]);
+  };
+  
+  // Carregar clientes na primeira vez que entra no CRM
+  useEffect(() => {
+    if (currentPage === 'crm' && user?.uid && database && crmClients.length === 0) {
+      loadCRMClients();
+    }
+  }, [currentPage, user?.uid, database]);
   
   // Funções auxiliares para formatação
   const formatPhone = (phone) => {
@@ -1612,7 +1619,7 @@ const DashboardWithFirebase = ({
             <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
               <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb' }}>
                 <button
-                  onClick={() => setCrmTab('clients')}
+                  onClick={() => handleCRMTabChange('clients')}
                   style={{
                     flex: 1,
                     padding: '16px',
@@ -1627,7 +1634,7 @@ const DashboardWithFirebase = ({
                   👥 Lista de Clientes
                 </button>
                 <button
-                  onClick={() => setCrmTab('conversations')}
+                  onClick={() => handleCRMTabChange('conversations')}
                   style={{
                     flex: 1,
                     padding: '16px',
@@ -1642,7 +1649,7 @@ const DashboardWithFirebase = ({
                   💬 Histórico de Conversas
                 </button>
                 <button
-                  onClick={() => setCrmTab('orders')}
+                  onClick={() => handleCRMTabChange('orders')}
                   style={{
                     flex: 1,
                     padding: '16px',
