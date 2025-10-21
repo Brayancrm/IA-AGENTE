@@ -1062,6 +1062,14 @@ const DashboardWithFirebase = ({
     }
   };
   
+  // Função para trocar de aba no CRM (usando activeTab)
+  const switchTab = (tab) => {
+    setActiveTab(tab);
+    if (tab === 'clients' && crmClients.length === 0) loadCRMClients();
+    else if (tab === 'conversations' && crmConversations.length === 0) loadCRMConversations();
+    else if (tab === 'orders' && crmOrders.length === 0) loadCRMOrders();
+  };
+  
   // Carregar clientes automaticamente quando entrar no CRM
   useEffect(() => {
     if (currentPage === 'crm' && user?.uid && database) {
@@ -1617,14 +1625,6 @@ const DashboardWithFirebase = ({
         return renderCatalog();
 
       case 'crm':
-        // Função para trocar de aba no CRM
-        const switchTab = (tab) => {
-          setActiveTab(tab);
-          if (tab === 'clients' && crmClients.length === 0) loadCRMClients();
-          else if (tab === 'conversations' && crmConversations.length === 0) loadCRMConversations();
-          else if (tab === 'orders' && crmOrders.length === 0) loadCRMOrders();
-        };
-        
         return (
           <div style={{ padding: '24px' }}>
             <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
