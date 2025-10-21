@@ -1409,6 +1409,157 @@ async function createAsaasCharge(asaasApiKey, customerData, items, userId) {
 }
 
 // ============================================
+// FUNÇÕES DE NOTA FISCAL
+// ============================================
+
+// Função para emitir Nota Fiscal no Asaas
+async function emitirNotaFiscal(userId, orderId, orderData, payment) {
+  try {
+    console.log('📄 [NF] Iniciando emissão de nota fiscal...');
+    console.log('   Pedido:', orderId);
+    console.log('   Valor:', payment.value);
+    
+    // 1. Buscar API Key do Asaas
+    const integrations = await getIntegrationsConfig(userId);
+    let asaasApiKey = null;
+
+    if (integrations) {
+      if (integrations.asaasConfig && integrations.asaasConfig.asaasApiKey) {
+        asaasApiKey = integrations.asaasConfig.asaasApiKey;
+      } else if (integrations.asaasApiKey) {
+        asaasApiKey = integrations.asaasApiKey;
+      }
+    }
+
+    if (!asaasApiKey) {
+      console.log('❌ [NF] API Key do Asaas não encontrada');
+      return { success: false, error: 'API Key não encontrada' };
+    }
+    
+    console.log('✅ [NF] API Key encontrada');
+    
+    // 2. Buscar configurações fiscais do usuário
+    const fiscalConfigRef = db.ref(`users/data/${userId}/fiscal_config`);
+    const fiscalConfigSnapshot = await fiscalConfigRef.once('value');
+    const fiscalConfig = fiscalConfigSnapshot.val();
+    
+    if (!fiscalConfig || !fiscalConfig.enabled) {
+      console.log('⚠️ [NF] Emissão de nota fiscal não está habilitada');
+      return { success: false, error: 'Emissão de NF não habilitada' };
+    }
+    
+    console.log('✅ [NF] Configurações fiscais encontradas');
+    
+    // 3. Preparar dados da nota fiscal
+    const serviceDescription = orderData.items.map(item => 
+      `${item.quantity}x ${item.name}${item.description ? ` - ${item.description}` : ''}`
+    ).join(', ');
+    
+    const invoiceData = {
+      customer: payment.customer, // ID do cliente no Asaas
+      serviceDescription: serviceDescription,
+      value: payment.value,
+      
+      // Dados do tomador (cliente)
+      deductions: fiscalConfig.deductions || 0,
+      effectiveDate: new Date().toISOString().split('T')[0], // Data de hoje YYYY-MM-DD
+      
+      // Configurações de impostos
+      taxes: {
+        retainIss: fiscalConfig.retainIss || false,
+        iss: fiscalConfig.issRate || 0, // Alíquota ISS em %
+        cofins: fiscalConfig.cofinsRate || 0,
+        csll: fiscalConfig.csllRate || 0,
+        inss: fiscalConfig.inssRate || 0,
+        ir: fiscalConfig.irRate || 0,
+        pis: fiscalConfig.pisRate || 0
+      },
+      
+      // Observações
+      observations: fiscalConfig.observations || 'Nota fiscal emitida automaticamente'
+    };
+    
+    console.log('📝 [NF] Dados da nota fiscal preparados');
+    
+    // 4. Criar nota fiscal via API do Asaas
+    const asaasUrl = process.env.ASAAS_ENV === 'production' 
+      ? 'https://api.asaas.com/v3/invoices'
+      : 'https://sandbox.asaas.com/api/v3/invoices';
+    
+    console.log('🌐 [NF] Enviando para Asaas:', asaasUrl);
+    
+    const response = await axios.post(asaasUrl, invoiceData, {
+      headers: {
+        'access_token': asaasApiKey,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('✅ [NF] Nota fiscal criada no Asaas');
+    console.log('   ID:', response.data.id);
+    console.log('   Número:', response.data.number);
+    
+    // 5. Salvar dados da nota fiscal no Firebase
+    const invoiceRef = db.ref(`invoices/${userId}/${orderId}`);
+    await invoiceRef.set({
+      invoiceId: response.data.id,
+      invoiceNumber: response.data.number,
+      orderId: orderId,
+      chargeId: payment.id,
+      customer: orderData.customer,
+      value: payment.value,
+      items: orderData.items,
+      status: response.data.status,
+      effectiveDate: response.data.effectiveDate,
+      taxes: invoiceData.taxes,
+      pdfUrl: response.data.pdfUrl || null,
+      xmlUrl: response.data.xmlUrl || null,
+      createdAt: new Date().toISOString(),
+      asaasData: response.data
+    });
+    
+    console.log('✅ [NF] Nota fiscal salva no Firebase');
+    
+    // 6. Atualizar pedido com ID da nota fiscal
+    await db.ref(`orders/${userId}/${orderId}`).update({
+      invoiceId: response.data.id,
+      invoiceNumber: response.data.number,
+      invoiceStatus: response.data.status,
+      invoiceEmittedAt: new Date().toISOString()
+    });
+    
+    console.log('✅ [NF] Pedido atualizado com dados da NF');
+    
+    return {
+      success: true,
+      invoiceId: response.data.id,
+      invoiceNumber: response.data.number,
+      invoiceUrl: response.data.pdfUrl || response.data.xmlUrl,
+      status: response.data.status
+    };
+    
+  } catch (error) {
+    console.error('❌ [NF] Erro ao emitir nota fiscal:', error.response?.data || error.message);
+    
+    // Salvar erro no Firebase para análise
+    try {
+      await db.ref(`invoices/${userId}/${orderId}_error`).set({
+        orderId: orderId,
+        error: error.response?.data || error.message,
+        attemptedAt: new Date().toISOString()
+      });
+    } catch (saveError) {
+      console.error('❌ [NF] Erro ao salvar log de erro:', saveError);
+    }
+    
+    return {
+      success: false,
+      error: error.response?.data?.errors?.[0]?.description || error.message
+    };
+  }
+}
+
+// ============================================
 // ROTAS DA API
 // ============================================
 
@@ -1714,7 +1865,7 @@ app.post('/api/asaas/webhook', async (req, res) => {
     
     console.log(`✅ Pedido ${orderId} atualizado para status: ${newStatus}`);
     
-    // Se pagamento foi confirmado, enviar mensagem no WhatsApp
+    // Se pagamento foi confirmado, enviar mensagem no WhatsApp E EMITIR NOTA FISCAL
     if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
       const client = activeClients.get(userId);
       
@@ -1730,6 +1881,29 @@ app.post('/api/asaas/webhook', async (req, res) => {
           console.log('✅ Mensagem de confirmação enviada');
         } catch (error) {
           console.error('❌ Erro ao enviar mensagem de confirmação:', error);
+        }
+        
+        // 📄 EMITIR NOTA FISCAL AUTOMATICAMENTE
+        console.log('📄 Iniciando emissão de nota fiscal...');
+        try {
+          const invoiceResult = await emitirNotaFiscal(userId, orderId, orderData, payment);
+          
+          if (invoiceResult.success) {
+            console.log('✅ Nota fiscal emitida com sucesso:', invoiceResult.invoiceNumber);
+            
+            // Enviar NF para o cliente
+            const invoiceMessage = `📄 *Nota Fiscal Emitida!*\n\n` +
+              `Número: ${invoiceResult.invoiceNumber}\n` +
+              `Valor: R$ ${payment.value.toFixed(2)}\n\n` +
+              `🔗 Acesse: ${invoiceResult.invoiceUrl || 'Processando...'}`;
+            
+            await client.sendText(orderData.customer.phone, invoiceMessage);
+            console.log('✅ Nota fiscal enviada para o cliente');
+          } else {
+            console.error('❌ Erro ao emitir nota fiscal:', invoiceResult.error);
+          }
+        } catch (invoiceError) {
+          console.error('❌ Erro ao processar nota fiscal:', invoiceError);
         }
       }
     }
@@ -1794,6 +1968,109 @@ app.get('/api/customer-data/get/:userId/:phone', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Erro ao buscar dados do cliente:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// ENDPOINTS DE CONFIGURAÇÕES FISCAIS
+// ============================================
+
+// Salvar configurações fiscais para emissão de NF
+app.post('/api/fiscal-config/save', async (req, res) => {
+  try {
+    const { userId, config } = req.body;
+
+    if (!userId || !config) {
+      return res.status(400).json({ error: 'userId e config são obrigatórios' });
+    }
+
+    console.log('💾 Salvando configurações fiscais para userId:', userId);
+
+    const fiscalConfigRef = db.ref(`users/data/${userId}/fiscal_config`);
+    await fiscalConfigRef.set({
+      ...config,
+      updatedAt: new Date().toISOString()
+    });
+
+    console.log('✅ Configurações fiscais salvas com sucesso');
+    res.json({ success: true, message: 'Configurações fiscais salvas com sucesso' });
+
+  } catch (error) {
+    console.error('❌ Erro ao salvar configurações fiscais:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Buscar configurações fiscais
+app.get('/api/fiscal-config/get/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    console.log('🔍 Buscando configurações fiscais para userId:', userId);
+
+    const fiscalConfigRef = db.ref(`users/data/${userId}/fiscal_config`);
+    const snapshot = await fiscalConfigRef.once('value');
+
+    if (snapshot.exists()) {
+      console.log('✅ Configurações fiscais encontradas');
+      res.json({ success: true, data: snapshot.val() });
+    } else {
+      console.log('⚠️ Configurações fiscais não encontradas, usando padrão');
+      res.json({
+        success: true,
+        data: {
+          enabled: false,
+          issRate: 0,
+          retainIss: false,
+          cofinsRate: 0,
+          csllRate: 0,
+          inssRate: 0,
+          irRate: 0,
+          pisRate: 0,
+          deductions: 0,
+          observations: ''
+        }
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar configurações fiscais:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Buscar notas fiscais emitidas
+app.get('/api/invoices/list/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    console.log('🔍 Buscando notas fiscais para userId:', userId);
+
+    const invoicesRef = db.ref(`invoices/${userId}`);
+    const snapshot = await invoicesRef.once('value');
+
+    if (snapshot.exists()) {
+      const invoices = [];
+      snapshot.forEach((childSnapshot) => {
+        const invoice = childSnapshot.val();
+        if (!childSnapshot.key.endsWith('_error')) { // Ignorar logs de erro
+          invoices.push({
+            id: childSnapshot.key,
+            ...invoice
+          });
+        }
+      });
+
+      console.log(`✅ ${invoices.length} nota(s) fiscal(is) encontrada(s)`);
+      res.json({ success: true, invoices });
+    } else {
+      console.log('⚠️ Nenhuma nota fiscal encontrada');
+      res.json({ success: true, invoices: [] });
+    }
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar notas fiscais:', error);
     res.status(500).json({ error: error.message });
   }
 });
