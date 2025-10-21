@@ -912,22 +912,42 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
     const products = Object.values(productsData);
     const mentionedProducts = [];
     
+    console.log('📋 Produtos cadastrados:', products.map(p => p.name).join(', '));
+    console.log('📝 Analisando últimas mensagens para encontrar produtos...');
+    
     // Analisar mensagens para encontrar produtos mencionados
+    let messageCount = 0;
     messagesSnapshot.forEach((messageSnap) => {
       const msg = messageSnap.val();
       const messageText = msg.body ? msg.body.toLowerCase() : '';
+      messageCount++;
+      
+      if (messageText) {
+        console.log(`   Mensagem ${messageCount}: "${messageText.substring(0, 50)}${messageText.length > 50 ? '...' : ''}"`);
+      }
       
       products.forEach(product => {
         const productName = product.name ? product.name.toLowerCase() : '';
+        const productNameBase = productName.replace(/s$/, ''); // Remove 's' final para match singular/plural
+        
         // Verificar se o produto foi mencionado (nome completo ou parcial)
-        if (messageText.includes(productName) && !mentionedProducts.find(p => p.id === product.id)) {
+        const isExactMatch = messageText.includes(productName);
+        const isBaseMatch = messageText.includes(productNameBase);
+        
+        if ((isExactMatch || isBaseMatch) && !mentionedProducts.find(p => p.id === product.id)) {
+          console.log(`   ✅ Produto encontrado: "${product.name}" em "${messageText}"`);
           mentionedProducts.push(product);
         }
       });
     });
 
+    console.log(`📊 Total de mensagens analisadas: ${messageCount}`);
+    console.log(`📦 Produtos mencionados encontrados: ${mentionedProducts.length}`);
+
     if (mentionedProducts.length === 0) {
       console.log('⚠️ Nenhum produto mencionado na conversa');
+      console.log('💡 Dica: Verifique se o nome do produto no Firebase está correto');
+      console.log('💡 Produtos disponíveis:', products.map(p => `"${p.name}"`).join(', '));
       return;
     }
 
