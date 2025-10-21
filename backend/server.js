@@ -933,21 +933,32 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
 
     console.log(`✅ ${mentionedProducts.length} produto(s) mencionado(s):`, mentionedProducts.map(p => p.name).join(', '));
 
-    // Buscar API Key do Asaas
-    const settingsSnapshot = await db.ref(`settings/${userId}`).once('value');
-    const settings = settingsSnapshot.val();
+    // Buscar API Key do Asaas usando a função getIntegrationsConfig
+    console.log('🔍 Buscando API Key do Asaas para o userId:', userId);
+    const integrations = await getIntegrationsConfig(userId);
     let asaasApiKey = null;
 
-    if (settings) {
-      if (settings.asaasApiKey) {
-        asaasApiKey = settings.asaasApiKey;
-      } else if (settings.integrations && settings.integrations.asaasApiKey) {
-        asaasApiKey = settings.integrations.asaasApiKey;
+    if (integrations) {
+      // Formato Firestore: integrations.asaasConfig.asaasApiKey
+      if (integrations.asaasConfig && integrations.asaasConfig.asaasApiKey) {
+        asaasApiKey = integrations.asaasConfig.asaasApiKey;
+        console.log('🔍 API Key do Asaas: Encontrada no formato Firestore ✅');
       }
+      // Formato Realtime Database: integrations.asaasApiKey (direto)
+      else if (integrations.asaasApiKey) {
+        asaasApiKey = integrations.asaasApiKey;
+        console.log('🔍 API Key do Asaas: Encontrada no formato Realtime Database ✅');
+      }
+      else {
+        console.log('❌ API Key do Asaas: Não encontrada em integrations_config');
+      }
+    } else {
+      console.log('❌ Configurações de integração não encontradas');
     }
 
     if (!asaasApiKey) {
       console.log('❌ API Key do Asaas não encontrada');
+      console.log('💡 Verifique se você salvou a API Key em: Dashboard → Integrações → Asaas');
       return;
     }
 
