@@ -1011,14 +1011,36 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
       
       products.forEach(product => {
         const productName = product.name ? product.name.toLowerCase() : '';
-        const productNameBase = productName.replace(/s$/, ''); // Remove 's' final para match singular/plural
         
-        // Verificar se o produto foi mencionado (nome completo ou parcial)
+        // DETECÇÃO INTELIGENTE: Dividir nome do produto em palavras-chave
+        const stopWords = ['de', 'da', 'do', 'dos', 'das', 'com', 'sem', 'para', 'o', 'a', 'os', 'as', 'e'];
+        const keywords = productName
+          .split(/\s+/) // Dividir por espaços
+          .filter(word => word.length >= 3) // Palavras com 3+ caracteres
+          .filter(word => !stopWords.includes(word)); // Remover palavras comuns
+        
+        // Verificar 3 tipos de match:
+        // 1. Match exato do nome completo
         const isExactMatch = messageText.includes(productName);
-        const isBaseMatch = messageText.includes(productNameBase);
         
-        if ((isExactMatch || isBaseMatch) && !mentionedProducts.find(p => p.id === product.id)) {
-          console.log(`      ✅ MATCH! Produto "${product.name}" encontrado!`);
+        // 2. Match de qualquer palavra-chave significativa (3+ caracteres)
+        const keywordMatch = keywords.some(keyword => {
+          // Remover 's' final para aceitar singular/plural
+          const keywordBase = keyword.replace(/s$/, '');
+          return messageText.includes(keyword) || messageText.includes(keywordBase);
+        });
+        
+        // 3. Match de sigla (primeiras letras de cada palavra)
+        const initials = keywords.map(w => w[0]).join('');
+        const hasInitials = initials.length >= 2 && messageText.includes(initials);
+        
+        if ((isExactMatch || keywordMatch || hasInitials) && !mentionedProducts.find(p => p.id === product.id)) {
+          const matchType = isExactMatch ? 'exato' : (keywordMatch ? 'palavra-chave' : 'sigla');
+          console.log(`      ✅ MATCH ${matchType}! Produto "${product.name}" encontrado!`);
+          if (keywordMatch) {
+            const matchedKeyword = keywords.find(k => messageText.includes(k) || messageText.includes(k.replace(/s$/, '')));
+            console.log(`         🔍 Detectado pela palavra: "${matchedKeyword}"`);
+          }
           mentionedProducts.push(product);
         }
       });
