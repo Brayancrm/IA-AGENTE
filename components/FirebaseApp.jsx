@@ -1615,7 +1615,10 @@ const DashboardWithFirebase = ({
       case 'catalog':
         return renderCatalog();
 
-      case 'crm':
+      case 'crm': {
+        // Garantir que crmTab tenha um valor padrão
+        const currentTab = crmTab || 'clients';
+        
         return (
           <div style={{ padding: '24px' }}>
             <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
@@ -1630,8 +1633,8 @@ const DashboardWithFirebase = ({
                   style={{
                     flex: 1,
                     padding: '16px',
-                    backgroundColor: crmTab === 'clients' ? '#6366f1' : 'transparent',
-                    color: crmTab === 'clients' ? 'white' : '#6b7280',
+                    backgroundColor: currentTab === 'clients' ? '#6366f1' : 'transparent',
+                    color: currentTab === 'clients' ? 'white' : '#6b7280',
                     border: 'none',
                     cursor: 'pointer',
                     fontWeight: '500',
@@ -1645,8 +1648,8 @@ const DashboardWithFirebase = ({
                   style={{
                     flex: 1,
                     padding: '16px',
-                    backgroundColor: crmTab === 'conversations' ? '#6366f1' : 'transparent',
-                    color: crmTab === 'conversations' ? 'white' : '#6b7280',
+                    backgroundColor: currentTab === 'conversations' ? '#6366f1' : 'transparent',
+                    color: currentTab === 'conversations' ? 'white' : '#6b7280',
                     border: 'none',
                     cursor: 'pointer',
                     fontWeight: '500',
@@ -1660,8 +1663,8 @@ const DashboardWithFirebase = ({
                   style={{
                     flex: 1,
                     padding: '16px',
-                    backgroundColor: crmTab === 'orders' ? '#6366f1' : 'transparent',
-                    color: crmTab === 'orders' ? 'white' : '#6b7280',
+                    backgroundColor: currentTab === 'orders' ? '#6366f1' : 'transparent',
+                    color: currentTab === 'orders' ? 'white' : '#6b7280',
                     border: 'none',
                     cursor: 'pointer',
                     fontWeight: '500',
@@ -1674,7 +1677,7 @@ const DashboardWithFirebase = ({
 
               {/* Conteúdo das abas */}
               <div style={{ padding: '24px' }}>
-                {crmTab === 'clients' && (
+                {currentTab === 'clients' && (
                   <>
                     {crmLoading ? (
                       <div style={{ textAlign: 'center', padding: '48px' }}>
@@ -1763,7 +1766,7 @@ const DashboardWithFirebase = ({
                   </>
                 )}
 
-                {crmTab === 'conversations' && (
+                {currentTab === 'conversations' && (
                   <>
                     {crmLoading ? (
                       <div style={{ textAlign: 'center', padding: '48px' }}>
@@ -1876,7 +1879,7 @@ const DashboardWithFirebase = ({
                   </>
                 )}
 
-                {crmTab === 'orders' && (
+                {currentTab === 'orders' && (
                   <>
                     {crmLoading ? (
                       <div style={{ textAlign: 'center', padding: '48px' }}>
@@ -2029,6 +2032,7 @@ const DashboardWithFirebase = ({
             </div>
           </div>
         );
+      }
 
       case 'integrations':
         return (
