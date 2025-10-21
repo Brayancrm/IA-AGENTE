@@ -48,14 +48,6 @@ const FirebaseApp = () => {
   const [whatsappQRCode, setWhatsappQRCode] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   
-  // Estados do CRM
-  const [crmTab, setCrmTab] = useState('clients'); // 'clients', 'conversations', 'orders'
-  const [crmClients, setCrmClients] = useState([]);
-  const [crmConversations, setCrmConversations] = useState([]);
-  const [crmOrders, setCrmOrders] = useState([]);
-  const [crmSearch, setCrmSearch] = useState('');
-  const [crmLoading, setCrmLoading] = useState(false);
-  const [selectedClient, setSelectedClient] = useState(null);
   
   // URL do backend
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
@@ -922,171 +914,6 @@ const DashboardWithFirebase = ({
     }));
   };
 
-  // Funções do CRM
-  const loadCRMClients = async () => {
-    if (!user?.uid || !database) return;
-    
-    try {
-      const { ref, onValue } = await import('firebase/database');
-      const conversationsRef = ref(database, `conversations/${user.uid}`);
-      
-      onValue(conversationsRef, (snapshot) => {
-        const clients = [];
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          Object.keys(data).forEach(contactNumber => {
-            const messages = data[contactNumber].messages || {};
-            const messageArray = Object.values(messages);
-            const lastMessage = messageArray[messageArray.length - 1];
-            
-            clients.push({
-              phone: contactNumber,
-              name: contactNumber.replace('@c.us', ''),
-              lastContact: lastMessage?.timestamp || new Date().toISOString(),
-              messageCount: messageArray.length,
-              firstContact: messageArray[0]?.timestamp || new Date().toISOString()
-            });
-          });
-        }
-        setCrmClients(clients.sort((a, b) => new Date(b.lastContact) - new Date(a.lastContact)));
-      }, { onlyOnce: true });
-    } catch (error) {
-      console.error('Erro ao carregar clientes:', error);
-    }
-  };
-
-  const loadCRMConversations = async () => {
-    if (!user?.uid || !database) return;
-    
-    try {
-      const { ref, onValue } = await import('firebase/database');
-      const conversationsRef = ref(database, `conversations/${user.uid}`);
-      
-      onValue(conversationsRef, (snapshot) => {
-        const convs = [];
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          Object.keys(data).forEach(contactNumber => {
-            const messages = data[contactNumber].messages || {};
-            const messageArray = Object.entries(messages).map(([id, msg]) => ({
-              id,
-              ...msg
-            })).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-            
-            convs.push({
-              phone: contactNumber,
-              name: contactNumber.replace('@c.us', ''),
-              messages: messageArray
-            });
-          });
-        }
-        setCrmConversations(convs);
-      }, { onlyOnce: true });
-    } catch (error) {
-      console.error('Erro ao carregar conversas:', error);
-    }
-  };
-
-  const loadCRMOrders = async () => {
-    if (!user?.uid || !database) return;
-    
-    try {
-      const { ref, onValue } = await import('firebase/database');
-      const ordersRef = ref(database, `orders/${user.uid}`);
-      
-      onValue(ordersRef, (snapshot) => {
-        const orders = [];
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          Object.entries(data).forEach(([orderId, order]) => {
-            orders.push({
-              id: orderId,
-              ...order
-            });
-          });
-        }
-        setCrmOrders(orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
-      }, { onlyOnce: true });
-    } catch (error) {
-      console.error('Erro ao carregar pedidos:', error);
-    }
-  };
-
-  // useEffect para carregar dados do CRM quando a página mudar para CRM
-  useEffect(() => {
-    const loadInitialData = async () => {
-      if (currentPage === 'crm' && user?.uid && database && crmClients.length === 0) {
-        // Carregar clientes por padrão na primeira vez
-        setCrmLoading(true);
-        try {
-          await loadCRMClients();
-        } catch (error) {
-          console.error('Erro ao carregar dados iniciais do CRM:', error);
-        } finally {
-          setCrmLoading(false);
-        }
-      }
-    };
-    
-    loadInitialData();
-  }, [currentPage, user?.uid]);
-
-  // Funções para trocar de aba no CRM e carregar dados
-  const handleCRMTabChange = async (tab) => {
-    setCrmTab(tab);
-    setCrmLoading(true);
-    try {
-      if (tab === 'clients' && crmClients.length === 0) {
-        await loadCRMClients();
-      } else if (tab === 'conversations' && crmConversations.length === 0) {
-        await loadCRMConversations();
-      } else if (tab === 'orders' && crmOrders.length === 0) {
-        await loadCRMOrders();
-      }
-    } finally {
-      setCrmLoading(false);
-    }
-  };
-
-  // Funções auxiliares do CRM
-  const formatPhone = (phone) => {
-    return phone.replace('@c.us', '').replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getStatusColor = (status) => {
-    const colors = {
-      pending: { bg: '#fef3c7', text: '#92400e' },
-      paid: { bg: '#d1fae5', text: '#065f46' },
-      confirmed: { bg: '#dbeafe', text: '#1e40af' },
-      cancelled: { bg: '#fee2e2', text: '#991b1b' },
-      overdue: { bg: '#fed7aa', text: '#9a3412' }
-    };
-    return colors[status] || { bg: '#f3f4f6', text: '#1f2937' };
-  };
-
-  const getStatusLabel = (status) => {
-    const labels = {
-      pending: 'Pendente',
-      paid: 'Pago',
-      confirmed: 'Confirmado',
-      cancelled: 'Cancelado',
-      overdue: 'Vencido'
-    };
-    return labels[status] || status;
-  };
-
   // Função para renderizar o catálogo avançado
   const renderCatalog = () => {
     // Calcular estatísticas
@@ -1584,26 +1411,6 @@ const DashboardWithFirebase = ({
 
       case 'catalog':
         return renderCatalog();
-
-      case 'crm':
-        return (
-          <div style={{ padding: '24px' }}>
-            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>CRM</h2>
-            <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', padding: '48px', textAlign: 'center' }}>
-              <div style={{ fontSize: '64px', marginBottom: '24px' }}>✅</div>
-              <h3 style={{ fontSize: '28px', fontWeight: 'bold', color: '#1f2937', marginBottom: '16px' }}>CRM Funcionando!</h3>
-              <p style={{ fontSize: '16px', color: '#6b7280', marginBottom: '32px' }}>O sistema está operacional</p>
-              <div style={{ backgroundColor: '#f9fafb', borderRadius: '12px', padding: '24px', margin: '0 auto', maxWidth: '400px' }}>
-                <div style={{ fontSize: '18px', color: '#1f2937', fontWeight: '500', marginBottom: '16px' }}>📊 Dados Carregados:</div>
-                <div style={{ textAlign: 'left', marginLeft: '40px' }}>
-                  <p style={{ color: '#6b7280', marginBottom: '8px' }}>• {crmClients ? crmClients.length : 0} Clientes</p>
-                  <p style={{ color: '#6b7280', marginBottom: '8px' }}>• {crmConversations ? crmConversations.length : 0} Conversas</p>
-                  <p style={{ color: '#6b7280' }}>• {crmOrders ? crmOrders.length : 0} Pedidos</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
 
       case 'integrations':
         return (
@@ -2352,7 +2159,6 @@ const DashboardWithFirebase = ({
     { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
     { id: 'company', label: 'Cadastro da Empresa', icon: '🏢' },
     { id: 'catalog', label: 'Catálogo (Itens)', icon: '📦' },
-    { id: 'crm', label: 'CRM', icon: '👥' },
     { id: 'integrations', label: 'Integrações', icon: '⚙️' },
     { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' },
     ...(user?.isMaster ? [{ id: 'users', label: 'Gerenciar Usuários', icon: '👤' }] : [])
