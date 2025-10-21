@@ -950,35 +950,52 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
 // 🎯 Função para tentar gerar link automaticamente quando todos os dados estão completos
 async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
   try {
+    console.log('\n╔════════════════════════════════════════╗');
+    console.log('║  🎯 INICIANDO GERAÇÃO DE LINK         ║');
+    console.log('╚════════════════════════════════════════╝');
+    console.log('📍 UserID:', userId);
+    console.log('📍 Phone:', phone);
+    console.log('📍 Sanitized:', sanitizedNumber);
+    
     const client = activeClients.get(userId);
     if (!client) {
-      console.log('⚠️ Cliente WhatsApp não encontrado para geração automática');
+      console.log('❌ Cliente WhatsApp não encontrado para geração automática');
       return;
     }
+    console.log('✅ Cliente WhatsApp conectado\n');
 
     // Buscar produtos mencionados recentemente na conversa (últimas 10 mensagens)
+    console.log('[1/6] 🔍 Buscando mensagens da conversa...');
     const conversationRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`);
+    
+    console.log('   📂 Path:', `conversations/${userId}/${sanitizedNumber}/messages`);
     const messagesSnapshot = await conversationRef.orderByChild('timestamp').limitToLast(10).once('value');
     
     if (!messagesSnapshot.exists()) {
-      console.log('⚠️ Nenhuma conversa encontrada');
+      console.log('❌ [1/6] Nenhuma conversa encontrada');
       return;
     }
+    console.log(`✅ [1/6] ${messagesSnapshot.numChildren()} mensagens encontradas\n`);
 
     // Buscar produtos cadastrados
+    console.log('[2/6] 🔍 Buscando produtos cadastrados...');
+    console.log('   📂 Path:', `products/${userId}`);
     const productsSnapshot = await db.ref(`products/${userId}`).once('value');
     const productsData = productsSnapshot.val();
     
     if (!productsData) {
-      console.log('⚠️ Nenhum produto cadastrado');
+      console.log('❌ [2/6] Nenhum produto cadastrado');
+      console.log('💡 Cadastre produtos em: Dashboard → Catálogo');
       return;
     }
 
     const products = Object.values(productsData);
+    console.log(`✅ [2/6] ${products.length} produto(s) cadastrado(s):`);
+    products.forEach(p => console.log(`   • ${p.name} - R$ ${p.price}`));
+    
     const mentionedProducts = [];
     
-    console.log('📋 Produtos cadastrados:', products.map(p => p.name).join(', '));
-    console.log('📝 Analisando últimas mensagens para encontrar produtos...');
+    console.log('\n[3/6] 🔍 Analisando mensagens para encontrar produtos...');
     
     // Analisar mensagens para encontrar produtos mencionados
     let messageCount = 0;
@@ -988,7 +1005,8 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
       messageCount++;
       
       if (messageText) {
-        console.log(`   Mensagem ${messageCount}: "${messageText.substring(0, 50)}${messageText.length > 50 ? '...' : ''}"`);
+        const preview = messageText.substring(0, 60);
+        console.log(`   📝 Msg ${messageCount}: "${preview}${messageText.length > 60 ? '...' : ''}"`);
       }
       
       products.forEach(product => {
@@ -1000,29 +1018,33 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
         const isBaseMatch = messageText.includes(productNameBase);
         
         if ((isExactMatch || isBaseMatch) && !mentionedProducts.find(p => p.id === product.id)) {
-          console.log(`   ✅ Produto encontrado: "${product.name}" em "${messageText}"`);
+          console.log(`      ✅ MATCH! Produto "${product.name}" encontrado!`);
           mentionedProducts.push(product);
         }
       });
     });
 
-    console.log(`📊 Total de mensagens analisadas: ${messageCount}`);
-    console.log(`📦 Produtos mencionados encontrados: ${mentionedProducts.length}`);
+    console.log(`\n✅ [3/6] Análise concluída:`);
+    console.log(`   📊 Mensagens analisadas: ${messageCount}`);
+    console.log(`   📦 Produtos encontrados: ${mentionedProducts.length}`);
 
     if (mentionedProducts.length === 0) {
-      console.log('⚠️ Nenhum produto mencionado na conversa');
-      console.log('💡 Dica: Verifique se o nome do produto no Firebase está correto');
+      console.log('\n❌ [3/6] Nenhum produto mencionado na conversa');
       console.log('💡 Produtos disponíveis:', products.map(p => `"${p.name}"`).join(', '));
+      console.log('💡 Certifique-se de que o cliente mencionou o nome do produto na conversa');
       return;
     }
 
-    console.log(`✅ ${mentionedProducts.length} produto(s) mencionado(s):`, mentionedProducts.map(p => p.name).join(', '));
+    mentionedProducts.forEach(p => console.log(`   • ${p.name} - R$ ${p.price}`));
 
     // Buscar quantidades salvas pelo agente (quando perguntou "quantas unidades?")
+    console.log('\n[4/6] 🔍 Buscando quantidades salvas...');
     const productsWithQuantity = await getProductQuantities(userId, phone, mentionedProducts);
+    console.log('✅ [4/6] Quantidades aplicadas:');
+    productsWithQuantity.forEach(p => console.log(`   • ${p.quantity}x ${p.name} = R$ ${(p.price * p.quantity).toFixed(2)}`));
 
     // Buscar API Key do Asaas usando a função getIntegrationsConfig
-    console.log('🔍 Buscando API Key do Asaas para o userId:', userId);
+    console.log('\n[5/6] 🔍 Buscando API Key do Asaas...');
     const integrations = await getIntegrationsConfig(userId);
     let asaasApiKey = null;
 
@@ -1030,36 +1052,44 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
       // Formato Firestore: integrations.asaasConfig.asaasApiKey
       if (integrations.asaasConfig && integrations.asaasConfig.asaasApiKey) {
         asaasApiKey = integrations.asaasConfig.asaasApiKey;
-        console.log('🔍 API Key do Asaas: Encontrada no formato Firestore ✅');
+        console.log('✅ [5/6] API Key encontrada (Firestore)');
       }
       // Formato Realtime Database: integrations.asaasApiKey (direto)
       else if (integrations.asaasApiKey) {
         asaasApiKey = integrations.asaasApiKey;
-        console.log('🔍 API Key do Asaas: Encontrada no formato Realtime Database ✅');
+        console.log('✅ [5/6] API Key encontrada (Realtime DB)');
       }
       else {
-        console.log('❌ API Key do Asaas: Não encontrada em integrations_config');
+        console.log('❌ [5/6] API Key não encontrada em integrations_config');
       }
     } else {
-      console.log('❌ Configurações de integração não encontradas');
+      console.log('❌ [5/6] Configurações de integração não encontradas');
     }
 
     if (!asaasApiKey) {
-      console.log('❌ API Key do Asaas não encontrada');
-      console.log('💡 Verifique se você salvou a API Key em: Dashboard → Integrações → Asaas');
+      console.log('💡 Cadastre sua API Key em: Dashboard → Integrações → Asaas');
       return;
     }
 
     // Buscar dados salvos do cliente
+    console.log('\n[6/6] 🔍 Verificando dados do cliente...');
     const phoneNumber = phone.replace(/[^0-9]/g, '');
     const customerDataRef = db.ref(`customerData/${userId}/${phoneNumber}`);
     const customerSnapshot = await customerDataRef.once('value');
     const savedCustomerData = customerSnapshot.val();
 
     if (!savedCustomerData || !savedCustomerData.name || !savedCustomerData.email || !savedCustomerData.cpfCnpj) {
-      console.log('❌ Dados do cliente incompletos');
+      console.log('❌ [6/6] Dados do cliente incompletos:');
+      console.log('   👤 Nome:', savedCustomerData?.name || '❌');
+      console.log('   📧 Email:', savedCustomerData?.email || '❌');
+      console.log('   📄 CPF/CNPJ:', savedCustomerData?.cpfCnpj || '❌');
       return;
     }
+
+    console.log('✅ [6/6] Dados do cliente completos:');
+    console.log(`   👤 Nome: ${savedCustomerData.name}`);
+    console.log(`   📧 Email: ${savedCustomerData.email}`);
+    console.log(`   📄 CPF/CNPJ: ${savedCustomerData.cpfCnpj}`);
 
     // Preparar dados do cliente
     const customerData = {
@@ -1085,7 +1115,14 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
       description: item.description || ''
     }));
 
-    console.log('🚀 GERANDO LINK DE PAGAMENTO AUTOMATICAMENTE...');
+    console.log('\n╔════════════════════════════════════════╗');
+    console.log('║  🚀 GERANDO LINK DE PAGAMENTO        ║');
+    console.log('╚════════════════════════════════════════╝');
+    orderItems.forEach(i => {
+      console.log(`   📦 ${i.quantity}x ${i.name} = R$ ${(i.price * i.quantity).toFixed(2)}`);
+    });
+    const totalValue = orderItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+    console.log(`   💰 TOTAL: R$ ${totalValue.toFixed(2)}\n`);
 
     // Criar cobrança no Asaas
     const chargeResult = await createAsaasCharge(asaasApiKey, customerData, orderItems, userId);
@@ -1119,7 +1156,12 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
         `Após a confirmação do pagamento, você receberá uma notificação automática! 🎉`;
 
       await client.sendText(phone, paymentMessage);
-      console.log('✅ LINK DE PAGAMENTO ENVIADO AUTOMATICAMENTE!');
+      console.log('\n╔════════════════════════════════════════╗');
+      console.log('║  ✅ LINK ENVIADO COM SUCESSO!         ║');
+      console.log('╚════════════════════════════════════════╝');
+      console.log('🔗 URL:', chargeResult.invoiceUrl);
+      console.log('💰 Valor: R$', chargeResult.value.toFixed(2));
+      console.log('');
 
       // Salvar mensagem de pagamento no histórico
       const paymentMsgRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
