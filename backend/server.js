@@ -729,6 +729,45 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
     const contextRef = db.ref(`collectionContext/${userId}/${sanitizedNumber}`);
     const lowerText = messageText.toLowerCase();
     
+    // Detectar se o agente está perguntando QUANTIDADE
+    const quantityKeywords = [
+      'quantas unidades',
+      'quantos',
+      'quantas',
+      'qual quantidade',
+      'quantidade deseja',
+      'quantas gostaria',
+      'quantos gostaria',
+      'me informe quantas',
+      'me informe quantos'
+    ];
+    
+    if (quantityKeywords.some(keyword => lowerText.includes(keyword))) {
+      // Tentar detectar qual produto está sendo perguntado
+      let productAsked = null;
+      
+      // Buscar produtos para identificar qual está sendo mencionado
+      const productsSnapshot = await db.ref(`products/${userId}`).once('value');
+      if (productsSnapshot.exists()) {
+        const products = Object.values(productsSnapshot.val());
+        for (const product of products) {
+          const productName = product.name ? product.name.toLowerCase() : '';
+          if (lowerText.includes(productName)) {
+            productAsked = product.name;
+            break;
+          }
+        }
+      }
+      
+      await contextRef.set({ 
+        waitingFor: 'quantity',
+        productName: productAsked,
+        askedAt: new Date().toISOString()
+      });
+      console.log(`🎯 Agente perguntou a QUANTIDADE ${productAsked ? `de "${productAsked}"` : ''} - aguardando resposta`);
+      return;
+    }
+    
     // Detectar se o agente está perguntando o NOME
     const nameKeywords = [
       'nome completo',
@@ -811,8 +850,34 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
     if (context && context.waitingFor) {
       console.log(`📝 Processando resposta para: ${context.waitingFor}`);
       
+      // Cliente está respondendo à pergunta de QUANTIDADE
+      if (context.waitingFor === 'quantity') {
+        const numbersOnly = messageText.replace(/[^0-9]/g, '');
+        const quantity = parseInt(numbersOnly);
+        
+        if (quantity > 0 && quantity <= 1000) {
+          // Salvar quantidade no customerData com referência ao produto
+          if (!customerData.quantities) {
+            customerData.quantities = {};
+          }
+          
+          // Se sabemos qual produto, salvar com o nome do produto
+          if (context.productName) {
+            customerData.quantities[context.productName] = quantity;
+            console.log(`✅ Quantidade detectada e salva: ${quantity}x ${context.productName}`);
+          } else {
+            // Se não sabemos o produto específico, salvar como quantidade geral (última mencionada)
+            customerData.lastQuantity = quantity;
+            console.log(`✅ Quantidade detectada e salva: ${quantity} unidades`);
+          }
+          
+          dataUpdated = true;
+          await contextRef.remove();
+        }
+      }
+      
       // Cliente está respondendo à pergunta do NOME
-      if (context.waitingFor === 'name' && !customerData.name) {
+      else if (context.waitingFor === 'name' && !customerData.name) {
         const words = messageText.trim().split(/\s+/);
         const hasNoNumbers = !/\d/.test(messageText);
         const hasNoSpecialChars = !/[@#$%&*()_+=\[\]{}|\\:;"'<>,.?/]/.test(messageText);
@@ -953,8 +1018,8 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
 
     console.log(`✅ ${mentionedProducts.length} produto(s) mencionado(s):`, mentionedProducts.map(p => p.name).join(', '));
 
-    // Analisar conversa para detectar quantidades mencionadas
-    const productsWithQuantity = await analyzeConversationForQuantities(userId, sanitizedNumber, mentionedProducts);
+    // Buscar quantidades salvas pelo agente (quando perguntou "quantas unidades?")
+    const productsWithQuantity = await getProductQuantities(userId, phone, mentionedProducts);
 
     // Buscar API Key do Asaas usando a função getIntegrationsConfig
     console.log('🔍 Buscando API Key do Asaas para o userId:', userId);
@@ -1117,31 +1182,39 @@ function detectQuantity(messageText, productName) {
   }
 }
 
-// Função para analisar conversa e extrair quantidades de produtos
-async function analyzeConversationForQuantities(userId, sanitizedNumber, products) {
+// Função para buscar quantidades salvas dos produtos
+async function getProductQuantities(userId, phone, products) {
   try {
-    // Buscar últimas 10 mensagens da conversa
-    const conversationRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`);
-    const messagesSnapshot = await conversationRef.orderByChild('timestamp').limitToLast(10).once('value');
+    const phoneNumber = phone.replace(/[^0-9]/g, '');
+    const customerRef = db.ref(`customerData/${userId}/${phoneNumber}`);
+    const snapshot = await customerRef.once('value');
+    const customerData = snapshot.val();
     
-    if (!messagesSnapshot.exists()) {
+    if (!customerData) {
+      console.log('📝 Nenhuma quantidade salva, usando padrão (1)');
       return products.map(p => ({ ...p, quantity: 1 }));
     }
     
-    // Juntar todas as mensagens do cliente em um único texto
-    let allClientMessages = '';
-    messagesSnapshot.forEach((messageSnap) => {
-      const msg = messageSnap.val();
-      if (!msg.isFromMe && msg.body) {
-        allClientMessages += ' ' + msg.body.toLowerCase();
-      }
-    });
+    console.log('📝 Buscando quantidades salvas...');
     
-    console.log('📝 Analisando conversa para detectar quantidades...');
-    
-    // Para cada produto, detectar quantidade mencionada
+    // Para cada produto, buscar quantidade salva
     const productsWithQuantity = products.map(product => {
-      const quantity = detectQuantity(allClientMessages, product.name);
+      let quantity = 1; // Padrão
+      
+      // Verificar se há quantidade específica salva para este produto
+      if (customerData.quantities && customerData.quantities[product.name]) {
+        quantity = customerData.quantities[product.name];
+        console.log(`✅ Quantidade salva encontrada: ${quantity}x ${product.name}`);
+      }
+      // Se houver apenas uma última quantidade e só um produto, usar ela
+      else if (customerData.lastQuantity && products.length === 1) {
+        quantity = customerData.lastQuantity;
+        console.log(`✅ Usando última quantidade salva: ${quantity}x ${product.name}`);
+      }
+      else {
+        console.log(`⚠️ Nenhuma quantidade específica para ${product.name}, usando 1`);
+      }
+      
       return {
         ...product,
         quantity: quantity
@@ -1151,7 +1224,7 @@ async function analyzeConversationForQuantities(userId, sanitizedNumber, product
     return productsWithQuantity;
     
   } catch (error) {
-    console.error('❌ Erro ao analisar quantidades:', error);
+    console.error('❌ Erro ao buscar quantidades:', error);
     return products.map(p => ({ ...p, quantity: 1 }));
   }
 }
