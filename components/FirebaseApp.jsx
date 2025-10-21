@@ -976,19 +976,15 @@ const DashboardWithFirebase = ({
     });
   };
   
-  // Carregar clientes automaticamente quando entrar no CRM
+  // Carregar clientes quando a página CRM é acessada
   useEffect(() => {
-    if (currentPage === 'crm' && user?.uid && database && isReady) {
+    if (currentPage === 'crm' && user?.uid && database) {
       // Só carrega se ainda não carregou
       if (crmClients.length === 0 && !crmLoading) {
-        const timer = setTimeout(() => {
-          loadCRMClients();
-        }, 500);
-        
-        return () => clearTimeout(timer);
+        loadCRMClients();
       }
     }
-  }, [currentPage, isReady]);
+  }, [currentPage]);
   
   // ==================== FIM FUNÇÕES DO CRM ====================
   
