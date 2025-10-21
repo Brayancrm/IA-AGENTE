@@ -41,9 +41,11 @@ try {
   }
 }
 
+// IMPORTANTE: Forçar uso do banco secundário onde estão os dados do Firestore
+// NÃO usar a variável de ambiente que pode estar apontando para o banco default vazio
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: process.env.FIREBASE_DATABASE_URL || 'https://ia-agente-b2f46.firebaseio.com'
+  databaseURL: 'https://ia-agente-b2f46.firebaseio.com' // Banco secundário com dados
 });
 
 const db = admin.database();
