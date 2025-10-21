@@ -1010,15 +1010,39 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
       }
       
       products.forEach(product => {
-        const productName = product.name ? product.name.toLowerCase() : '';
-        const productNameBase = productName.replace(/s$/, ''); // Remove 's' final para match singular/plural
+        // Validação de segurança
+        if (!product || !product.name || typeof product.name !== 'string') {
+          return;
+        }
+
+        const productName = product.name.toLowerCase();
         
-        // Verificar se o produto foi mencionado (nome completo ou parcial)
+        // DETECÇÃO INTELIGENTE (versão segura)
+        // 1. Match exato do nome completo
         const isExactMatch = messageText.includes(productName);
-        const isBaseMatch = messageText.includes(productNameBase);
         
-        if ((isExactMatch || isBaseMatch) && !mentionedProducts.find(p => p.id === product.id)) {
-          console.log(`      ✅ MATCH! Produto "${product.name}" encontrado!`);
+        // 2. Match de palavras-chave (palavras com 4+ caracteres)
+        const words = productName.split(/\s+/).filter(w => w.length >= 4);
+        let keywordMatch = false;
+        let matchedWord = '';
+        
+        for (const word of words) {
+          // Aceita palavra exata ou sem 's' final (plural)
+          const wordBase = word.replace(/s$/, '');
+          if (messageText.includes(word) || messageText.includes(wordBase)) {
+            keywordMatch = true;
+            matchedWord = word;
+            break;
+          }
+        }
+        
+        // Adicionar produto se encontrou match e ainda não foi adicionado
+        if ((isExactMatch || keywordMatch) && !mentionedProducts.find(p => p.id === product.id)) {
+          const matchType = isExactMatch ? 'exato' : 'palavra-chave';
+          console.log(`      ✅ MATCH ${matchType}! Produto "${product.name}" encontrado!`);
+          if (keywordMatch && matchedWord) {
+            console.log(`         🔍 Detectado pela palavra: "${matchedWord}"`);
+          }
           mentionedProducts.push(product);
         }
       });
