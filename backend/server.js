@@ -933,6 +933,9 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
 
     console.log(`✅ ${mentionedProducts.length} produto(s) mencionado(s):`, mentionedProducts.map(p => p.name).join(', '));
 
+    // Analisar conversa para detectar quantidades mencionadas
+    const productsWithQuantity = await analyzeConversationForQuantities(userId, sanitizedNumber, mentionedProducts);
+
     // Buscar API Key do Asaas usando a função getIntegrationsConfig
     console.log('🔍 Buscando API Key do Asaas para o userId:', userId);
     const integrations = await getIntegrationsConfig(userId);
@@ -989,11 +992,11 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
       })
     };
 
-    // Preparar itens do pedido
-    const orderItems = mentionedProducts.map(item => ({
+    // Preparar itens do pedido COM QUANTIDADES DETECTADAS
+    const orderItems = productsWithQuantity.map(item => ({
       name: item.name,
       price: item.price,
-      quantity: 1,
+      quantity: item.quantity, // Quantidade detectada da conversa!
       description: item.description || ''
     }));
 
@@ -1051,6 +1054,85 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
 
   } catch (error) {
     console.error('❌ Erro na geração automática do link:', error);
+  }
+}
+
+// Função para detectar quantidade mencionada no texto
+function detectQuantity(messageText, productName) {
+  try {
+    const lowerText = messageText.toLowerCase();
+    const lowerProduct = productName.toLowerCase();
+    
+    // Padrões de quantidade comuns
+    // Ex: "2 sabões", "quero 3", "pode ser 5 unidades", "10 produtos"
+    const patterns = [
+      // Número + produto: "2 sabões", "3 lavagens"
+      new RegExp(`(\\d+)\\s*${lowerProduct}`, 'i'),
+      // Número + palavras indicativas + produto: "quero 2 do sabão"
+      new RegExp(`(\\d+)\\s*(?:do|de|da)?\\s*${lowerProduct}`, 'i'),
+      // Produto + número: "sabão, quero 2"
+      new RegExp(`${lowerProduct}[^\\d]*(\\d+)`, 'i'),
+      // Número + unidades/produtos: "quero 5 unidades", "pode ser 3 produtos"
+      new RegExp(`(\\d+)\\s*(?:unidades?|produtos?|itens?)`, 'i'),
+      // Apenas número seguido de espaço: "quero 2", "pode ser 3"
+      /(?:quero|pode ser|gostaria de?|vou levar)\s*(\d+)/i
+    ];
+    
+    for (const pattern of patterns) {
+      const match = lowerText.match(pattern);
+      if (match && match[1]) {
+        const quantity = parseInt(match[1]);
+        if (quantity > 0 && quantity <= 1000) { // Limite razoável
+          console.log(`🔢 Quantidade detectada: ${quantity}x ${productName}`);
+          return quantity;
+        }
+      }
+    }
+    
+    // Se não encontrar quantidade específica, retornar 1
+    return 1;
+  } catch (error) {
+    console.error('❌ Erro ao detectar quantidade:', error);
+    return 1;
+  }
+}
+
+// Função para analisar conversa e extrair quantidades de produtos
+async function analyzeConversationForQuantities(userId, sanitizedNumber, products) {
+  try {
+    // Buscar últimas 10 mensagens da conversa
+    const conversationRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`);
+    const messagesSnapshot = await conversationRef.orderByChild('timestamp').limitToLast(10).once('value');
+    
+    if (!messagesSnapshot.exists()) {
+      return products.map(p => ({ ...p, quantity: 1 }));
+    }
+    
+    // Juntar todas as mensagens do cliente em um único texto
+    let allClientMessages = '';
+    messagesSnapshot.forEach((messageSnap) => {
+      const msg = messageSnap.val();
+      if (!msg.isFromMe && msg.body) {
+        allClientMessages += ' ' + msg.body.toLowerCase();
+      }
+    });
+    
+    console.log('📝 Analisando conversa para detectar quantidades...');
+    
+    // Para cada produto, detectar quantidade mencionada
+    const productsWithQuantity = products.map(product => {
+      const quantity = detectQuantity(allClientMessages, product.name);
+      return {
+        ...product,
+        quantity: quantity
+      };
+    });
+    
+    return productsWithQuantity;
+    
+  } catch (error) {
+    console.error('❌ Erro ao analisar quantidades:', error);
+    return products.map(p => ({ ...p, quantity: 1 }));
   }
 }
 
