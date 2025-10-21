@@ -1061,12 +1061,19 @@ const DashboardWithFirebase = ({
     }
   };
   
-  // Carregar clientes na primeira vez que entra no CRM
+  // Carregar clientes automaticamente quando entrar no CRM
   useEffect(() => {
-    if (currentPage === 'crm' && user?.uid && database && crmClients.length === 0) {
-      loadCRMClients();
+    if (currentPage === 'crm' && user?.uid && database) {
+      // Pequeno delay para garantir que tudo está inicializado
+      const timer = setTimeout(() => {
+        if (crmClients.length === 0) {
+          loadCRMClients();
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
-  }, [currentPage, user?.uid, database]);
+  }, [currentPage]);
   
   // Funções auxiliares para formatação
   const formatPhone = (phone) => {
