@@ -1616,55 +1616,67 @@ const DashboardWithFirebase = ({
         return renderCatalog();
 
       case 'crm': {
-        // Garantir que crmTab tenha um valor padrão
-        const currentTab = crmTab || 'clients';
-        
-        return (
-          <div style={{ padding: '24px' }}>
-            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
-              CRM - Gestão de Clientes
-            </h2>
-            
-            {/* Abas */}
-            <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb' }}>
-                <button
-                  onClick={() => handleCRMTabChange('clients')}
-                  style={{
-                    flex: 1,
-                    padding: '16px',
-                    backgroundColor: currentTab === 'clients' ? '#6366f1' : 'transparent',
-                    color: currentTab === 'clients' ? 'white' : '#6b7280',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontWeight: '500',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  👥 Lista de Clientes
-                </button>
-                <button
-                  onClick={() => handleCRMTabChange('conversations')}
-                  style={{
-                    flex: 1,
-                    padding: '16px',
-                    backgroundColor: currentTab === 'conversations' ? '#6366f1' : 'transparent',
-                    color: currentTab === 'conversations' ? 'white' : '#6b7280',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontWeight: '500',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  💬 Histórico de Conversas
-                </button>
-                <button
-                  onClick={() => handleCRMTabChange('orders')}
-                  style={{
-                    flex: 1,
-                    padding: '16px',
-                    backgroundColor: currentTab === 'orders' ? '#6366f1' : 'transparent',
-                    color: currentTab === 'orders' ? 'white' : '#6b7280',
+        // Componente CRM isolado com estado local
+        const CRMContent = () => {
+          const [activeTab, setActiveTab] = React.useState('clients');
+          
+          const switchTab = (tab) => {
+            setActiveTab(tab);
+            if (tab === 'clients' && crmClients.length === 0) loadCRMClients();
+            else if (tab === 'conversations' && crmConversations.length === 0) loadCRMConversations();
+            else if (tab === 'orders' && crmOrders.length === 0) loadCRMOrders();
+          };
+          
+          React.useEffect(() => {
+            if (crmClients.length === 0) loadCRMClients();
+          }, []);
+          
+          return (
+            <div style={{ padding: '24px' }}>
+              <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
+                CRM - Gestão de Clientes
+              </h2>
+              
+              {/* Abas */}
+              <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb' }}>
+                  <button
+                    onClick={() => switchTab('clients')}
+                    style={{
+                      flex: 1,
+                      padding: '16px',
+                      backgroundColor: activeTab === 'clients' ? '#6366f1' : 'transparent',
+                      color: activeTab === 'clients' ? 'white' : '#6b7280',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    👥 Lista de Clientes
+                  </button>
+                  <button
+                    onClick={() => switchTab('conversations')}
+                    style={{
+                      flex: 1,
+                      padding: '16px',
+                      backgroundColor: activeTab === 'conversations' ? '#6366f1' : 'transparent',
+                      color: activeTab === 'conversations' ? 'white' : '#6b7280',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    💬 Histórico de Conversas
+                  </button>
+                  <button
+                    onClick={() => switchTab('orders')}
+                    style={{
+                      flex: 1,
+                      padding: '16px',
+                      backgroundColor: activeTab === 'orders' ? '#6366f1' : 'transparent',
+                      color: activeTab === 'orders' ? 'white' : '#6b7280',
                     border: 'none',
                     cursor: 'pointer',
                     fontWeight: '500',
@@ -1675,9 +1687,9 @@ const DashboardWithFirebase = ({
                 </button>
               </div>
 
-              {/* Conteúdo das abas */}
-              <div style={{ padding: '24px' }}>
-                {currentTab === 'clients' && (
+                {/* Conteúdo das abas */}
+                <div style={{ padding: '24px' }}>
+                  {activeTab === 'clients' && (
                   <>
                     {crmLoading ? (
                       <div style={{ textAlign: 'center', padding: '48px' }}>
@@ -1766,7 +1778,7 @@ const DashboardWithFirebase = ({
                   </>
                 )}
 
-                {currentTab === 'conversations' && (
+                  {activeTab === 'conversations' && (
                   <>
                     {crmLoading ? (
                       <div style={{ textAlign: 'center', padding: '48px' }}>
@@ -1879,7 +1891,7 @@ const DashboardWithFirebase = ({
                   </>
                 )}
 
-                {currentTab === 'orders' && (
+                  {activeTab === 'orders' && (
                   <>
                     {crmLoading ? (
                       <div style={{ textAlign: 'center', padding: '48px' }}>
@@ -2027,11 +2039,14 @@ const DashboardWithFirebase = ({
                       </div>
                     )}
                   </>
-                )}
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        );
+          );
+        };
+        
+        return <CRMContent />;
       }
 
       case 'integrations':
