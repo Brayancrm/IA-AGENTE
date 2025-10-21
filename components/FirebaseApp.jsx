@@ -762,7 +762,17 @@ const DashboardWithFirebase = ({
   const [integrationsForm, setIntegrationsForm] = useState({
     openaiApiKey: '',
     asaasApiKey: '',
-    municipalRegistration: ''
+    municipalRegistration: '',
+    fiscalEnabled: false,
+    issRate: 0,
+    retainIss: false,
+    cofinsRate: 0,
+    csllRate: 0,
+    inssRate: 0,
+    irRate: 0,
+    pisRate: 0,
+    deductions: 0,
+    fiscalObservations: ''
   });
   const [assistantForm, setAssistantForm] = useState({
     aiProvider: 'openai',
@@ -1418,16 +1428,16 @@ const DashboardWithFirebase = ({
         return renderCatalog();
 
       case 'crm':
-        return (
+          return (
           <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
             <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>
               🎯 CRM - Gestão de Clientes
-            </h2>
+              </h2>
             <p style={{ color: '#6b7280', marginBottom: '32px' }}>
               Sistema de gerenciamento de relacionamento com clientes
             </p>
             
-            <div style={{ 
+                              <div style={{ 
               backgroundColor: 'white', 
               borderRadius: '16px', 
               boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
@@ -1437,13 +1447,13 @@ const DashboardWithFirebase = ({
               <div style={{ fontSize: '80px', marginBottom: '24px' }}>🚧</div>
               <h3 style={{ fontSize: '28px', fontWeight: 'bold', color: '#1f2937', marginBottom: '16px' }}>
                 CRM Temporariamente Desativado
-              </h3>
+                                </h3>
               <p style={{ color: '#6b7280', fontSize: '18px', lineHeight: '1.6', maxWidth: '600px', margin: '0 auto' }}>
                 O módulo CRM está sendo reconstruído para melhor performance e estabilidade.<br />
                 Em breve você terá acesso a:
               </p>
               
-              <div style={{ 
+                            <div style={{ 
                 display: 'grid', 
                 gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
                 gap: '20px', 
@@ -1455,26 +1465,26 @@ const DashboardWithFirebase = ({
                   <div style={{ fontSize: '40px', marginBottom: '12px' }}>👥</div>
                   <h4 style={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>Lista de Clientes</h4>
                   <p style={{ fontSize: '14px', color: '#6b7280' }}>Visualize todos os seus clientes</p>
-                </div>
+                                </div>
                 
                 <div style={{ padding: '20px', backgroundColor: '#f0fdf4', borderRadius: '12px' }}>
                   <div style={{ fontSize: '40px', marginBottom: '12px' }}>💬</div>
                   <h4 style={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>Conversas</h4>
                   <p style={{ fontSize: '14px', color: '#6b7280' }}>Histórico completo de mensagens</p>
-                </div>
-                
+                            </div>
+
                 <div style={{ padding: '20px', backgroundColor: '#fef3c7', borderRadius: '12px' }}>
                   <div style={{ fontSize: '40px', marginBottom: '12px' }}>🛒</div>
                   <h4 style={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>Pedidos</h4>
                   <p style={{ fontSize: '14px', color: '#6b7280' }}>Gerencie todas as vendas</p>
-                </div>
-              </div>
+                                        </div>
+                                    </div>
               
               <p style={{ marginTop: '40px', color: '#9ca3af', fontSize: '14px' }}>
                 Enquanto isso, continue usando o Dashboard, Catálogo e WhatsApp normalmente! ✨
-              </p>
-            </div>
-          </div>
+                        </p>
+                      </div>
+                                    </div>
         );
 
       case 'integrations':
@@ -1572,25 +1582,285 @@ const DashboardWithFirebase = ({
 
                 <div>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '16px', color: '#1f2937' }}>
-                    📋 Fiscal
+                    📄 Configuração de Nota Fiscal
                   </h3>
-                  <div>
-                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
-                      Inscrição Municipal
-                    </label>
-                    <input
-                      type="text"
-                      value={integrationsForm.municipalRegistration}
-                      onChange={(e) => setIntegrationsForm(prev => ({ ...prev, municipalRegistration: e.target.value }))}
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        borderRadius: '8px',
-                        border: '1px solid #d1d5db',
-                        fontSize: '1rem'
-                      }}
-                      placeholder="12345678"
-                    />
+                  
+                  {/* Toggle Emissão Automática */}
+                  <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', padding: '16px', marginBottom: '24px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <h4 style={{ fontWeight: '600', color: '#1e40af', marginBottom: '4px' }}>Emissão Automática de Nota Fiscal</h4>
+                        <p style={{ fontSize: '0.875rem', color: '#1e40af' }}>
+                          Habilite para emitir NFS-e automaticamente após confirmação de pagamento
+                        </p>
+                      </div>
+                      <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={integrationsForm.fiscalEnabled}
+                          onChange={(e) => setIntegrationsForm(prev => ({ ...prev, fiscalEnabled: e.target.checked }))}
+                          style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+                        />
+                        <div style={{
+                          width: '56px',
+                          height: '28px',
+                          backgroundColor: integrationsForm.fiscalEnabled ? '#2563eb' : '#d1d5db',
+                          borderRadius: '14px',
+                          position: 'relative',
+                          transition: 'background-color 0.3s'
+                        }}>
+                          <div style={{
+                            position: 'absolute',
+                            left: integrationsForm.fiscalEnabled ? '30px' : '4px',
+                            top: '4px',
+                            width: '20px',
+                            height: '20px',
+                            backgroundColor: 'white',
+                            borderRadius: '50%',
+                            transition: 'left 0.3s'
+                          }}></div>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {/* Inscrição Municipal */}
+                    <div>
+                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                        Inscrição Municipal
+                      </label>
+                      <input
+                        type="text"
+                        value={integrationsForm.municipalRegistration}
+                        onChange={(e) => setIntegrationsForm(prev => ({ ...prev, municipalRegistration: e.target.value }))}
+                        disabled={!integrationsForm.fiscalEnabled}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '8px',
+                          border: '1px solid #d1d5db',
+                          fontSize: '1rem',
+                          opacity: integrationsForm.fiscalEnabled ? 1 : 0.6
+                        }}
+                        placeholder="Digite sua inscrição municipal"
+                      />
+                    </div>
+
+                    {/* Alíquotas de Impostos */}
+                    <div>
+                      <h4 style={{ fontWeight: '600', color: '#1f2937', marginBottom: '12px' }}>Alíquotas de Impostos (%)</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '8px', color: '#374151' }}>
+                            ISS (%)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={integrationsForm.issRate}
+                            onChange={(e) => setIntegrationsForm(prev => ({ ...prev, issRate: parseFloat(e.target.value) || 0 }))}
+                            disabled={!integrationsForm.fiscalEnabled}
+                            style={{
+                              width: '100%',
+                              padding: '12px',
+                              borderRadius: '8px',
+                              border: '1px solid #d1d5db',
+                              fontSize: '1rem',
+                              opacity: integrationsForm.fiscalEnabled ? 1 : 0.6
+                            }}
+                            placeholder="0.00"
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '8px', color: '#374151' }}>
+                            COFINS (%)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={integrationsForm.cofinsRate}
+                            onChange={(e) => setIntegrationsForm(prev => ({ ...prev, cofinsRate: parseFloat(e.target.value) || 0 }))}
+                            disabled={!integrationsForm.fiscalEnabled}
+                            style={{
+                              width: '100%',
+                              padding: '12px',
+                              borderRadius: '8px',
+                              border: '1px solid #d1d5db',
+                              fontSize: '1rem',
+                              opacity: integrationsForm.fiscalEnabled ? 1 : 0.6
+                            }}
+                            placeholder="0.00"
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '8px', color: '#374151' }}>
+                            CSLL (%)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={integrationsForm.csllRate}
+                            onChange={(e) => setIntegrationsForm(prev => ({ ...prev, csllRate: parseFloat(e.target.value) || 0 }))}
+                            disabled={!integrationsForm.fiscalEnabled}
+                            style={{
+                              width: '100%',
+                              padding: '12px',
+                              borderRadius: '8px',
+                              border: '1px solid #d1d5db',
+                              fontSize: '1rem',
+                              opacity: integrationsForm.fiscalEnabled ? 1 : 0.6
+                            }}
+                            placeholder="0.00"
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '8px', color: '#374151' }}>
+                            INSS (%)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={integrationsForm.inssRate}
+                            onChange={(e) => setIntegrationsForm(prev => ({ ...prev, inssRate: parseFloat(e.target.value) || 0 }))}
+                            disabled={!integrationsForm.fiscalEnabled}
+                            style={{
+                              width: '100%',
+                              padding: '12px',
+                              borderRadius: '8px',
+                              border: '1px solid #d1d5db',
+                              fontSize: '1rem',
+                              opacity: integrationsForm.fiscalEnabled ? 1 : 0.6
+                            }}
+                            placeholder="0.00"
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '8px', color: '#374151' }}>
+                            IR (%)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={integrationsForm.irRate}
+                            onChange={(e) => setIntegrationsForm(prev => ({ ...prev, irRate: parseFloat(e.target.value) || 0 }))}
+                            disabled={!integrationsForm.fiscalEnabled}
+                            style={{
+                              width: '100%',
+                              padding: '12px',
+                              borderRadius: '8px',
+                              border: '1px solid #d1d5db',
+                              fontSize: '1rem',
+                              opacity: integrationsForm.fiscalEnabled ? 1 : 0.6
+                            }}
+                            placeholder="0.00"
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '8px', color: '#374151' }}>
+                            PIS (%)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={integrationsForm.pisRate}
+                            onChange={(e) => setIntegrationsForm(prev => ({ ...prev, pisRate: parseFloat(e.target.value) || 0 }))}
+                            disabled={!integrationsForm.fiscalEnabled}
+                            style={{
+                              width: '100%',
+                              padding: '12px',
+                              borderRadius: '8px',
+                              border: '1px solid #d1d5db',
+                              fontSize: '1rem',
+                              opacity: integrationsForm.fiscalEnabled ? 1 : 0.6
+                            }}
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Reter ISS */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <input
+                        type="checkbox"
+                        id="retainIss"
+                        checked={integrationsForm.retainIss}
+                        onChange={(e) => setIntegrationsForm(prev => ({ ...prev, retainIss: e.target.checked }))}
+                        disabled={!integrationsForm.fiscalEnabled}
+                        style={{
+                          width: '20px',
+                          height: '20px',
+                          cursor: integrationsForm.fiscalEnabled ? 'pointer' : 'not-allowed'
+                        }}
+                      />
+                      <label htmlFor="retainIss" style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+                        Reter ISS (o cliente retém o ISS na fonte)
+                      </label>
+                    </div>
+
+                    {/* Deduções */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '8px', color: '#374151' }}>
+                        Deduções (R$)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={integrationsForm.deductions}
+                        onChange={(e) => setIntegrationsForm(prev => ({ ...prev, deductions: parseFloat(e.target.value) || 0 }))}
+                        disabled={!integrationsForm.fiscalEnabled}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '8px',
+                          border: '1px solid #d1d5db',
+                          fontSize: '1rem',
+                          opacity: integrationsForm.fiscalEnabled ? 1 : 0.6
+                        }}
+                        placeholder="0.00"
+                      />
+                    </div>
+
+                    {/* Observações */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '8px', color: '#374151' }}>
+                        Observações (opcional)
+                      </label>
+                      <textarea
+                        value={integrationsForm.fiscalObservations}
+                        onChange={(e) => setIntegrationsForm(prev => ({ ...prev, fiscalObservations: e.target.value }))}
+                        disabled={!integrationsForm.fiscalEnabled}
+                        rows={3}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '8px',
+                          border: '1px solid #d1d5db',
+                          fontSize: '1rem',
+                          resize: 'vertical',
+                          opacity: integrationsForm.fiscalEnabled ? 1 : 0.6
+                        }}
+                        placeholder="Observações que aparecerão na nota fiscal..."
+                      />
+                    </div>
+
+                    {/* Informações */}
+                    <div style={{ backgroundColor: '#d1fae5', border: '1px solid #86efac', borderRadius: '12px', padding: '16px' }}>
+                      <h4 style={{ fontWeight: '600', color: '#166534', marginBottom: '8px' }}>✅ Como funciona:</h4>
+                      <ul style={{ fontSize: '0.875rem', color: '#166534', paddingLeft: '20px', margin: 0 }}>
+                        <li>Habilite a emissão automática acima</li>
+                        <li>Configure suas alíquotas de acordo com sua legislação municipal</li>
+                        <li>Após o pagamento ser confirmado, a NFS-e será emitida automaticamente</li>
+                        <li>O cliente receberá a nota fiscal via WhatsApp com link para PDF</li>
+                        <li>Todas as notas emitidas ficarão salvas no Firebase</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
 
