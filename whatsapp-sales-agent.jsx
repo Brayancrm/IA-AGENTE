@@ -1746,7 +1746,17 @@ const WhatsAppSalesAgent = () => {
       asaasApiKey: ''
     });
     const [fiscalConfig, setFiscalConfig] = useState({
-      municipalRegistration: ''
+      enabled: false,
+      municipalRegistration: '',
+      issRate: 0,
+      retainIss: false,
+      cofinsRate: 0,
+      csllRate: 0,
+      inssRate: 0,
+      irRate: 0,
+      pisRate: 0,
+      deductions: 0,
+      observations: ''
     });
     const [openaiConfig, setOpenaiConfig] = useState({
       apiKey: '',
@@ -1757,7 +1767,19 @@ const WhatsAppSalesAgent = () => {
 
     useEffect(() => {
       setAsaasConfig(integrationsConfig.asaasConfig || { asaasApiKey: '' });
-      setFiscalConfig(integrationsConfig.fiscalConfig || { municipalRegistration: '' });
+      setFiscalConfig(integrationsConfig.fiscalConfig || { 
+        enabled: false,
+        municipalRegistration: '',
+        issRate: 0,
+        retainIss: false,
+        cofinsRate: 0,
+        csllRate: 0,
+        inssRate: 0,
+        irRate: 0,
+        pisRate: 0,
+        deductions: 0,
+        observations: ''
+      });
       setOpenaiConfig(integrationsConfig.openaiConfig || { 
         apiKey: '', 
         model: 'gpt-3.5-turbo', 
@@ -1899,8 +1921,31 @@ const WhatsAppSalesAgent = () => {
             {activeTab === 'fiscal' && (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-bold text-gray-800 mb-4">Configuração Fiscal</h3>
-                  <div className="space-y-4">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">📄 Configuração de Nota Fiscal</h3>
+                  
+                  {/* Toggle para habilitar emissão de NF */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium text-blue-800">Emissão Automática de Nota Fiscal</h4>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Habilite para emitir NFS-e automaticamente após confirmação de pagamento
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={fiscalConfig.enabled}
+                          onChange={(e) => setFiscalConfig({ ...fiscalConfig, enabled: e.target.checked })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-14 h-7 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    {/* Inscrição Municipal */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Inscrição Municipal
@@ -1911,12 +1956,168 @@ const WhatsAppSalesAgent = () => {
                         onChange={(e) => setFiscalConfig({ ...fiscalConfig, municipalRegistration: e.target.value })}
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         placeholder="Digite sua inscrição municipal"
+                        disabled={!fiscalConfig.enabled}
                       />
+                    </div>
+
+                    {/* Alíquotas de Impostos */}
+                    <div>
+                      <h4 className="font-medium text-gray-800 mb-3">Alíquotas de Impostos (%)</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            ISS (%)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={fiscalConfig.issRate}
+                            onChange={(e) => setFiscalConfig({ ...fiscalConfig, issRate: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="0.00"
+                            disabled={!fiscalConfig.enabled}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            COFINS (%)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={fiscalConfig.cofinsRate}
+                            onChange={(e) => setFiscalConfig({ ...fiscalConfig, cofinsRate: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="0.00"
+                            disabled={!fiscalConfig.enabled}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            CSLL (%)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={fiscalConfig.csllRate}
+                            onChange={(e) => setFiscalConfig({ ...fiscalConfig, csllRate: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="0.00"
+                            disabled={!fiscalConfig.enabled}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            INSS (%)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={fiscalConfig.inssRate}
+                            onChange={(e) => setFiscalConfig({ ...fiscalConfig, inssRate: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="0.00"
+                            disabled={!fiscalConfig.enabled}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            IR (%)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={fiscalConfig.irRate}
+                            onChange={(e) => setFiscalConfig({ ...fiscalConfig, irRate: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="0.00"
+                            disabled={!fiscalConfig.enabled}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            PIS (%)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={fiscalConfig.pisRate}
+                            onChange={(e) => setFiscalConfig({ ...fiscalConfig, pisRate: parseFloat(e.target.value) || 0 })}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="0.00"
+                            disabled={!fiscalConfig.enabled}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Reter ISS */}
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        id="retainIss"
+                        checked={fiscalConfig.retainIss}
+                        onChange={(e) => setFiscalConfig({ ...fiscalConfig, retainIss: e.target.checked })}
+                        className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                        disabled={!fiscalConfig.enabled}
+                      />
+                      <label htmlFor="retainIss" className="text-sm font-medium text-gray-700">
+                        Reter ISS (o cliente retém o ISS na fonte)
+                      </label>
+                    </div>
+
+                    {/* Deduções */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Deduções (R$)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={fiscalConfig.deductions}
+                        onChange={(e) => setFiscalConfig({ ...fiscalConfig, deductions: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="0.00"
+                        disabled={!fiscalConfig.enabled}
+                      />
+                    </div>
+
+                    {/* Observações */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Observações (opcional)
+                      </label>
+                      <textarea
+                        value={fiscalConfig.observations}
+                        onChange={(e) => setFiscalConfig({ ...fiscalConfig, observations: e.target.value })}
+                        rows={3}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="Observações que aparecerão na nota fiscal..."
+                        disabled={!fiscalConfig.enabled}
+                      />
+                    </div>
+
+                    {/* Informações */}
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                      <h4 className="font-medium text-green-800 mb-2">✅ Como funciona:</h4>
+                      <ul className="text-sm text-green-700 space-y-1">
+                        <li>• Habilite a emissão automática acima</li>
+                        <li>• Configure suas alíquotas de acordo com sua legislação municipal</li>
+                        <li>• Após o pagamento ser confirmado, a NFS-e será emitida automaticamente</li>
+                        <li>• O cliente receberá a nota fiscal via WhatsApp com link para PDF</li>
+                        <li>• Todas as notas emitidas ficarão salvas no Firebase</li>
+                      </ul>
                     </div>
 
                     <button
                       onClick={saveFiscalConfig}
-                      className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+                      className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={!fiscalConfig.enabled}
                     >
                       Salvar Configuração Fiscal
                     </button>
