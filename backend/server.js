@@ -294,6 +294,20 @@ async function handleIncomingMessage(userId, message, client) {
           aiGenerated: true
         });
         
+        // ============================================
+        // DETECTAR SE O AGENTE FEZ UMA PERGUNTA (nome, cpf, email)
+        // ============================================
+        await detectAgentQuestion(userId, sanitizedNumber, aiResponse);
+        
+        // ============================================
+        // DETECTAR MENSAGEM DE GATILHO PARA GERAR LINK
+        // ============================================
+        const triggerMessage = 'Perfeito! Vou enviar abaixo seu Link para que efetue o Pagamento.';
+        if (aiResponse.includes(triggerMessage)) {
+          console.log('🎯 MENSAGEM DE GATILHO DETECTADA! Gerando link de pagamento...');
+          await tryAutoGeneratePaymentLink(userId, message.from, sanitizedNumber);
+        }
+        
         // Detectar produtos mencionados e enviar imagens automaticamente
         const mentionedItems = detectMentionedProducts(aiResponse, aiResult.catalogItemsMap);
         
@@ -707,58 +721,143 @@ async function getIntegrationsConfig(userId) {
 }
 
 // Função para detectar e salvar dados do cliente automaticamente
+// Função para detectar qual pergunta o agente está fazendo
+async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
+  try {
+    const contextRef = db.ref(`collectionContext/${userId}/${sanitizedNumber}`);
+    const lowerText = messageText.toLowerCase();
+    
+    // Detectar se o agente está perguntando o NOME
+    const nameKeywords = [
+      'nome completo',
+      'seu nome',
+      'qual o nome',
+      'qual é o nome',
+      'me informe seu nome',
+      'poderia me informar seu nome',
+      'informe seu nome'
+    ];
+    
+    if (nameKeywords.some(keyword => lowerText.includes(keyword))) {
+      await contextRef.set({ 
+        waitingFor: 'name',
+        askedAt: new Date().toISOString()
+      });
+      console.log('🎯 Agente perguntou o NOME - aguardando resposta do cliente');
+      return;
+    }
+    
+    // Detectar se o agente está perguntando CPF/CNPJ
+    const cpfKeywords = [
+      'cpf',
+      'cnpj',
+      'seu documento',
+      'número do documento',
+      'informe seu cpf'
+    ];
+    
+    if (cpfKeywords.some(keyword => lowerText.includes(keyword))) {
+      await contextRef.set({ 
+        waitingFor: 'cpfCnpj',
+        askedAt: new Date().toISOString()
+      });
+      console.log('🎯 Agente perguntou o CPF/CNPJ - aguardando resposta do cliente');
+      return;
+    }
+    
+    // Detectar se o agente está perguntando EMAIL
+    const emailKeywords = [
+      'e-mail',
+      'email',
+      'seu e-mail',
+      'qual o email',
+      'qual é o email',
+      'informe seu email'
+    ];
+    
+    if (emailKeywords.some(keyword => lowerText.includes(keyword))) {
+      await contextRef.set({ 
+        waitingFor: 'email',
+        askedAt: new Date().toISOString()
+      });
+      console.log('🎯 Agente perguntou o EMAIL - aguardando resposta do cliente');
+      return;
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao detectar pergunta do agente:', error);
+  }
+}
+
+// Função MELHORADA para detectar e salvar dados do cliente (baseada no contexto)
 async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNumber) {
   try {
     const phoneNumber = phone.replace(/[^0-9]/g, '');
     const customerRef = db.ref(`customerData/${userId}/${phoneNumber}`);
+    const contextRef = db.ref(`collectionContext/${userId}/${sanitizedNumber}`);
     
     // Buscar dados existentes
     const snapshot = await customerRef.once('value');
     let customerData = snapshot.val() || {};
     
+    // Buscar contexto (qual pergunta foi feita)
+    const contextSnapshot = await contextRef.once('value');
+    const context = contextSnapshot.val();
+    
     let dataUpdated = false;
     
-    // DETECÇÃO DE NOME
-    // Se ainda não tem nome E a mensagem parece ser um nome (1+ palavra, sem números, sem @)
-    if (!customerData.name && messageText) {
-      const words = messageText.trim().split(/\s+/);
-      const hasNoNumbers = !/\d/.test(messageText);
-      const hasNoSpecialChars = !/[@#$%&*()_+=\[\]{}|\\:;"'<>,.?/]/.test(messageText);
-      const isReasonableLength = messageText.length >= 2 && messageText.length <= 100;
+    if (context && context.waitingFor) {
+      console.log(`📝 Processando resposta para: ${context.waitingFor}`);
       
-      // Aceita 1 ou mais palavras (ex: "João" ou "João Silva")
-      if (words.length >= 1 && hasNoNumbers && hasNoSpecialChars && isReasonableLength) {
-        customerData.name = messageText.trim();
-        dataUpdated = true;
-        console.log('✅ Nome detectado e salvo:', customerData.name);
+      // Cliente está respondendo à pergunta do NOME
+      if (context.waitingFor === 'name' && !customerData.name) {
+        const words = messageText.trim().split(/\s+/);
+        const hasNoNumbers = !/\d/.test(messageText);
+        const hasNoSpecialChars = !/[@#$%&*()_+=\[\]{}|\\:;"'<>,.?/]/.test(messageText);
+        const isReasonableLength = messageText.length >= 2 && messageText.length <= 100;
+        
+        if (words.length >= 1 && hasNoNumbers && hasNoSpecialChars && isReasonableLength) {
+          customerData.name = messageText.trim();
+          dataUpdated = true;
+          console.log('✅ Nome detectado e salvo:', customerData.name);
+          
+          // Limpar contexto após salvar
+          await contextRef.remove();
+        }
       }
-    }
-    
-    // DETECÇÃO DE EMAIL
-    // Formato básico de email: algo@algo.algo
-    const emailRegex = /[\w\.-]+@[\w\.-]+\.\w+/;
-    const emailMatch = messageText.match(emailRegex);
-    if (!customerData.email && emailMatch) {
-      customerData.email = emailMatch[0].toLowerCase().trim();
-      dataUpdated = true;
-      console.log('✅ Email detectado e salvo:', customerData.email);
-    }
-    
-    // DETECÇÃO DE CPF
-    // Remove tudo que não é número e verifica se tem 11 dígitos
-    const numbersOnly = messageText.replace(/[^0-9]/g, '');
-    if (!customerData.cpfCnpj && numbersOnly.length === 11) {
-      customerData.cpfCnpj = numbersOnly;
-      dataUpdated = true;
-      console.log('✅ CPF detectado e salvo:', numbersOnly);
-    }
-    
-    // DETECÇÃO DE CNPJ
-    // CNPJ: SEMPRE 14 DÍGITOS NUMÉRICOS (formato: XX.XXX.XXX/XXXX-XX)
-    if (!customerData.cpfCnpj && numbersOnly.length === 14) {
-      customerData.cpfCnpj = numbersOnly;
-      dataUpdated = true;
-      console.log('✅ CNPJ detectado e salvo (14 dígitos):', numbersOnly);
+      
+      // Cliente está respondendo à pergunta do CPF/CNPJ
+      else if (context.waitingFor === 'cpfCnpj' && !customerData.cpfCnpj) {
+        const numbersOnly = messageText.replace(/[^0-9]/g, '');
+        
+        // CPF: 11 dígitos
+        if (numbersOnly.length === 11) {
+          customerData.cpfCnpj = numbersOnly;
+          dataUpdated = true;
+          console.log('✅ CPF detectado e salvo:', numbersOnly);
+          await contextRef.remove();
+        }
+        // CNPJ: 14 dígitos
+        else if (numbersOnly.length === 14) {
+          customerData.cpfCnpj = numbersOnly;
+          dataUpdated = true;
+          console.log('✅ CNPJ detectado e salvo (14 dígitos):', numbersOnly);
+          await contextRef.remove();
+        }
+      }
+      
+      // Cliente está respondendo à pergunta do EMAIL
+      else if (context.waitingFor === 'email' && !customerData.email) {
+        const emailRegex = /[\w\.-]+@[\w\.-]+\.\w+/;
+        const emailMatch = messageText.match(emailRegex);
+        
+        if (emailMatch) {
+          customerData.email = emailMatch[0].toLowerCase().trim();
+          dataUpdated = true;
+          console.log('✅ Email detectado e salvo:', customerData.email);
+          await contextRef.remove();
+        }
+      }
     }
     
     // Se algum dado foi atualizado, salvar no Firebase
@@ -774,12 +873,6 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
       console.log('   Nome:', customerData.name || '❌ Ainda não coletado');
       console.log('   Email:', customerData.email || '❌ Ainda não coletado');
       console.log('   CPF/CNPJ:', customerData.cpfCnpj || '❌ Ainda não coletado');
-      
-      // 🚀 VERIFICAÇÃO AUTOMÁTICA: Se todos os 3 dados foram coletados, gerar link automaticamente
-      if (customerData.name && customerData.email && customerData.cpfCnpj) {
-        console.log('🎯 TODOS OS DADOS COLETADOS! Verificando produtos mencionados...');
-        await tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber);
-      }
     }
     
   } catch (error) {
