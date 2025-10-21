@@ -5,9 +5,10 @@ const admin = require('firebase-admin');
 const serviceAccount = require('./serviceAccountKey.json');
 
 // Inicializar Firebase Admin
+// IMPORTANTE: Usando o banco secundário (ia-agente-b2f46) onde estão os dados do Firestore
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: process.env.FIREBASE_DATABASE_URL || "https://ia-agente-b2f46-default-rtdb.firebaseio.com"
+  databaseURL: "https://ia-agente-b2f46.firebaseio.com"
 });
 
 const db = admin.database();
@@ -16,12 +17,12 @@ async function migrateProducts() {
   try {
     console.log('🚀 Iniciando migração de produtos...\n');
     
-    // Buscar todos os usuários que têm produtos em data/*/catalog_items
-    const dataSnapshot = await db.ref('data').once('value');
+    // Buscar todos os usuários que têm produtos em users/data/*/catalog_items
+    const dataSnapshot = await db.ref('users/data').once('value');
     const data = dataSnapshot.val();
     
     if (!data) {
-      console.log('❌ Nenhum dado encontrado em /data');
+      console.log('❌ Nenhum dado encontrado em /users/data');
       return;
     }
     
