@@ -719,14 +719,15 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
     let dataUpdated = false;
     
     // DETECÇÃO DE NOME
-    // Se ainda não tem nome E a mensagem parece ser um nome (2+ palavras, sem números, sem @)
+    // Se ainda não tem nome E a mensagem parece ser um nome (1+ palavra, sem números, sem @)
     if (!customerData.name && messageText) {
       const words = messageText.trim().split(/\s+/);
       const hasNoNumbers = !/\d/.test(messageText);
       const hasNoSpecialChars = !/[@#$%&*()_+=\[\]{}|\\:;"'<>,.?/]/.test(messageText);
-      const isReasonableLength = messageText.length >= 5 && messageText.length <= 100;
+      const isReasonableLength = messageText.length >= 2 && messageText.length <= 100;
       
-      if (words.length >= 2 && hasNoNumbers && hasNoSpecialChars && isReasonableLength) {
+      // Aceita 1 ou mais palavras (ex: "João" ou "João Silva")
+      if (words.length >= 1 && hasNoNumbers && hasNoSpecialChars && isReasonableLength) {
         customerData.name = messageText.trim();
         dataUpdated = true;
         console.log('✅ Nome detectado e salvo:', customerData.name);
@@ -753,11 +754,11 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
     }
     
     // DETECÇÃO DE CNPJ
-    // 14 dígitos
+    // CNPJ: SEMPRE 14 DÍGITOS NUMÉRICOS (formato: XX.XXX.XXX/XXXX-XX)
     if (!customerData.cpfCnpj && numbersOnly.length === 14) {
       customerData.cpfCnpj = numbersOnly;
       dataUpdated = true;
-      console.log('✅ CNPJ detectado e salvo:', numbersOnly);
+      console.log('✅ CNPJ detectado e salvo (14 dígitos):', numbersOnly);
     }
     
     // Se algum dado foi atualizado, salvar no Firebase

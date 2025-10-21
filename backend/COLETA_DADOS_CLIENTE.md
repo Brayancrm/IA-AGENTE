@@ -7,10 +7,10 @@ O agente de WhatsApp agora **coleta E SALVA automaticamente** os dados do client
 ## 🚀 SALVAMENTO AUTOMÁTICO IMPLEMENTADO
 
 ✅ **O backend agora detecta e salva automaticamente:**
-- Nome (quando cliente responde com 2+ palavras sem números)
+- Nome (aceita 1 ou mais palavras, sem números)
 - Email (detecta formato email@dominio.com)
-- CPF (11 dígitos)
-- CNPJ (14 dígitos)
+- CPF (SEMPRE 11 dígitos numéricos)
+- CNPJ (SEMPRE 14 dígitos numéricos)
 
 **Não é necessário chamar nenhum endpoint manualmente!** O sistema faz tudo sozinho! 🎉
 
@@ -33,9 +33,10 @@ O bot pergunta (de forma natural configurada no prompt):
 
 ```javascript
 // DETECÇÃO DE NOME
-- Verifica se tem 2+ palavras
+- Aceita 1 ou mais palavras (ex: "João" ou "João Silva")
 - Verifica se NÃO tem números
 - Verifica se NÃO tem caracteres especiais (@, #, etc.)
+- Mínimo 2 caracteres, máximo 100
 - Se passar nas validações → SALVA automaticamente ✅
 
 // DETECÇÃO DE EMAIL
@@ -44,12 +45,12 @@ O bot pergunta (de forma natural configurada no prompt):
 
 // DETECÇÃO DE CPF
 - Remove pontos, traços e espaços
-- Conta dígitos: 11 = CPF ✅
+- Conta dígitos: EXATAMENTE 11 = CPF ✅
 - Se for 11 dígitos → SALVA automaticamente ✅
 
 // DETECÇÃO DE CNPJ
 - Remove pontos, traços e espaços
-- Conta dígitos: 14 = CNPJ ✅
+- Conta dígitos: EXATAMENTE 14 = CNPJ ✅
 - Se for 14 dígitos → SALVA automaticamente ✅
 ```
 
