@@ -527,13 +527,16 @@ const WhatsAppSalesAgent = () => {
       // ============================================
       // SINCRONIZAR COM REALTIME DATABASE
       // Para o backend conseguir buscar os produtos
+      // IMPORTANTE: Backend busca em products/{userId}
       // ============================================
       try {
         const realtimeDb = getDatabase();
-        const productRef = ref(realtimeDb, `products/${userId}/${productId || editingItem?.id || Date.now()}`);
+        // Usar productId como chave, ou gerar um timestamp se não houver
+        const finalProductId = productId || editingItem?.id || `product_${Date.now()}`;
+        const productRef = ref(realtimeDb, `products/${userId}/${finalProductId}`);
         
         const realtimeProduct = {
-          id: productId || editingItem?.id,
+          id: finalProductId,
           name: itemToSave.name,
           description: itemToSave.description || '',
           price: itemToSave.price,
@@ -547,7 +550,7 @@ const WhatsAppSalesAgent = () => {
         };
         
         await set(productRef, realtimeProduct);
-        console.log('✅ Produto sincronizado com Realtime Database para geração de links de pagamento');
+        console.log('✅ Produto sincronizado com Realtime Database em: products/' + userId + '/' + finalProductId);
       } catch (realtimeError) {
         console.error('⚠️ Erro ao sincronizar com Realtime Database:', realtimeError);
         // Não bloqueia o fluxo principal
