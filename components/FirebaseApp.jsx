@@ -51,6 +51,12 @@ const FirebaseApp = () => {
   // Estados do CRM - Passo 1: Estados básicos
   const [crmActiveTab, setCrmActiveTab] = useState('clients');
   
+  // Estados do CRM - Passo 2: Estados para dados
+  const [crmClients, setCrmClients] = useState([]);
+  const [crmConversations, setCrmConversations] = useState([]);
+  const [crmOrders, setCrmOrders] = useState([]);
+  const [crmLoading, setCrmLoading] = useState(false);
+  
   // URL do backend
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
 
@@ -917,7 +923,69 @@ const DashboardWithFirebase = ({
   };
 
   // ==================== FUNÇÕES DO CRM ====================
-  // (Vamos construir passo a passo)
+  // Passo 2: Funções para buscar dados
+  
+  // Função para carregar clientes do Firebase
+  const loadCRMClients = () => {
+    if (!user?.uid || !database) {
+      console.log('CRM: Usuário ou database não disponível');
+      return;
+    }
+    
+    setCrmLoading(true);
+    console.log('🔄 Carregando clientes do CRM...');
+    
+    const conversationsRef = ref(database, `conversations/${user.uid}`);
+    
+    onValue(conversationsRef, (snapshot) => {
+      const clientsList = [];
+      
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        
+        Object.keys(data).forEach(contactNumber => {
+          const messages = data[contactNumber].messages || {};
+          const messageArray = Object.values(messages);
+          
+          if (messageArray.length > 0) {
+            const sortedMessages = messageArray.sort((a, b) => 
+              new Date(a.timestamp) - new Date(b.timestamp)
+            );
+            
+            clientsList.push({
+              phone: contactNumber,
+              name: contactNumber.replace('@c.us', '').replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3'),
+              firstContact: sortedMessages[0]?.timestamp || new Date().toISOString(),
+              lastContact: sortedMessages[sortedMessages.length - 1]?.timestamp || new Date().toISOString(),
+              messageCount: messageArray.length
+            });
+          }
+        });
+      }
+      
+      const sortedClients = clientsList.sort((a, b) => 
+        new Date(b.lastContact) - new Date(a.lastContact)
+      );
+      
+      setCrmClients(sortedClients);
+      setCrmLoading(false);
+      console.log(`✅ ${sortedClients.length} clientes carregados`);
+    }, (error) => {
+      console.error('❌ Erro ao carregar clientes:', error);
+      setCrmLoading(false);
+    });
+  };
+  
+  // Carregar clientes automaticamente quando entrar no CRM
+  useEffect(() => {
+    if (currentPage === 'crm' && user?.uid && database && crmClients.length === 0) {
+      const timer = setTimeout(() => {
+        loadCRMClients();
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [currentPage, user?.uid, database]);
   
   // ==================== FIM FUNÇÕES DO CRM ====================
   
@@ -1491,15 +1559,118 @@ const DashboardWithFirebase = ({
               {/* Conteúdo das abas */}
               <div style={{ padding: '48px' }}>
                 {crmActiveTab === 'clients' && (
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '64px', marginBottom: '16px' }}>👥</div>
-                    <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
-                      Lista de Clientes
-                    </h3>
-                    <p style={{ color: '#6b7280', fontSize: '16px' }}>
-                      Em breve você verá aqui todos os seus clientes do WhatsApp
-                    </p>
-                  </div>
+                  <>
+                    {crmLoading ? (
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '64px', marginBottom: '16px' }}>⏳</div>
+                        <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
+                          Carregando clientes...
+                        </h3>
+                        <p style={{ color: '#6b7280', fontSize: '16px' }}>
+                          Aguarde enquanto buscamos os dados
+                        </p>
+                      </div>
+                    ) : crmClients.length === 0 ? (
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '64px', marginBottom: '16px' }}>👥</div>
+                        <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
+                          Nenhum cliente ainda
+                        </h3>
+                        <p style={{ color: '#6b7280', fontSize: '16px' }}>
+                          Os clientes aparecerão aqui após as primeiras conversas no WhatsApp
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ marginBottom: '24px' }}>
+                          <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>
+                            Total de clientes: {crmClients.length}
+                          </h3>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+                          {crmClients.map((client, index) => (
+                            <div
+                              key={client.phone}
+                              style={{
+                                backgroundColor: '#f9fafb',
+                                border: '2px solid #e5e7eb',
+                                borderRadius: '12px',
+                                padding: '20px',
+                                transition: 'all 0.2s'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = '#6366f1';
+                                e.currentTarget.style.backgroundColor = 'white';
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 8px 16px rgba(99, 102, 241, 0.1)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = '#e5e7eb';
+                                e.currentTarget.style.backgroundColor = '#f9fafb';
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = 'none';
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                                <div style={{ 
+                                  width: '50px', 
+                                  height: '50px', 
+                                  backgroundColor: '#6366f1', 
+                                  borderRadius: '50%', 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  justifyContent: 'center',
+                                  fontSize: '24px'
+                                }}>
+                                  👤
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                  <h4 style={{ fontWeight: 'bold', color: '#1f2937', fontSize: '16px', marginBottom: '4px' }}>
+                                    Cliente #{index + 1}
+                                  </h4>
+                                  <p style={{ fontSize: '14px', color: '#6366f1', fontWeight: '500' }}>
+                                    📱 {client.name}
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px' }}>
+                                <div style={{ 
+                                  padding: '8px 12px', 
+                                  backgroundColor: 'white', 
+                                  borderRadius: '8px',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center'
+                                }}>
+                                  <span style={{ color: '#6b7280' }}>💬 Mensagens</span>
+                                  <span style={{ fontWeight: 'bold', color: '#6366f1' }}>{client.messageCount}</span>
+                                </div>
+                                
+                                <div style={{ 
+                                  padding: '8px 12px', 
+                                  backgroundColor: 'white', 
+                                  borderRadius: '8px',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center'
+                                }}>
+                                  <span style={{ color: '#6b7280' }}>🕐 Último contato</span>
+                                  <span style={{ fontWeight: '500', color: '#1f2937', fontSize: '12px' }}>
+                                    {new Date(client.lastContact).toLocaleDateString('pt-BR', { 
+                                      day: '2-digit', 
+                                      month: '2-digit',
+                                      year: 'numeric'
+                                    })}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {crmActiveTab === 'conversations' && (
