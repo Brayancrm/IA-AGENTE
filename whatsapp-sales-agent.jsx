@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, set, push, remove, onValue, off } from 'firebase/database';
@@ -509,17 +508,49 @@ const WhatsAppSalesAgent = () => {
         updatedAt: new Date().toISOString()
       };
 
+      let productId = editingItem?.id;
+
       if (editingItem) {
-        // Atualizar item existente
+        // Atualizar item existente no Firestore
         await updateDoc(
           doc(db, `artifacts/${appId}/users/${userId}/company_profile/config/catalog_items/${editingItem.id}`),
           { ...itemToSave, updatedAt: new Date().toISOString() }
         );
         showToast('Item atualizado com sucesso!');
       } else {
-        // Criar novo item
-        await addDoc(collection(db, `artifacts/${appId}/users/${userId}/company_profile/config/catalog_items`), itemToSave);
+        // Criar novo item no Firestore
+        const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/company_profile/config/catalog_items`), itemToSave);
+        productId = docRef.id;
         showToast('Item adicionado com sucesso!');
+      }
+      
+      // ============================================
+      // SINCRONIZAR COM REALTIME DATABASE
+      // Para o backend conseguir buscar os produtos
+      // ============================================
+      try {
+        const realtimeDb = getDatabase();
+        const productRef = ref(realtimeDb, `products/${userId}/${productId || editingItem?.id || Date.now()}`);
+        
+        const realtimeProduct = {
+          id: productId || editingItem?.id,
+          name: itemToSave.name,
+          description: itemToSave.description || '',
+          price: itemToSave.price,
+          stock: itemToSave.stockQuantity || 0,
+          category: itemToSave.category || '',
+          image: itemToSave.image || '',
+          type: itemToSave.type || 'product',
+          active: true,
+          createdAt: itemToSave.createdAt,
+          updatedAt: itemToSave.updatedAt
+        };
+        
+        await set(productRef, realtimeProduct);
+        console.log('✅ Produto sincronizado com Realtime Database para geração de links de pagamento');
+      } catch (realtimeError) {
+        console.error('⚠️ Erro ao sincronizar com Realtime Database:', realtimeError);
+        // Não bloqueia o fluxo principal
       }
       
       setShowCatalogModal(false);
@@ -546,7 +577,22 @@ const WhatsAppSalesAgent = () => {
         return;
       }
       
+      // Excluir do Firestore
       await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/company_profile/config/catalog_items/${itemId}`));
+      
+      // ============================================
+      // SINCRONIZAR COM REALTIME DATABASE
+      // Remover do Realtime Database também
+      // ============================================
+      try {
+        const realtimeDb = getDatabase();
+        const productRef = ref(realtimeDb, `products/${userId}/${itemId}`);
+        await remove(productRef);
+        console.log('✅ Produto removido do Realtime Database');
+      } catch (realtimeError) {
+        console.error('⚠️ Erro ao remover do Realtime Database:', realtimeError);
+      }
+      
       showToast('Item excluído com sucesso!');
     } catch (error) {
       console.error('Erro ao excluir item:', error);
