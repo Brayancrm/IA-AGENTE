@@ -48,13 +48,8 @@ const FirebaseApp = () => {
   const [whatsappQRCode, setWhatsappQRCode] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   
-  // Estados do CRM - Passo 1: Estados básicos (forçando redeploy)
-  const [crmActiveTab, setCrmActiveTab] = useState('clients');
-  
-  // Estados do CRM - Passo 2: Estados para dados
+  // Estados do CRM - Simplificado ao máximo
   const [crmClients, setCrmClients] = useState([]);
-  const [crmConversations, setCrmConversations] = useState([]);
-  const [crmOrders, setCrmOrders] = useState([]);
   const [crmLoading, setCrmLoading] = useState(false);
   
   // URL do backend
@@ -1486,154 +1481,103 @@ const DashboardWithFirebase = ({
       case 'catalog':
         return renderCatalog();
 
-      case 'crm': {
-        // Renderizar CRM - definindo tudo no escopo local
-        const currentTab = crmActiveTab || 'clients';
-        const handleTabChange = (tab) => setCrmActiveTab(tab);
-        
+      case 'crm':
         return (
           <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
             <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>
-              🎯 CRM - Gestão de Clientes
+              🎯 CRM - Lista de Clientes
             </h2>
             <p style={{ color: '#6b7280', marginBottom: '32px' }}>
-              Gerencie seus clientes, conversas e pedidos em um só lugar
+              Visualize todos os seus clientes do WhatsApp
             </p>
             
             <div style={{ 
               backgroundColor: 'white', 
               borderRadius: '16px', 
               boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-              overflow: 'hidden'
+              padding: '48px'
             }}>
-              {/* Abas */}
-              <div style={{ display: 'flex', borderBottom: '2px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
-                <button
-                  onClick={() => handleTabChange('clients')}
-                  style={{
-                    flex: 1,
-                    padding: '16px',
-                    backgroundColor: currentTab === 'clients' ? '#6366f1' : 'transparent',
-                    color: currentTab === 'clients' ? 'white' : '#6b7280',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    fontSize: '14px',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  👥 Clientes
-                </button>
-                <button
-                  onClick={() => handleTabChange('conversations')}
-                  style={{
-                    flex: 1,
-                    padding: '16px',
-                    backgroundColor: currentTab === 'conversations' ? '#6366f1' : 'transparent',
-                    color: currentTab === 'conversations' ? 'white' : '#6b7280',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    fontSize: '14px',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  💬 Conversas
-                </button>
-                <button
-                  onClick={() => handleTabChange('orders')}
-                  style={{
-                    flex: 1,
-                    padding: '16px',
-                    backgroundColor: currentTab === 'orders' ? '#6366f1' : 'transparent',
-                    color: currentTab === 'orders' ? 'white' : '#6b7280',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    fontSize: '14px',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  🛒 Pedidos
-                </button>
-              </div>
-
-              {/* Conteúdo */}
-              <div style={{ padding: '48px' }}>
-                {currentTab === 'clients' && (
-                  <>
-                    {crmLoading ? (
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '64px', marginBottom: '16px' }}>⏳</div>
-                        <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
-                          Carregando clientes...
-                        </h3>
-                      </div>
-                    ) : crmClients.length === 0 ? (
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '64px', marginBottom: '16px' }}>👥</div>
-                        <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
-                          Nenhum cliente ainda
-                        </h3>
-                        <p style={{ color: '#6b7280', fontSize: '16px' }}>
-                          Os clientes aparecerão aqui após conversas no WhatsApp
-                        </p>
-                      </div>
-                    ) : (
-                      <div>
-                        <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
-                          Total: {crmClients.length} clientes
-                        </h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-                          {crmClients.map((client, idx) => (
-                            <div
-                              key={client.phone}
-                              style={{
-                                backgroundColor: '#f9fafb',
-                                border: '2px solid #e5e7eb',
-                                borderRadius: '12px',
-                                padding: '20px'
-                              }}
-                            >
-                              <div style={{ marginBottom: '12px' }}>
-                                <h4 style={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '4px' }}>
-                                  Cliente #{idx + 1}
-                                </h4>
-                                <p style={{ fontSize: '14px', color: '#6366f1' }}>📱 {client.name}</p>
-                              </div>
-                              <div style={{ fontSize: '14px', color: '#6b7280' }}>
-                                <div>💬 {client.messageCount} mensagens</div>
-                              </div>
-                            </div>
-                          ))}
+              {crmLoading ? (
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '64px', marginBottom: '16px' }}>⏳</div>
+                  <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
+                    Carregando clientes...
+                  </h3>
+                  <p style={{ color: '#6b7280' }}>Aguarde enquanto buscamos os dados</p>
+                </div>
+              ) : crmClients.length === 0 ? (
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '64px', marginBottom: '16px' }}>👥</div>
+                  <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
+                    Nenhum cliente cadastrado
+                  </h3>
+                  <p style={{ color: '#6b7280', fontSize: '16px' }}>
+                    Os clientes aparecerão aqui automaticamente após conversas no WhatsApp
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#eef2ff', borderRadius: '8px' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>
+                      📊 Total: {crmClients.length} {crmClients.length === 1 ? 'cliente' : 'clientes'}
+                    </h3>
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+                    {crmClients.map((cliente, indice) => (
+                      <div
+                        key={cliente.phone}
+                        style={{
+                          backgroundColor: '#f9fafb',
+                          border: '2px solid #e5e7eb',
+                          borderRadius: '12px',
+                          padding: '20px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                          <div style={{ 
+                            width: '48px', 
+                            height: '48px', 
+                            backgroundColor: '#6366f1', 
+                            borderRadius: '50%', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            fontSize: '24px'
+                          }}>
+                            👤
+                          </div>
+                          <div>
+                            <h4 style={{ fontWeight: 'bold', color: '#1f2937', fontSize: '16px', marginBottom: '4px' }}>
+                              Cliente #{indice + 1}
+                            </h4>
+                            <p style={{ fontSize: '13px', color: '#6366f1', fontWeight: '500' }}>
+                              📱 {cliente.name}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div style={{ 
+                          padding: '12px', 
+                          backgroundColor: 'white', 
+                          borderRadius: '8px',
+                          textAlign: 'center'
+                        }}>
+                          <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                            💬 Total de mensagens
+                          </div>
+                          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#6366f1', marginTop: '4px' }}>
+                            {cliente.messageCount}
+                          </div>
                         </div>
                       </div>
-                    )}
-                  </>
-                )}
-
-                {currentTab === 'conversations' && (
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '64px', marginBottom: '16px' }}>💬</div>
-                    <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
-                      Em breve
-                    </h3>
+                    ))}
                   </div>
-                )}
-
-                {currentTab === 'orders' && (
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '64px', marginBottom: '16px' }}>🛒</div>
-                    <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
-                      Em breve
-                    </h3>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         );
-      }
 
       case 'integrations':
         return (
