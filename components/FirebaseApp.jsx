@@ -48,6 +48,14 @@ const FirebaseApp = () => {
   const [whatsappQRCode, setWhatsappQRCode] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   
+  // Estados do CRM
+  const [crmTab, setCrmTab] = useState('clients');
+  const [crmClients, setCrmClients] = useState([]);
+  const [crmConversations, setCrmConversations] = useState([]);
+  const [crmOrders, setCrmOrders] = useState([]);
+  const [crmSearch, setCrmSearch] = useState('');
+  const [crmLoading, setCrmLoading] = useState(false);
+  const [selectedClient, setSelectedClient] = useState(null);
   
   // URL do backend
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
@@ -914,6 +922,187 @@ const DashboardWithFirebase = ({
     }));
   };
 
+  // ==================== FUNÇÕES DO CRM ====================
+  
+  // Carregar lista de clientes (baseado nas conversas)
+  const loadCRMClients = () => {
+    if (!user?.uid || !database) {
+      console.log('❌ CRM: Sem user ou database');
+      return;
+    }
+    
+    setCrmLoading(true);
+    console.log('🔄 Carregando clientes do CRM...');
+    
+    const conversationsRef = ref(database, `conversations/${user.uid}`);
+    
+    onValue(conversationsRef, (snapshot) => {
+      const clients = [];
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        Object.keys(data).forEach(contactNumber => {
+          const messages = data[contactNumber].messages || {};
+          const messageArray = Object.values(messages);
+          const sortedMessages = messageArray.sort((a, b) => 
+            new Date(a.timestamp) - new Date(b.timestamp)
+          );
+          
+          clients.push({
+            phone: contactNumber,
+            name: contactNumber.replace('@c.us', ''),
+            firstContact: sortedMessages[0]?.timestamp || new Date().toISOString(),
+            lastContact: sortedMessages[sortedMessages.length - 1]?.timestamp || new Date().toISOString(),
+            messageCount: messageArray.length
+          });
+        });
+      }
+      
+      const sortedClients = clients.sort((a, b) => 
+        new Date(b.lastContact) - new Date(a.lastContact)
+      );
+      
+      setCrmClients(sortedClients);
+      setCrmLoading(false);
+      console.log(`✅ ${sortedClients.length} clientes carregados`);
+    }, (error) => {
+      console.error('❌ Erro ao carregar clientes:', error);
+      setCrmLoading(false);
+    });
+  };
+  
+  // Carregar histórico de conversas
+  const loadCRMConversations = () => {
+    if (!user?.uid || !database) {
+      console.log('❌ CRM: Sem user ou database');
+      return;
+    }
+    
+    setCrmLoading(true);
+    console.log('🔄 Carregando conversas do CRM...');
+    
+    const conversationsRef = ref(database, `conversations/${user.uid}`);
+    
+    onValue(conversationsRef, (snapshot) => {
+      const convs = [];
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        Object.keys(data).forEach(contactNumber => {
+          const messages = data[contactNumber].messages || {};
+          const messageArray = Object.entries(messages).map(([id, msg]) => ({
+            id,
+            ...msg
+          })).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+          
+          convs.push({
+            phone: contactNumber,
+            name: contactNumber.replace('@c.us', ''),
+            messages: messageArray
+          });
+        });
+      }
+      
+      setCrmConversations(convs);
+      setCrmLoading(false);
+      console.log(`✅ ${convs.length} conversas carregadas`);
+    }, (error) => {
+      console.error('❌ Erro ao carregar conversas:', error);
+      setCrmLoading(false);
+    });
+  };
+  
+  // Carregar histórico de pedidos
+  const loadCRMOrders = () => {
+    if (!user?.uid || !database) {
+      console.log('❌ CRM: Sem user ou database');
+      return;
+    }
+    
+    setCrmLoading(true);
+    console.log('🔄 Carregando pedidos do CRM...');
+    
+    const ordersRef = ref(database, `orders/${user.uid}`);
+    
+    onValue(ordersRef, (snapshot) => {
+      const orders = [];
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        Object.entries(data).forEach(([orderId, order]) => {
+          orders.push({
+            id: orderId,
+            ...order
+          });
+        });
+      }
+      
+      const sortedOrders = orders.sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+      );
+      
+      setCrmOrders(sortedOrders);
+      setCrmLoading(false);
+      console.log(`✅ ${sortedOrders.length} pedidos carregados`);
+    }, (error) => {
+      console.error('❌ Erro ao carregar pedidos:', error);
+      setCrmLoading(false);
+    });
+  };
+  
+  // useEffect para carregar dados quando entrar no CRM
+  useEffect(() => {
+    if (currentPage === 'crm' && user?.uid && database) {
+      // Carregar clientes por padrão
+      if (crmTab === 'clients' && crmClients.length === 0) {
+        loadCRMClients();
+      } else if (crmTab === 'conversations' && crmConversations.length === 0) {
+        loadCRMConversations();
+      } else if (crmTab === 'orders' && crmOrders.length === 0) {
+        loadCRMOrders();
+      }
+    }
+  }, [currentPage, crmTab, user?.uid, database]);
+  
+  // Funções auxiliares para formatação
+  const formatPhone = (phone) => {
+    const cleaned = phone.replace('@c.us', '');
+    return cleaned.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+  };
+  
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+  
+  const getStatusColor = (status) => {
+    const colors = {
+      pending: { bg: '#fef3c7', text: '#92400e' },
+      paid: { bg: '#d1fae5', text: '#065f46' },
+      confirmed: { bg: '#dbeafe', text: '#1e40af' },
+      cancelled: { bg: '#fee2e2', text: '#991b1b' },
+      overdue: { bg: '#fed7aa', text: '#9a3412' }
+    };
+    return colors[status] || { bg: '#f3f4f6', text: '#1f2937' };
+  };
+  
+  const getStatusLabel = (status) => {
+    const labels = {
+      pending: 'Pendente',
+      paid: 'Pago',
+      confirmed: 'Confirmado',
+      cancelled: 'Cancelado',
+      overdue: 'Vencido'
+    };
+    return labels[status] || status;
+  };
+  
+  // ==================== FIM FUNÇÕES DO CRM ====================
+  
   // Função para renderizar o catálogo avançado
   const renderCatalog = () => {
     // Calcular estatísticas
@@ -1411,6 +1600,421 @@ const DashboardWithFirebase = ({
 
       case 'catalog':
         return renderCatalog();
+
+      case 'crm':
+        return (
+          <div style={{ padding: '24px' }}>
+            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
+              CRM - Gestão de Clientes
+            </h2>
+            
+            {/* Abas */}
+            <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb' }}>
+                <button
+                  onClick={() => setCrmTab('clients')}
+                  style={{
+                    flex: 1,
+                    padding: '16px',
+                    backgroundColor: crmTab === 'clients' ? '#6366f1' : 'transparent',
+                    color: crmTab === 'clients' ? 'white' : '#6b7280',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  👥 Lista de Clientes
+                </button>
+                <button
+                  onClick={() => setCrmTab('conversations')}
+                  style={{
+                    flex: 1,
+                    padding: '16px',
+                    backgroundColor: crmTab === 'conversations' ? '#6366f1' : 'transparent',
+                    color: crmTab === 'conversations' ? 'white' : '#6b7280',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  💬 Histórico de Conversas
+                </button>
+                <button
+                  onClick={() => setCrmTab('orders')}
+                  style={{
+                    flex: 1,
+                    padding: '16px',
+                    backgroundColor: crmTab === 'orders' ? '#6366f1' : 'transparent',
+                    color: crmTab === 'orders' ? 'white' : '#6b7280',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  🛒 Histórico de Compras
+                </button>
+              </div>
+
+              {/* Conteúdo das abas */}
+              <div style={{ padding: '24px' }}>
+                {crmTab === 'clients' && (
+                  <>
+                    {crmLoading ? (
+                      <div style={{ textAlign: 'center', padding: '48px' }}>
+                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+                        <p style={{ color: '#6b7280' }}>Carregando clientes...</p>
+                      </div>
+                    ) : crmClients.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '48px' }}>
+                        <div style={{ fontSize: '64px', marginBottom: '16px' }}>👥</div>
+                        <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>
+                          Nenhum cliente ainda
+                        </h3>
+                        <p style={{ color: '#6b7280' }}>
+                          Os clientes aparecerão aqui após as primeiras conversas no WhatsApp
+                        </p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+                        {crmClients.map((client) => (
+                          <div
+                            key={client.phone}
+                            style={{
+                              backgroundColor: 'white',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '12px',
+                              padding: '16px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                              e.currentTarget.style.transform = 'translateY(-2px)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                              <div style={{ 
+                                width: '48px', 
+                                height: '48px', 
+                                backgroundColor: '#eef2ff', 
+                                borderRadius: '50%', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                fontSize: '24px' 
+                              }}>
+                                👤
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <h3 style={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '4px', fontSize: '16px' }}>
+                                  {client.name}
+                                </h3>
+                                <p style={{ fontSize: '12px', color: '#6b7280' }}>
+                                  📱 {formatPhone(client.phone)}
+                                </p>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                                <span>📅 Primeiro contato:</span>
+                                <span style={{ fontWeight: '500' }}>
+                                  {formatDate(client.firstContact).split(' ')[0]}
+                                </span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                                <span>🕐 Último contato:</span>
+                                <span style={{ fontWeight: '500' }}>
+                                  {formatDate(client.lastContact).split(' ')[0]}
+                                </span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                                <span>💬 Mensagens:</span>
+                                <span style={{ fontWeight: 'bold', color: '#6366f1' }}>
+                                  {client.messageCount}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {crmTab === 'conversations' && (
+                  <>
+                    {crmLoading ? (
+                      <div style={{ textAlign: 'center', padding: '48px' }}>
+                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+                        <p style={{ color: '#6b7280' }}>Carregando conversas...</p>
+                      </div>
+                    ) : crmConversations.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '48px' }}>
+                        <div style={{ fontSize: '64px', marginBottom: '16px' }}>💬</div>
+                        <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>
+                          Nenhuma conversa ainda
+                        </h3>
+                        <p style={{ color: '#6b7280' }}>
+                          As conversas aparecerão aqui após os primeiros atendimentos
+                        </p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        {crmConversations.map((conversation) => (
+                          <div 
+                            key={conversation.phone} 
+                            style={{ 
+                              backgroundColor: 'white', 
+                              border: '1px solid #e5e7eb', 
+                              borderRadius: '12px', 
+                              overflow: 'hidden' 
+                            }}
+                          >
+                            {/* Header da conversa */}
+                            <div style={{ 
+                              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', 
+                              color: 'white', 
+                              padding: '16px' 
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ 
+                                  width: '40px', 
+                                  height: '40px', 
+                                  backgroundColor: 'rgba(255,255,255,0.2)', 
+                                  borderRadius: '50%', 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  justifyContent: 'center' 
+                                }}>
+                                  👤
+                                </div>
+                                <div>
+                                  <h3 style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                                    {conversation.name}
+                                  </h3>
+                                  <p style={{ fontSize: '13px', opacity: 0.9 }}>
+                                    📱 {formatPhone(conversation.phone)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Mensagens */}
+                            <div style={{ 
+                              padding: '16px', 
+                              maxHeight: '400px', 
+                              overflowY: 'auto', 
+                              backgroundColor: '#f9fafb', 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              gap: '12px' 
+                            }}>
+                              {conversation.messages.map((message, idx) => {
+                                const isBot = message.from !== conversation.phone;
+                                return (
+                                  <div 
+                                    key={message.id || idx} 
+                                    style={{ 
+                                      display: 'flex', 
+                                      justifyContent: isBot ? 'flex-end' : 'flex-start' 
+                                    }}
+                                  >
+                                    <div style={{
+                                      maxWidth: '70%',
+                                      borderRadius: '12px',
+                                      padding: '12px 16px',
+                                      backgroundColor: isBot ? '#6366f1' : 'white',
+                                      color: isBot ? 'white' : '#1f2937',
+                                      border: isBot ? 'none' : '1px solid #e5e7eb'
+                                    }}>
+                                      <p style={{ fontSize: '14px', marginBottom: '4px', wordWrap: 'break-word' }}>
+                                        {message.body}
+                                      </p>
+                                      {message.imageUrl && (
+                                        <div style={{ marginTop: '8px' }}>
+                                          <img 
+                                            src={message.imageUrl} 
+                                            alt="Imagem" 
+                                            style={{ maxWidth: '100%', borderRadius: '8px' }} 
+                                          />
+                                        </div>
+                                      )}
+                                      <p style={{ fontSize: '11px', marginTop: '4px', opacity: 0.7 }}>
+                                        {formatDate(message.timestamp)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {crmTab === 'orders' && (
+                  <>
+                    {crmLoading ? (
+                      <div style={{ textAlign: 'center', padding: '48px' }}>
+                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+                        <p style={{ color: '#6b7280' }}>Carregando pedidos...</p>
+                      </div>
+                    ) : crmOrders.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '48px' }}>
+                        <div style={{ fontSize: '64px', marginBottom: '16px' }}>🛒</div>
+                        <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>
+                          Nenhum pedido ainda
+                        </h3>
+                        <p style={{ color: '#6b7280' }}>
+                          Os pedidos aparecerão aqui quando os clientes realizarem compras
+                        </p>
+                      </div>
+                    ) : (
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'white', borderRadius: '8px' }}>
+                          <thead>
+                            <tr style={{ backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
+                              <th style={{ 
+                                padding: '12px 16px', 
+                                textAlign: 'left', 
+                                fontSize: '12px', 
+                                fontWeight: 'bold', 
+                                color: '#6b7280', 
+                                textTransform: 'uppercase' 
+                              }}>
+                                Cliente
+                              </th>
+                              <th style={{ 
+                                padding: '12px 16px', 
+                                textAlign: 'left', 
+                                fontSize: '12px', 
+                                fontWeight: 'bold', 
+                                color: '#6b7280', 
+                                textTransform: 'uppercase' 
+                              }}>
+                                Descrição
+                              </th>
+                              <th style={{ 
+                                padding: '12px 16px', 
+                                textAlign: 'left', 
+                                fontSize: '12px', 
+                                fontWeight: 'bold', 
+                                color: '#6b7280', 
+                                textTransform: 'uppercase' 
+                              }}>
+                                Valor
+                              </th>
+                              <th style={{ 
+                                padding: '12px 16px', 
+                                textAlign: 'left', 
+                                fontSize: '12px', 
+                                fontWeight: 'bold', 
+                                color: '#6b7280', 
+                                textTransform: 'uppercase' 
+                              }}>
+                                Data
+                              </th>
+                              <th style={{ 
+                                padding: '12px 16px', 
+                                textAlign: 'left', 
+                                fontSize: '12px', 
+                                fontWeight: 'bold', 
+                                color: '#6b7280', 
+                                textTransform: 'uppercase' 
+                              }}>
+                                Status
+                              </th>
+                              <th style={{ 
+                                padding: '12px 16px', 
+                                textAlign: 'left', 
+                                fontSize: '12px', 
+                                fontWeight: 'bold', 
+                                color: '#6b7280', 
+                                textTransform: 'uppercase' 
+                              }}>
+                                Ações
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {crmOrders.map((order) => {
+                              const statusColors = getStatusColor(order.status || 'pending');
+                              return (
+                                <tr key={order.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                                  <td style={{ padding: '16px' }}>
+                                    <div>
+                                      <p style={{ fontWeight: '500', color: '#1f2937', marginBottom: '4px' }}>
+                                        {order.customerName || 'Cliente WhatsApp'}
+                                      </p>
+                                      <p style={{ fontSize: '13px', color: '#6b7280' }}>
+                                        {formatPhone(order.customerPhone || '')}
+                                      </p>
+                                    </div>
+                                  </td>
+                                  <td style={{ padding: '16px', fontSize: '14px', color: '#1f2937' }}>
+                                    {order.description || 'N/A'}
+                                  </td>
+                                  <td style={{ padding: '16px', fontWeight: 'bold', color: '#10b981' }}>
+                                    R$ {Number(order.value || 0).toFixed(2)}
+                                  </td>
+                                  <td style={{ padding: '16px', fontSize: '13px', color: '#6b7280' }}>
+                                    {formatDate(order.createdAt)}
+                                  </td>
+                                  <td style={{ padding: '16px' }}>
+                                    <span style={{
+                                      padding: '4px 12px',
+                                      borderRadius: '12px',
+                                      fontSize: '12px',
+                                      fontWeight: 'bold',
+                                      backgroundColor: statusColors.bg,
+                                      color: statusColors.text
+                                    }}>
+                                      {getStatusLabel(order.status || 'pending')}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '16px' }}>
+                                    {order.invoiceUrl && (
+                                      <a
+                                        href={order.invoiceUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          color: '#6366f1',
+                                          fontSize: '14px',
+                                          fontWeight: '500',
+                                          textDecoration: 'none'
+                                        }}
+                                      >
+                                        🔗 Ver Cobrança
+                                      </a>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        );
 
       case 'integrations':
         return (
@@ -2159,6 +2763,7 @@ const DashboardWithFirebase = ({
     { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
     { id: 'company', label: 'Cadastro da Empresa', icon: '🏢' },
     { id: 'catalog', label: 'Catálogo (Itens)', icon: '📦' },
+    { id: 'crm', label: 'CRM', icon: '👥' },
     { id: 'integrations', label: 'Integrações', icon: '⚙️' },
     { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' },
     ...(user?.isMaster ? [{ id: 'users', label: 'Gerenciar Usuários', icon: '👤' }] : [])
