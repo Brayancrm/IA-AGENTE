@@ -48,9 +48,7 @@ const FirebaseApp = () => {
   const [whatsappQRCode, setWhatsappQRCode] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   
-  // Estados do CRM v2 - Renomeado para evitar cache
-  const [clientesList, setClientesList] = useState([]);
-  const [isLoadingClientes, setIsLoadingClientes] = useState(false);
+  // CRM temporariamente desativado - será reconstruído depois
   
   // URL do backend
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
@@ -918,69 +916,7 @@ const DashboardWithFirebase = ({
   };
 
   // ==================== FUNÇÕES DO CRM ====================
-  // Passo 2: Funções para buscar dados
-  
-  // Função para carregar clientes do Firebase v2
-  const loadCRMClients = () => {
-    if (!user?.uid || !database) {
-      console.log('CRM: Usuário ou database não disponível');
-      return;
-    }
-    
-    setIsLoadingClientes(true);
-    console.log('🔄 Carregando clientes do CRM...');
-    
-    const conversationsRef = ref(database, `conversations/${user.uid}`);
-    
-    onValue(conversationsRef, (snapshot) => {
-      const tempList = [];
-      
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        
-        Object.keys(data).forEach(contactNumber => {
-          const messages = data[contactNumber].messages || {};
-          const messageArray = Object.values(messages);
-          
-          if (messageArray.length > 0) {
-            const sortedMessages = messageArray.sort((a, b) => 
-              new Date(a.timestamp) - new Date(b.timestamp)
-            );
-            
-            tempList.push({
-              phone: contactNumber,
-              name: contactNumber.replace('@c.us', '').replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3'),
-              firstContact: sortedMessages[0]?.timestamp || new Date().toISOString(),
-              lastContact: sortedMessages[sortedMessages.length - 1]?.timestamp || new Date().toISOString(),
-              messageCount: messageArray.length
-            });
-          }
-        });
-      }
-      
-      const sortedClients = tempList.sort((a, b) => 
-        new Date(b.lastContact) - new Date(a.lastContact)
-      );
-      
-      setClientesList(sortedClients);
-      setIsLoadingClientes(false);
-      console.log(`✅ ${sortedClients.length} clientes carregados`);
-    }, (error) => {
-      console.error('❌ Erro ao carregar clientes:', error);
-      setIsLoadingClientes(false);
-    });
-  };
-  
-  // Carregar clientes quando a página CRM é acessada v2
-  useEffect(() => {
-    if (currentPage === 'crm' && user?.uid && database) {
-      // Só carrega se ainda não carregou
-      if (clientesList.length === 0 && !isLoadingClientes) {
-        loadCRMClients();
-      }
-    }
-  }, [currentPage]);
-  
+  // CRM temporariamente desativado - será reconstruído depois
   // ==================== FIM FUNÇÕES DO CRM ====================
   
   // Função para renderizar o catálogo avançado
@@ -1485,96 +1421,58 @@ const DashboardWithFirebase = ({
         return (
           <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
             <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>
-              🎯 CRM - Lista de Clientes
+              🎯 CRM - Gestão de Clientes
             </h2>
             <p style={{ color: '#6b7280', marginBottom: '32px' }}>
-              Visualize todos os seus clientes do WhatsApp
+              Sistema de gerenciamento de relacionamento com clientes
             </p>
             
             <div style={{ 
               backgroundColor: 'white', 
               borderRadius: '16px', 
               boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-              padding: '48px'
+              padding: '64px',
+              textAlign: 'center'
             }}>
-              {isLoadingClientes ? (
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '64px', marginBottom: '16px' }}>⏳</div>
-                  <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
-                    Carregando clientes...
-                  </h3>
-                  <p style={{ color: '#6b7280' }}>Aguarde enquanto buscamos os dados</p>
+              <div style={{ fontSize: '80px', marginBottom: '24px' }}>🚧</div>
+              <h3 style={{ fontSize: '28px', fontWeight: 'bold', color: '#1f2937', marginBottom: '16px' }}>
+                CRM Temporariamente Desativado
+              </h3>
+              <p style={{ color: '#6b7280', fontSize: '18px', lineHeight: '1.6', maxWidth: '600px', margin: '0 auto' }}>
+                O módulo CRM está sendo reconstruído para melhor performance e estabilidade.<br />
+                Em breve você terá acesso a:
+              </p>
+              
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                gap: '20px', 
+                marginTop: '40px',
+                maxWidth: '800px',
+                margin: '40px auto 0'
+              }}>
+                <div style={{ padding: '20px', backgroundColor: '#f0f9ff', borderRadius: '12px' }}>
+                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>👥</div>
+                  <h4 style={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>Lista de Clientes</h4>
+                  <p style={{ fontSize: '14px', color: '#6b7280' }}>Visualize todos os seus clientes</p>
                 </div>
-              ) : clientesList.length === 0 ? (
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '64px', marginBottom: '16px' }}>👥</div>
-                  <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
-                    Nenhum cliente cadastrado
-                  </h3>
-                  <p style={{ color: '#6b7280', fontSize: '16px' }}>
-                    Os clientes aparecerão aqui automaticamente após conversas no WhatsApp
-                  </p>
+                
+                <div style={{ padding: '20px', backgroundColor: '#f0fdf4', borderRadius: '12px' }}>
+                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>💬</div>
+                  <h4 style={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>Conversas</h4>
+                  <p style={{ fontSize: '14px', color: '#6b7280' }}>Histórico completo de mensagens</p>
                 </div>
-              ) : (
-                <div>
-                  <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#eef2ff', borderRadius: '8px' }}>
-                    <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>
-                      📊 Total: {clientesList.length} {clientesList.length === 1 ? 'cliente' : 'clientes'}
-                    </h3>
-                  </div>
-                  
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-                    {clientesList.map((cliente, indice) => (
-                      <div
-                        key={cliente.phone}
-                        style={{
-                          backgroundColor: '#f9fafb',
-                          border: '2px solid #e5e7eb',
-                          borderRadius: '12px',
-                          padding: '20px'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                          <div style={{ 
-                            width: '48px', 
-                            height: '48px', 
-                            backgroundColor: '#6366f1', 
-                            borderRadius: '50%', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center',
-                            fontSize: '24px'
-                          }}>
-                            👤
-                          </div>
-                          <div>
-                            <h4 style={{ fontWeight: 'bold', color: '#1f2937', fontSize: '16px', marginBottom: '4px' }}>
-                              Cliente #{indice + 1}
-                            </h4>
-                            <p style={{ fontSize: '13px', color: '#6366f1', fontWeight: '500' }}>
-                              📱 {cliente.name}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div style={{ 
-                          padding: '12px', 
-                          backgroundColor: 'white', 
-                          borderRadius: '8px',
-                          textAlign: 'center'
-                        }}>
-                          <div style={{ fontSize: '14px', color: '#6b7280' }}>
-                            💬 Total de mensagens
-                          </div>
-                          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#6366f1', marginTop: '4px' }}>
-                            {cliente.messageCount}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                
+                <div style={{ padding: '20px', backgroundColor: '#fef3c7', borderRadius: '12px' }}>
+                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>🛒</div>
+                  <h4 style={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>Pedidos</h4>
+                  <p style={{ fontSize: '14px', color: '#6b7280' }}>Gerencie todas as vendas</p>
                 </div>
-              )}
+              </div>
+              
+              <p style={{ marginTop: '40px', color: '#9ca3af', fontSize: '14px' }}>
+                Enquanto isso, continue usando o Dashboard, Catálogo e WhatsApp normalmente! ✨
+              </p>
             </div>
           </div>
         );
