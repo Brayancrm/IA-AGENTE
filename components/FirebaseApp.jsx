@@ -1486,7 +1486,11 @@ const DashboardWithFirebase = ({
       case 'catalog':
         return renderCatalog();
 
-      case 'crm':
+      case 'crm': {
+        // Renderizar CRM - definindo tudo no escopo local
+        const currentTab = crmActiveTab || 'clients';
+        const handleTabChange = (tab) => setCrmActiveTab(tab);
+        
         return (
           <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
             <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>
@@ -1496,7 +1500,6 @@ const DashboardWithFirebase = ({
               Gerencie seus clientes, conversas e pedidos em um só lugar
             </p>
             
-            {/* Card com abas */}
             <div style={{ 
               backgroundColor: 'white', 
               borderRadius: '16px', 
@@ -1506,12 +1509,12 @@ const DashboardWithFirebase = ({
               {/* Abas */}
               <div style={{ display: 'flex', borderBottom: '2px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
                 <button
-                  onClick={() => setCrmActiveTab('clients')}
+                  onClick={() => handleTabChange('clients')}
                   style={{
                     flex: 1,
                     padding: '16px',
-                    backgroundColor: crmActiveTab === 'clients' ? '#6366f1' : 'transparent',
-                    color: crmActiveTab === 'clients' ? 'white' : '#6b7280',
+                    backgroundColor: currentTab === 'clients' ? '#6366f1' : 'transparent',
+                    color: currentTab === 'clients' ? 'white' : '#6b7280',
                     border: 'none',
                     cursor: 'pointer',
                     fontWeight: '600',
@@ -1522,12 +1525,12 @@ const DashboardWithFirebase = ({
                   👥 Clientes
                 </button>
                 <button
-                  onClick={() => setCrmActiveTab('conversations')}
+                  onClick={() => handleTabChange('conversations')}
                   style={{
                     flex: 1,
                     padding: '16px',
-                    backgroundColor: crmActiveTab === 'conversations' ? '#6366f1' : 'transparent',
-                    color: crmActiveTab === 'conversations' ? 'white' : '#6b7280',
+                    backgroundColor: currentTab === 'conversations' ? '#6366f1' : 'transparent',
+                    color: currentTab === 'conversations' ? 'white' : '#6b7280',
                     border: 'none',
                     cursor: 'pointer',
                     fontWeight: '600',
@@ -1538,12 +1541,12 @@ const DashboardWithFirebase = ({
                   💬 Conversas
                 </button>
                 <button
-                  onClick={() => setCrmActiveTab('orders')}
+                  onClick={() => handleTabChange('orders')}
                   style={{
                     flex: 1,
                     padding: '16px',
-                    backgroundColor: crmActiveTab === 'orders' ? '#6366f1' : 'transparent',
-                    color: crmActiveTab === 'orders' ? 'white' : '#6b7280',
+                    backgroundColor: currentTab === 'orders' ? '#6366f1' : 'transparent',
+                    color: currentTab === 'orders' ? 'white' : '#6b7280',
                     border: 'none',
                     cursor: 'pointer',
                     fontWeight: '600',
@@ -1555,9 +1558,9 @@ const DashboardWithFirebase = ({
                 </button>
               </div>
 
-              {/* Conteúdo das abas */}
+              {/* Conteúdo */}
               <div style={{ padding: '48px' }}>
-                {crmActiveTab === 'clients' && (
+                {currentTab === 'clients' && (
                   <>
                     {crmLoading ? (
                       <div style={{ textAlign: 'center' }}>
@@ -1565,9 +1568,6 @@ const DashboardWithFirebase = ({
                         <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
                           Carregando clientes...
                         </h3>
-                        <p style={{ color: '#6b7280', fontSize: '16px' }}>
-                          Aguarde enquanto buscamos os dados
-                        </p>
                       </div>
                     ) : crmClients.length === 0 ? (
                       <div style={{ textAlign: 'center' }}>
@@ -1576,93 +1576,33 @@ const DashboardWithFirebase = ({
                           Nenhum cliente ainda
                         </h3>
                         <p style={{ color: '#6b7280', fontSize: '16px' }}>
-                          Os clientes aparecerão aqui após as primeiras conversas no WhatsApp
+                          Os clientes aparecerão aqui após conversas no WhatsApp
                         </p>
                       </div>
                     ) : (
                       <div>
-                        <div style={{ marginBottom: '24px' }}>
-                          <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>
-                            Total de clientes: {crmClients.length}
-                          </h3>
-                        </div>
+                        <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
+                          Total: {crmClients.length} clientes
+                        </h3>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-                          {crmClients.map((client, index) => (
+                          {crmClients.map((client, idx) => (
                             <div
                               key={client.phone}
                               style={{
                                 backgroundColor: '#f9fafb',
                                 border: '2px solid #e5e7eb',
                                 borderRadius: '12px',
-                                padding: '20px',
-                                transition: 'all 0.2s'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.borderColor = '#6366f1';
-                                e.currentTarget.style.backgroundColor = 'white';
-                                e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.boxShadow = '0 8px 16px rgba(99, 102, 241, 0.1)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.borderColor = '#e5e7eb';
-                                e.currentTarget.style.backgroundColor = '#f9fafb';
-                                e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = 'none';
+                                padding: '20px'
                               }}
                             >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                                <div style={{ 
-                                  width: '50px', 
-                                  height: '50px', 
-                                  backgroundColor: '#6366f1', 
-                                  borderRadius: '50%', 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  justifyContent: 'center',
-                                  fontSize: '24px'
-                                }}>
-                                  👤
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                  <h4 style={{ fontWeight: 'bold', color: '#1f2937', fontSize: '16px', marginBottom: '4px' }}>
-                                    Cliente #{index + 1}
-                                  </h4>
-                                  <p style={{ fontSize: '14px', color: '#6366f1', fontWeight: '500' }}>
-                                    📱 {client.name}
-                                  </p>
-                                </div>
+                              <div style={{ marginBottom: '12px' }}>
+                                <h4 style={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '4px' }}>
+                                  Cliente #{idx + 1}
+                                </h4>
+                                <p style={{ fontSize: '14px', color: '#6366f1' }}>📱 {client.name}</p>
                               </div>
-                              
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px' }}>
-                                <div style={{ 
-                                  padding: '8px 12px', 
-                                  backgroundColor: 'white', 
-                                  borderRadius: '8px',
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center'
-                                }}>
-                                  <span style={{ color: '#6b7280' }}>💬 Mensagens</span>
-                                  <span style={{ fontWeight: 'bold', color: '#6366f1' }}>{client.messageCount}</span>
-                                </div>
-                                
-                                <div style={{ 
-                                  padding: '8px 12px', 
-                                  backgroundColor: 'white', 
-                                  borderRadius: '8px',
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center'
-                                }}>
-                                  <span style={{ color: '#6b7280' }}>🕐 Último contato</span>
-                                  <span style={{ fontWeight: '500', color: '#1f2937', fontSize: '12px' }}>
-                                    {new Date(client.lastContact).toLocaleDateString('pt-BR', { 
-                                      day: '2-digit', 
-                                      month: '2-digit',
-                                      year: 'numeric'
-                                    })}
-                                  </span>
-                                </div>
+                              <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                                <div>💬 {client.messageCount} mensagens</div>
                               </div>
                             </div>
                           ))}
@@ -1672,33 +1612,28 @@ const DashboardWithFirebase = ({
                   </>
                 )}
 
-                {crmActiveTab === 'conversations' && (
+                {currentTab === 'conversations' && (
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '64px', marginBottom: '16px' }}>💬</div>
-                    <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
-                      Histórico de Conversas
+                    <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
+                      Em breve
                     </h3>
-                    <p style={{ color: '#6b7280', fontSize: '16px' }}>
-                      Em breve você verá aqui todas as conversas com seus clientes
-                    </p>
                   </div>
                 )}
 
-                {crmActiveTab === 'orders' && (
+                {currentTab === 'orders' && (
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '64px', marginBottom: '16px' }}>🛒</div>
-                    <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
-                      Histórico de Pedidos
+                    <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
+                      Em breve
                     </h3>
-                    <p style={{ color: '#6b7280', fontSize: '16px' }}>
-                      Em breve você verá aqui todos os pedidos realizados
-                    </p>
                   </div>
                 )}
               </div>
             </div>
           </div>
         );
+      }
 
       case 'integrations':
         return (
