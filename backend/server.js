@@ -380,12 +380,30 @@ async function handleIncomingMessage(userId, message, client) {
           
           if (asaasApiKey) {
             try {
-              // Preparar dados do cliente
+              // Buscar dados salvos do cliente
+              const phoneNumber = message.from.replace(/[^0-9]/g, '');
+              const customerDataRef = db.ref(`customerData/${userId}/${phoneNumber}`);
+              const customerSnapshot = await customerDataRef.once('value');
+              const savedCustomerData = customerSnapshot.val();
+              
+              // Preparar dados do cliente (usando dados salvos se existirem)
               const customerData = {
-                name: 'Cliente WhatsApp',
+                name: savedCustomerData?.name || 'Cliente WhatsApp',
                 phone: message.from,
-                mobilePhone: message.from
+                mobilePhone: message.from,
+                // Adicionar dados coletados se disponíveis
+                ...(savedCustomerData?.cpfCnpj && { cpfCnpj: savedCustomerData.cpfCnpj }),
+                ...(savedCustomerData?.email && { email: savedCustomerData.email }),
+                ...(savedCustomerData?.address && { 
+                  address: savedCustomerData.address.street,
+                  addressNumber: savedCustomerData.address.number,
+                  complement: savedCustomerData.address.complement,
+                  province: savedCustomerData.address.neighborhood,
+                  postalCode: savedCustomerData.address.zipCode
+                })
               };
+              
+              console.log('📋 Dados do cliente:', savedCustomerData ? 'Encontrados ✅' : 'Não encontrados (usando padrão) ⚠️');
               
               // Preparar itens do pedido
               const orderItems = mentionedItems.map(item => ({
@@ -1148,6 +1166,62 @@ app.post('/api/asaas/webhook', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Erro no webhook Asaas:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// ENDPOINTS DE DADOS DO CLIENTE
+// ============================================
+
+// Salvar dados do cliente coletados via WhatsApp
+app.post('/api/customer-data/save', async (req, res) => {
+  try {
+    const { userId, phone, data } = req.body;
+
+    if (!userId || !phone || !data) {
+      return res.status(400).json({ error: 'userId, phone e data são obrigatórios' });
+    }
+
+    console.log(`💾 Salvando dados do cliente: ${phone}`);
+
+    // Salvar no Realtime Database
+    const customerRef = ref(realtimeDb, `customerData/${userId}/${phone.replace(/[^0-9]/g, '')}`);
+    await set(customerRef, {
+      ...data,
+      phone: phone,
+      updatedAt: new Date().toISOString()
+    });
+
+    console.log('✅ Dados do cliente salvos com sucesso');
+    res.json({ success: true, message: 'Dados salvos com sucesso' });
+
+  } catch (error) {
+    console.error('❌ Erro ao salvar dados do cliente:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Buscar dados do cliente
+app.get('/api/customer-data/get/:userId/:phone', async (req, res) => {
+  try {
+    const { userId, phone } = req.params;
+    
+    console.log(`🔍 Buscando dados do cliente: ${phone}`);
+
+    const customerRef = ref(realtimeDb, `customerData/${userId}/${phone.replace(/[^0-9]/g, '')}`);
+    const snapshot = await get(customerRef);
+
+    if (snapshot.exists()) {
+      console.log('✅ Dados do cliente encontrados');
+      res.json({ success: true, data: snapshot.val() });
+    } else {
+      console.log('⚠️ Dados do cliente não encontrados');
+      res.json({ success: false, data: null });
+    }
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar dados do cliente:', error);
     res.status(500).json({ error: error.message });
   }
 });
