@@ -774,10 +774,177 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
       console.log('   Nome:', customerData.name || '❌ Ainda não coletado');
       console.log('   Email:', customerData.email || '❌ Ainda não coletado');
       console.log('   CPF/CNPJ:', customerData.cpfCnpj || '❌ Ainda não coletado');
+      
+      // 🚀 VERIFICAÇÃO AUTOMÁTICA: Se todos os 3 dados foram coletados, gerar link automaticamente
+      if (customerData.name && customerData.email && customerData.cpfCnpj) {
+        console.log('🎯 TODOS OS DADOS COLETADOS! Verificando produtos mencionados...');
+        await tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber);
+      }
     }
     
   } catch (error) {
     console.error('❌ Erro ao detectar/salvar dados do cliente:', error);
+  }
+}
+
+// 🎯 Função para tentar gerar link automaticamente quando todos os dados estão completos
+async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
+  try {
+    const client = activeClients.get(userId);
+    if (!client) {
+      console.log('⚠️ Cliente WhatsApp não encontrado para geração automática');
+      return;
+    }
+
+    // Buscar produtos mencionados recentemente na conversa (últimas 10 mensagens)
+    const conversationRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`);
+    const messagesSnapshot = await conversationRef.orderByChild('timestamp').limitToLast(10).once('value');
+    
+    if (!messagesSnapshot.exists()) {
+      console.log('⚠️ Nenhuma conversa encontrada');
+      return;
+    }
+
+    // Buscar produtos cadastrados
+    const productsSnapshot = await db.ref(`products/${userId}`).once('value');
+    const productsData = productsSnapshot.val();
+    
+    if (!productsData) {
+      console.log('⚠️ Nenhum produto cadastrado');
+      return;
+    }
+
+    const products = Object.values(productsData);
+    const mentionedProducts = [];
+    
+    // Analisar mensagens para encontrar produtos mencionados
+    messagesSnapshot.forEach((messageSnap) => {
+      const msg = messageSnap.val();
+      const messageText = msg.body ? msg.body.toLowerCase() : '';
+      
+      products.forEach(product => {
+        const productName = product.name ? product.name.toLowerCase() : '';
+        // Verificar se o produto foi mencionado (nome completo ou parcial)
+        if (messageText.includes(productName) && !mentionedProducts.find(p => p.id === product.id)) {
+          mentionedProducts.push(product);
+        }
+      });
+    });
+
+    if (mentionedProducts.length === 0) {
+      console.log('⚠️ Nenhum produto mencionado na conversa');
+      return;
+    }
+
+    console.log(`✅ ${mentionedProducts.length} produto(s) mencionado(s):`, mentionedProducts.map(p => p.name).join(', '));
+
+    // Buscar API Key do Asaas
+    const settingsSnapshot = await db.ref(`settings/${userId}`).once('value');
+    const settings = settingsSnapshot.val();
+    let asaasApiKey = null;
+
+    if (settings) {
+      if (settings.asaasApiKey) {
+        asaasApiKey = settings.asaasApiKey;
+      } else if (settings.integrations && settings.integrations.asaasApiKey) {
+        asaasApiKey = settings.integrations.asaasApiKey;
+      }
+    }
+
+    if (!asaasApiKey) {
+      console.log('❌ API Key do Asaas não encontrada');
+      return;
+    }
+
+    // Buscar dados salvos do cliente
+    const phoneNumber = phone.replace(/[^0-9]/g, '');
+    const customerDataRef = db.ref(`customerData/${userId}/${phoneNumber}`);
+    const customerSnapshot = await customerDataRef.once('value');
+    const savedCustomerData = customerSnapshot.val();
+
+    if (!savedCustomerData || !savedCustomerData.name || !savedCustomerData.email || !savedCustomerData.cpfCnpj) {
+      console.log('❌ Dados do cliente incompletos');
+      return;
+    }
+
+    // Preparar dados do cliente
+    const customerData = {
+      name: savedCustomerData.name,
+      phone: phone,
+      mobilePhone: phone,
+      cpfCnpj: savedCustomerData.cpfCnpj,
+      email: savedCustomerData.email,
+      ...(savedCustomerData.address && {
+        address: savedCustomerData.address.street,
+        addressNumber: savedCustomerData.address.number,
+        complement: savedCustomerData.address.complement,
+        province: savedCustomerData.address.neighborhood,
+        postalCode: savedCustomerData.address.zipCode
+      })
+    };
+
+    // Preparar itens do pedido
+    const orderItems = mentionedProducts.map(item => ({
+      name: item.name,
+      price: item.price,
+      quantity: 1,
+      description: item.description || ''
+    }));
+
+    console.log('🚀 GERANDO LINK DE PAGAMENTO AUTOMATICAMENTE...');
+
+    // Criar cobrança no Asaas
+    const chargeResult = await createAsaasCharge(asaasApiKey, customerData, orderItems, userId);
+
+    if (chargeResult.success) {
+      // Salvar pedido no Firebase
+      const orderRef = db.ref(`orders/${userId}`).push();
+      await orderRef.set({
+        orderId: orderRef.key,
+        chargeId: chargeResult.chargeId,
+        customer: customerData,
+        items: orderItems,
+        totalValue: chargeResult.value,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        paymentUrl: chargeResult.invoiceUrl,
+        autoGenerated: true // Flag para indicar que foi gerado automaticamente
+      });
+
+      // Enviar link de pagamento
+      const paymentMessage = `✅ *Pedido Criado!*\n\n` +
+        `📦 *Itens:*\n` +
+        orderItems.map(item => `• ${item.quantity}x ${item.name} - R$ ${parseFloat(item.price).toFixed(2)}`).join('\n') +
+        `\n\n💰 *Total: R$ ${chargeResult.value.toFixed(2)}*\n\n` +
+        `🔗 *Link de Pagamento:*\n${chargeResult.invoiceUrl}\n\n` +
+        `💳 *Formas de pagamento disponíveis:*\n` +
+        `• 💚 Pix (aprovação instantânea)\n` +
+        `• 💳 Cartão de crédito\n` +
+        `• 🎫 Boleto bancário\n\n` +
+        `📅 Vencimento: ${new Date(chargeResult.dueDate).toLocaleDateString('pt-BR')}\n\n` +
+        `Após a confirmação do pagamento, você receberá uma notificação automática! 🎉`;
+
+      await client.sendText(phone, paymentMessage);
+      console.log('✅ LINK DE PAGAMENTO ENVIADO AUTOMATICAMENTE!');
+
+      // Salvar mensagem de pagamento no histórico
+      const paymentMsgRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+      await paymentMsgRef.set({
+        from: 'system',
+        to: phone,
+        body: paymentMessage,
+        timestamp: new Date().toISOString(),
+        type: 'payment_link',
+        isFromMe: true
+      });
+
+      console.log('🎉 PROCESSO AUTOMÁTICO CONCLUÍDO COM SUCESSO!');
+    } else {
+      console.log('❌ Erro ao gerar cobrança:', chargeResult.error);
+    }
+
+  } catch (error) {
+    console.error('❌ Erro na geração automática do link:', error);
   }
 }
 
