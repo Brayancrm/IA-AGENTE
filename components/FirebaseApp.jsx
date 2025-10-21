@@ -48,9 +48,9 @@ const FirebaseApp = () => {
   const [whatsappQRCode, setWhatsappQRCode] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   
-  // Estados do CRM - Simplificado ao máximo
-  const [crmClients, setCrmClients] = useState([]);
-  const [crmLoading, setCrmLoading] = useState(false);
+  // Estados do CRM v2 - Renomeado para evitar cache
+  const [clientesList, setClientesList] = useState([]);
+  const [isLoadingClientes, setIsLoadingClientes] = useState(false);
   
   // URL do backend
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
@@ -920,20 +920,20 @@ const DashboardWithFirebase = ({
   // ==================== FUNÇÕES DO CRM ====================
   // Passo 2: Funções para buscar dados
   
-  // Função para carregar clientes do Firebase
+  // Função para carregar clientes do Firebase v2
   const loadCRMClients = () => {
     if (!user?.uid || !database) {
       console.log('CRM: Usuário ou database não disponível');
       return;
     }
     
-    setCrmLoading(true);
+    setIsLoadingClientes(true);
     console.log('🔄 Carregando clientes do CRM...');
     
     const conversationsRef = ref(database, `conversations/${user.uid}`);
     
     onValue(conversationsRef, (snapshot) => {
-      const clientsList = [];
+      const tempList = [];
       
       if (snapshot.exists()) {
         const data = snapshot.val();
@@ -947,7 +947,7 @@ const DashboardWithFirebase = ({
               new Date(a.timestamp) - new Date(b.timestamp)
             );
             
-            clientsList.push({
+            tempList.push({
               phone: contactNumber,
               name: contactNumber.replace('@c.us', '').replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3'),
               firstContact: sortedMessages[0]?.timestamp || new Date().toISOString(),
@@ -958,24 +958,24 @@ const DashboardWithFirebase = ({
         });
       }
       
-      const sortedClients = clientsList.sort((a, b) => 
+      const sortedClients = tempList.sort((a, b) => 
         new Date(b.lastContact) - new Date(a.lastContact)
       );
       
-      setCrmClients(sortedClients);
-      setCrmLoading(false);
+      setClientesList(sortedClients);
+      setIsLoadingClientes(false);
       console.log(`✅ ${sortedClients.length} clientes carregados`);
     }, (error) => {
       console.error('❌ Erro ao carregar clientes:', error);
-      setCrmLoading(false);
+      setIsLoadingClientes(false);
     });
   };
   
-  // Carregar clientes quando a página CRM é acessada
+  // Carregar clientes quando a página CRM é acessada v2
   useEffect(() => {
     if (currentPage === 'crm' && user?.uid && database) {
       // Só carrega se ainda não carregou
-      if (crmClients.length === 0 && !crmLoading) {
+      if (clientesList.length === 0 && !isLoadingClientes) {
         loadCRMClients();
       }
     }
@@ -1497,7 +1497,7 @@ const DashboardWithFirebase = ({
               boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
               padding: '48px'
             }}>
-              {crmLoading ? (
+              {isLoadingClientes ? (
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '64px', marginBottom: '16px' }}>⏳</div>
                   <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
@@ -1505,7 +1505,7 @@ const DashboardWithFirebase = ({
                   </h3>
                   <p style={{ color: '#6b7280' }}>Aguarde enquanto buscamos os dados</p>
                 </div>
-              ) : crmClients.length === 0 ? (
+              ) : clientesList.length === 0 ? (
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '64px', marginBottom: '16px' }}>👥</div>
                   <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '12px' }}>
@@ -1519,12 +1519,12 @@ const DashboardWithFirebase = ({
                 <div>
                   <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#eef2ff', borderRadius: '8px' }}>
                     <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1f2937' }}>
-                      📊 Total: {crmClients.length} {crmClients.length === 1 ? 'cliente' : 'clientes'}
+                      📊 Total: {clientesList.length} {clientesList.length === 1 ? 'cliente' : 'clientes'}
                     </h3>
                   </div>
                   
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-                    {crmClients.map((cliente, indice) => (
+                    {clientesList.map((cliente, indice) => (
                       <div
                         key={cliente.phone}
                         style={{
