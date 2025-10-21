@@ -56,6 +56,7 @@ const FirebaseApp = () => {
   const [crmSearch, setCrmSearch] = useState('');
   const [crmLoading, setCrmLoading] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
+  const [activeTab, setActiveTab] = useState('clients');
   
   // URL do backend
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
@@ -1615,33 +1616,26 @@ const DashboardWithFirebase = ({
       case 'catalog':
         return renderCatalog();
 
-      case 'crm': {
-        // Componente CRM isolado com estado local
-        const CRMContent = () => {
-          const [activeTab, setActiveTab] = React.useState('clients');
-          
-          const switchTab = (tab) => {
-            setActiveTab(tab);
-            if (tab === 'clients' && crmClients.length === 0) loadCRMClients();
-            else if (tab === 'conversations' && crmConversations.length === 0) loadCRMConversations();
-            else if (tab === 'orders' && crmOrders.length === 0) loadCRMOrders();
-          };
-          
-          React.useEffect(() => {
-            if (crmClients.length === 0) loadCRMClients();
-          }, []);
-          
-          return (
-            <div style={{ padding: '24px' }}>
-              <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
-                CRM - Gestão de Clientes
-              </h2>
-              
-              {/* Abas */}
-              <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-                <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb' }}>
-                  <button
-                    onClick={() => switchTab('clients')}
+      case 'crm':
+        // Função para trocar de aba no CRM
+        const switchTab = (tab) => {
+          setActiveTab(tab);
+          if (tab === 'clients' && crmClients.length === 0) loadCRMClients();
+          else if (tab === 'conversations' && crmConversations.length === 0) loadCRMConversations();
+          else if (tab === 'orders' && crmOrders.length === 0) loadCRMOrders();
+        };
+        
+        return (
+          <div style={{ padding: '24px' }}>
+            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
+              CRM - Gestão de Clientes
+            </h2>
+            
+            {/* Abas */}
+            <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb' }}>
+                <button
+                  onClick={() => switchTab('clients')}
                     style={{
                       flex: 1,
                       padding: '16px',
@@ -2044,10 +2038,6 @@ const DashboardWithFirebase = ({
               </div>
             </div>
           );
-        };
-        
-        return <CRMContent />;
-      }
 
       case 'integrations':
         return (
