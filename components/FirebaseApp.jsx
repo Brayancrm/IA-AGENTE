@@ -48,7 +48,7 @@ const FirebaseApp = () => {
   const [whatsappQRCode, setWhatsappQRCode] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   
-  // Estados do CRM - Passo 1: Estados básicos
+  // Estados do CRM - Passo 1: Estados básicos (forçando redeploy)
   const [crmActiveTab, setCrmActiveTab] = useState('clients');
   
   // Estados do CRM - Passo 2: Estados para dados
