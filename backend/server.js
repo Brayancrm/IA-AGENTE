@@ -1042,15 +1042,25 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
     const streetKeywords = [
       'qual é a rua',
       'qual a rua',
+      'qual o endereço',
+      'qual é o endereço',
       'me informe a rua',
       'me informar a rua',
       'informar a rua',
       'informe a rua',
+      'me diga a rua',
+      'me diga o endereço',
       'nome da rua',
       'rua do seu endereço',
       'rua do endereço',
+      'endereço completo',
       'sua rua',
-      'qual rua'
+      'qual rua',
+      'a rua',
+      'o endereço',
+      'primeiro',
+      'primeiro pergunt',
+      'começ'
     ];
     
     if (streetKeywords.some(keyword => lowerText.includes(keyword))) {
@@ -1327,6 +1337,15 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
       console.log('   Isso significa que a pergunta do agente não foi detectada!');
     }
     
+    // Detectar se mensagem parece ser ENDEREÇO/RUA sem contexto
+    const streetRegex = /^(rua|avenida|travessa|av\.|r\.|alameda)/i;
+    if (streetRegex.test(messageText.trim()) && (!context || !context.waitingFor)) {
+      console.log('⚠️ ALERTA: Cliente enviou ENDEREÇO/RUA mas sem contexto definido!');
+      console.log('   Mensagem:', messageText.trim());
+      console.log('   Contexto atual:', context);
+      console.log('   Isso significa que a pergunta do agente sobre RUA não foi detectada!');
+    }
+    
     if (context && context.waitingFor) {
       console.log(`📝 Processando resposta para: ${context.waitingFor}`);
       
@@ -1348,10 +1367,13 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
       
       // Cliente está respondendo com a RUA
       else if (context.waitingFor === 'address_street') {
+        console.log('📝 Detectado contexto: address_street');
+        console.log('📍 Mensagem recebida:', messageText.trim());
         if (!customerData.address) customerData.address = {};
         customerData.address.street = messageText.trim();
         dataUpdated = true;
         console.log('✅ Rua salva:', customerData.address.street);
+        console.log('📊 customerData.address atual:', JSON.stringify(customerData.address, null, 2));
         await contextRef.remove();
       }
       
