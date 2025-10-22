@@ -531,11 +531,20 @@ const WhatsAppSalesAgent = () => {
       // Salva produtos E serviços em products/{userId}
       // IMPORTANTE: Backend busca em products/{userId} para AMBOS os tipos
       // ============================================
+      console.log('🔄 [SYNC] Iniciando sincronização com Realtime Database...');
+      console.log('🔄 [SYNC] userId:', userId);
+      console.log('🔄 [SYNC] productId:', productId);
+      
       try {
         const realtimeDb = getDatabase();
+        console.log('🔄 [SYNC] getDatabase() executado, realtimeDb:', typeof realtimeDb);
+        
         // Usar productId como chave, ou gerar um timestamp se não houver
         const finalProductId = productId || editingItem?.id || `product_${Date.now()}`;
+        console.log('🔄 [SYNC] finalProductId:', finalProductId);
+        
         const productRef = ref(realtimeDb, `products/${userId}/${finalProductId}`);
+        console.log('🔄 [SYNC] ref() criado para path: products/' + userId + '/' + finalProductId);
         
         const realtimeProduct = {
           id: finalProductId,
@@ -551,11 +560,19 @@ const WhatsAppSalesAgent = () => {
           updatedAt: itemToSave.updatedAt
         };
         
+        console.log('🔄 [SYNC] Dados preparados:', realtimeProduct);
+        console.log('🔄 [SYNC] Executando set()...');
+        
         await set(productRef, realtimeProduct);
+        
         const itemType = itemToSave.type === 'service' ? 'Serviço' : 'Produto';
-        console.log(`✅ ${itemType} sincronizado com Realtime Database em: products/${userId}/${finalProductId}`);
+        console.log(`✅ [SYNC] ${itemType} sincronizado com Realtime Database em: products/${userId}/${finalProductId}`);
+        showToast(`${itemType} sincronizado com o banco!`, 'success');
       } catch (realtimeError) {
-        console.error('⚠️ Erro ao sincronizar com Realtime Database:', realtimeError);
+        console.error('❌ [SYNC] ERRO COMPLETO:', realtimeError);
+        console.error('❌ [SYNC] Mensagem:', realtimeError.message);
+        console.error('❌ [SYNC] Stack:', realtimeError.stack);
+        showToast('Aviso: Item salvo mas não sincronizado com Realtime DB', 'error');
         // Não bloqueia o fluxo principal
       }
       
