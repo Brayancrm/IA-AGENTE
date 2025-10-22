@@ -409,11 +409,17 @@ async function handleIncomingMessage(userId, message, client) {
               const customerSnapshot = await customerDataRef.once('value');
               const savedCustomerData = customerSnapshot.val();
               
+              // Limpar telefone e remover "55" inicial se presente
+              let cleanPhone = message.from.replace(/[@c.us]/g, '').replace(/\D/g, '');
+              if (cleanPhone.startsWith('55') && cleanPhone.length > 10) {
+                cleanPhone = cleanPhone.substring(2); // Remove "55"
+              }
+              
               // Preparar dados do cliente (usando dados salvos se existirem)
               const customerData = {
                 name: savedCustomerData?.name || 'Cliente WhatsApp',
-                phone: message.from,
-                mobilePhone: message.from,
+                phone: cleanPhone,
+                mobilePhone: cleanPhone,
                 // Adicionar dados coletados se disponíveis
                 ...(savedCustomerData?.cpfCnpj && { cpfCnpj: savedCustomerData.cpfCnpj }),
                 ...(savedCustomerData?.email && { email: savedCustomerData.email }),
@@ -1780,11 +1786,17 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
     console.log(`   📧 Email: ${savedCustomerData.email}`);
     console.log(`   📄 CPF/CNPJ: ${savedCustomerData.cpfCnpj}`);
 
+    // Limpar telefone e remover "55" inicial se presente
+    let cleanPhone = phone.replace(/[@c.us]/g, '').replace(/\D/g, '');
+    if (cleanPhone.startsWith('55') && cleanPhone.length > 10) {
+      cleanPhone = cleanPhone.substring(2); // Remove "55"
+    }
+
     // Preparar dados do cliente
     const customerData = {
       name: savedCustomerData.name,
-      phone: phone,
-      mobilePhone: phone,
+      phone: cleanPhone,
+      mobilePhone: cleanPhone,
       cpfCnpj: savedCustomerData.cpfCnpj,
       email: savedCustomerData.email,
       ...(savedCustomerData.address && {
@@ -2022,9 +2034,20 @@ async function createAsaasCharge(asaasApiKey, customerData, items, userId) {
     
     // Tentar criar cliente
     try {
+      // Limpar telefone e remover "55" inicial se presente
+      let customerPhone = customerData.mobilePhone || customerData.phone || '';
+      let cleanPhone = customerPhone.replace(/[@c.us]/g, '').replace(/\D/g, '');
+      
+      // REGRA: Se começa com 55, remover esses 2 dígitos
+      if (cleanPhone.startsWith('55') && cleanPhone.length > 10) {
+        console.log('📞 [ASAAS] Criando cliente - Telefone original:', cleanPhone);
+        cleanPhone = cleanPhone.substring(2); // Remove "55"
+        console.log('📞 [ASAAS] Criando cliente - Telefone sem 55:', cleanPhone);
+      }
+      
       const customerPayload = {
         name: customerData.name || 'Cliente WhatsApp',
-        mobilePhone: customerData.mobilePhone || customerData.phone,
+        mobilePhone: cleanPhone,
         externalReference: `whatsapp_${userId}_${customerData.phone}`
       };
       
@@ -2140,12 +2163,22 @@ async function updateAsaasCustomerAddress(asaasApiKey, customerId, customerData)
       ? `https://api.asaas.com/v3/customers/${customerId}`
       : `https://sandbox.asaas.com/api/v3/customers/${customerId}`;
     
+    // Limpar telefone e remover "55" inicial se presente
+    let cleanPhone = customerData.phone?.replace(/[@c.us]/g, '').replace(/\D/g, '') || '';
+    
+    // REGRA: Se começa com 55, remover esses 2 dígitos
+    if (cleanPhone.startsWith('55') && cleanPhone.length > 10) {
+      console.log('📞 [ASAAS] Telefone original:', cleanPhone);
+      cleanPhone = cleanPhone.substring(2); // Remove "55"
+      console.log('📞 [ASAAS] Telefone sem 55:', cleanPhone);
+    }
+    
     const updateData = {
       name: customerData.name,
       cpfCnpj: customerData.cpfCnpj,
       email: customerData.email,
-      phone: customerData.phone?.replace(/[@c.us]/g, '').replace(/\D/g, ''),
-      mobilePhone: customerData.phone?.replace(/[@c.us]/g, '').replace(/\D/g, ''),
+      phone: cleanPhone,
+      mobilePhone: cleanPhone,
       postalCode: customerData.address.zipCode?.replace(/\D/g, ''),
       address: customerData.address.street,
       addressNumber: customerData.address.number,
@@ -2327,9 +2360,18 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
     console.log('   - CPF:', customerData?.cpfCnpj);
     console.log('   - Telefone:', customerData?.phone);
     console.log('   - Tem endereço?', !!customerData?.address);
+    console.log('   - Tipo do endereço:', typeof customerData?.address);
     
     if (customerData?.address) {
       console.log('   - Endereço completo:', JSON.stringify(customerData.address, null, 2));
+      
+      // VERIFICAR SE ENDEREÇO É STRING (ERRO!)
+      if (typeof customerData.address === 'string') {
+        console.log('⚠️ [NF] ALERTA CRÍTICO: Endereço é STRING ao invés de OBJETO!');
+        console.log('   String atual:', customerData.address);
+        console.log('   Isso vai causar falha na verificação de endereço completo!');
+        console.log('   ⛔ ENDEREÇO PRECISA SER OBJETO: { street, number, zipCode, ... }');
+      }
     }
     
     // 4.5. ATUALIZAR CADASTRO DO CLIENTE NO ASAAS COM ENDEREÇO
