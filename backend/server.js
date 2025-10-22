@@ -1531,11 +1531,33 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
     
     const invoiceData = {
       customer: payment.customer, // ID do cliente no Asaas
+      
+      // ✅ CAMPO OBRIGATÓRIO: Nome do tomador (cliente)
+      name: orderData.customer?.name || orderData.customer?.nomeCompleto || 'Cliente',
+      
+      // ✅ CAMPO OBRIGATÓRIO: Código do serviço municipal (consulte sua prefeitura)
+      // Exemplo: 01.01 = Análise e desenvolvimento de sistemas
+      // Exemplo: 07.02 = Executar serviços
+      municipalServiceCode: fiscalConfig.municipalServiceCode || '01.01',
+      
+      // ✅ CAMPO OBRIGATÓRIO: Descrição do serviço para fins municipais
+      municipalServiceDescription: fiscalConfig.municipalServiceDescription || serviceDescription,
+      
+      // Descrição do serviço (pode ser diferente da municipal)
       serviceDescription: serviceDescription,
+      
+      // Valor da nota
       value: payment.value,
       
-      // Dados do tomador (cliente)
+      // Dados do tomador (cliente) - CPF/CNPJ se houver
+      cpfCnpj: orderData.customer?.cpfCnpj || orderData.customer?.cpf || null,
+      email: orderData.customer?.email || null,
+      phone: orderData.customer?.phone || null,
+      
+      // Deduções
       deductions: fiscalConfig.deductions || 0,
+      
+      // Data de competência (data de hoje)
       effectiveDate: new Date().toISOString().split('T')[0], // Data de hoje YYYY-MM-DD
       
       // Configurações de impostos
@@ -1550,10 +1572,14 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
       },
       
       // Observações
-      observations: fiscalConfig.observations || 'Nota fiscal emitida automaticamente'
+      observations: fiscalConfig.observations || 'Nota fiscal emitida automaticamente via WhatsApp'
     };
     
-    console.log('📝 [NF] Dados da nota fiscal preparados');
+    console.log('📝 [NF] Dados da nota fiscal preparados:');
+    console.log('   - Nome cliente:', invoiceData.name);
+    console.log('   - Código serviço:', invoiceData.municipalServiceCode);
+    console.log('   - Descrição municipal:', invoiceData.municipalServiceDescription);
+    console.log('   - Valor:', invoiceData.value);
     
     // 5. Detectar ambiente automaticamente pela chave
     // Chaves de produção começam com $aact_prod_
