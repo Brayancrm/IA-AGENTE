@@ -314,21 +314,51 @@ const FirebaseApp = () => {
   const saveCatalogItem = async (itemData) => {
     if (!user || !database) return;
     
+    console.log('🔄 [SYNC] Iniciando salvamento de item...');
+    console.log('🔄 [SYNC] Dados recebidos:', itemData);
+    
     try {
       const data = {
         ...itemData,
+        price: parseFloat(itemData.price) || 0,
+        stockQuantity: parseInt(itemData.stockQuantity) || 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
       
+      // 1️⃣ Salvar em catalog_items (para exibição no dashboard)
       const catalogRef = ref(database, `users/data/${user.uid}/catalog_items`);
       const newItemRef = push(catalogRef);
       await set(newItemRef, data);
+      const itemId = newItemRef.key;
       
-      showToast('Item adicionado com sucesso!');
+      console.log('✅ [SYNC] Item salvo em catalog_items com ID:', itemId);
+      
+      // 2️⃣ SINCRONIZAR COM products/ (para o backend usar)
+      console.log('🔄 [SYNC] Sincronizando com products/...');
+      const productRef = ref(database, `products/${user.uid}/${itemId}`);
+      const productData = {
+        id: itemId,
+        name: data.name,
+        description: data.description || '',
+        price: data.price,
+        stock: data.stockQuantity,
+        category: data.category || '',
+        image: data.image || '',
+        type: data.type || 'product',
+        active: true,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt
+      };
+      
+      await set(productRef, productData);
+      console.log('✅ [SYNC] Item sincronizado em products/' + user.uid + '/' + itemId);
+      
+      const itemType = data.type === 'service' ? 'Serviço' : 'Produto';
+      showToast(`${itemType} adicionado e sincronizado com sucesso!`);
     } catch (error) {
-      console.error('Erro ao salvar item:', error);
-      showToast('Erro ao salvar item', 'error');
+      console.error('❌ [SYNC] Erro ao salvar item:', error);
+      showToast('Erro ao salvar item: ' + error.message, 'error');
     }
   };
 
@@ -348,12 +378,22 @@ const FirebaseApp = () => {
       return;
     }
     
+    console.log('🗑️ [DELETE] Excluindo item ID:', itemId);
+    
     try {
+      // 1️⃣ Remover de catalog_items
       const itemRef = ref(database, `users/data/${user.uid}/catalog_items/${itemId}`);
       await remove(itemRef);
+      console.log('✅ [DELETE] Removido de catalog_items');
+      
+      // 2️⃣ Remover de products/ também
+      const productRef = ref(database, `products/${user.uid}/${itemId}`);
+      await remove(productRef);
+      console.log('✅ [DELETE] Removido de products/' + user.uid);
+      
       showToast('✅ Item excluído com sucesso!', 'success');
     } catch (error) {
-      console.error('Erro ao excluir item:', error);
+      console.error('❌ [DELETE] Erro ao excluir item:', error);
       showToast('❌ Erro ao excluir item: ' + error.message, 'error');
     }
   };
