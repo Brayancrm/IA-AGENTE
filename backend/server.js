@@ -521,31 +521,8 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       });
     });
     
-    // 📄 VERIFICAR SE HÁ PEDIDO PAGO RECENTE SEM NOTA FISCAL
-    let hasPaidOrderWithoutInvoice = false;
-    const phoneNumber = contactNumber.replace(/[^0-9]/g, '');
-    
-    const ordersSnapshot = await db.ref(`orders/${userId}`).once('value');
-    if (ordersSnapshot.exists()) {
-      ordersSnapshot.forEach((orderSnap) => {
-        const order = orderSnap.val();
-        const orderPhone = order.customer?.phone?.replace(/[^0-9]/g, '');
-        
-        // Verificar se é do mesmo cliente, está pago, não tem nota fiscal e foi pago recentemente (últimas 24h)
-        if (orderPhone === phoneNumber && 
-            order.status === 'paid' && 
-            !order.invoiceId &&
-            order.paymentConfirmedAt) {
-          const paymentDate = new Date(order.paymentConfirmedAt);
-          const now = new Date();
-          const hoursDiff = (now - paymentDate) / (1000 * 60 * 60);
-          
-          if (hoursDiff < 24) { // Menos de 24 horas
-            hasPaidOrderWithoutInvoice = true;
-          }
-        }
-      });
-    }
+    // 📄 A pergunta sobre nota fiscal agora é feita automaticamente após o pagamento
+    // Esta verificação não é mais necessária
     
     // Buscar dados da empresa para contexto
     const companySnapshot = await db.ref(`users/data/${userId}/company_profile`).once('value');
@@ -659,18 +636,6 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
     
     if (aiConfig.enabledFeatures && aiConfig.enabledFeatures.length > 0) {
       systemPrompt += `\n\nFuncionalidades habilitadas: ${aiConfig.enabledFeatures.join(', ')}`;
-    }
-    
-    // 📄 ADICIONAR CONTEXTO DE PEDIDO PAGO SEM NOTA FISCAL
-    if (hasPaidOrderWithoutInvoice) {
-      systemPrompt += `\n\n🚨 ATENÇÃO - CONTEXTO IMPORTANTE:
-Este cliente tem um pedido PAGO RECENTEMENTE que ainda NÃO tem nota fiscal emitida.
-
-Se você ainda NÃO perguntou sobre nota fiscal nesta conversa:
-- Na sua PRÓXIMA resposta, pergunte: "Você deseja nota fiscal?"
-- Seja educado e natural na pergunta
-
-Se o cliente já respondeu sobre nota fiscal, continue o fluxo normalmente.`;
     }
     
     // Chamar API de IA (OpenAI exemplo)
@@ -2453,8 +2418,9 @@ app.post('/api/asaas/webhook', async (req, res) => {
           await client.sendText(orderData.customer.phone, successMessage);
           console.log('✅ Mensagem de confirmação enviada');
           
-          // Salvar mensagem no histórico
           const sanitizedNumber = sanitizePhoneNumber(orderData.customer.phone);
+          
+          // Salvar mensagem no histórico
           const confirmMsgRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
           await confirmMsgRef.set({
             from: 'system',
@@ -2466,10 +2432,53 @@ app.post('/api/asaas/webhook', async (req, res) => {
             orderId: orderId
           });
           
-          // Marcar que o pagamento foi confirmado (para o agente saber)
+          // Marcar que o pagamento foi confirmado
           await db.ref(`orders/${userId}/${orderId}`).update({
             paymentConfirmedAt: new Date().toISOString()
           });
+          
+          // 📄 PERGUNTAR SOBRE NOTA FISCAL IMEDIATAMENTE
+          console.log('📄 Enviando pergunta sobre nota fiscal automaticamente...');
+          
+          // Aguardar 2 segundos para não sobrecarregar
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          const invoiceQuestion = '📄 Você deseja nota fiscal?';
+          
+          try {
+            await client.sendText(orderData.customer.phone, invoiceQuestion);
+            console.log('✅ Pergunta sobre nota fiscal enviada automaticamente');
+            
+            // Salvar pergunta no histórico
+            const invoiceQuestionRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+            await invoiceQuestionRef.set({
+              from: 'system',
+              to: orderData.customer.phone,
+              body: invoiceQuestion,
+              timestamp: new Date().toISOString(),
+              type: 'invoice_question',
+              isFromMe: true,
+              orderId: orderId
+            });
+            
+            // Definir contexto para aguardar resposta sobre nota fiscal
+            const contextRef = db.ref(`collectionContext/${userId}/${sanitizedNumber}`);
+            await contextRef.set({
+              waitingFor: 'invoice_request',
+              askedAt: new Date().toISOString(),
+              orderId: orderId
+            });
+            console.log('📝 Contexto definido: aguardando resposta sobre nota fiscal');
+            
+            // Marcar no pedido que a pergunta foi feita
+            await db.ref(`orders/${userId}/${orderId}`).update({
+              invoiceQuestionAsked: true,
+              invoiceQuestionAskedAt: new Date().toISOString()
+            });
+            
+          } catch (invoiceError) {
+            console.error('❌ Erro ao enviar pergunta sobre nota fiscal:', invoiceError);
+          }
           
         } catch (error) {
           console.error('❌ Erro ao enviar mensagem de confirmação:', error);
