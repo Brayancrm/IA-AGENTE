@@ -1033,9 +1033,13 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
       'qual é a rua',
       'qual a rua',
       'me informe a rua',
+      'me informar a rua',
+      'informar a rua',
       'informe a rua',
       'nome da rua',
       'rua do seu endereço',
+      'rua do endereço',
+      'sua rua',
       'qual rua'
     ];
     
@@ -1055,7 +1059,10 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
       'número da casa',
       'número do endereço',
       'me informe o número',
+      'me informar o número',
+      'informar o número',
       'informe o número',
+      'seu número',
       'qual número'
     ];
     
@@ -1093,8 +1100,11 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
       'qual é o bairro',
       'qual o bairro',
       'me informe o bairro',
+      'me informar o bairro',
+      'informar o bairro',
       'informe o bairro',
       'nome do bairro',
+      'seu bairro',
       'qual bairro'
     ];
     
@@ -1112,8 +1122,11 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
       'qual é a cidade',
       'qual a cidade',
       'me informe a cidade',
+      'me informar a cidade',
+      'informar a cidade',
       'informe a cidade',
       'nome da cidade',
+      'sua cidade',
       'qual cidade'
     ];
     
@@ -1131,8 +1144,11 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
       'qual é o estado',
       'qual o estado',
       'me informe o estado',
+      'me informar o estado',
+      'informar o estado',
       'informe o estado',
       'sigla do estado',
+      'seu estado',
       'qual estado',
       'uf'
     ];
@@ -1151,9 +1167,14 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
       'qual é o cep',
       'qual o cep',
       'me informe o cep',
+      'me informar o cep',
+      'informar o cep',
       'informe o cep',
+      'informe seu cep',
+      'informar seu cep',
       'número do cep',
-      'qual cep'
+      'qual cep',
+      'seu cep'
     ];
     
     if (zipCodeKeywords.some(keyword => lowerText.includes(keyword))) {
