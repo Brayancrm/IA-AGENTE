@@ -604,7 +604,14 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
 - Seja proativo e sugira produtos/serviços que possam ajudar o cliente
 - Forneça informações detalhadas sobre preços e disponibilidade
 - Ajude o cliente a tomar a melhor decisão de compra
-- Quando mencionar produtos/serviços com foto disponível, eu enviarei a imagem automaticamente para o cliente`;
+- Quando mencionar produtos/serviços com foto disponível, eu enviarei a imagem automaticamente para o cliente
+
+🎯 **CRÍTICO - CONFIRMAÇÃO DE PRODUTO:**
+- Quando o cliente escolher/clicar em um produto, você DEVE SEMPRE confirmar explicitamente o nome COMPLETO do produto na sua resposta
+- EXEMPLO CORRETO: "Ótimo! Você escolheu TESTE 9. Quantas unidades deseja?"
+- EXEMPLO CORRETO: "Perfeito! Vou adicionar Lavagem Externa ao seu pedido. Quantas unidades?"
+- Isso é ESSENCIAL para o sistema processar o pedido corretamente
+- SEMPRE repita o nome exato do produto na mensagem`;
     }
     
     if (aiConfig.enabledFeatures && aiConfig.enabledFeatures.length > 0) {
