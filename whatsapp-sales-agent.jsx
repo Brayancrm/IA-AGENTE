@@ -516,18 +516,20 @@ const WhatsAppSalesAgent = () => {
           doc(db, `artifacts/${appId}/users/${userId}/company_profile/config/catalog_items/${editingItem.id}`),
           { ...itemToSave, updatedAt: new Date().toISOString() }
         );
-        showToast('Item atualizado com sucesso!');
+        const itemType = itemToSave.type === 'service' ? 'Serviço' : 'Produto';
+        showToast(`${itemType} atualizado com sucesso!`);
       } else {
         // Criar novo item no Firestore
         const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/company_profile/config/catalog_items`), itemToSave);
         productId = docRef.id;
-        showToast('Item adicionado com sucesso!');
+        const itemType = itemToSave.type === 'service' ? 'Serviço' : 'Produto';
+        showToast(`${itemType} adicionado com sucesso!`);
       }
       
       // ============================================
       // SINCRONIZAR COM REALTIME DATABASE
-      // Para o backend conseguir buscar os produtos
-      // IMPORTANTE: Backend busca em products/{userId}
+      // Salva produtos E serviços em products/{userId}
+      // IMPORTANTE: Backend busca em products/{userId} para AMBOS os tipos
       // ============================================
       try {
         const realtimeDb = getDatabase();
@@ -550,7 +552,8 @@ const WhatsAppSalesAgent = () => {
         };
         
         await set(productRef, realtimeProduct);
-        console.log('✅ Produto sincronizado com Realtime Database em: products/' + userId + '/' + finalProductId);
+        const itemType = itemToSave.type === 'service' ? 'Serviço' : 'Produto';
+        console.log(`✅ ${itemType} sincronizado com Realtime Database em: products/${userId}/${finalProductId}`);
       } catch (realtimeError) {
         console.error('⚠️ Erro ao sincronizar com Realtime Database:', realtimeError);
         // Não bloqueia o fluxo principal
@@ -585,13 +588,13 @@ const WhatsAppSalesAgent = () => {
       
       // ============================================
       // SINCRONIZAR COM REALTIME DATABASE
-      // Remover do Realtime Database também
+      // Remove produtos E serviços de products/{userId}
       // ============================================
       try {
         const realtimeDb = getDatabase();
         const productRef = ref(realtimeDb, `products/${userId}/${itemId}`);
         await remove(productRef);
-        console.log('✅ Produto removido do Realtime Database');
+        console.log('✅ Item removido do Realtime Database (products/' + userId + ')');
       } catch (realtimeError) {
         console.error('⚠️ Erro ao remover do Realtime Database:', realtimeError);
       }
