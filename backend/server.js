@@ -531,10 +531,14 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
     const messages = [];
     messagesSnapshot.forEach((child) => {
       const msg = child.val();
-      messages.push({
-        role: msg.isFromMe ? 'assistant' : 'user',
-        content: msg.body
-      });
+      
+      // Ignorar mensagens sem body ou com body null/undefined
+      if (msg.body && typeof msg.body === 'string' && msg.body.trim() !== '') {
+        messages.push({
+          role: msg.isFromMe ? 'assistant' : 'user',
+          content: msg.body
+        });
+      }
     });
     
     // 📄 A pergunta sobre nota fiscal agora é feita automaticamente após o pagamento
@@ -690,7 +694,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
         ...messages,
         {
           role: 'user',
-          content: userMessage
+          content: userMessage || 'Olá'
         }
       ],
       temperature: aiConfig.temperature || 0.7,
@@ -1331,6 +1335,12 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
 // Função MELHORADA para detectar e salvar dados do cliente (baseada no contexto)
 async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNumber) {
   try {
+    // Verificar se messageText existe
+    if (!messageText || typeof messageText !== 'string') {
+      console.log('⚠️ detectAndSaveCustomerData: messageText é undefined/null - pulando');
+      return;
+    }
+    
     const phoneNumber = phone.replace(/[^0-9]/g, '');
     const customerRef = db.ref(`customerData/${userId}/${phoneNumber}`);
     const contextRef = db.ref(`collectionContext/${userId}/${sanitizedNumber}`);
@@ -1984,6 +1994,11 @@ async function getProductQuantities(userId, phone, products) {
 
 // Função para detectar intenção de compra
 function detectPurchaseIntent(messageText) {
+  // Verificar se messageText existe
+  if (!messageText || typeof messageText !== 'string') {
+    return false;
+  }
+  
   const purchaseKeywords = [
     'quero comprar',
     'vou comprar',
