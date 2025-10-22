@@ -1184,7 +1184,10 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
       'informar seu cep',
       'número do cep',
       'qual cep',
-      'seu cep'
+      'seu cep',
+      'o cep',
+      'por último',
+      'por ultimo'
     ];
     
     if (zipCodeKeywords.some(keyword => lowerText.includes(keyword))) {
@@ -1315,6 +1318,15 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
     
     let dataUpdated = false;
     
+    // Detectar se mensagem parece ser CEP sem contexto
+    const cepRegex = /^\d{5}[-]?\d{3}$/;
+    if (cepRegex.test(messageText.trim()) && (!context || !context.waitingFor)) {
+      console.log('⚠️ ALERTA: Cliente enviou CEP mas sem contexto definido!');
+      console.log('   CEP:', messageText.trim());
+      console.log('   Contexto atual:', context);
+      console.log('   Isso significa que a pergunta do agente não foi detectada!');
+    }
+    
     if (context && context.waitingFor) {
       console.log(`📝 Processando resposta para: ${context.waitingFor}`);
       
@@ -1402,12 +1414,14 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
       
       // Cliente está respondendo com o CEP
       else if (context.waitingFor === 'address_zipcode') {
+        console.log('📝 Detectado contexto: address_zipcode');
         if (!customerData.address) customerData.address = {};
         const cepMatch = messageText.match(/(\d{5}[-]?\d{3})/);
         if (cepMatch) {
           customerData.address.zipCode = cepMatch[1].replace('-', '');
           dataUpdated = true;
           console.log('✅ CEP salvo:', customerData.address.zipCode);
+          console.log('📊 customerData atual:', JSON.stringify(customerData, null, 2));
           await contextRef.remove();
           
           // 📄 VERIFICAR SE TEMOS TODOS OS DADOS DO ENDEREÇO
