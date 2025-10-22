@@ -442,10 +442,20 @@ async function handleIncomingMessage(userId, message, client) {
               if (chargeResult.success) {
                 // Salvar pedido no Firebase
                 const orderRef = db.ref(`orders/${userId}`).push();
+                
+                // Preparar dados do cliente (sem campos undefined)
+                const customerToSave = {
+                  name: customerData.name || 'Cliente',
+                  phone: customerData.phone || customerData.mobilePhone,
+                  ...(customerData.cpfCnpj && { cpfCnpj: customerData.cpfCnpj }),
+                  ...(customerData.email && { email: customerData.email }),
+                  ...(customerData.address && { address: customerData.address })
+                };
+                
                 await orderRef.set({
                   orderId: orderRef.key,
                   chargeId: chargeResult.chargeId,
-                  customer: customerData,
+                  customer: customerToSave,
                   items: orderItems,
                   totalValue: chargeResult.value,
                   status: 'pending',
@@ -1723,10 +1733,20 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
     if (chargeResult.success) {
       // Salvar pedido no Firebase
       const orderRef = db.ref(`orders/${userId}`).push();
+      
+      // Preparar dados do cliente (sem campos undefined)
+      const customerToSave = {
+        name: customerData.name || 'Cliente',
+        phone: customerData.phone || customerData.mobilePhone,
+        ...(customerData.cpfCnpj && { cpfCnpj: customerData.cpfCnpj }),
+        ...(customerData.email && { email: customerData.email }),
+        ...(customerData.address && { address: customerData.address })
+      };
+      
       await orderRef.set({
         orderId: orderRef.key,
         chargeId: chargeResult.chargeId,
-        customer: customerData,
+        customer: customerToSave,
         items: orderItems,
         totalValue: chargeResult.value,
         status: 'pending',
@@ -2453,10 +2473,20 @@ app.post('/api/asaas/create-charge', async (req, res) => {
     if (result.success) {
       // Salvar pedido no Firebase
       const orderRef = db.ref(`orders/${userId}`).push();
+      
+      // Preparar dados do cliente (sem campos undefined)
+      const customerToSave = {
+        name: customerData.name || 'Cliente',
+        phone: customerData.phone || customerData.mobilePhone,
+        ...(customerData.cpfCnpj && { cpfCnpj: customerData.cpfCnpj }),
+        ...(customerData.email && { email: customerData.email }),
+        ...(customerData.address && { address: customerData.address })
+      };
+      
       await orderRef.set({
         orderId: orderRef.key,
         chargeId: result.chargeId,
-        customer: customerData,
+        customer: customerToSave,
         items: items,
         totalValue: result.value,
         status: 'pending',
