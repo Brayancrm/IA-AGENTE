@@ -521,6 +521,32 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       });
     });
     
+    // 📄 VERIFICAR SE HÁ PEDIDO PAGO RECENTE SEM NOTA FISCAL
+    let hasPaidOrderWithoutInvoice = false;
+    const phoneNumber = contactNumber.replace(/[^0-9]/g, '');
+    
+    const ordersSnapshot = await db.ref(`orders/${userId}`).once('value');
+    if (ordersSnapshot.exists()) {
+      ordersSnapshot.forEach((orderSnap) => {
+        const order = orderSnap.val();
+        const orderPhone = order.customer?.phone?.replace(/[^0-9]/g, '');
+        
+        // Verificar se é do mesmo cliente, está pago, não tem nota fiscal e foi pago recentemente (últimas 24h)
+        if (orderPhone === phoneNumber && 
+            order.status === 'paid' && 
+            !order.invoiceId &&
+            order.paymentConfirmedAt) {
+          const paymentDate = new Date(order.paymentConfirmedAt);
+          const now = new Date();
+          const hoursDiff = (now - paymentDate) / (1000 * 60 * 60);
+          
+          if (hoursDiff < 24) { // Menos de 24 horas
+            hasPaidOrderWithoutInvoice = true;
+          }
+        }
+      });
+    }
+    
     // Buscar dados da empresa para contexto
     const companySnapshot = await db.ref(`users/data/${userId}/company_profile`).once('value');
     const company = companySnapshot.val() || {};
@@ -611,11 +637,40 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
 - EXEMPLO CORRETO: "Ótimo! Você escolheu TESTE 9. Quantas unidades deseja?"
 - EXEMPLO CORRETO: "Perfeito! Vou adicionar Lavagem Externa ao seu pedido. Quantas unidades?"
 - Isso é ESSENCIAL para o sistema processar o pedido corretamente
-- SEMPRE repita o nome exato do produto na mensagem`;
+- SEMPRE repita o nome exato do produto na mensagem
+
+📄 **FLUXO DE NOTA FISCAL (MUITO IMPORTANTE):**
+1. APÓS confirmar o pagamento, SEMPRE pergunte: "Você deseja nota fiscal?"
+2. Se o cliente responder SIM:
+   - Informe: "Para emitir a nota fiscal, preciso do seu endereço completo."
+   - Peça: "Por favor, me informe: Rua, Número, Complemento (se houver), Bairro, Cidade, Estado e CEP"
+   - Exemplo: "Rua das Flores, 123, apto 45, Centro, São Paulo, SP, 01234-567"
+3. Quando o cliente fornecer o endereço:
+   - Agradeça e confirme: "Obrigado! Estou processando sua nota fiscal com o endereço fornecido."
+   - O sistema automaticamente emitirá a nota fiscal e enviará para o cliente
+4. Se o cliente responder NÃO quer nota fiscal:
+   - Responda: "Tudo bem! Qualquer dúvida, estou à disposição."
+   
+⚠️ IMPORTANTE: 
+- NÃO tente emitir nota fiscal sem o endereço completo
+- O endereço é OBRIGATÓRIO para emissão da nota fiscal
+- Seja educado e paciente ao coletar o endereço`;
     }
     
     if (aiConfig.enabledFeatures && aiConfig.enabledFeatures.length > 0) {
       systemPrompt += `\n\nFuncionalidades habilitadas: ${aiConfig.enabledFeatures.join(', ')}`;
+    }
+    
+    // 📄 ADICIONAR CONTEXTO DE PEDIDO PAGO SEM NOTA FISCAL
+    if (hasPaidOrderWithoutInvoice) {
+      systemPrompt += `\n\n🚨 ATENÇÃO - CONTEXTO IMPORTANTE:
+Este cliente tem um pedido PAGO RECENTEMENTE que ainda NÃO tem nota fiscal emitida.
+
+Se você ainda NÃO perguntou sobre nota fiscal nesta conversa:
+- Na sua PRÓXIMA resposta, pergunte: "Você deseja nota fiscal?"
+- Seja educado e natural na pergunta
+
+Se o cliente já respondeu sobre nota fiscal, continue o fluxo normalmente.`;
     }
     
     // Chamar API de IA (OpenAI exemplo)
@@ -729,12 +784,282 @@ async function getIntegrationsConfig(userId) {
   }
 }
 
+// Função para fazer parse do endereço fornecido pelo cliente
+function parseAddress(messageText) {
+  try {
+    console.log('📍 Tentando extrair endereço de:', messageText);
+    
+    // Padrões comuns de endereço no Brasil
+    // Ex: "Rua das Flores, 123, Centro, São Paulo, SP, 01234-567"
+    // Ex: "Av. Paulista 1000 apto 501 Bela Vista São Paulo SP 01310-100"
+    
+    const address = {
+      street: null,
+      number: null,
+      complement: null,
+      neighborhood: null,
+      city: null,
+      state: null,
+      zipCode: null,
+      fullAddress: messageText.trim()
+    };
+    
+    // Extrair CEP (formato: 12345-678 ou 12345678)
+    const cepRegex = /(\d{5}[-]?\d{3})/;
+    const cepMatch = messageText.match(cepRegex);
+    if (cepMatch) {
+      address.zipCode = cepMatch[1].replace('-', '');
+      console.log('   CEP encontrado:', address.zipCode);
+    }
+    
+    // Extrair Estado (2 letras maiúsculas)
+    const stateRegex = /\b([A-Z]{2})\b/;
+    const stateMatch = messageText.match(stateRegex);
+    if (stateMatch) {
+      address.state = stateMatch[1];
+      console.log('   Estado encontrado:', address.state);
+    }
+    
+    // Padrões de rua/avenida
+    const streetPrefixes = ['rua', 'r.', 'avenida', 'av.', 'travessa', 'trav.', 'alameda', 'al.', 'praça', 'pç.'];
+    const lowerText = messageText.toLowerCase();
+    
+    let streetFound = false;
+    for (const prefix of streetPrefixes) {
+      if (lowerText.includes(prefix)) {
+        streetFound = true;
+        break;
+      }
+    }
+    
+    if (streetFound || cepMatch) {
+      // Tentar dividir por vírgulas ou quebras de linha
+      const parts = messageText.split(/[,\n]/).map(p => p.trim()).filter(p => p);
+      
+      if (parts.length >= 3) {
+        // Formato: "Rua X, 123, Bairro, Cidade, Estado, CEP"
+        address.street = parts[0];
+        
+        // Tentar extrair número da segunda parte
+        const numberMatch = parts[1].match(/(\d+)/);
+        if (numberMatch) {
+          address.number = numberMatch[1];
+          // O resto pode ser complemento
+          address.complement = parts[1].replace(numberMatch[1], '').trim() || null;
+        }
+        
+        // Bairro geralmente é a terceira parte
+        if (parts[2] && !parts[2].match(/^\d{5}/) && !parts[2].match(/^[A-Z]{2}$/)) {
+          address.neighborhood = parts[2];
+        }
+        
+        // Cidade geralmente é a quarta parte
+        if (parts[3] && !parts[3].match(/^\d{5}/) && !parts[3].match(/^[A-Z]{2}$/)) {
+          address.city = parts[3];
+        }
+        
+        console.log('✅ Endereço extraído:', JSON.stringify(address, null, 2));
+        return address;
+      }
+      
+      // Formato alternativo: tudo em uma linha separado por espaços
+      // "Rua das Flores 123 Centro São Paulo SP 01234-567"
+      if (!address.street) {
+        // Pegar primeira parte até número como rua
+        const match = messageText.match(/^([^0-9]+?)(\d+)/);
+        if (match) {
+          address.street = match[1].trim();
+          address.number = match[2];
+          console.log('   Rua (alt):', address.street);
+          console.log('   Número (alt):', address.number);
+        }
+      }
+      
+      // Tentar extrair palavras entre número e CEP/Estado como bairro e cidade
+      const afterNumber = messageText.replace(address.street || '', '').replace(address.number || '', '').trim();
+      const words = afterNumber.split(/\s+/).filter(w => 
+        w.length > 2 && 
+        !w.match(/^\d+$/) && 
+        !w.match(/^[A-Z]{2}$/) &&
+        !w.match(/^\d{5}/)
+      );
+      
+      if (words.length >= 2) {
+        address.neighborhood = words[0];
+        address.city = words.slice(1).join(' ').split(/\d{5}/)[0].trim();
+      }
+    }
+    
+    console.log('✅ Endereço final:', JSON.stringify(address, null, 2));
+    return address;
+    
+  } catch (error) {
+    console.error('❌ Erro ao fazer parse do endereço:', error);
+    return null;
+  }
+}
+
+// Função para tentar emitir nota fiscal quando o cliente fornecer o endereço
+async function tryEmitInvoiceWithAddress(userId, phone, customerData) {
+  try {
+    console.log('📄 [INVOICE] Tentando emitir nota fiscal com endereço...');
+    
+    const phoneNumber = phone.replace(/[^0-9]/g, '');
+    
+    // Buscar último pedido pago deste cliente
+    const ordersSnapshot = await db.ref(`orders/${userId}`).once('value');
+    let latestPaidOrder = null;
+    let latestPaidOrderId = null;
+    
+    if (ordersSnapshot.exists()) {
+      const orders = [];
+      ordersSnapshot.forEach((orderSnap) => {
+        const order = orderSnap.val();
+        const orderPhone = order.customer?.phone?.replace(/[^0-9]/g, '');
+        
+        if (orderPhone === phoneNumber && order.status === 'paid' && !order.invoiceId) {
+          orders.push({ id: orderSnap.key, data: order });
+        }
+      });
+      
+      // Pegar o mais recente
+      if (orders.length > 0) {
+        orders.sort((a, b) => new Date(b.data.createdAt) - new Date(a.data.createdAt));
+        latestPaidOrder = orders[0].data;
+        latestPaidOrderId = orders[0].id;
+      }
+    }
+    
+    if (!latestPaidOrder || !latestPaidOrderId) {
+      console.log('❌ [INVOICE] Nenhum pedido pago sem nota fiscal encontrado');
+      return;
+    }
+    
+    console.log('✅ [INVOICE] Pedido encontrado:', latestPaidOrderId);
+    
+    // Atualizar dados do cliente no pedido com endereço
+    const updatedCustomerData = {
+      ...latestPaidOrder.customer,
+      ...customerData,
+      address: customerData.address
+    };
+    
+    await db.ref(`orders/${userId}/${latestPaidOrderId}/customer`).update(updatedCustomerData);
+    
+    // Buscar dados do pagamento
+    const paymentData = latestPaidOrder.paymentData || {
+      id: latestPaidOrder.chargeId,
+      value: latestPaidOrder.totalValue,
+      customer: latestPaidOrder.customer
+    };
+    
+    // Emitir nota fiscal
+    const invoiceResult = await emitirNotaFiscal(userId, latestPaidOrderId, latestPaidOrder, paymentData);
+    
+    if (invoiceResult.success) {
+      console.log('✅ [INVOICE] Nota fiscal emitida com sucesso:', invoiceResult.invoiceNumber);
+      
+      // Enviar NF para o cliente via WhatsApp
+      const client = activeClients.get(userId);
+      
+      if (client && phone) {
+        const invoiceMessage = `📄 *Nota Fiscal Emitida!*\n\n` +
+          `Número: ${invoiceResult.invoiceNumber || 'Processando...'}\n` +
+          `Valor: R$ ${paymentData.value.toFixed(2)}\n\n` +
+          `🔗 Acesse: ${invoiceResult.invoiceUrl || 'Em processamento...'}`;
+        
+        try {
+          await client.sendText(phone, invoiceMessage);
+          console.log('✅ [INVOICE] Nota fiscal enviada para o cliente');
+          
+          // Salvar mensagem no histórico
+          const sanitizedNumber = sanitizePhoneNumber(phone);
+          const invoiceMsgRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+          await invoiceMsgRef.set({
+            from: 'system',
+            to: phone,
+            body: invoiceMessage,
+            timestamp: new Date().toISOString(),
+            type: 'invoice',
+            isFromMe: true,
+            orderId: latestPaidOrderId
+          });
+          
+        } catch (error) {
+          console.error('❌ [INVOICE] Erro ao enviar NF para o cliente:', error);
+        }
+      }
+    } else {
+      console.error('❌ [INVOICE] Erro ao emitir nota fiscal:', invoiceResult.error);
+      
+      // Se houver erro por causa do endereço, notificar o cliente
+      const client = activeClients.get(userId);
+      if (client && phone) {
+        const errorMessage = `⚠️ Não foi possível emitir a nota fiscal.\n\n` +
+          `Motivo: ${invoiceResult.error}\n\n` +
+          `Por favor, verifique se os dados do endereço estão corretos.`;
+        
+        try {
+          await client.sendText(phone, errorMessage);
+        } catch (error) {
+          console.error('❌ Erro ao enviar mensagem de erro:', error);
+        }
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ [INVOICE] Erro ao tentar emitir nota fiscal:', error);
+  }
+}
+
 // Função para detectar e salvar dados do cliente automaticamente
 // Função para detectar qual pergunta o agente está fazendo
 async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
   try {
     const contextRef = db.ref(`collectionContext/${userId}/${sanitizedNumber}`);
     const lowerText = messageText.toLowerCase();
+    
+    // Detectar se o agente está perguntando sobre NOTA FISCAL
+    const invoiceKeywords = [
+      'nota fiscal',
+      'deseja nota fiscal',
+      'quer nota fiscal',
+      'precisa de nota fiscal',
+      'gostaria de nota fiscal',
+      'nota fiscal?'
+    ];
+    
+    if (invoiceKeywords.some(keyword => lowerText.includes(keyword))) {
+      await contextRef.set({ 
+        waitingFor: 'invoice_request',
+        askedAt: new Date().toISOString()
+      });
+      console.log('🎯 Agente perguntou sobre NOTA FISCAL - aguardando resposta do cliente');
+      return;
+    }
+    
+    // Detectar se o agente está perguntando o ENDEREÇO para nota fiscal
+    const addressKeywords = [
+      'endereço completo',
+      'seu endereço',
+      'qual o endereço',
+      'qual é o endereço',
+      'me informe seu endereço',
+      'informe seu endereço',
+      'preciso do seu endereço',
+      'endereço para a nota fiscal',
+      'endereço para emitir a nota',
+      'rua e número'
+    ];
+    
+    if (addressKeywords.some(keyword => lowerText.includes(keyword))) {
+      await contextRef.set({ 
+        waitingFor: 'address',
+        askedAt: new Date().toISOString()
+      });
+      console.log('🎯 Agente perguntou o ENDEREÇO - aguardando resposta do cliente');
+      return;
+    }
     
     // Detectar se o agente está perguntando QUANTIDADE
     const quantityKeywords = [
@@ -843,6 +1168,7 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
     const phoneNumber = phone.replace(/[^0-9]/g, '');
     const customerRef = db.ref(`customerData/${userId}/${phoneNumber}`);
     const contextRef = db.ref(`collectionContext/${userId}/${sanitizedNumber}`);
+    const lowerText = messageText.toLowerCase();
     
     // Buscar dados existentes
     const snapshot = await customerRef.once('value');
@@ -856,6 +1182,40 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
     
     if (context && context.waitingFor) {
       console.log(`📝 Processando resposta para: ${context.waitingFor}`);
+      
+      // Cliente está respondendo sobre NOTA FISCAL
+      if (context.waitingFor === 'invoice_request') {
+        const affirmativeKeywords = ['sim', 'quero', 'preciso', 'desejo', 'gostaria', 'por favor', 'pode', 'claro'];
+        const negativeKeywords = ['não', 'nao', 'dispenso', 'não preciso', 'nao preciso', 'nope', 'negativo'];
+        
+        const wantsInvoice = affirmativeKeywords.some(keyword => lowerText.includes(keyword));
+        const doesntWantInvoice = negativeKeywords.some(keyword => lowerText.includes(keyword));
+        
+        if (wantsInvoice || doesntWantInvoice) {
+          customerData.wantsInvoice = wantsInvoice;
+          dataUpdated = true;
+          console.log(`✅ Resposta sobre nota fiscal salva: ${wantsInvoice ? 'SIM' : 'NÃO'}`);
+          await contextRef.remove();
+        }
+      }
+      
+      // Cliente está respondendo com o ENDEREÇO
+      else if (context.waitingFor === 'address') {
+        const addressData = parseAddress(messageText);
+        
+        if (addressData && addressData.street) {
+          customerData.address = addressData;
+          dataUpdated = true;
+          console.log('✅ Endereço detectado e salvo:', JSON.stringify(addressData, null, 2));
+          await contextRef.remove();
+          
+          // 📄 EMITIR NOTA FISCAL AGORA QUE TEMOS O ENDEREÇO
+          if (customerData.wantsInvoice) {
+            console.log('📄 Cliente quer nota fiscal e forneceu endereço - iniciando emissão...');
+            await tryEmitInvoiceWithAddress(userId, phone, customerData);
+          }
+        }
+      }
       
       // Cliente está respondendo à pergunta de QUANTIDADE
       if (context.waitingFor === 'quantity') {
@@ -1554,6 +1914,16 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
       email: orderData.customer?.email || null,
       phone: orderData.customer?.phone || null,
       
+      // 📍 ENDEREÇO DO CLIENTE (obrigatório para emissão de NF)
+      ...(orderData.customer?.address && {
+        postalCode: orderData.customer.address.zipCode?.replace(/\D/g, ''),
+        address: orderData.customer.address.street,
+        addressNumber: orderData.customer.address.number,
+        complement: orderData.customer.address.complement || null,
+        province: orderData.customer.address.neighborhood,
+        cityName: orderData.customer.address.city
+      }),
+      
       // Deduções
       deductions: fiscalConfig.deductions || 0,
       
@@ -2067,7 +2437,8 @@ app.post('/api/asaas/webhook', async (req, res) => {
     
     console.log(`✅ Pedido ${orderId} atualizado para status: ${newStatus}`);
     
-    // Se pagamento foi confirmado, enviar mensagem no WhatsApp E EMITIR NOTA FISCAL
+    // Se pagamento foi confirmado, enviar mensagem no WhatsApp
+    // NOTA: A emissão de nota fiscal agora só acontece quando o cliente solicitar e fornecer o endereço
     if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
       const client = activeClients.get(userId);
       
@@ -2081,31 +2452,27 @@ app.post('/api/asaas/webhook', async (req, res) => {
         try {
           await client.sendText(orderData.customer.phone, successMessage);
           console.log('✅ Mensagem de confirmação enviada');
+          
+          // Salvar mensagem no histórico
+          const sanitizedNumber = sanitizePhoneNumber(orderData.customer.phone);
+          const confirmMsgRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+          await confirmMsgRef.set({
+            from: 'system',
+            to: orderData.customer.phone,
+            body: successMessage,
+            timestamp: new Date().toISOString(),
+            type: 'payment_confirmation',
+            isFromMe: true,
+            orderId: orderId
+          });
+          
+          // Marcar que o pagamento foi confirmado (para o agente saber)
+          await db.ref(`orders/${userId}/${orderId}`).update({
+            paymentConfirmedAt: new Date().toISOString()
+          });
+          
         } catch (error) {
           console.error('❌ Erro ao enviar mensagem de confirmação:', error);
-        }
-        
-        // 📄 EMITIR NOTA FISCAL AUTOMATICAMENTE
-        console.log('📄 Iniciando emissão de nota fiscal...');
-        try {
-          const invoiceResult = await emitirNotaFiscal(userId, orderId, orderData, payment);
-          
-          if (invoiceResult.success) {
-            console.log('✅ Nota fiscal emitida com sucesso:', invoiceResult.invoiceNumber);
-            
-            // Enviar NF para o cliente
-            const invoiceMessage = `📄 *Nota Fiscal Emitida!*\n\n` +
-              `Número: ${invoiceResult.invoiceNumber}\n` +
-              `Valor: R$ ${payment.value.toFixed(2)}\n\n` +
-              `🔗 Acesse: ${invoiceResult.invoiceUrl || 'Processando...'}`;
-            
-            await client.sendText(orderData.customer.phone, invoiceMessage);
-            console.log('✅ Nota fiscal enviada para o cliente');
-          } else {
-            console.error('❌ Erro ao emitir nota fiscal:', invoiceResult.error);
-          }
-        } catch (invoiceError) {
-          console.error('❌ Erro ao processar nota fiscal:', invoiceError);
         }
       }
     }
