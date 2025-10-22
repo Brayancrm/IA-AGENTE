@@ -2192,7 +2192,45 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
     
     console.log('✅ [NF] Configurações fiscais carregadas');
     
-    // 4. Preparar dados da nota fiscal
+    // 4. BUSCAR DADOS ATUALIZADOS DO CLIENTE DO FIREBASE
+    console.log('📊 [NF] Buscando dados atualizados do cliente...');
+    const customerPhone = orderData.customer?.phone || orderData.customer?.mobilePhone;
+    const sanitizedPhone = customerPhone?.replace(/[@c.us]/g, '').replace(/\D/g, '');
+    
+    let customerData = orderData.customer; // Dados padrão do pedido
+    
+    if (sanitizedPhone) {
+      const customerRef = db.ref(`customers/${userId}/${sanitizedPhone}`);
+      const customerSnapshot = await customerRef.once('value');
+      const freshCustomerData = customerSnapshot.val();
+      
+      if (freshCustomerData) {
+        console.log('✅ [NF] Dados frescos do cliente encontrados no Firebase');
+        console.log('   - Nome:', freshCustomerData.name);
+        console.log('   - Email:', freshCustomerData.email);
+        console.log('   - CPF/CNPJ:', freshCustomerData.cpfCnpj);
+        console.log('   - Endereço existe?', !!freshCustomerData.address);
+        
+        if (freshCustomerData.address) {
+          console.log('📍 [NF] Dados do endereço:');
+          console.log('   - Rua:', freshCustomerData.address.street);
+          console.log('   - Número:', freshCustomerData.address.number);
+          console.log('   - Bairro:', freshCustomerData.address.neighborhood);
+          console.log('   - Cidade:', freshCustomerData.address.city);
+          console.log('   - Estado:', freshCustomerData.address.state);
+          console.log('   - CEP:', freshCustomerData.address.zipCode);
+        } else {
+          console.log('⚠️ [NF] Endereço NÃO encontrado nos dados frescos do cliente!');
+        }
+        
+        // Usar dados frescos ao invés dos dados antigos do pedido
+        customerData = freshCustomerData;
+      } else {
+        console.log('⚠️ [NF] Dados frescos não encontrados, usando dados do pedido');
+      }
+    }
+    
+    // 5. Preparar dados da nota fiscal
     const serviceDescription = orderData.items.map(item => 
       `${item.quantity}x ${item.name}${item.description ? ` - ${item.description}` : ''}`
     ).join(', ');
@@ -2201,7 +2239,7 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
       customer: payment.customer, // ID do cliente no Asaas
       
       // ✅ CAMPO OBRIGATÓRIO: Nome do tomador (cliente)
-      name: orderData.customer?.name || orderData.customer?.nomeCompleto || 'Cliente',
+      name: customerData?.name || customerData?.nomeCompleto || 'Cliente',
       
       // ✅ CAMPO OBRIGATÓRIO: Código do serviço municipal (consulte sua prefeitura)
       // Exemplo: 01.01 = Análise e desenvolvimento de sistemas
@@ -2218,18 +2256,18 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
       value: payment.value,
       
       // Dados do tomador (cliente) - CPF/CNPJ se houver
-      cpfCnpj: orderData.customer?.cpfCnpj || orderData.customer?.cpf || null,
-      email: orderData.customer?.email || null,
-      phone: orderData.customer?.phone || null,
+      cpfCnpj: customerData?.cpfCnpj || customerData?.cpf || null,
+      email: customerData?.email || null,
+      phone: customerData?.phone || null,
       
       // 📍 ENDEREÇO DO CLIENTE (obrigatório para emissão de NF)
-      ...(orderData.customer?.address && {
-        postalCode: orderData.customer.address.zipCode?.replace(/\D/g, ''),
-        address: orderData.customer.address.street,
-        addressNumber: orderData.customer.address.number,
-        complement: orderData.customer.address.complement || null,
-        province: orderData.customer.address.neighborhood,
-        cityName: orderData.customer.address.city
+      ...(customerData?.address && {
+        postalCode: customerData.address.zipCode?.replace(/\D/g, ''),
+        address: customerData.address.street,
+        addressNumber: customerData.address.number,
+        complement: customerData.address.complement || null,
+        province: customerData.address.neighborhood,
+        cityName: customerData.address.city
       }),
       
       // Deduções
@@ -2255,11 +2293,27 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
     
     console.log('📝 [NF] Dados da nota fiscal preparados:');
     console.log('   - Nome cliente:', invoiceData.name);
+    console.log('   - CPF/CNPJ:', invoiceData.cpfCnpj);
+    console.log('   - Email:', invoiceData.email);
     console.log('   - Código serviço:', invoiceData.municipalServiceCode);
     console.log('   - Descrição municipal:', invoiceData.municipalServiceDescription);
     console.log('   - Valor:', invoiceData.value);
     
-    // 5. Detectar ambiente automaticamente pela chave
+    // Log detalhado do endereço que será enviado
+    if (invoiceData.postalCode) {
+      console.log('📍 [NF] ENDEREÇO que será enviado para Asaas:');
+      console.log('   - CEP (postalCode):', invoiceData.postalCode);
+      console.log('   - Rua (address):', invoiceData.address);
+      console.log('   - Número (addressNumber):', invoiceData.addressNumber);
+      console.log('   - Complemento (complement):', invoiceData.complement);
+      console.log('   - Bairro (province):', invoiceData.province);
+      console.log('   - Cidade (cityName):', invoiceData.cityName);
+    } else {
+      console.log('⚠️ [NF] ATENÇÃO: Nenhum endereço será enviado para Asaas!');
+      console.log('   Isso pode causar erro: "Endereço do cliente incompleto"');
+    }
+    
+    // 6. Detectar ambiente automaticamente pela chave
     // Chaves de produção começam com $aact_prod_
     // Chaves de sandbox começam com $aact_ (sem prod)
     const isProductionKey = asaasApiKey.includes('_prod_');
@@ -2283,14 +2337,20 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
     console.log('   ID:', response.data.id);
     console.log('   Número:', response.data.number);
     
-    // 6. Salvar dados da nota fiscal no Firebase
+    if (!response.data.number) {
+      console.log('⚠️ [NF] ATENÇÃO: Número da NF é NULL!');
+      console.log('   Isso geralmente indica que a NF não foi emitida completamente.');
+      console.log('   Possíveis causas: endereço incompleto, CEP inválido, etc.');
+    }
+    
+    // 7. Salvar dados da nota fiscal no Firebase
     const invoiceRef = db.ref(`invoices/${userId}/${orderId}`);
     await invoiceRef.set({
       invoiceId: response.data.id,
       invoiceNumber: response.data.number,
       orderId: orderId,
       chargeId: payment.id,
-      customer: orderData.customer,
+      customer: customerData, // Usar customerData com endereço atualizado
       value: payment.value,
       items: orderData.items,
       status: response.data.status,
