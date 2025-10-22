@@ -2254,15 +2254,25 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
     
     // 4. BUSCAR DADOS ATUALIZADOS DO CLIENTE DO FIREBASE
     console.log('📊 [NF] Buscando dados atualizados do cliente...');
+    console.log('   orderData.customer:', JSON.stringify(orderData.customer, null, 2));
+    
     const customerPhone = orderData.customer?.phone || orderData.customer?.mobilePhone;
+    console.log('   customerPhone original:', customerPhone);
+    
     const sanitizedPhone = customerPhone?.replace(/[@c.us]/g, '').replace(/\D/g, '');
+    console.log('   sanitizedPhone:', sanitizedPhone);
     
     let customerData = orderData.customer; // Dados padrão do pedido
     
     if (sanitizedPhone) {
-      const customerRef = db.ref(`customers/${userId}/${sanitizedPhone}`);
+      const customerPath = `customers/${userId}/${sanitizedPhone}`;
+      console.log('   Caminho do Firebase:', customerPath);
+      
+      const customerRef = db.ref(customerPath);
       const customerSnapshot = await customerRef.once('value');
       const freshCustomerData = customerSnapshot.val();
+      
+      console.log('   Dados encontrados no Firebase?', !!freshCustomerData);
       
       if (freshCustomerData) {
         console.log('✅ [NF] Dados frescos do cliente encontrados no Firebase');
@@ -2286,13 +2296,49 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
         // Usar dados frescos ao invés dos dados antigos do pedido
         customerData = freshCustomerData;
       } else {
-        console.log('⚠️ [NF] Dados frescos não encontrados, usando dados do pedido');
+        console.log('⚠️ [NF] Dados frescos não encontrados no caminho padrão');
+        console.log('   Tentando caminhos alternativos...');
+        
+        // Tentar sem sanitização
+        const altPhone = customerPhone?.replace(/[@c.us]/g, '');
+        if (altPhone && altPhone !== sanitizedPhone) {
+          console.log('   Tentando com:', altPhone);
+          const altRef = db.ref(`customers/${userId}/${altPhone}`);
+          const altSnapshot = await altRef.once('value');
+          const altData = altSnapshot.val();
+          
+          if (altData) {
+            console.log('✅ [NF] Dados encontrados no caminho alternativo!');
+            customerData = altData;
+          }
+        }
+        
+        if (!customerData.address) {
+          console.log('⚠️ [NF] NENHUM endereço encontrado - usando dados do pedido sem endereço');
+        }
       }
+    } else {
+      console.log('⚠️ [NF] Telefone não disponível para buscar dados');
+    }
+    
+    console.log('📊 [NF] customerData final (que será usado):');
+    console.log('   - Nome:', customerData?.name);
+    console.log('   - Email:', customerData?.email);
+    console.log('   - CPF:', customerData?.cpfCnpj);
+    console.log('   - Telefone:', customerData?.phone);
+    console.log('   - Tem endereço?', !!customerData?.address);
+    
+    if (customerData?.address) {
+      console.log('   - Endereço completo:', JSON.stringify(customerData.address, null, 2));
     }
     
     // 4.5. ATUALIZAR CADASTRO DO CLIENTE NO ASAAS COM ENDEREÇO
-    if (customerData.address) {
-      console.log('📝 [NF] Cliente tem endereço - atualizando cadastro no Asaas...');
+    if (customerData?.address && 
+        customerData.address.zipCode && 
+        customerData.address.street && 
+        customerData.address.number) {
+      
+      console.log('📝 [NF] Cliente tem endereço COMPLETO - atualizando cadastro no Asaas...');
       const updateResult = await updateAsaasCustomerAddress(asaasApiKey, payment.customer, customerData);
       
       if (updateResult.success) {
@@ -2303,7 +2349,9 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
         console.log('   Tentando emitir NF mesmo assim...');
       }
     } else {
-      console.log('⚠️ [NF] Cliente não tem endereço - pulando atualização no Asaas');
+      console.log('⚠️ [NF] Cliente NÃO tem endereço completo - pulando atualização no Asaas');
+      console.log('   ⛔ A EMISSÃO DA NF VAI FALHAR SEM ENDEREÇO!');
+      console.log('   ⛔ Endereço atual:', JSON.stringify(customerData?.address || 'NENHUM', null, 2));
     }
     
     // 5. Preparar dados da nota fiscal
