@@ -1419,12 +1419,33 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
               customerData.address.zipCode) {
             
             console.log('✅ Endereço completo! Todos os dados coletados.');
+            console.log('📊 Dados do endereço:', JSON.stringify(customerData.address, null, 2));
+            
+            // 📄 BUSCAR wantsInvoice DO FIREBASE (garantir dado atualizado)
+            const freshDataSnapshot = await customerRef.once('value');
+            const freshData = freshDataSnapshot.val();
+            const wantsInvoice = freshData?.wantsInvoice || customerData.wantsInvoice;
+            
+            console.log('📄 Cliente quer nota fiscal?', wantsInvoice);
             
             // 📄 EMITIR NOTA FISCAL AGORA QUE TEMOS O ENDEREÇO COMPLETO
-            if (customerData.wantsInvoice) {
+            if (wantsInvoice) {
               console.log('📄 Cliente quer nota fiscal e forneceu endereço completo - iniciando emissão...');
-              await tryEmitInvoiceWithAddress(userId, phone, customerData);
+              
+              // Usar dados atualizados do Firebase
+              const dataToEmit = { ...freshData, address: customerData.address };
+              await tryEmitInvoiceWithAddress(userId, phone, dataToEmit);
+            } else {
+              console.log('⚠️ Cliente não solicitou nota fiscal ou wantsInvoice não está setado');
             }
+          } else {
+            console.log('⚠️ Endereço INCOMPLETO. Faltam dados:');
+            console.log('   Rua:', customerData.address.street || '❌');
+            console.log('   Número:', customerData.address.number || '❌');
+            console.log('   Bairro:', customerData.address.neighborhood || '❌');
+            console.log('   Cidade:', customerData.address.city || '❌');
+            console.log('   Estado:', customerData.address.state || '❌');
+            console.log('   CEP:', customerData.address.zipCode || '❌');
           }
         }
       }
@@ -1511,7 +1532,8 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
       customerData.phone = phone;
       customerData.updatedAt = new Date().toISOString();
       
-      await customerRef.set(customerData);
+      // Usar update() ao invés de set() para não sobrescrever dados existentes
+      await customerRef.update(customerData);
       console.log('💾 Dados do cliente atualizados no Firebase');
       
       // Log de resumo dos dados coletados
