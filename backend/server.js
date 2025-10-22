@@ -1016,8 +1016,13 @@ async function tryEmitInvoiceWithAddress(userId, phone, customerData) {
 // Função para detectar qual pergunta o agente está fazendo
 async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
   try {
+    console.log('🔎 [detectAgentQuestion] INICIANDO DETECÇÃO');
+    console.log('   Mensagem do agente:', messageText);
+    
     const contextRef = db.ref(`collectionContext/${userId}/${sanitizedNumber}`);
     const lowerText = messageText.toLowerCase();
+    
+    console.log('   Texto em minúsculas:', lowerText);
     
     // Detectar se o agente está perguntando sobre NOTA FISCAL
     const invoiceKeywords = [
@@ -1063,13 +1068,20 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
       'começ'
     ];
     
-    if (streetKeywords.some(keyword => lowerText.includes(keyword))) {
+    console.log('🔍 Verificando keywords de RUA...');
+    const streetMatch = streetKeywords.find(keyword => lowerText.includes(keyword));
+    
+    if (streetMatch) {
+      console.log('✅ MATCH ENCONTRADO! Keyword:', streetMatch);
       await contextRef.set({ 
         waitingFor: 'address_street',
         askedAt: new Date().toISOString()
       });
       console.log('🎯 Agente perguntou a RUA - aguardando resposta do cliente');
+      console.log('   Contexto setado: waitingFor = address_street');
       return;
+    } else {
+      console.log('❌ Nenhuma keyword de RUA detectada');
     }
     
     // Detectar se o agente está perguntando o NÚMERO
@@ -1337,13 +1349,29 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
       console.log('   Isso significa que a pergunta do agente não foi detectada!');
     }
     
-    // Detectar se mensagem parece ser ENDEREÇO/RUA sem contexto
+    // Detectar se mensagem parece ser ENDEREÇO/RUA sem contexto CORRETO
     const streetRegex = /^(rua|avenida|travessa|av\.|r\.|alameda)/i;
-    if (streetRegex.test(messageText.trim()) && (!context || !context.waitingFor)) {
-      console.log('⚠️ ALERTA: Cliente enviou ENDEREÇO/RUA mas sem contexto definido!');
+    const contextIsWrong = (!context || !context.waitingFor || 
+                            (context.waitingFor !== 'address_street' && streetRegex.test(messageText.trim())));
+    
+    if (streetRegex.test(messageText.trim()) && contextIsWrong) {
+      console.log('⚠️ ALERTA: Cliente enviou ENDEREÇO/RUA mas contexto está errado!');
       console.log('   Mensagem:', messageText.trim());
-      console.log('   Contexto atual:', context);
-      console.log('   Isso significa que a pergunta do agente sobre RUA não foi detectada!');
+      console.log('   Contexto atual:', context?.waitingFor || 'null');
+      console.log('   FORÇANDO salvamento da RUA...');
+      
+      // FORÇAR salvamento da rua
+      if (!customerData.address) customerData.address = {};
+      customerData.address.street = messageText.trim();
+      dataUpdated = true;
+      
+      console.log('✅ Rua FORÇADA e salva:', customerData.address.street);
+      
+      // Limpar contexto errado
+      if (context) {
+        await contextRef.remove();
+        console.log('🧹 Contexto anterior removido');
+      }
     }
     
     if (context && context.waitingFor) {
