@@ -616,22 +616,47 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
 - Isso é ESSENCIAL para o sistema processar o pedido corretamente
 - SEMPRE repita o nome exato do produto na mensagem
 
-📄 **FLUXO DE NOTA FISCAL (MUITO IMPORTANTE):**
-1. APÓS confirmar o pagamento, SEMPRE pergunte: "Você deseja nota fiscal?"
-2. Se o cliente responder SIM:
-   - Informe: "Para emitir a nota fiscal, preciso do seu endereço completo."
-   - Peça: "Por favor, me informe: Rua, Número, Complemento (se houver), Bairro, Cidade, Estado e CEP"
-   - Exemplo: "Rua das Flores, 123, apto 45, Centro, São Paulo, SP, 01234-567"
-3. Quando o cliente fornecer o endereço:
-   - Agradeça e confirme: "Obrigado! Estou processando sua nota fiscal com o endereço fornecido."
-   - O sistema automaticamente emitirá a nota fiscal e enviará para o cliente
-4. Se o cliente responder NÃO quer nota fiscal:
-   - Responda: "Tudo bem! Qualquer dúvida, estou à disposição."
+📄 **FLUXO DE NOTA FISCAL - PASSO A PASSO (MUITO IMPORTANTE):**
+
+1. **APÓS O SISTEMA PERGUNTAR SOBRE NOTA FISCAL**, se o cliente responder SIM:
+   - Informe: "Perfeito! Para emitir a nota fiscal, vou precisar coletar seu endereço completo."
    
-⚠️ IMPORTANTE: 
-- NÃO tente emitir nota fiscal sem o endereço completo
-- O endereço é OBRIGATÓRIO para emissão da nota fiscal
-- Seja educado e paciente ao coletar o endereço`;
+2. **COLETE CADA DADO SEPARADAMENTE** (um por vez):
+   
+   a) Primeiro, pergunte: "Qual é a rua do seu endereço?"
+      - Aguarde resposta → sistema salva automaticamente
+   
+   b) Depois pergunte: "Qual é o número?"
+      - Aguarde resposta → sistema salva automaticamente
+   
+   c) Depois pergunte: "Qual é o complemento? (ex: apartamento, casa, bloco - se não tiver, digite 'sem')"
+      - Aguarde resposta → sistema salva automaticamente
+   
+   d) Depois pergunte: "Qual é o bairro?"
+      - Aguarde resposta → sistema salva automaticamente
+   
+   e) Depois pergunte: "Qual é a cidade?"
+      - Aguarde resposta → sistema salva automaticamente
+   
+   f) Depois pergunte: "Qual é o estado? (ex: SP, RJ, MG)"
+      - Aguarde resposta → sistema salva automaticamente
+   
+   g) Por último pergunte: "Qual é o CEP?"
+      - Aguarde resposta → sistema salva automaticamente
+   
+3. **QUANDO O CLIENTE FORNECER O CEP** (último dado):
+   - Agradeça: "Obrigado! Estou processando sua nota fiscal com os dados fornecidos."
+   - O sistema automaticamente emitirá a nota fiscal e enviará para o cliente
+   
+4. **SE O CLIENTE RESPONDER NÃO** quer nota fiscal:
+   - Responda: "Tudo bem! Qualquer dúvida, estou à disposição."
+
+⚠️ REGRAS IMPORTANTES:
+- Pergunte APENAS UM dado por vez
+- AGUARDE a resposta antes de perguntar o próximo
+- NÃO peça todos os dados de uma vez
+- Seja EDUCADO e PACIENTE
+- O sistema salva automaticamente cada resposta`;
     }
     
     if (aiConfig.enabledFeatures && aiConfig.enabledFeatures.length > 0) {
@@ -1003,26 +1028,140 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
       return;
     }
     
-    // Detectar se o agente está perguntando o ENDEREÇO para nota fiscal
-    const addressKeywords = [
-      'endereço completo',
-      'seu endereço',
-      'qual o endereço',
-      'qual é o endereço',
-      'me informe seu endereço',
-      'informe seu endereço',
-      'preciso do seu endereço',
-      'endereço para a nota fiscal',
-      'endereço para emitir a nota',
-      'rua e número'
+    // Detectar se o agente está perguntando a RUA
+    const streetKeywords = [
+      'qual é a rua',
+      'qual a rua',
+      'me informe a rua',
+      'informe a rua',
+      'nome da rua',
+      'rua do seu endereço',
+      'qual rua'
     ];
     
-    if (addressKeywords.some(keyword => lowerText.includes(keyword))) {
+    if (streetKeywords.some(keyword => lowerText.includes(keyword))) {
       await contextRef.set({ 
-        waitingFor: 'address',
+        waitingFor: 'address_street',
         askedAt: new Date().toISOString()
       });
-      console.log('🎯 Agente perguntou o ENDEREÇO - aguardando resposta do cliente');
+      console.log('🎯 Agente perguntou a RUA - aguardando resposta do cliente');
+      return;
+    }
+    
+    // Detectar se o agente está perguntando o NÚMERO
+    const numberKeywords = [
+      'qual é o número',
+      'qual o número',
+      'número da casa',
+      'número do endereço',
+      'me informe o número',
+      'informe o número',
+      'qual número'
+    ];
+    
+    if (numberKeywords.some(keyword => lowerText.includes(keyword))) {
+      await contextRef.set({ 
+        waitingFor: 'address_number',
+        askedAt: new Date().toISOString()
+      });
+      console.log('🎯 Agente perguntou o NÚMERO - aguardando resposta do cliente');
+      return;
+    }
+    
+    // Detectar se o agente está perguntando o COMPLEMENTO
+    const complementKeywords = [
+      'qual é o complemento',
+      'qual o complemento',
+      'complemento do endereço',
+      'apartamento',
+      'apto',
+      'bloco',
+      'casa'
+    ];
+    
+    if (complementKeywords.some(keyword => lowerText.includes(keyword))) {
+      await contextRef.set({ 
+        waitingFor: 'address_complement',
+        askedAt: new Date().toISOString()
+      });
+      console.log('🎯 Agente perguntou o COMPLEMENTO - aguardando resposta do cliente');
+      return;
+    }
+    
+    // Detectar se o agente está perguntando o BAIRRO
+    const neighborhoodKeywords = [
+      'qual é o bairro',
+      'qual o bairro',
+      'me informe o bairro',
+      'informe o bairro',
+      'nome do bairro',
+      'qual bairro'
+    ];
+    
+    if (neighborhoodKeywords.some(keyword => lowerText.includes(keyword))) {
+      await contextRef.set({ 
+        waitingFor: 'address_neighborhood',
+        askedAt: new Date().toISOString()
+      });
+      console.log('🎯 Agente perguntou o BAIRRO - aguardando resposta do cliente');
+      return;
+    }
+    
+    // Detectar se o agente está perguntando a CIDADE
+    const cityKeywords = [
+      'qual é a cidade',
+      'qual a cidade',
+      'me informe a cidade',
+      'informe a cidade',
+      'nome da cidade',
+      'qual cidade'
+    ];
+    
+    if (cityKeywords.some(keyword => lowerText.includes(keyword))) {
+      await contextRef.set({ 
+        waitingFor: 'address_city',
+        askedAt: new Date().toISOString()
+      });
+      console.log('🎯 Agente perguntou a CIDADE - aguardando resposta do cliente');
+      return;
+    }
+    
+    // Detectar se o agente está perguntando o ESTADO
+    const stateKeywords = [
+      'qual é o estado',
+      'qual o estado',
+      'me informe o estado',
+      'informe o estado',
+      'sigla do estado',
+      'qual estado',
+      'uf'
+    ];
+    
+    if (stateKeywords.some(keyword => lowerText.includes(keyword))) {
+      await contextRef.set({ 
+        waitingFor: 'address_state',
+        askedAt: new Date().toISOString()
+      });
+      console.log('🎯 Agente perguntou o ESTADO - aguardando resposta do cliente');
+      return;
+    }
+    
+    // Detectar se o agente está perguntando o CEP
+    const zipCodeKeywords = [
+      'qual é o cep',
+      'qual o cep',
+      'me informe o cep',
+      'informe o cep',
+      'número do cep',
+      'qual cep'
+    ];
+    
+    if (zipCodeKeywords.some(keyword => lowerText.includes(keyword))) {
+      await contextRef.set({ 
+        waitingFor: 'address_zipcode',
+        askedAt: new Date().toISOString()
+      });
+      console.log('🎯 Agente perguntou o CEP - aguardando resposta do cliente');
       return;
     }
     
@@ -1164,20 +1303,97 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
         }
       }
       
-      // Cliente está respondendo com o ENDEREÇO
-      else if (context.waitingFor === 'address') {
-        const addressData = parseAddress(messageText);
-        
-        if (addressData && addressData.street) {
-          customerData.address = addressData;
+      // Cliente está respondendo com a RUA
+      else if (context.waitingFor === 'address_street') {
+        if (!customerData.address) customerData.address = {};
+        customerData.address.street = messageText.trim();
+        dataUpdated = true;
+        console.log('✅ Rua salva:', customerData.address.street);
+        await contextRef.remove();
+      }
+      
+      // Cliente está respondendo com o NÚMERO
+      else if (context.waitingFor === 'address_number') {
+        if (!customerData.address) customerData.address = {};
+        const numberMatch = messageText.match(/\d+/);
+        if (numberMatch) {
+          customerData.address.number = numberMatch[0];
           dataUpdated = true;
-          console.log('✅ Endereço detectado e salvo:', JSON.stringify(addressData, null, 2));
+          console.log('✅ Número salvo:', customerData.address.number);
+          await contextRef.remove();
+        }
+      }
+      
+      // Cliente está respondendo com o COMPLEMENTO
+      else if (context.waitingFor === 'address_complement') {
+        if (!customerData.address) customerData.address = {};
+        const lowerMsg = messageText.toLowerCase().trim();
+        if (lowerMsg !== 'sem' && lowerMsg !== 'nao' && lowerMsg !== 'não' && lowerMsg !== 'nenhum') {
+          customerData.address.complement = messageText.trim();
+          console.log('✅ Complemento salvo:', customerData.address.complement);
+        } else {
+          customerData.address.complement = null;
+          console.log('✅ Complemento: sem complemento');
+        }
+        dataUpdated = true;
+        await contextRef.remove();
+      }
+      
+      // Cliente está respondendo com o BAIRRO
+      else if (context.waitingFor === 'address_neighborhood') {
+        if (!customerData.address) customerData.address = {};
+        customerData.address.neighborhood = messageText.trim();
+        dataUpdated = true;
+        console.log('✅ Bairro salvo:', customerData.address.neighborhood);
+        await contextRef.remove();
+      }
+      
+      // Cliente está respondendo com a CIDADE
+      else if (context.waitingFor === 'address_city') {
+        if (!customerData.address) customerData.address = {};
+        customerData.address.city = messageText.trim();
+        dataUpdated = true;
+        console.log('✅ Cidade salva:', customerData.address.city);
+        await contextRef.remove();
+      }
+      
+      // Cliente está respondendo com o ESTADO
+      else if (context.waitingFor === 'address_state') {
+        if (!customerData.address) customerData.address = {};
+        const stateMatch = messageText.match(/\b([A-Z]{2})\b/i);
+        if (stateMatch) {
+          customerData.address.state = stateMatch[1].toUpperCase();
+          dataUpdated = true;
+          console.log('✅ Estado salvo:', customerData.address.state);
+          await contextRef.remove();
+        }
+      }
+      
+      // Cliente está respondendo com o CEP
+      else if (context.waitingFor === 'address_zipcode') {
+        if (!customerData.address) customerData.address = {};
+        const cepMatch = messageText.match(/(\d{5}[-]?\d{3})/);
+        if (cepMatch) {
+          customerData.address.zipCode = cepMatch[1].replace('-', '');
+          dataUpdated = true;
+          console.log('✅ CEP salvo:', customerData.address.zipCode);
           await contextRef.remove();
           
-          // 📄 EMITIR NOTA FISCAL AGORA QUE TEMOS O ENDEREÇO
-          if (customerData.wantsInvoice) {
-            console.log('📄 Cliente quer nota fiscal e forneceu endereço - iniciando emissão...');
-            await tryEmitInvoiceWithAddress(userId, phone, customerData);
+          // 📄 VERIFICAR SE TEMOS TODOS OS DADOS DO ENDEREÇO
+          if (customerData.address.street && 
+              customerData.address.number && 
+              customerData.address.neighborhood && 
+              customerData.address.city && 
+              customerData.address.state && 
+              customerData.address.zipCode) {
+            
+            console.log('✅ Endereço completo! Todos os dados coletados.');
+            
+            // 📄 EMITIR NOTA FISCAL AGORA QUE TEMOS O ENDEREÇO COMPLETO
+            if (customerData.wantsInvoice) {
+              console.log('📄 Cliente quer nota fiscal e forneceu endereço completo - iniciando emissão...');
+              await tryEmitInvoiceWithAddress(userId, phone, customerData);
+            }
           }
         }
       }
