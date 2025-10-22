@@ -1837,9 +1837,105 @@ app.post('/api/asaas/webhook', async (req, res) => {
   try {
     console.log('📬 Webhook Asaas recebido:', req.body);
     
-    const { event, payment } = req.body;
+    const { event, payment, invoice } = req.body;
     
-    // Ignorar eventos que não são de pagamento
+    // ============================================
+    // EVENTOS DE NOTA FISCAL
+    // ============================================
+    const invoiceEvents = [
+      'INVOICE_CREATED',
+      'INVOICE_UPDATED',
+      'INVOICE_SYNCHRONIZED',
+      'INVOICE_AUTHORIZED',
+      'INVOICE_CANCELED',
+      'INVOICE_ERROR',
+      'INVOICE_PROCESSING_CANCELLATION',
+      'INVOICE_CANCELLATION_DENIED'
+    ];
+    
+    if (invoiceEvents.includes(event)) {
+      console.log(`📄 Evento de NOTA FISCAL recebido: ${event}`);
+      
+      if (!invoice) {
+        console.log('⚠️ Webhook de NF sem dados da nota fiscal');
+        return res.json({ received: true, ignored: true, reason: 'Sem dados de nota fiscal' });
+      }
+      
+      // Quando a nota fiscal for AUTORIZADA, enviar para o cliente
+      if (event === 'INVOICE_AUTHORIZED' || event === 'INVOICE_SYNCHRONIZED') {
+        console.log('✅ Nota fiscal AUTORIZADA! Enviando para o cliente...');
+        
+        // Buscar pedido pelo chargeId da nota fiscal
+        const ordersSnapshot = await db.ref('orders').once('value');
+        let userId, orderId, orderData;
+        
+        if (ordersSnapshot.exists()) {
+          ordersSnapshot.forEach((userOrders) => {
+            userOrders.forEach((order) => {
+              const orderVal = order.val();
+              // Buscar pelo chargeId ou pelo payment.id
+              if (orderVal.chargeId === invoice.payment || 
+                  orderVal.chargeId === invoice.externalReference) {
+                userId = userOrders.key;
+                orderId = order.key;
+                orderData = orderVal;
+              }
+            });
+          });
+        }
+        
+        if (!userId || !orderId) {
+          console.log('⚠️ Pedido não encontrado para NF:', invoice.id);
+          return res.json({ received: true, note: 'Pedido não encontrado' });
+        }
+        
+        // Atualizar pedido com informações da NF
+        await db.ref(`orders/${userId}/${orderId}`).update({
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.number,
+          invoiceUrl: invoice.pdfUrl || invoice.xmlUrl,
+          invoiceStatus: 'authorized',
+          invoiceData: invoice,
+          updatedAt: new Date().toISOString()
+        });
+        
+        console.log(`✅ NF ${invoice.number} vinculada ao pedido ${orderId}`);
+        
+        // Enviar NF para o cliente via WhatsApp
+        const client = activeClients.get(userId);
+        
+        if (client && orderData.customer.phone) {
+          const invoiceMessage = `📄 *Nota Fiscal Emitida!*\n\n` +
+            `Número: ${invoice.number || 'Processando...'}\n` +
+            `Pedido: #${orderId.substring(0, 8)}\n` +
+            `Valor: R$ ${invoice.value ? invoice.value.toFixed(2) : orderData.total.toFixed(2)}\n\n` +
+            (invoice.pdfUrl ? `🔗 *Download PDF:*\n${invoice.pdfUrl}\n\n` : '') +
+            (invoice.xmlUrl ? `📋 *Download XML:*\n${invoice.xmlUrl}\n\n` : '') +
+            `✅ Sua nota fiscal está pronta!\n` +
+            `Obrigado pela preferência! 🎉`;
+          
+          try {
+            await client.sendText(orderData.customer.phone, invoiceMessage);
+            console.log('✅ Nota fiscal enviada para o cliente:', orderData.customer.phone);
+          } catch (error) {
+            console.error('❌ Erro ao enviar NF para o cliente:', error);
+          }
+        } else {
+          console.log('⚠️ Cliente não conectado ou sem telefone cadastrado');
+        }
+      }
+      
+      // Se houver erro na NF, notificar
+      if (event === 'INVOICE_ERROR') {
+        console.error('❌ Erro na nota fiscal:', invoice);
+      }
+      
+      return res.json({ received: true, processed: true, event });
+    }
+    
+    // ============================================
+    // EVENTOS DE PAGAMENTO (código original)
+    // ============================================
     const paymentEvents = [
       'PAYMENT_RECEIVED',
       'PAYMENT_CONFIRMED', 
@@ -1850,8 +1946,8 @@ app.post('/api/asaas/webhook', async (req, res) => {
     ];
     
     if (!paymentEvents.includes(event)) {
-      console.log(`⚠️ Evento ignorado (não é de pagamento): ${event}`);
-      return res.json({ received: true, ignored: true, reason: 'Evento não é relacionado a pagamento' });
+      console.log(`⚠️ Evento ignorado (não é de pagamento nem NF): ${event}`);
+      return res.json({ received: true, ignored: true, reason: 'Evento não reconhecido' });
     }
     
     if (!payment) {
