@@ -1329,6 +1329,16 @@ async function createAsaasCharge(asaasApiKey, customerData, items, userId) {
   try {
     console.log('💳 Gerando cobrança no Asaas...');
     
+    // Detectar ambiente automaticamente pela chave
+    const isProductionKey = asaasApiKey.includes('_prod_');
+    const asaasEnv = process.env.ASAAS_ENV || (isProductionKey ? 'production' : 'sandbox');
+    const baseUrl = asaasEnv === 'production' 
+      ? 'https://www.asaas.com/api/v3'
+      : 'https://sandbox.asaas.com/api/v3';
+    
+    console.log('🌐 [PAGAMENTO] Ambiente detectado:', asaasEnv, '(chave tipo:', isProductionKey ? 'PRODUÇÃO' : 'SANDBOX', ')');
+    console.log('🌐 [PAGAMENTO] Base URL:', baseUrl);
+    
     // Calcular valor total
     const totalValue = items.reduce((sum, item) => {
       return sum + (parseFloat(item.price) * (item.quantity || 1));
@@ -1363,7 +1373,7 @@ async function createAsaasCharge(asaasApiKey, customerData, items, userId) {
       
       console.log('📝 Criando cliente no Asaas (sem CPF/CNPJ)...');
       
-      const customerResponse = await axios.post('https://www.asaas.com/api/v3/customers', customerPayload, {
+      const customerResponse = await axios.post(`${baseUrl}/customers`, customerPayload, {
         headers: {
           'access_token': asaasApiKey,
           'Content-Type': 'application/json'
@@ -1375,7 +1385,7 @@ async function createAsaasCharge(asaasApiKey, customerData, items, userId) {
     } catch (error) {
       // Se cliente já existe, buscar pelo externalReference
       if (error.response?.status === 400) {
-        const searchResponse = await axios.get('https://www.asaas.com/api/v3/customers', {
+        const searchResponse = await axios.get(`${baseUrl}/customers`, {
           params: {
             externalReference: `whatsapp_${userId}_${customerData.phone}`
           },
@@ -1411,7 +1421,7 @@ async function createAsaasCharge(asaasApiKey, customerData, items, userId) {
       postalService: false
     };
     
-    const chargeResponse = await axios.post('https://www.asaas.com/api/v3/payments', chargePayload, {
+    const chargeResponse = await axios.post(`${baseUrl}/payments`, chargePayload, {
       headers: {
         'access_token': asaasApiKey,
         'Content-Type': 'application/json'
@@ -1545,11 +1555,17 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
     
     console.log('📝 [NF] Dados da nota fiscal preparados');
     
-    // 5. Criar nota fiscal via API do Asaas
-    const asaasUrl = process.env.ASAAS_ENV === 'production' 
+    // 5. Detectar ambiente automaticamente pela chave
+    // Chaves de produção começam com $aact_prod_
+    // Chaves de sandbox começam com $aact_ (sem prod)
+    const isProductionKey = asaasApiKey.includes('_prod_');
+    const asaasEnv = process.env.ASAAS_ENV || (isProductionKey ? 'production' : 'sandbox');
+    
+    const asaasUrl = asaasEnv === 'production' 
       ? 'https://api.asaas.com/v3/invoices'
       : 'https://sandbox.asaas.com/api/v3/invoices';
     
+    console.log('🌐 [NF] Ambiente detectado:', asaasEnv, '(chave tipo:', isProductionKey ? 'PRODUÇÃO' : 'SANDBOX', ')');
     console.log('🌐 [NF] Enviando para Asaas:', asaasUrl);
     
     const response = await axios.post(asaasUrl, invoiceData, {
