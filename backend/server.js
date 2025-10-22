@@ -2122,6 +2122,66 @@ async function createAsaasCharge(asaasApiKey, customerData, items, userId) {
 // ============================================
 
 // Função para emitir Nota Fiscal no Asaas
+// Função para atualizar cadastro do cliente no Asaas com endereço
+async function updateAsaasCustomerAddress(asaasApiKey, customerId, customerData) {
+  try {
+    console.log('📝 [ASAAS] Atualizando cadastro do cliente no Asaas...');
+    console.log('   Customer ID:', customerId);
+    
+    if (!customerData.address) {
+      console.log('⚠️ [ASAAS] Cliente não tem endereço para atualizar');
+      return { success: false, error: 'Sem endereço' };
+    }
+    
+    // Detectar ambiente
+    const isProductionKey = asaasApiKey.includes('_prod_');
+    const asaasEnv = isProductionKey ? 'production' : 'sandbox';
+    const asaasUrl = asaasEnv === 'production' 
+      ? `https://api.asaas.com/v3/customers/${customerId}`
+      : `https://sandbox.asaas.com/api/v3/customers/${customerId}`;
+    
+    const updateData = {
+      name: customerData.name,
+      cpfCnpj: customerData.cpfCnpj,
+      email: customerData.email,
+      phone: customerData.phone?.replace(/[@c.us]/g, '').replace(/\D/g, ''),
+      mobilePhone: customerData.phone?.replace(/[@c.us]/g, '').replace(/\D/g, ''),
+      postalCode: customerData.address.zipCode?.replace(/\D/g, ''),
+      address: customerData.address.street,
+      addressNumber: customerData.address.number,
+      complement: customerData.address.complement || '',
+      province: customerData.address.neighborhood,
+      // O Asaas não aceita cityName, precisa do ID da cidade
+      // Por ora vamos enviar os dados principais
+    };
+    
+    console.log('📍 [ASAAS] Dados do endereço que será enviado:');
+    console.log('   - CEP:', updateData.postalCode);
+    console.log('   - Rua:', updateData.address);
+    console.log('   - Número:', updateData.addressNumber);
+    console.log('   - Complemento:', updateData.complement);
+    console.log('   - Bairro:', updateData.province);
+    
+    const response = await axios.put(asaasUrl, updateData, {
+      headers: {
+        'access_token': asaasApiKey,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('✅ [ASAAS] Cliente atualizado com sucesso no Asaas!');
+    console.log('   ID:', response.data.id);
+    console.log('   Nome:', response.data.name);
+    console.log('   CEP:', response.data.postalCode);
+    
+    return { success: true, data: response.data };
+    
+  } catch (error) {
+    console.error('❌ [ASAAS] Erro ao atualizar cliente:', error.response?.data || error.message);
+    return { success: false, error: error.response?.data || error.message };
+  }
+}
+
 async function emitirNotaFiscal(userId, orderId, orderData, payment) {
   try {
     console.log('📄 [NF] Iniciando emissão de nota fiscal...');
@@ -2228,6 +2288,22 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
       } else {
         console.log('⚠️ [NF] Dados frescos não encontrados, usando dados do pedido');
       }
+    }
+    
+    // 4.5. ATUALIZAR CADASTRO DO CLIENTE NO ASAAS COM ENDEREÇO
+    if (customerData.address) {
+      console.log('📝 [NF] Cliente tem endereço - atualizando cadastro no Asaas...');
+      const updateResult = await updateAsaasCustomerAddress(asaasApiKey, payment.customer, customerData);
+      
+      if (updateResult.success) {
+        console.log('✅ [NF] Cadastro do cliente atualizado no Asaas com sucesso!');
+      } else {
+        console.log('⚠️ [NF] Não foi possível atualizar cadastro do cliente no Asaas');
+        console.log('   Erro:', updateResult.error);
+        console.log('   Tentando emitir NF mesmo assim...');
+      }
+    } else {
+      console.log('⚠️ [NF] Cliente não tem endereço - pulando atualização no Asaas');
     }
     
     // 5. Preparar dados da nota fiscal
