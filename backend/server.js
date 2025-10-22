@@ -1469,19 +1469,52 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
     
     console.log('✅ [NF] API Key encontrada');
     
-    // 2. Buscar configurações fiscais do usuário
-    const fiscalConfigRef = db.ref(`users/data/${userId}/fiscal_config`);
-    const fiscalConfigSnapshot = await fiscalConfigRef.once('value');
-    const fiscalConfig = fiscalConfigSnapshot.val();
+    // 2. Verificar se emissão de NF está habilitada
+    // Verificar primeiro em integrations (fiscalEnabled)
+    let nfEnabled = false;
     
-    if (!fiscalConfig || !fiscalConfig.enabled) {
+    if (integrations && integrations.fiscalEnabled === true) {
+      nfEnabled = true;
+      console.log('✅ [NF] Emissão habilitada via integrations.fiscalEnabled');
+    } else {
+      // Se não encontrar em integrations, tentar fiscal_config (formato antigo)
+      const fiscalConfigRef = db.ref(`users/data/${userId}/fiscal_config`);
+      const fiscalConfigSnapshot = await fiscalConfigRef.once('value');
+      const fiscalConfig = fiscalConfigSnapshot.val();
+      
+      if (fiscalConfig && fiscalConfig.enabled === true) {
+        nfEnabled = true;
+        console.log('✅ [NF] Emissão habilitada via fiscal_config.enabled');
+      }
+    }
+    
+    if (!nfEnabled) {
       console.log('⚠️ [NF] Emissão de nota fiscal não está habilitada');
+      console.log('   Dica: Habilite em Integrações > Nota Fiscal > fiscalEnabled: true');
       return { success: false, error: 'Emissão de NF não habilitada' };
     }
     
-    console.log('✅ [NF] Configurações fiscais encontradas');
+    console.log('✅ [NF] Emissão de nota fiscal está HABILITADA!');
     
-    // 3. Preparar dados da nota fiscal
+    // 3. Buscar configurações fiscais completas (taxas, etc)
+    const fiscalConfigRef = db.ref(`users/data/${userId}/fiscal_config`);
+    const fiscalConfigSnapshot = await fiscalConfigRef.once('value');
+    const fiscalConfig = fiscalConfigSnapshot.val() || {
+      // Valores padrão se não houver configuração
+      retainIss: false,
+      issRate: 0,
+      cofinsRate: 0,
+      csllRate: 0,
+      inssRate: 0,
+      irRate: 0,
+      pisRate: 0,
+      deductions: 0,
+      observations: 'Nota fiscal emitida automaticamente'
+    };
+    
+    console.log('✅ [NF] Configurações fiscais carregadas');
+    
+    // 4. Preparar dados da nota fiscal
     const serviceDescription = orderData.items.map(item => 
       `${item.quantity}x ${item.name}${item.description ? ` - ${item.description}` : ''}`
     ).join(', ');
@@ -1512,7 +1545,7 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
     
     console.log('📝 [NF] Dados da nota fiscal preparados');
     
-    // 4. Criar nota fiscal via API do Asaas
+    // 5. Criar nota fiscal via API do Asaas
     const asaasUrl = process.env.ASAAS_ENV === 'production' 
       ? 'https://api.asaas.com/v3/invoices'
       : 'https://sandbox.asaas.com/api/v3/invoices';
@@ -1530,7 +1563,7 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
     console.log('   ID:', response.data.id);
     console.log('   Número:', response.data.number);
     
-    // 5. Salvar dados da nota fiscal no Firebase
+    // 6. Salvar dados da nota fiscal no Firebase
     const invoiceRef = db.ref(`invoices/${userId}/${orderId}`);
     await invoiceRef.set({
       invoiceId: response.data.id,
@@ -1551,7 +1584,7 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
     
     console.log('✅ [NF] Nota fiscal salva no Firebase');
     
-    // 6. Atualizar pedido com ID da nota fiscal
+    // 7. Atualizar pedido com ID da nota fiscal
     await db.ref(`orders/${userId}/${orderId}`).update({
       invoiceId: response.data.id,
       invoiceNumber: response.data.number,
