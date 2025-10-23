@@ -822,7 +822,8 @@ const DashboardWithFirebase = ({
     welcomeMessage: '',
     enabledFeatures: [],
     includeCatalogProducts: false,
-    includeCatalogServices: false
+    includeCatalogServices: false,
+    flowMode: 'text' // 'text' ou 'visual'
   });
   const [userForm, setUserForm] = useState({
     name: '',
@@ -2198,23 +2199,83 @@ const DashboardWithFirebase = ({
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
-                    Prompt do Sistema
-                  </label>
-                  <textarea
-                    value={assistantForm.systemPrompt || ''}
-                    onChange={(e) => setAssistantForm(prev => ({ ...prev, systemPrompt: e.target.value }))}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <label style={{ fontWeight: 'bold', color: '#374151' }}>
+                      Fluxo de Atendimento
+                    </label>
+                    <div style={{ display: 'flex', gap: '8px', background: '#f3f4f6', padding: '4px', borderRadius: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setAssistantForm(prev => ({ ...prev, flowMode: 'text' }))}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: assistantForm.flowMode === 'text' ? '#3b82f6' : 'transparent',
+                          color: assistantForm.flowMode === 'text' ? 'white' : '#6b7280',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          fontWeight: '500',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        📝 Modo Texto
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAssistantForm(prev => ({ ...prev, flowMode: 'visual' }))}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: assistantForm.flowMode === 'visual' ? '#3b82f6' : 'transparent',
+                          color: assistantForm.flowMode === 'visual' ? 'white' : '#6b7280',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          fontWeight: '500',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        🎯 Modo Visual
+                      </button>
+                    </div>
+                  </div>
+
+                  {assistantForm.flowMode === 'visual' ? (
+                    <div style={{
+                      padding: '16px',
+                      background: '#f9fafb',
+                      border: '2px dashed #d1d5db',
                       borderRadius: '8px',
-                      border: '1px solid #d1d5db',
-                      fontSize: '1rem',
-                      minHeight: '120px',
-                      resize: 'vertical'
-                    }}
-                    placeholder="Você é um assistente virtual prestativo que ajuda clientes da empresa X..."
-                  />
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🎯</div>
+                      <div style={{ fontWeight: '600', marginBottom: '4px', color: '#374151' }}>
+                        Modo Visual - Flow Builder
+                      </div>
+                      <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '12px' }}>
+                        Interface visual para criar o fluxo em passos será adicionada aqui
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+                        Em desenvolvimento - Use o modo texto por enquanto
+                      </div>
+                    </div>
+                  ) : (
+                    <textarea
+                      value={assistantForm.systemPrompt || ''}
+                      onChange={(e) => setAssistantForm(prev => ({ ...prev, systemPrompt: e.target.value }))}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        border: '1px solid #d1d5db',
+                        fontSize: '1rem',
+                        minHeight: '120px',
+                        resize: 'vertical'
+                      }}
+                      placeholder="Você é um assistente virtual prestativo que ajuda clientes da empresa X..."
+                    />
+                  )}
                 </div>
 
                 <div>
