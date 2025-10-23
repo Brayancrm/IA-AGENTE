@@ -3001,6 +3001,11 @@ app.post('/api/asaas/webhook', async (req, res) => {
     if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
       const client = activeClients.get(userId);
       
+      console.log('📱 Verificando envio de confirmação:');
+      console.log('   - Cliente WPPConnect existe?', !!client);
+      console.log('   - Telefone do cliente:', orderData.customer?.phone);
+      console.log('   - UserID:', userId);
+      
       if (client && orderData.customer.phone) {
         const successMessage = `✅ *Pagamento Confirmado!*\n\n` +
           `Pedido #${orderId.substring(0, 8)}\n` +
@@ -3008,9 +3013,14 @@ app.post('/api/asaas/webhook', async (req, res) => {
           `Obrigado pela sua compra! 🎉\n` +
           `Em breve você receberá mais informações sobre a entrega.`;
         
+        console.log('📤 Tentando enviar mensagem de confirmação...');
+        console.log('   Para:', orderData.customer.phone);
+        console.log('   Tamanho da mensagem:', successMessage.length, 'caracteres');
+        
         try {
-          await client.sendText(orderData.customer.phone, successMessage);
+          const sendResult = await client.sendText(orderData.customer.phone, successMessage);
           console.log('✅ Mensagem de confirmação enviada');
+          console.log('   Resultado:', sendResult);
           
           const sanitizedNumber = sanitizePhoneNumber(orderData.customer.phone);
           
@@ -3032,20 +3042,20 @@ app.post('/api/asaas/webhook', async (req, res) => {
           });
           
           // 📄 PERGUNTAR SOBRE NOTA FISCAL IMEDIATAMENTE
-          console.log('📄 Preparando para enviar pergunta sobre nota fiscal...');
-          console.log('   Telefone do cliente:', orderData.customer.phone);
-          console.log('   Cliente ativo?', !!client);
+          console.log('📄 Enviando pergunta sobre nota fiscal automaticamente...');
           
           // Aguardar 2 segundos para não sobrecarregar
           await new Promise(resolve => setTimeout(resolve, 2000));
           
           const invoiceQuestion = '📄 Você deseja nota fiscal?';
           
+          console.log('📤 Tentando enviar pergunta de nota fiscal...');
+          console.log('   Para:', orderData.customer.phone);
+          
           try {
-            console.log('📤 Enviando pergunta sobre nota fiscal...');
-            const sendResult = await client.sendText(orderData.customer.phone, invoiceQuestion);
-            console.log('✅ WPPConnect retornou sucesso:', !!sendResult);
-            console.log('✅ Pergunta sobre nota fiscal ENVIADA com sucesso!');
+            const invoiceSendResult = await client.sendText(orderData.customer.phone, invoiceQuestion);
+            console.log('✅ Pergunta sobre nota fiscal enviada automaticamente');
+            console.log('   Resultado:', invoiceSendResult);
             
             // Salvar pergunta no histórico
             const invoiceQuestionRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
@@ -3058,7 +3068,6 @@ app.post('/api/asaas/webhook', async (req, res) => {
               isFromMe: true,
               orderId: orderId
             });
-            console.log('💾 Pergunta salva no histórico');
             
             // Definir contexto para aguardar resposta sobre nota fiscal
             const contextRef = db.ref(`collectionContext/${userId}/${sanitizedNumber}`);
@@ -3074,18 +3083,24 @@ app.post('/api/asaas/webhook', async (req, res) => {
               invoiceQuestionAsked: true,
               invoiceQuestionAskedAt: new Date().toISOString()
             });
-            console.log('✅ Pedido marcado com invoiceQuestionAsked: true');
             
           } catch (invoiceError) {
-            console.error('❌ ERRO CRÍTICO ao enviar pergunta sobre nota fiscal!');
-            console.error('   Erro:', invoiceError.message);
+            console.error('❌ Erro ao enviar pergunta sobre nota fiscal:', invoiceError);
+            console.error('   Tipo:', invoiceError.constructor.name);
+            console.error('   Mensagem:', invoiceError.message);
             console.error('   Stack:', invoiceError.stack);
-            console.error('   Telefone usado:', orderData.customer.phone);
           }
           
         } catch (error) {
           console.error('❌ Erro ao enviar mensagem de confirmação:', error);
+          console.error('   Tipo:', error.constructor.name);
+          console.error('   Mensagem:', error.message);
+          console.error('   Stack:', error.stack);
         }
+      } else {
+        console.log('⚠️ Não foi possível enviar mensagens:');
+        console.log('   - Cliente existe?', !!client);
+        console.log('   - Telefone existe?', !!orderData.customer?.phone);
       }
     }
     
