@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Plus, Trash2, GripVertical, Edit2, Save, X } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Edit2, Save, X, FileText } from 'lucide-react';
+import TemplateModal from './TemplateModal';
 
 /**
  * FlowBuilder - Interface visual para criar fluxo do agente em steps
@@ -14,6 +15,7 @@ export default function FlowBuilder({ initialSteps = [], onChange }) {
   const [steps, setSteps] = useState(initialSteps);
   const [editingIndex, setEditingIndex] = useState(null);
   const [editingStep, setEditingStep] = useState(null);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   // Tipos de ação disponíveis
   const actionTypes = [
@@ -85,6 +87,18 @@ export default function FlowBuilder({ initialSteps = [], onChange }) {
     if (onChange) onChange(items);
   };
 
+  // Aplicar template selecionado
+  const applyTemplate = (template) => {
+    // Gerar IDs únicos para os steps do template
+    const newSteps = template.steps.map(step => ({
+      ...step,
+      id: Date.now() + Math.random() // Garantir IDs únicos
+    }));
+    
+    setSteps(newSteps);
+    if (onChange) onChange(newSteps);
+  };
+
   // Gerar prompt a partir dos steps
   const generatePrompt = () => {
     let prompt = '';
@@ -118,13 +132,22 @@ export default function FlowBuilder({ initialSteps = [], onChange }) {
               Configure o fluxo de conversa do seu agente em passos
             </p>
           </div>
-          <button
-            onClick={addStep}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-          >
-            <Plus size={20} />
-            Adicionar Passo
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowTemplateModal(true)}
+              className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+            >
+              <FileText size={20} />
+              Usar Template
+            </button>
+            <button
+              onClick={addStep}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+            >
+              <Plus size={20} />
+              Adicionar Passo
+            </button>
+          </div>
         </div>
       </div>
 
@@ -357,6 +380,13 @@ export default function FlowBuilder({ initialSteps = [], onChange }) {
           </pre>
         </div>
       )}
+
+      {/* Template Modal */}
+      <TemplateModal
+        isOpen={showTemplateModal}
+        onClose={() => setShowTemplateModal(false)}
+        onSelectTemplate={applyTemplate}
+      />
     </div>
   );
 }
