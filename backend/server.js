@@ -2436,9 +2436,9 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
       name: customerData?.name || customerData?.nomeCompleto || 'Cliente',
       
       // ✅ CAMPO OBRIGATÓRIO: Código do serviço municipal (consulte sua prefeitura)
-      // Exemplo: 01.01 = Análise e desenvolvimento de sistemas
-      // Exemplo: 07.02 = Executar serviços
-      municipalServiceCode: fiscalConfig.municipalServiceCode || '01.01',
+      // Para Brasília-DF: código numérico de 3-4 dígitos
+      // Exemplo: 6201501 = Análise e desenvolvimento de sistemas
+      municipalServiceCode: fiscalConfig.municipalServiceCode || '6201501',
       
       // ✅ CAMPO OBRIGATÓRIO: Descrição do serviço para fins municipais
       municipalServiceDescription: fiscalConfig.municipalServiceDescription || serviceDescription,
