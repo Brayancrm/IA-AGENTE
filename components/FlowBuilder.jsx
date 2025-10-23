@@ -11,7 +11,7 @@ import TemplateModal from './TemplateModal';
  * - Reordenar via drag & drop
  * - Gerar prompt automaticamente
  */
-export default function FlowBuilder({ initialSteps = [], onChange }) {
+export default function FlowBuilder({ initialSteps = [], catalogItems = [], onChange }) {
   const [steps, setSteps] = useState(initialSteps);
   const [editingIndex, setEditingIndex] = useState(null);
   const [editingStep, setEditingStep] = useState(null);
@@ -38,7 +38,13 @@ export default function FlowBuilder({ initialSteps = [], onChange }) {
       title: 'Novo Passo',
       description: '',
       condition: null, // Condição para executar (opcional)
-      actions: []
+      actions: [],
+      catalogSettings: {
+        includeProducts: false,
+        includeServices: false,
+        selectedProducts: [],
+        selectedServices: []
+      }
     };
     const newSteps = [...steps, newStep];
     setSteps(newSteps);
@@ -56,7 +62,17 @@ export default function FlowBuilder({ initialSteps = [], onChange }) {
   // Iniciar edição
   const startEdit = (index) => {
     setEditingIndex(index);
-    setEditingStep({ ...steps[index] });
+    const step = { ...steps[index] };
+    // Garantir que catalogSettings existe
+    if (!step.catalogSettings) {
+      step.catalogSettings = {
+        includeProducts: false,
+        includeServices: false,
+        selectedProducts: [],
+        selectedServices: []
+      };
+    }
+    setEditingStep(step);
   };
 
   // Salvar edição
@@ -92,7 +108,13 @@ export default function FlowBuilder({ initialSteps = [], onChange }) {
     // Gerar IDs únicos para os steps do template
     const newSteps = template.steps.map(step => ({
       ...step,
-      id: Date.now() + Math.random() // Garantir IDs únicos
+      id: Date.now() + Math.random(), // Garantir IDs únicos
+      catalogSettings: step.catalogSettings || {
+        includeProducts: false,
+        includeServices: false,
+        selectedProducts: [],
+        selectedServices: []
+      }
     }));
     
     setSteps(newSteps);
@@ -263,6 +285,147 @@ export default function FlowBuilder({ initialSteps = [], onChange }) {
                               />
                             </div>
 
+                            {/* Configurações de Catálogo (só para show_catalog) */}
+                            {editingStep.type === 'show_catalog' && (
+                              <div className="border-t pt-4">
+                                <h4 className="font-semibold text-gray-800 mb-3">
+                                  🛍️ Contexto de Catálogo
+                                </h4>
+                                
+                                {/* Incluir Produtos */}
+                                <div className="mb-4">
+                                  <label className="flex items-start gap-3 p-3 bg-green-50 border-2 border-green-200 rounded-lg cursor-pointer hover:bg-green-100 transition">
+                                    <input
+                                      type="checkbox"
+                                      checked={editingStep.catalogSettings?.includeProducts || false}
+                                      onChange={(e) => {
+                                        setEditingStep({
+                                          ...editingStep,
+                                          catalogSettings: {
+                                            ...editingStep.catalogSettings,
+                                            includeProducts: e.target.checked,
+                                            selectedProducts: e.target.checked 
+                                              ? catalogItems.filter(i => i.type === 'product').map(i => i.id)
+                                              : []
+                                          }
+                                        });
+                                      }}
+                                      className="mt-1"
+                                    />
+                                    <div className="flex-1">
+                                      <div className="font-bold text-gray-900">
+                                        📦 Incluir Produtos do Catálogo
+                                      </div>
+                                      <div className="text-sm text-gray-600">
+                                        A IA poderá oferecê-los aos clientes
+                                      </div>
+                                      {catalogItems.filter(i => i.type === 'product').length > 0 && (
+                                        <div className="text-xs text-green-700 mt-1">
+                                          ✓ {catalogItems.filter(i => i.type === 'product').length} produto(s) disponível(is)
+                                        </div>
+                                      )}
+                                    </div>
+                                  </label>
+
+                                  {/* Lista de Produtos com Checkboxes Individuais */}
+                                  {editingStep.catalogSettings?.includeProducts && (
+                                    <div className="mt-3 ml-6 space-y-2 max-h-60 overflow-y-auto">
+                                      {catalogItems.filter(i => i.type === 'product').map(product => (
+                                        <label key={product.id} className="flex items-center gap-2 p-2 bg-white border rounded hover:bg-gray-50 cursor-pointer">
+                                          <input
+                                            type="checkbox"
+                                            checked={editingStep.catalogSettings?.selectedProducts?.includes(product.id) || false}
+                                            onChange={(e) => {
+                                              const selected = editingStep.catalogSettings?.selectedProducts || [];
+                                              setEditingStep({
+                                                ...editingStep,
+                                                catalogSettings: {
+                                                  ...editingStep.catalogSettings,
+                                                  selectedProducts: e.target.checked
+                                                    ? [...selected, product.id]
+                                                    : selected.filter(id => id !== product.id)
+                                                }
+                                              });
+                                            }}
+                                          />
+                                          <div className="flex-1">
+                                            <div className="font-medium text-sm">{product.name}</div>
+                                            <div className="text-xs text-gray-500">R$ {product.price}</div>
+                                          </div>
+                                        </label>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Incluir Serviços */}
+                                <div>
+                                  <label className="flex items-start gap-3 p-3 bg-blue-50 border-2 border-blue-200 rounded-lg cursor-pointer hover:bg-blue-100 transition">
+                                    <input
+                                      type="checkbox"
+                                      checked={editingStep.catalogSettings?.includeServices || false}
+                                      onChange={(e) => {
+                                        setEditingStep({
+                                          ...editingStep,
+                                          catalogSettings: {
+                                            ...editingStep.catalogSettings,
+                                            includeServices: e.target.checked,
+                                            selectedServices: e.target.checked 
+                                              ? catalogItems.filter(i => i.type === 'service').map(i => i.id)
+                                              : []
+                                          }
+                                        });
+                                      }}
+                                      className="mt-1"
+                                    />
+                                    <div className="flex-1">
+                                      <div className="font-bold text-gray-900">
+                                        🛠️ Incluir Serviços do Catálogo
+                                      </div>
+                                      <div className="text-sm text-gray-600">
+                                        A IA poderá oferecê-los aos clientes
+                                      </div>
+                                      {catalogItems.filter(i => i.type === 'service').length > 0 && (
+                                        <div className="text-xs text-blue-700 mt-1">
+                                          ✓ {catalogItems.filter(i => i.type === 'service').length} serviço(s) disponível(is)
+                                        </div>
+                                      )}
+                                    </div>
+                                  </label>
+
+                                  {/* Lista de Serviços com Checkboxes Individuais */}
+                                  {editingStep.catalogSettings?.includeServices && (
+                                    <div className="mt-3 ml-6 space-y-2 max-h-60 overflow-y-auto">
+                                      {catalogItems.filter(i => i.type === 'service').map(service => (
+                                        <label key={service.id} className="flex items-center gap-2 p-2 bg-white border rounded hover:bg-gray-50 cursor-pointer">
+                                          <input
+                                            type="checkbox"
+                                            checked={editingStep.catalogSettings?.selectedServices?.includes(service.id) || false}
+                                            onChange={(e) => {
+                                              const selected = editingStep.catalogSettings?.selectedServices || [];
+                                              setEditingStep({
+                                                ...editingStep,
+                                                catalogSettings: {
+                                                  ...editingStep.catalogSettings,
+                                                  selectedServices: e.target.checked
+                                                    ? [...selected, service.id]
+                                                    : selected.filter(id => id !== service.id)
+                                                }
+                                              });
+                                            }}
+                                          />
+                                          <div className="flex-1">
+                                            <div className="font-medium text-sm">{service.name}</div>
+                                            <div className="text-xs text-gray-500">R$ {service.price}</div>
+                                          </div>
+                                        </label>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
                             {/* Botões */}
                             <div className="flex gap-2 justify-end pt-4 border-t">
                               <button
@@ -319,6 +482,32 @@ export default function FlowBuilder({ initialSteps = [], onChange }) {
                               {step.condition && (
                                 <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-1 rounded inline-flex">
                                   ⚠️ Condição: {step.condition}
+                                </div>
+                              )}
+
+                              {/* Mostrar configurações de catálogo se houver */}
+                              {step.type === 'show_catalog' && step.catalogSettings && (
+                                <div className="mt-3 text-sm">
+                                  {step.catalogSettings.includeProducts && (
+                                    <div className="mb-2">
+                                      <span className="font-semibold text-green-700">
+                                        📦 Produtos: 
+                                      </span>
+                                      <span className="text-gray-600 ml-2">
+                                        {step.catalogSettings.selectedProducts?.length || 0} selecionado(s)
+                                      </span>
+                                    </div>
+                                  )}
+                                  {step.catalogSettings.includeServices && (
+                                    <div>
+                                      <span className="font-semibold text-blue-700">
+                                        🛠️ Serviços: 
+                                      </span>
+                                      <span className="text-gray-600 ml-2">
+                                        {step.catalogSettings.selectedServices?.length || 0} selecionado(s)
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>

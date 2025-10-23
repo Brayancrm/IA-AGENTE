@@ -2266,6 +2266,7 @@ const DashboardWithFirebase = ({
                     <div>
                       <FlowBuilder 
                         initialSteps={assistantForm.flowSteps || []}
+                        catalogItems={catalogItems}
                         onChange={(newSteps) => {
                           setAssistantForm(prev => ({
                             ...prev,
@@ -2292,26 +2293,6 @@ const DashboardWithFirebase = ({
                       placeholder="Você é um assistente virtual prestativo que ajuda clientes da empresa X..."
                     />
                   )}
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
-                    Mensagem de Boas-vindas
-                  </label>
-                  <textarea
-                    value={assistantForm.welcomeMessage || ''}
-                    onChange={(e) => setAssistantForm(prev => ({ ...prev, welcomeMessage: e.target.value }))}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      borderRadius: '8px',
-                      border: '1px solid #d1d5db',
-                      fontSize: '1rem',
-                      minHeight: '80px',
-                      resize: 'vertical'
-                    }}
-                    placeholder="Olá! Como posso ajudá-lo hoje?"
-                  />
                 </div>
 
                 {/* Contexto de Catálogo */}
