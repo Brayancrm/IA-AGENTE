@@ -3283,6 +3283,109 @@ app.get('/api/invoices/list/:userId', async (req, res) => {
 });
 
 // ============================================
+// FLOW BUILDER - Configuração Visual de Fluxo
+// ============================================
+
+/**
+ * GET /api/ai-config/:userId
+ * Buscar configuração de IA (incluindo flow steps)
+ */
+app.get('/api/ai-config/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    console.log('📖 [FlowBuilder] Buscando configuração para userId:', userId);
+    
+    const configRef = db.ref(`users/data/${userId}/ai_config`);
+    const snapshot = await configRef.once('value');
+    const config = snapshot.val();
+
+    if (!config) {
+      console.log('⚠️ [FlowBuilder] Configuração não encontrada, retornando padrão');
+      return res.json({
+        success: true,
+        config: {
+          flowSteps: [],
+          systemPrompt: 'Você é um assistente virtual prestativo.',
+          model: 'gpt-4',
+          welcomeMessage: 'Olá! Como posso ajudar?',
+          enabledFeatures: []
+        }
+      });
+    }
+
+    console.log('✅ [FlowBuilder] Configuração encontrada');
+
+    res.json({
+      success: true,
+      config: {
+        flowSteps: config.flowSteps || [],
+        systemPrompt: config.systemPrompt || '',
+        model: config.model || 'gpt-4',
+        welcomeMessage: config.welcomeMessage || '',
+        enabledFeatures: config.enabledFeatures || []
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ [FlowBuilder] Erro ao buscar configuração:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * PUT /api/ai-config/:userId
+ * Salvar configuração de IA (incluindo flow steps)
+ */
+app.put('/api/ai-config/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { flowSteps, systemPrompt } = req.body;
+
+    console.log('💾 [FlowBuilder] Salvando configuração para userId:', userId);
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'userId é obrigatório'
+      });
+    }
+
+    const configData = {
+      updatedAt: new Date().toISOString()
+    };
+
+    if (flowSteps !== undefined) {
+      configData.flowSteps = flowSteps;
+    }
+
+    if (systemPrompt !== undefined) {
+      configData.systemPrompt = systemPrompt;
+    }
+
+    const configRef = db.ref(`users/data/${userId}/ai_config`);
+    await configRef.update(configData);
+
+    console.log('✅ [FlowBuilder] Configuração salva com sucesso');
+
+    res.json({
+      success: true,
+      message: 'Configuração salva com sucesso'
+    });
+
+  } catch (error) {
+    console.error('❌ [FlowBuilder] Erro ao salvar configuração:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// ============================================
 // INICIAR SERVIDOR
 // ============================================
 
