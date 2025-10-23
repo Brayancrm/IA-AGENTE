@@ -987,15 +987,6 @@ const DashboardWithFirebase = ({
     saveAssistantSettings(dataToSave);
   };
 
-  const handleFeatureToggle = (feature) => {
-    setAssistantForm(prev => ({
-      ...prev,
-      enabledFeatures: prev.enabledFeatures.includes(feature)
-        ? prev.enabledFeatures.filter(f => f !== feature)
-        : [...prev.enabledFeatures, feature]
-    }));
-  };
-
   // ==================== FUNÇÕES DO CRM ====================
   // CRM temporariamente desativado - será reconstruído depois
   // ==================== FIM FUNÇÕES DO CRM ====================
@@ -2321,34 +2312,6 @@ const DashboardWithFirebase = ({
                     }}
                     placeholder="Olá! Como posso ajudá-lo hoje?"
                   />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '16px', color: '#374151' }}>
-                    Funcionalidades Habilitadas
-                  </label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {[
-                      { id: 'sales', label: '💰 Vendas', description: 'Processar pedidos e fechar vendas' },
-                      { id: 'support', label: '🎧 Suporte', description: 'Atendimento ao cliente e resolução de problemas' },
-                      { id: 'stock', label: '📦 Estoque', description: 'Consultar disponibilidade de produtos' },
-                      { id: 'pricing', label: '💵 Preços', description: 'Informar valores e condições de pagamento' },
-                      { id: 'schedule', label: '📅 Agendamento', description: 'Agendar serviços e consultas' }
-                    ].map((feature) => (
-                      <label key={feature.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', backgroundColor: '#f9fafb', borderRadius: '8px', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={assistantForm.enabledFeatures?.includes(feature.id) || false}
-                          onChange={() => handleFeatureToggle(feature.id)}
-                          style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-                        />
-                        <div>
-                          <div style={{ fontWeight: 'bold', color: '#1f2937' }}>{feature.label}</div>
-                          <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>{feature.description}</div>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
                 </div>
 
                 {/* Contexto de Catálogo */}

@@ -134,6 +134,7 @@ export default function FlowBuilder({ initialSteps = [], onChange }) {
           </div>
           <div className="flex gap-3">
             <button
+              type="button"
               onClick={() => setShowTemplateModal(true)}
               className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
             >
@@ -141,6 +142,7 @@ export default function FlowBuilder({ initialSteps = [], onChange }) {
               Usar Template
             </button>
             <button
+              type="button"
               onClick={addStep}
               className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
             >
@@ -264,6 +266,7 @@ export default function FlowBuilder({ initialSteps = [], onChange }) {
                             {/* Botões */}
                             <div className="flex gap-2 justify-end pt-4 border-t">
                               <button
+                                type="button"
                                 onClick={cancelEdit}
                                 className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
                               >
@@ -271,6 +274,7 @@ export default function FlowBuilder({ initialSteps = [], onChange }) {
                                 Cancelar
                               </button>
                               <button
+                                type="button"
                                 onClick={saveEdit}
                                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
                               >
@@ -322,6 +326,7 @@ export default function FlowBuilder({ initialSteps = [], onChange }) {
                             {/* Actions */}
                             <div className="flex gap-2">
                               <button
+                                type="button"
                                 onClick={() => startEdit(index)}
                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                                 title="Editar"
@@ -329,6 +334,7 @@ export default function FlowBuilder({ initialSteps = [], onChange }) {
                                 <Edit2 size={18} />
                               </button>
                               <button
+                                type="button"
                                 onClick={() => removeStep(index)}
                                 className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
                                 title="Remover"
@@ -360,6 +366,7 @@ export default function FlowBuilder({ initialSteps = [], onChange }) {
             Adicione passos para definir o fluxo de conversa do seu agente
           </p>
           <button
+            type="button"
             onClick={addStep}
             className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition mx-auto"
           >
