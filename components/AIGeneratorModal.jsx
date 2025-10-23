@@ -21,8 +21,13 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate }) {
     setError('');
 
     try {
+      // URL do backend (Railway)
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://ia-agente-production.up.railway.app';
+      
+      console.log('🤖 Chamando backend:', `${backendUrl}/api/generate-flow`);
+      
       // Chamar o backend para gerar o template
-      const response = await fetch('/api/generate-flow', {
+      const response = await fetch(`${backendUrl}/api/generate-flow`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -32,11 +37,23 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate }) {
         })
       });
 
-      const data = await response.json();
+      console.log('📡 Status da resposta:', response.status);
 
       if (!response.ok) {
-        throw new Error(data.error || 'Erro ao gerar template');
+        const errorText = await response.text();
+        console.error('❌ Erro da API:', errorText);
+        throw new Error(`Erro ${response.status}: ${errorText || 'Falha ao gerar template'}`);
       }
+
+      const data = await response.json();
+      console.log('📦 Dados recebidos:', data);
+
+      if (!data.success || !data.template) {
+        throw new Error(data.error || 'Template inválido retornado pela IA');
+      }
+
+      console.log('✅ Template gerado com sucesso!');
+      console.log('📊 Steps:', data.template.steps?.length || 0);
 
       // Retornar o template gerado
       onGenerate(data.template);
@@ -45,8 +62,23 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate }) {
       setDescription('');
       onClose();
     } catch (err) {
-      console.error('Erro ao gerar template:', err);
-      setError(err.message || 'Erro ao gerar template. Tente novamente.');
+      console.error('❌ Erro completo:', err);
+      
+      let errorMessage = 'Erro ao gerar template. ';
+      
+      if (err.message.includes('Failed to fetch')) {
+        errorMessage += 'Não foi possível conectar ao backend. Verifique se o servidor está rodando.';
+      } else if (err.message.includes('OPENAI_API_KEY')) {
+        errorMessage += 'Chave da OpenAI não configurada. Configure OPENAI_API_KEY no backend (Railway).';
+      } else if (err.message.includes('429')) {
+        errorMessage += 'Limite de requisições atingido. Aguarde alguns segundos e tente novamente.';
+      } else if (err.message.includes('401')) {
+        errorMessage += 'Chave da OpenAI inválida. Verifique a configuração no Railway.';
+      } else {
+        errorMessage += err.message || 'Tente novamente.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
