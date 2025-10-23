@@ -409,7 +409,10 @@ async function handleIncomingMessage(userId, message, client) {
               const customerSnapshot = await customerDataRef.once('value');
               const savedCustomerData = customerSnapshot.val();
               
-              // Limpar telefone e remover "55" inicial se presente
+              // Telefone original (para WhatsApp e salvar no pedido)
+              const originalPhone = message.from; // Ex: 556191442727@c.us
+              
+              // Telefone limpo (apenas para Asaas - sem 55, sem @c.us)
               let cleanPhone = message.from.replace(/[@c.us]/g, '').replace(/\D/g, '');
               if (cleanPhone.startsWith('55') && cleanPhone.length > 10) {
                 cleanPhone = cleanPhone.substring(2); // Remove "55"
@@ -418,8 +421,9 @@ async function handleIncomingMessage(userId, message, client) {
               // Preparar dados do cliente (usando dados salvos se existirem)
               const customerData = {
                 name: savedCustomerData?.name || 'Cliente WhatsApp',
-                phone: cleanPhone,
-                mobilePhone: cleanPhone,
+                phone: cleanPhone,  // Para Asaas (sem 55)
+                mobilePhone: cleanPhone,  // Para Asaas (sem 55)
+                originalPhone: originalPhone,  // Para WhatsApp (com @c.us)
                 // Adicionar dados coletados se disponíveis
                 ...(savedCustomerData?.cpfCnpj && { cpfCnpj: savedCustomerData.cpfCnpj }),
                 ...(savedCustomerData?.email && { email: savedCustomerData.email }),
@@ -452,7 +456,7 @@ async function handleIncomingMessage(userId, message, client) {
                 // Preparar dados do cliente (sem campos undefined)
                 const customerToSave = {
                   name: customerData.name || 'Cliente',
-                  phone: customerData.phone || customerData.mobilePhone,
+                  phone: customerData.originalPhone || customerData.phone || customerData.mobilePhone,  // Telefone com @c.us
                   ...(customerData.cpfCnpj && { cpfCnpj: customerData.cpfCnpj }),
                   ...(customerData.email && { email: customerData.email }),
                   ...(customerData.address && { address: customerData.address })
@@ -1796,7 +1800,10 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
     console.log(`   📧 Email: ${savedCustomerData.email}`);
     console.log(`   📄 CPF/CNPJ: ${savedCustomerData.cpfCnpj}`);
 
-    // Limpar telefone e remover "55" inicial se presente
+    // Telefone original (para WhatsApp)
+    const originalPhone = phone; // Ex: 556191442727@c.us
+    
+    // Limpar telefone e remover "55" inicial se presente (para Asaas)
     let cleanPhone = phone.replace(/[@c.us]/g, '').replace(/\D/g, '');
     if (cleanPhone.startsWith('55') && cleanPhone.length > 10) {
       cleanPhone = cleanPhone.substring(2); // Remove "55"
@@ -1805,8 +1812,9 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
     // Preparar dados do cliente
     const customerData = {
       name: savedCustomerData.name,
-      phone: cleanPhone,
-      mobilePhone: cleanPhone,
+      phone: cleanPhone,  // Para Asaas (sem 55)
+      mobilePhone: cleanPhone,  // Para Asaas (sem 55)
+      originalPhone: originalPhone,  // Para WhatsApp (com @c.us)
       cpfCnpj: savedCustomerData.cpfCnpj,
       email: savedCustomerData.email,
       ...(savedCustomerData.address && {
@@ -1845,7 +1853,7 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
       // Preparar dados do cliente (sem campos undefined)
       const customerToSave = {
         name: customerData.name || 'Cliente',
-        phone: customerData.phone || customerData.mobilePhone,
+        phone: customerData.originalPhone || customerData.phone || customerData.mobilePhone,  // Telefone com @c.us
         ...(customerData.cpfCnpj && { cpfCnpj: customerData.cpfCnpj }),
         ...(customerData.email && { email: customerData.email }),
         ...(customerData.address && { address: customerData.address })
@@ -2804,7 +2812,7 @@ app.post('/api/asaas/create-charge', async (req, res) => {
       // Preparar dados do cliente (sem campos undefined)
       const customerToSave = {
         name: customerData.name || 'Cliente',
-        phone: customerData.phone || customerData.mobilePhone,
+        phone: customerData.originalPhone || customerData.phone || customerData.mobilePhone,  // Telefone com @c.us
         ...(customerData.cpfCnpj && { cpfCnpj: customerData.cpfCnpj }),
         ...(customerData.email && { email: customerData.email }),
         ...(customerData.address && { address: customerData.address })
