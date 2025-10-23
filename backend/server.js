@@ -3032,7 +3032,9 @@ app.post('/api/asaas/webhook', async (req, res) => {
           });
           
           // 📄 PERGUNTAR SOBRE NOTA FISCAL IMEDIATAMENTE
-          console.log('📄 Enviando pergunta sobre nota fiscal automaticamente...');
+          console.log('📄 Preparando para enviar pergunta sobre nota fiscal...');
+          console.log('   Telefone do cliente:', orderData.customer.phone);
+          console.log('   Cliente ativo?', !!client);
           
           // Aguardar 2 segundos para não sobrecarregar
           await new Promise(resolve => setTimeout(resolve, 2000));
@@ -3040,8 +3042,10 @@ app.post('/api/asaas/webhook', async (req, res) => {
           const invoiceQuestion = '📄 Você deseja nota fiscal?';
           
           try {
-            await client.sendText(orderData.customer.phone, invoiceQuestion);
-            console.log('✅ Pergunta sobre nota fiscal enviada automaticamente');
+            console.log('📤 Enviando pergunta sobre nota fiscal...');
+            const sendResult = await client.sendText(orderData.customer.phone, invoiceQuestion);
+            console.log('✅ WPPConnect retornou sucesso:', !!sendResult);
+            console.log('✅ Pergunta sobre nota fiscal ENVIADA com sucesso!');
             
             // Salvar pergunta no histórico
             const invoiceQuestionRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
@@ -3054,6 +3058,7 @@ app.post('/api/asaas/webhook', async (req, res) => {
               isFromMe: true,
               orderId: orderId
             });
+            console.log('💾 Pergunta salva no histórico');
             
             // Definir contexto para aguardar resposta sobre nota fiscal
             const contextRef = db.ref(`collectionContext/${userId}/${sanitizedNumber}`);
@@ -3069,9 +3074,13 @@ app.post('/api/asaas/webhook', async (req, res) => {
               invoiceQuestionAsked: true,
               invoiceQuestionAskedAt: new Date().toISOString()
             });
+            console.log('✅ Pedido marcado com invoiceQuestionAsked: true');
             
           } catch (invoiceError) {
-            console.error('❌ Erro ao enviar pergunta sobre nota fiscal:', invoiceError);
+            console.error('❌ ERRO CRÍTICO ao enviar pergunta sobre nota fiscal!');
+            console.error('   Erro:', invoiceError.message);
+            console.error('   Stack:', invoiceError.stack);
+            console.error('   Telefone usado:', orderData.customer.phone);
           }
           
         } catch (error) {
