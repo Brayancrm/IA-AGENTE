@@ -14,7 +14,7 @@ const db = admin.database();
 
 const fiscalConfig = {
   enabled: true,
-  municipalServiceCode: '0101',
+  municipalServiceCode: '101', // ✅ 101 = Brasília-DF (sem zeros à esquerda)
   municipalServiceDescription: 'Análise e desenvolvimento de sistemas',
   issRate: 5, // ✅ 5% de ISS - IMPORTANTE!
   retainIss: false,
@@ -65,7 +65,7 @@ async function configurar() {
     
     console.log('\n🎉 Configuração fiscal salva com sucesso para todos os usuários!');
     console.log('\n📋 Configuração aplicada:');
-    console.log('   - Código municipal: 0101');
+    console.log('   - Código municipal: 101');
     console.log('   - ISS Rate: 5%');
     console.log('   - Descrição: Análise e desenvolvimento de sistemas');
     
