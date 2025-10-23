@@ -207,8 +207,15 @@ const FirebaseApp = () => {
     const assistantRef = ref(database, `users/data/${userId}/assistant_settings`);
     onValue(assistantRef, (snapshot) => {
       if (snapshot.exists()) {
-        setAssistantSettings(snapshot.val());
+        const data = snapshot.val();
+        console.log('📖 [LOAD] Configurações do assistente carregadas:', {
+          flowMode: data.flowMode,
+          flowSteps: data.flowSteps?.length || 0,
+          systemPromptLength: data.systemPrompt?.length || 0
+        });
+        setAssistantSettings(data);
       } else {
+        console.log('⚠️ [LOAD] Nenhuma configuração do assistente encontrada');
         setAssistantSettings({});
       }
     });
@@ -304,14 +311,24 @@ const FirebaseApp = () => {
     if (!user || !database) return;
     
     try {
-      const assistantRef = ref(database, `users/data/${user.uid}/assistant_settings`);
-      await set(assistantRef, {
+      const dataToSave = {
         ...data,
         updatedAt: new Date().toISOString()
+      };
+      
+      console.log('💾 [SAVE] Salvando configurações do assistente:', {
+        flowMode: dataToSave.flowMode,
+        flowSteps: dataToSave.flowSteps?.length || 0,
+        systemPromptLength: dataToSave.systemPrompt?.length || 0
       });
+      
+      const assistantRef = ref(database, `users/data/${user.uid}/assistant_settings`);
+      await set(assistantRef, dataToSave);
+      
+      console.log('✅ [SAVE] Configurações salvas com sucesso!');
       showToast('Configurações do assistente salvas com sucesso!');
     } catch (error) {
-      console.error('Erro ao salvar assistente:', error);
+      console.error('❌ [SAVE] Erro ao salvar assistente:', error);
       showToast('Erro ao salvar configurações', 'error');
     }
   };
@@ -865,7 +882,9 @@ const DashboardWithFirebase = ({
       welcomeMessage: assistantSettings.welcomeMessage || '',
       enabledFeatures: assistantSettings.enabledFeatures || [],
       includeCatalogProducts: assistantSettings.includeCatalogProducts || false,
-      includeCatalogServices: assistantSettings.includeCatalogServices || false
+      includeCatalogServices: assistantSettings.includeCatalogServices || false,
+      flowMode: assistantSettings.flowMode || 'text', // ✅ Carregar modo do flow
+      flowSteps: assistantSettings.flowSteps || [] // ✅ Carregar steps salvos
     });
   }, [assistantSettings]);
 
@@ -957,10 +976,15 @@ const DashboardWithFirebase = ({
 
   const handleAssistantSubmit = (e) => {
     e.preventDefault();
-    saveAssistantSettings({
-      ...assistantForm,
-      isActive: isActive
-    });
+    
+    // Se estiver no modo visual, garantir que o prompt seja gerado dos steps
+    const dataToSave = { ...assistantForm, isActive: isActive };
+    
+    if (assistantForm.flowMode === 'visual' && assistantForm.flowSteps && assistantForm.flowSteps.length > 0) {
+      dataToSave.systemPrompt = convertStepsToPrompt(assistantForm.flowSteps);
+    }
+    
+    saveAssistantSettings(dataToSave);
   };
 
   const handleFeatureToggle = (feature) => {
