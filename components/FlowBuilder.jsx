@@ -27,6 +27,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
     { value: 'send_confirmation', label: '✅ Enviar Confirmação', icon: '✅' },
     { value: 'ask_invoice', label: '📄 Perguntar sobre Nota Fiscal', icon: '📄' },
     { value: 'collect_address', label: '📍 Coletar Endereço', icon: '📍' },
+    { value: 'free_text', label: '📝 Texto Livre', icon: '📝' },
     { value: 'custom', label: '⚙️ Ação Personalizada', icon: '⚙️' },
   ];
 
@@ -250,7 +251,9 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                             {/* Descrição/Instruções */}
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Instruções Detalhadas
+                                {editingStep.type === 'free_text' 
+                                  ? 'Prompt Livre (Escreva o texto completo)'
+                                  : 'Instruções Detalhadas'}
                               </label>
                               <textarea
                                 value={editingStep.description}
@@ -260,10 +263,17 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                                     description: e.target.value,
                                   })
                                 }
-                                placeholder="Ex: Cumprimente o cliente de forma amigável e pergunte como pode ajudar..."
-                                rows={4}
+                                placeholder={editingStep.type === 'free_text'
+                                  ? "Ex: Você é um assistente prestativo. Quando o cliente perguntar sobre...\n\nEscreva aqui o prompt completo que deseja usar neste ponto do fluxo."
+                                  : "Ex: Cumprimente o cliente de forma amigável e pergunte como pode ajudar..."}
+                                rows={editingStep.type === 'free_text' ? 8 : 4}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                               />
+                              {editingStep.type === 'free_text' && (
+                                <p className="text-sm text-amber-600 mt-2">
+                                  💡 Use "Texto Livre" para inserir instruções específicas que não se encaixam nos tipos padrão.
+                                </p>
+                              )}
                             </div>
 
                             {/* Condição (Opcional) */}

@@ -845,7 +845,7 @@ const DashboardWithFirebase = ({
     enabledFeatures: [],
     includeCatalogProducts: false,
     includeCatalogServices: false,
-    flowMode: 'text', // 'text' ou 'visual'
+    flowMode: 'visual', // Sempre visual agora
     flowSteps: [] // Steps do flow builder
   });
   const [userForm, setUserForm] = useState({
@@ -883,7 +883,7 @@ const DashboardWithFirebase = ({
       enabledFeatures: assistantSettings.enabledFeatures || [],
       includeCatalogProducts: assistantSettings.includeCatalogProducts || false,
       includeCatalogServices: assistantSettings.includeCatalogServices || false,
-      flowMode: assistantSettings.flowMode || 'text', // ✅ Carregar modo do flow
+      flowMode: 'visual', // Sempre visual
       flowSteps: assistantSettings.flowSteps || [] // ✅ Carregar steps salvos
     });
   }, [assistantSettings]);
@@ -977,10 +977,15 @@ const DashboardWithFirebase = ({
   const handleAssistantSubmit = (e) => {
     e.preventDefault();
     
-    // Se estiver no modo visual, garantir que o prompt seja gerado dos steps
-    const dataToSave = { ...assistantForm, isActive: isActive };
+    // Garantir que o prompt seja gerado dos steps (modo visual sempre ativo)
+    const dataToSave = { 
+      ...assistantForm, 
+      isActive: isActive,
+      flowMode: 'visual' // Sempre modo visual
+    };
     
-    if (assistantForm.flowMode === 'visual' && assistantForm.flowSteps && assistantForm.flowSteps.length > 0) {
+    // Se houver steps, gerar o prompt automaticamente
+    if (assistantForm.flowSteps && assistantForm.flowSteps.length > 0) {
       dataToSave.systemPrompt = convertStepsToPrompt(assistantForm.flowSteps);
     }
     
@@ -2219,65 +2224,49 @@ const DashboardWithFirebase = ({
                   </select>
                 </div>
 
+                {/* Flow Builder Visual */}
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <label style={{ fontWeight: 'bold', color: '#374151' }}>
-                      Fluxo de Atendimento
-                    </label>
-                    <div style={{ display: 'flex', gap: '8px', background: '#f3f4f6', padding: '4px', borderRadius: '8px' }}>
-                      <button
-                        type="button"
-                        onClick={() => setAssistantForm(prev => ({ ...prev, flowMode: 'text' }))}
-                        style={{
-                          padding: '6px 12px',
-                          borderRadius: '6px',
-                          border: 'none',
-                          background: assistantForm.flowMode === 'text' ? '#3b82f6' : 'transparent',
-                          color: assistantForm.flowMode === 'text' ? 'white' : '#6b7280',
-                          cursor: 'pointer',
-                          fontSize: '0.875rem',
-                          fontWeight: '500',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        📝 Modo Texto
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAssistantForm(prev => ({ ...prev, flowMode: 'visual' }))}
-                        style={{
-                          padding: '6px 12px',
-                          borderRadius: '6px',
-                          border: 'none',
-                          background: assistantForm.flowMode === 'visual' ? '#3b82f6' : 'transparent',
-                          color: assistantForm.flowMode === 'visual' ? 'white' : '#6b7280',
-                          cursor: 'pointer',
-                          fontSize: '0.875rem',
-                          fontWeight: '500',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        🎯 Modo Visual
-                      </button>
-                    </div>
-                  </div>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '12px', color: '#374151' }}>
+                    🎯 Fluxo de Atendimento
+                  </label>
+                  <FlowBuilder 
+                    initialSteps={assistantForm.flowSteps || []}
+                    catalogItems={catalogItems}
+                    onChange={(newSteps) => {
+                      setAssistantForm(prev => ({
+                        ...prev,
+                        flowSteps: newSteps,
+                        flowMode: 'visual',
+                        // Gerar prompt automaticamente dos steps
+                        systemPrompt: convertStepsToPrompt(newSteps)
+                      }));
+                    }}
+                  />
+                </div>
 
-                  {assistantForm.flowMode === 'visual' ? (
-                    <div>
-                      <FlowBuilder 
-                        initialSteps={assistantForm.flowSteps || []}
-                        catalogItems={catalogItems}
-                        onChange={(newSteps) => {
-                          setAssistantForm(prev => ({
-                            ...prev,
-                            flowSteps: newSteps,
-                            // Gerar prompt automaticamente dos steps
-                            systemPrompt: convertStepsToPrompt(newSteps)
-                          }));
-                        }}
-                      />
+                {/* Editor de Prompt Final (Opcional) */}
+                {assistantForm.flowSteps && assistantForm.flowSteps.length > 0 && (
+                  <div style={{ marginTop: '24px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <label style={{ display: 'block', fontWeight: 'bold', color: '#374151' }}>
+                        📝 Prompt Final Gerado (Edição Opcional)
+                      </label>
+                      <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                        Gerado automaticamente dos steps acima
+                      </span>
                     </div>
-                  ) : (
+                    <div style={{ 
+                      background: '#fffbeb', 
+                      border: '1px solid #fbbf24', 
+                      borderRadius: '8px', 
+                      padding: '12px',
+                      marginBottom: '12px'
+                    }}>
+                      <p style={{ fontSize: '0.875rem', color: '#92400e', margin: 0 }}>
+                        💡 <strong>Dica:</strong> Este prompt é gerado automaticamente com base nos steps que você configurou. 
+                        Você pode editá-lo manualmente se precisar fazer ajustes finos ou adicionar instruções específicas.
+                      </p>
+                    </div>
                     <textarea
                       value={assistantForm.systemPrompt || ''}
                       onChange={(e) => setAssistantForm(prev => ({ ...prev, systemPrompt: e.target.value }))}
@@ -2286,96 +2275,16 @@ const DashboardWithFirebase = ({
                         padding: '12px',
                         borderRadius: '8px',
                         border: '1px solid #d1d5db',
-                        fontSize: '1rem',
-                        minHeight: '120px',
-                        resize: 'vertical'
+                        fontSize: '0.875rem',
+                        minHeight: '300px',
+                        fontFamily: 'monospace',
+                        resize: 'vertical',
+                        background: '#f9fafb'
                       }}
-                      placeholder="Você é um assistente virtual prestativo que ajuda clientes da empresa X..."
+                      placeholder="O prompt será gerado automaticamente quando você adicionar steps..."
                     />
-                  )}
-                </div>
-
-                {/* Contexto de Catálogo */}
-                <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '16px', color: '#374151' }}>
-                    🛍️ Contexto de Catálogo (O que a IA pode oferecer)
-                  </label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', backgroundColor: '#f0fdf4', borderRadius: '8px', cursor: 'pointer', border: '2px solid #86efac' }}>
-                      <input
-                        type="checkbox"
-                        checked={assistantForm.includeCatalogProducts || false}
-                        onChange={(e) => setAssistantForm(prev => ({ ...prev, includeCatalogProducts: e.target.checked }))}
-                        style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-                      />
-                      <div>
-                        <div style={{ fontWeight: 'bold', color: '#1f2937', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          📦 Incluir Produtos do Catálogo
-                        </div>
-                        <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                          A IA terá acesso aos produtos cadastrados e poderá oferecê-los aos clientes
-                        </div>
-                        {catalogItems.filter(item => item.type === 'product').length > 0 && (
-                          <div style={{ fontSize: '0.75rem', color: '#16a34a', marginTop: '4px' }}>
-                            ✓ {catalogItems.filter(item => item.type === 'product').length} produto(s) cadastrado(s)
-                          </div>
-                        )}
-                      </div>
-                    </label>
-
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', backgroundColor: '#eff6ff', borderRadius: '8px', cursor: 'pointer', border: '2px solid #93c5fd' }}>
-                      <input
-                        type="checkbox"
-                        checked={assistantForm.includeCatalogServices || false}
-                        onChange={(e) => setAssistantForm(prev => ({ ...prev, includeCatalogServices: e.target.checked }))}
-                        style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-                      />
-                      <div>
-                        <div style={{ fontWeight: 'bold', color: '#1f2937', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          🛠️ Incluir Serviços do Catálogo
-                        </div>
-                        <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                          A IA terá acesso aos serviços cadastrados e poderá oferecê-los aos clientes
-                        </div>
-                        {catalogItems.filter(item => item.type === 'service').length > 0 && (
-                          <div style={{ fontSize: '0.75rem', color: '#2563eb', marginTop: '4px' }}>
-                            ✓ {catalogItems.filter(item => item.type === 'service').length} serviço(s) cadastrado(s)
-                          </div>
-                        )}
-                      </div>
-                    </label>
                   </div>
-
-                  {/* Aviso se não houver itens cadastrados */}
-                  {catalogItems.length === 0 && (
-                    <div style={{ padding: '12px', backgroundColor: '#fef3c7', borderRadius: '8px', marginTop: '12px', border: '1px solid #fbbf24' }}>
-                      <p style={{ fontSize: '0.875rem', color: '#92400e', margin: 0 }}>
-                        ⚠️ <strong>Atenção:</strong> Você ainda não possui produtos ou serviços cadastrados. Vá até a página <strong>"Catálogo (Itens)"</strong> para adicionar itens.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Preview dos itens que serão incluídos */}
-                  {(assistantForm.includeCatalogProducts || assistantForm.includeCatalogServices) && catalogItems.length > 0 && (
-                    <div style={{ padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', marginTop: '12px', border: '1px solid #e5e7eb' }}>
-                      <p style={{ fontSize: '0.875rem', fontWeight: 'bold', color: '#374151', marginBottom: '8px' }}>
-                        📋 Prévia - A IA terá acesso a:
-                      </p>
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280', maxHeight: '150px', overflowY: 'auto' }}>
-                        {assistantForm.includeCatalogProducts && catalogItems.filter(item => item.type === 'product').map((item, index) => (
-                          <div key={index} style={{ padding: '6px', marginBottom: '4px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #d1d5db' }}>
-                            📦 <strong>{item.name}</strong> - R$ {item.price} {item.stockQuantity && `(Estoque: ${item.stockQuantity})`}
-                          </div>
-                        ))}
-                        {assistantForm.includeCatalogServices && catalogItems.filter(item => item.type === 'service').map((item, index) => (
-                          <div key={index} style={{ padding: '6px', marginBottom: '4px', backgroundColor: 'white', borderRadius: '4px', border: '1px solid #d1d5db' }}>
-                            🛠️ <strong>{item.name}</strong> - R$ {item.price} {item.stockQuantity && `(Capacidade: ${item.stockQuantity})`}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                )}
 
                 <button
                   type="submit"
