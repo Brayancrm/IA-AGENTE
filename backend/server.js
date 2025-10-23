@@ -2321,7 +2321,7 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
     let customerData = orderData.customer; // Dados padrão do pedido
     
     if (sanitizedPhone) {
-      const customerPath = `customers/${userId}/${sanitizedPhone}`;
+      const customerPath = `customerData/${userId}/${sanitizedPhone}`;
       console.log('   Caminho do Firebase:', customerPath);
       
       const customerRef = db.ref(customerPath);
@@ -2359,7 +2359,7 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
         const altPhone = customerPhone?.replace(/[@c.us]/g, '');
         if (altPhone && altPhone !== sanitizedPhone) {
           console.log('   Tentando com:', altPhone);
-          const altRef = db.ref(`customers/${userId}/${altPhone}`);
+          const altRef = db.ref(`customerData/${userId}/${altPhone}`);
           const altSnapshot = await altRef.once('value');
           const altData = altSnapshot.val();
           
