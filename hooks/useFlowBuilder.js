@@ -84,46 +84,43 @@ export function useFlowBuilder(userId) {
 
 /**
  * Converte array de steps em prompt de texto
+ * EXPORTADA para usar em outros componentes
  */
-function convertStepsToPrompt(steps) {
+export function convertStepsToPrompt(steps) {
   if (!steps || steps.length === 0) {
     return 'Você é um assistente virtual prestativo.';
   }
 
-  let prompt = '# FLUXO DE ATENDIMENTO\n\n';
-  prompt += 'Siga este fluxo de atendimento na ordem especificada:\n\n';
+  let prompt = '# FLUXO DE ATENDIMENTO\n\nSiga este fluxo de atendimento na ordem especificada:\n\n';
+
+  const actionDescriptions = {
+    greeting: 'Cumprimente o cliente de forma amigável.',
+    ask_info: 'Pergunte as informações necessárias ao cliente.',
+    show_catalog: 'Apresente os produtos/serviços disponíveis.',
+    process_order: 'Processe o pedido do cliente, confirmando itens e quantidades.',
+    request_payment: 'Solicite o pagamento e forneça instruções.',
+    send_confirmation: 'Envie uma mensagem de confirmação com os detalhes.',
+    ask_invoice: 'Pergunte se o cliente deseja nota fiscal.',
+    collect_address: 'Colete o endereço completo do cliente.',
+    custom: 'Execute a ação personalizada conforme descrito.',
+  };
 
   steps.forEach((step, index) => {
     prompt += `## ${index + 1}. ${step.title}\n\n`;
-
-    // Adicionar tipo de ação
-    const actionDescriptions = {
-      greeting: 'Cumprimente o cliente de forma amigável.',
-      ask_info: 'Pergunte as informações necessárias ao cliente.',
-      show_catalog: 'Apresente os produtos/serviços disponíveis.',
-      process_order: 'Processe o pedido do cliente, confirmando itens e quantidades.',
-      request_payment: 'Solicite o pagamento e forneça instruções.',
-      send_confirmation: 'Envie uma mensagem de confirmação com os detalhes.',
-      ask_invoice: 'Pergunte se o cliente deseja nota fiscal.',
-      collect_address: 'Colete o endereço completo do cliente.',
-      custom: 'Execute a ação personalizada conforme descrito.',
-    };
-
+    
     const actionDesc = actionDescriptions[step.type] || '';
     if (actionDesc) {
       prompt += `**Ação:** ${actionDesc}\n\n`;
     }
-
-    // Adicionar descrição detalhada
+    
     if (step.description) {
       prompt += `**Instruções:**\n${step.description}\n\n`;
     }
-
-    // Adicionar condição
+    
     if (step.condition) {
       prompt += `**Condição:** ${step.condition}\n\n`;
     }
-
+    
     prompt += '---\n\n';
   });
 

@@ -7,6 +7,7 @@ import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, quer
 import { ref, push, set, remove, onValue, off } from 'firebase/database';
 import SimpleLanding from './SimpleLanding';
 import dynamic from 'next/dynamic';
+import { convertStepsToPrompt } from '../hooks/useFlowBuilder';
 
 // Import dinâmico do FlowBuilder para evitar problemas de SSR
 const FlowBuilder = dynamic(() => import('./FlowBuilder'), { ssr: false });
@@ -86,54 +87,6 @@ const FirebaseApp = () => {
       </button>
     </div>
   );
-
-  // Função para gerar prompt a partir dos steps
-  const generatePromptFromSteps = (steps) => {
-    if (!steps || steps.length === 0) {
-      return '';
-    }
-
-    let prompt = '# FLUXO DE ATENDIMENTO\n\nSiga este fluxo de atendimento na ordem especificada:\n\n';
-
-    const actionDescriptions = {
-      greeting: 'Cumprimente o cliente de forma amigável.',
-      ask_info: 'Pergunte as informações necessárias ao cliente.',
-      show_catalog: 'Apresente os produtos/serviços disponíveis.',
-      process_order: 'Processe o pedido do cliente, confirmando itens e quantidades.',
-      request_payment: 'Solicite o pagamento e forneça instruções.',
-      send_confirmation: 'Envie uma mensagem de confirmação com os detalhes.',
-      ask_invoice: 'Pergunte se o cliente deseja nota fiscal.',
-      collect_address: 'Colete o endereço completo do cliente.',
-      custom: 'Execute a ação personalizada conforme descrito.',
-    };
-
-    steps.forEach((step, index) => {
-      prompt += `## ${index + 1}. ${step.title}\n\n`;
-      
-      const actionDesc = actionDescriptions[step.type] || '';
-      if (actionDesc) {
-        prompt += `**Ação:** ${actionDesc}\n\n`;
-      }
-      
-      if (step.description) {
-        prompt += `**Instruções:**\n${step.description}\n\n`;
-      }
-      
-      if (step.condition) {
-        prompt += `**Condição:** ${step.condition}\n\n`;
-      }
-      
-      prompt += '---\n\n';
-    });
-
-    prompt += '\n## REGRAS IMPORTANTES\n\n';
-    prompt += '- Siga os passos na ordem especificada\n';
-    prompt += '- Se o cliente fizer uma pergunta fora do fluxo, responda e retorne ao passo atual\n';
-    prompt += '- Seja sempre educado e profissional\n';
-    prompt += '- Confirme as informações importantes antes de prosseguir\n';
-
-    return prompt;
-  };
 
   // Verificar autenticação
   useEffect(() => {
@@ -2303,7 +2256,7 @@ const DashboardWithFirebase = ({
                             ...prev,
                             flowSteps: newSteps,
                             // Gerar prompt automaticamente dos steps
-                            systemPrompt: generatePromptFromSteps(newSteps)
+                            systemPrompt: convertStepsToPrompt(newSteps)
                           }));
                         }}
                       />
