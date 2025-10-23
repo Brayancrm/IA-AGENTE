@@ -977,14 +977,19 @@ async function tryEmitInvoiceWithAddress(userId, phone, customerData) {
       const client = activeClients.get(userId);
       
       if (client && phone) {
-        const invoiceMessage = `📄 *Nota Fiscal Emitida!*\n\n` +
-          `Número: ${invoiceResult.invoiceNumber || 'Processando...'}\n` +
-          `Valor: R$ ${paymentData.value.toFixed(2)}\n\n` +
-          `🔗 Acesse: ${invoiceResult.invoiceUrl || 'Em processamento...'}`;
+        const invoiceMessage = `📄 *Nota Fiscal Solicitada!*\n\n` +
+          `✅ Sua nota fiscal está sendo processada no Asaas.\n\n` +
+          `📦 *Detalhes:*\n` +
+          `Valor: R$ ${paymentData.value.toFixed(2)}\n` +
+          `Status: Em processamento\n\n` +
+          `⏱️ *Tempo estimado:* até 30 minutos\n\n` +
+          `🔔 *Não se preocupe!*\n` +
+          `Assim que sua nota fiscal estiver pronta, enviarei automaticamente aqui no WhatsApp com o link para download.\n\n` +
+          `Você pode continuar com suas atividades normalmente. 😊`;
         
         try {
           await client.sendText(phone, invoiceMessage);
-          console.log('✅ [INVOICE] Nota fiscal enviada para o cliente');
+          console.log('✅ [INVOICE] Mensagem de processamento de NF enviada para o cliente');
           
           // Salvar mensagem no histórico
           const sanitizedNumber = sanitizePhoneNumber(phone);
@@ -2917,14 +2922,16 @@ app.post('/api/asaas/webhook', async (req, res) => {
         const client = activeClients.get(userId);
         
         if (client && orderData.customer.phone) {
-          const invoiceMessage = `📄 *Nota Fiscal Emitida!*\n\n` +
-            `Número: ${invoice.number || 'Processando...'}\n` +
+          const invoiceMessage = `🎉 *Sua Nota Fiscal Está Pronta!*\n\n` +
+            `✅ A nota fiscal que você solicitou foi emitida com sucesso!\n\n` +
+            `📋 *Informações:*\n` +
+            `Número: ${invoice.number || 'N/A'}\n` +
             `Pedido: #${orderId.substring(0, 8)}\n` +
             `Valor: R$ ${invoice.value ? invoice.value.toFixed(2) : orderData.total.toFixed(2)}\n\n` +
-            (invoice.pdfUrl ? `🔗 *Download PDF:*\n${invoice.pdfUrl}\n\n` : '') +
+            (invoice.pdfUrl ? `📥 *Download PDF:*\n${invoice.pdfUrl}\n\n` : '') +
             (invoice.xmlUrl ? `📋 *Download XML:*\n${invoice.xmlUrl}\n\n` : '') +
-            `✅ Sua nota fiscal está pronta!\n` +
-            `Obrigado pela preferência! 🎉`;
+            `💚 Obrigado pela sua compra!\n` +
+            `Se precisar de algo mais, estou à disposição. 😊`;
           
           try {
             await client.sendText(orderData.customer.phone, invoiceMessage);
