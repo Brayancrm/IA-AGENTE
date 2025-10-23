@@ -2433,10 +2433,11 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
       customer: payment.customer, // ID do cliente no Asaas
       
       // ✅ CAMPO OBRIGATÓRIO: Nome do tomador (cliente)
-      name: customerData?.name || customerData?.nomeCompleto || 'Cliente',
+      name: customerData?.name || customerData?.nomeCompleto || payment.customerName || 'Nome não informado',
       
-      // ⚠️ NÃO ENVIAR municipalServiceCode - deixar o Asaas usar o serviço padrão cadastrado
-      // O Asaas vai usar automaticamente o serviço marcado como padrão nas configurações
+      // ✅ CAMPO OBRIGATÓRIO: Código e descrição do serviço municipal
+      municipalServiceCode: '101',
+      municipalServiceDescription: 'Analise e desenvolvimento de sistemas',
       
       // Descrição do serviço
       serviceDescription: serviceDescription,
