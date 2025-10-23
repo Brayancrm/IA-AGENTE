@@ -6,6 +6,10 @@ import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndP
 import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { ref, push, set, remove, onValue, off } from 'firebase/database';
 import SimpleLanding from './SimpleLanding';
+import dynamic from 'next/dynamic';
+
+// Import dinâmico do FlowBuilder para evitar problemas de SSR
+const FlowBuilder = dynamic(() => import('./FlowBuilder'), { ssr: false });
 import {
   Package,
   Plus,
@@ -82,6 +86,54 @@ const FirebaseApp = () => {
       </button>
     </div>
   );
+
+  // Função para gerar prompt a partir dos steps
+  const generatePromptFromSteps = (steps) => {
+    if (!steps || steps.length === 0) {
+      return '';
+    }
+
+    let prompt = '# FLUXO DE ATENDIMENTO\n\nSiga este fluxo de atendimento na ordem especificada:\n\n';
+
+    const actionDescriptions = {
+      greeting: 'Cumprimente o cliente de forma amigável.',
+      ask_info: 'Pergunte as informações necessárias ao cliente.',
+      show_catalog: 'Apresente os produtos/serviços disponíveis.',
+      process_order: 'Processe o pedido do cliente, confirmando itens e quantidades.',
+      request_payment: 'Solicite o pagamento e forneça instruções.',
+      send_confirmation: 'Envie uma mensagem de confirmação com os detalhes.',
+      ask_invoice: 'Pergunte se o cliente deseja nota fiscal.',
+      collect_address: 'Colete o endereço completo do cliente.',
+      custom: 'Execute a ação personalizada conforme descrito.',
+    };
+
+    steps.forEach((step, index) => {
+      prompt += `## ${index + 1}. ${step.title}\n\n`;
+      
+      const actionDesc = actionDescriptions[step.type] || '';
+      if (actionDesc) {
+        prompt += `**Ação:** ${actionDesc}\n\n`;
+      }
+      
+      if (step.description) {
+        prompt += `**Instruções:**\n${step.description}\n\n`;
+      }
+      
+      if (step.condition) {
+        prompt += `**Condição:** ${step.condition}\n\n`;
+      }
+      
+      prompt += '---\n\n';
+    });
+
+    prompt += '\n## REGRAS IMPORTANTES\n\n';
+    prompt += '- Siga os passos na ordem especificada\n';
+    prompt += '- Se o cliente fizer uma pergunta fora do fluxo, responda e retorne ao passo atual\n';
+    prompt += '- Seja sempre educado e profissional\n';
+    prompt += '- Confirme as informações importantes antes de prosseguir\n';
+
+    return prompt;
+  };
 
   // Verificar autenticação
   useEffect(() => {
@@ -823,7 +875,8 @@ const DashboardWithFirebase = ({
     enabledFeatures: [],
     includeCatalogProducts: false,
     includeCatalogServices: false,
-    flowMode: 'text' // 'text' ou 'visual'
+    flowMode: 'text', // 'text' ou 'visual'
+    flowSteps: [] // Steps do flow builder
   });
   const [userForm, setUserForm] = useState({
     name: '',
@@ -2242,23 +2295,18 @@ const DashboardWithFirebase = ({
                   </div>
 
                   {assistantForm.flowMode === 'visual' ? (
-                    <div style={{
-                      padding: '16px',
-                      background: '#f9fafb',
-                      border: '2px dashed #d1d5db',
-                      borderRadius: '8px',
-                      textAlign: 'center'
-                    }}>
-                      <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🎯</div>
-                      <div style={{ fontWeight: '600', marginBottom: '4px', color: '#374151' }}>
-                        Modo Visual - Flow Builder
-                      </div>
-                      <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '12px' }}>
-                        Interface visual para criar o fluxo em passos será adicionada aqui
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-                        Em desenvolvimento - Use o modo texto por enquanto
-                      </div>
+                    <div>
+                      <FlowBuilder 
+                        initialSteps={assistantForm.flowSteps || []}
+                        onChange={(newSteps) => {
+                          setAssistantForm(prev => ({
+                            ...prev,
+                            flowSteps: newSteps,
+                            // Gerar prompt automaticamente dos steps
+                            systemPrompt: generatePromptFromSteps(newSteps)
+                          }));
+                        }}
+                      />
                     </div>
                   ) : (
                     <textarea
