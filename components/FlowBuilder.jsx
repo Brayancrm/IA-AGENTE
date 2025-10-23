@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Plus, Trash2, GripVertical, Edit2, Save, X, FileText } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Edit2, Save, X, FileText, Sparkles } from 'lucide-react';
 import TemplateModal from './TemplateModal';
+import AIGeneratorModal from './AIGeneratorModal';
 
 /**
  * FlowBuilder - Interface visual para criar fluxo do agente em steps
@@ -16,6 +17,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
   const [editingIndex, setEditingIndex] = useState(null);
   const [editingStep, setEditingStep] = useState(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [showAIModal, setShowAIModal] = useState(false);
 
   // Tipos de ação disponíveis
   const actionTypes = [
@@ -122,6 +124,12 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
     if (onChange) onChange(newSteps);
   };
 
+  // Aplicar template gerado pela IA
+  const applyAITemplate = (template) => {
+    // Template vem do backend já formatado
+    applyTemplate(template);
+  };
+
   // Gerar prompt a partir dos steps
   const generatePrompt = () => {
     let prompt = '';
@@ -156,6 +164,26 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
             </p>
           </div>
           <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setShowAIModal(true)}
+              className="flex items-center gap-2 text-white px-4 py-2 rounded-lg transition"
+              style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+              }}
+            >
+              <Sparkles size={20} />
+              Criar com IA
+            </button>
             <button
               type="button"
               onClick={() => setShowTemplateModal(true)}
@@ -592,6 +620,13 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
         isOpen={showTemplateModal}
         onClose={() => setShowTemplateModal(false)}
         onSelectTemplate={applyTemplate}
+      />
+
+      {/* AI Generator Modal */}
+      <AIGeneratorModal
+        isOpen={showAIModal}
+        onClose={() => setShowAIModal(false)}
+        onGenerate={applyAITemplate}
       />
     </div>
   );

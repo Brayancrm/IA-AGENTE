@@ -3385,6 +3385,142 @@ app.put('/api/ai-config/:userId', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/generate-flow
+ * Gerar template de fluxo usando IA
+ */
+app.post('/api/generate-flow', async (req, res) => {
+  try {
+    const { description } = req.body;
+
+    console.log('🤖 [AI Generator] Recebida solicitação para gerar fluxo');
+    console.log('📝 [AI Generator] Descrição:', description);
+
+    if (!description || description.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Descrição é obrigatória'
+      });
+    }
+
+    // Prompt para a IA gerar o template
+    const systemPrompt = `Você é um especialista em criar fluxos de atendimento para agentes de IA.
+
+Sua tarefa é analisar a descrição do usuário e gerar um fluxo de atendimento estruturado em passos.
+
+TIPOS DE AÇÃO DISPONÍVEIS:
+- greeting: Cumprimentar o cliente
+- ask_info: Perguntar informações ao cliente
+- show_catalog: Mostrar produtos ou serviços
+- process_order: Processar pedido do cliente
+- request_payment: Solicitar pagamento
+- send_confirmation: Enviar confirmação
+- ask_invoice: Perguntar sobre nota fiscal
+- collect_address: Coletar endereço
+- free_text: Texto livre personalizado
+- custom: Ação personalizada
+
+Você DEVE retornar APENAS um JSON válido no seguinte formato (sem markdown, sem explicações):
+
+{
+  "name": "Nome do Template",
+  "description": "Breve descrição",
+  "steps": [
+    {
+      "type": "greeting",
+      "title": "Título do Passo",
+      "description": "Descrição detalhada do que fazer",
+      "condition": ""
+    }
+  ]
+}
+
+IMPORTANTE:
+- Crie entre 4 e 8 passos
+- Seja específico nas descrições
+- Use os tipos corretos de ação
+- Retorne APENAS o JSON, sem texto adicional`;
+
+    const userPrompt = `Crie um fluxo de atendimento para: ${description}`;
+
+    // Chamar a IA (OpenAI)
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    
+    if (!openaiApiKey) {
+      console.error('❌ [AI Generator] OPENAI_API_KEY não configurada');
+      return res.status(500).json({
+        success: false,
+        error: 'Chave da OpenAI não configurada. Configure OPENAI_API_KEY nas variáveis de ambiente.'
+      });
+    }
+
+    const openaiResponse = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-4-turbo-preview',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000,
+        response_format: { type: "json_object" }
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const aiResponse = openaiResponse.data.choices[0].message.content;
+    console.log('🤖 [AI Generator] Resposta da IA:', aiResponse);
+
+    // Parse do JSON
+    let template;
+    try {
+      template = JSON.parse(aiResponse);
+    } catch (parseError) {
+      console.error('❌ [AI Generator] Erro ao fazer parse do JSON:', parseError);
+      return res.status(500).json({
+        success: false,
+        error: 'Erro ao processar resposta da IA'
+      });
+    }
+
+    // Garantir que os steps tenham IDs únicos
+    if (template.steps) {
+      template.steps = template.steps.map((step, index) => ({
+        ...step,
+        id: Date.now() + index,
+        condition: step.condition || ''
+      }));
+    }
+
+    console.log('✅ [AI Generator] Template gerado com sucesso');
+    console.log('📊 [AI Generator] Steps:', template.steps?.length || 0);
+
+    res.json({
+      success: true,
+      template: template
+    });
+
+  } catch (error) {
+    console.error('❌ [AI Generator] Erro:', error.message);
+    
+    // Tratamento específico para erros da OpenAI
+    if (error.response?.data) {
+      console.error('📄 [AI Generator] Detalhes:', error.response.data);
+    }
+
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao gerar template com IA'
+    });
+  }
+});
+
 // ============================================
 // INICIAR SERVIDOR
 // ============================================
