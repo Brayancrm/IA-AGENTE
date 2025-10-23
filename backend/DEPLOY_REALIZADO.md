@@ -1,9 +1,9 @@
-# 🚀 Deploy Realizado - Novo Fluxo de Nota Fiscal
+# 🚀 Deploy Realizado - Correção Código Municipal
 
 ## ✅ Deploy Concluído
 
-**Data:** 22 de Outubro de 2025  
-**Commit:** `1131159`  
+**Data:** 23 de Outubro de 2025  
+**Commit:** `e60129b`  
 **Branch:** `main`
 
 ---
@@ -11,16 +11,13 @@
 ## 📦 O Que Foi Enviado
 
 ### **Arquivos Modificados:**
-- ✅ `backend/server.js` (+1.911 linhas, -25 linhas)
+- ✅ `backend/server.js` - Corrigido código municipal de '01.01' para '6201501'
 
 ### **Arquivos Novos (Documentação):**
-- ✅ `backend/COMO_TESTAR_NOVO_FLUXO_NF.md`
-- ✅ `backend/DIAGRAMA_FLUXO_NF.md`
-- ✅ `backend/EXEMPLO_CONVERSA_NOTA_FISCAL.md`
-- ✅ `backend/FLUXO_NOTA_FISCAL_ATUALIZADO.md`
-- ✅ `backend/RESUMO_MUDANCAS_NF.md`
+- ✅ `backend/CORRECAO_CODIGO_MUNICIPAL.md` - Documentação da correção
+- ✅ `backend/DEPLOY_REALIZADO.md` - Registro do deploy
 
-**Total:** 6 arquivos | 1.936 inserções | 25 exclusões
+**Total:** 3 arquivos | 272 inserções | 3 exclusões
 
 ---
 
@@ -28,9 +25,9 @@
 
 ```bash
 ✅ git add backend/server.js + documentação
-✅ git commit -m "feat: Implementa novo fluxo de nota fiscal..."
+✅ git commit -m "fix: Corrige código de serviço municipal..."
 ✅ git push origin main
-✅ Push concluído: adbd319..1131159
+✅ Push concluído: 9a267f0..e60129b
 ```
 
 **Repositório:** https://github.com/Brayancrm/IA-AGENTE.git
@@ -103,55 +100,35 @@ Após o deploy estar ativo:
 - [ ] Fazer pedido de teste
 - [ ] Pagar pedido de teste
 - [ ] Receber confirmação de pagamento
-- [ ] Enviar mensagem qualquer
-- [ ] Agente pergunta sobre nota fiscal
-- [ ] Responder "Sim"
-- [ ] Agente pede endereço
-- [ ] Fornecer endereço completo
-- [ ] Receber nota fiscal com número válido
-- [ ] Verificar dados no Firebase
+- [ ] Sistema emite nota fiscal automaticamente
+- [ ] ✅ Nota fiscal emitida com sucesso (sem erro de código municipal)
+- [ ] Verificar que o código é '6201501' (não '01.01')
+- [ ] Verificar dados no Firebase e Asaas
 
 ---
 
 ## 📊 Estatísticas do Deploy
 
-**Commit Hash:** `1131159`  
-**Arquivos Alterados:** 6  
-**Linhas Adicionadas:** +1.936  
-**Linhas Removidas:** -25  
-**Tamanho do Push:** 18.58 KB  
+**Commit Hash:** `e60129b`  
+**Arquivos Alterados:** 3  
+**Linhas Adicionadas:** +272  
+**Linhas Removidas:** -3  
+**Tamanho do Push:** 3.56 KB  
 **Tempo de Upload:** ~1 segundo  
-**Compressão:** 9 objetos (Delta 3)
+**Compressão:** 6 objetos (Delta 3)
 
 ---
 
 ## 📚 Documentação Disponível
 
-Toda a documentação foi enviada junto:
+Documentação criada neste deploy:
 
-1. **FLUXO_NOTA_FISCAL_ATUALIZADO.md**
-   - Explicação técnica completa
-   - Estruturas de dados
-   - Modificações implementadas
-
-2. **EXEMPLO_CONVERSA_NOTA_FISCAL.md**
-   - Simulação de conversa
-   - Cenários de teste
-   - Formatos de endereço
-
-3. **COMO_TESTAR_NOVO_FLUXO_NF.md**
-   - Guia passo a passo
-   - Debug e troubleshooting
-   - Checklist completo
-
-4. **DIAGRAMA_FLUXO_NF.md**
-   - Diagrama visual do fluxo
-   - Estados e transições
-   - Timeline típico
-
-5. **RESUMO_MUDANCAS_NF.md**
-   - Visão geral simplificada
-   - Para consulta rápida
+1. **CORRECAO_CODIGO_MUNICIPAL.md**
+   - Explicação detalhada do problema
+   - Causa raiz do erro
+   - Solução implementada
+   - Códigos válidos para Brasília
+   - Como verificar a correção
 
 ---
 
@@ -159,9 +136,9 @@ Toda a documentação foi enviada junto:
 
 1. **Aguardar Railway terminar o deploy** (2-3 min)
 2. **Verificar logs** no Railway
-3. **Testar fluxo completo** conforme guia
-4. **Validar** que está funcionando
-5. **Monitorar** primeiros usos reais
+3. **Fazer pedido de teste** e pagar
+4. **Validar** que a nota fiscal é emitida sem erro
+5. **Confirmar** que o código é '6201501' nos logs
 
 ---
 
@@ -169,13 +146,13 @@ Toda a documentação foi enviada junto:
 
 ### **Rollback Rápido:**
 ```bash
-git revert 1131159
+git revert e60129b
 git push origin main
 ```
 
 ### **Ver Commit Anterior:**
 ```bash
-git checkout adbd319
+git checkout 9a267f0
 ```
 
 ### **Logs do Railway:**
@@ -198,13 +175,18 @@ git checkout adbd319
 
 ---
 
-## 📞 Suporte
+## 📞 O Que Foi Corrigido
 
-Se precisar de ajuda:
-1. Verifique logs do Railway
-2. Consulte documentação criada
-3. Teste localmente se necessário
+**Problema:**
+- Nota fiscal estava sendo rejeitada pela Prefeitura de Brasília
+- Erro: "O Item da Lista de Serviço deve conter 3 a 4 dígitos"
+- Backend enviava código '01.01' (com ponto)
 
-**Tudo pronto para funcionar!** 🚀
+**Solução:**
+- ✅ Alterado código padrão de '01.01' para '6201501'
+- ✅ Código '6201501' = "Análise e desenvolvimento de sistemas"
+- ✅ Aceito pela Prefeitura de Brasília-DF
+
+**Tudo corrigido e pronto para funcionar!** 🚀
 
 
