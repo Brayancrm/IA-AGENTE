@@ -1605,16 +1605,19 @@ const DashboardWithFirebase = ({
         const safeChatSearchQuery = typeof chatSearchQuery !== 'undefined' ? chatSearchQuery : '';
         const safeIsCompactMode = typeof isCompactMode !== 'undefined' ? isCompactMode : false;
         const safeSelectedConv = typeof selectedConversation !== 'undefined' ? selectedConversation : null;
+        const safeRealConversations = typeof realConversations !== 'undefined' ? realConversations : [];
+        const safeCurrentMessages = typeof currentMessages !== 'undefined' ? currentMessages : [];
+        const safeLoadingConversations = typeof loadingConversations !== 'undefined' ? loadingConversations : false;
         
         // Emojis mais usados
         const frequentEmojis = ['😊', '👍', '❤️', '😂', '🎉', '🙏', '👏', '✅', '💯', '🔥', '😍', '🤝', '💪', '⭐', '📱', '💬', '📦', '✨'];
         
         // Debug: Verificar estado das conversas
-        console.log('🔍 [RENDER] realConversations:', realConversations);
-        console.log('🔍 [RENDER] Total:', realConversations.length);
+        console.log('🔍 [RENDER] realConversations:', safeRealConversations);
+        console.log('🔍 [RENDER] Total:', safeRealConversations.length);
         
         // Formatar conversas reais
-        const conversations = realConversations.map((conv, index) => {
+        const conversations = safeRealConversations.map((conv, index) => {
           const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
           const phone = conv.contactNumber || 'Cliente';
           const name = phone.replace('@c.us', '').replace(/\D/g, ''); // Extrai apenas números
@@ -1691,7 +1694,7 @@ const DashboardWithFirebase = ({
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                     <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937' }}>Conversas</span>
                     <span style={{ backgroundColor: '#10b981', color: 'white', fontSize: '0.75rem', fontWeight: 'bold', padding: '2px 8px', borderRadius: '12px' }}>
-                      {loadingConversations ? '...' : conversations.length}
+                      {safeLoadingConversations ? '...' : conversations.length}
                     </span>
                   </div>
                   <input
@@ -1713,7 +1716,7 @@ const DashboardWithFirebase = ({
                 
                 {/* Lista de conversas */}
                 <div style={{ flex: 1, overflowY: 'auto' }}>
-                  {loadingConversations ? (
+                  {safeLoadingConversations ? (
                     <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
                       <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
                       Carregando conversas...
@@ -1975,7 +1978,7 @@ const DashboardWithFirebase = ({
                   )}
                   
                   {/* Mensagens Reais */}
-                  {currentMessages.length === 0 ? (
+                  {safeCurrentMessages.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '48px 24px', color: '#6b7280' }}>
                       <div style={{ fontSize: '3rem', marginBottom: '16px' }}>💬</div>
                       <div style={{ fontSize: '1.125rem', fontWeight: '500', marginBottom: '8px' }}>
@@ -1986,7 +1989,7 @@ const DashboardWithFirebase = ({
                       </div>
                     </div>
                   ) : (
-                    currentMessages.map((msg, index) => {
+                    safeCurrentMessages.map((msg, index) => {
                       const isFromMe = msg.isFromMe;
                       const msgTime = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
                       
