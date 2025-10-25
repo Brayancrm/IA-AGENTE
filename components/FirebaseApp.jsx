@@ -1502,7 +1502,7 @@ const DashboardWithFirebase = ({
       case 'catalog':
         return renderCatalog();
 
-      case 'conversas': 
+      case 'conversas': {
         // Emojis mais usados
         const frequentEmojis = ['😊', '👍', '❤️', '😂', '🎉', '🙏', '👏', '✅', '💯', '🔥', '😍', '🤝', '💪', '⭐', '📱', '💬', '📦', '✨'];
         
@@ -1514,7 +1514,7 @@ const DashboardWithFirebase = ({
         ];
         
         // Proteção: garante que selectedConversation existe e tem valor
-        const safeSelectedConv = selectedConversation || 'joao';
+        const safeSelectedConv = typeof selectedConversation !== 'undefined' ? selectedConversation : 'joao';
         const currentConv = conversations.find(c => c.id === safeSelectedConv) || conversations[0];
         
         return (
@@ -2091,6 +2091,7 @@ const DashboardWithFirebase = ({
             </div>
           </div>
         );
+      }
 
       case 'crm':
           return (
@@ -2549,7 +2550,7 @@ const DashboardWithFirebase = ({
           </div>
         );
 
-      case 'whatsapp':
+      case 'whatsapp': {
         // Garantir valores padrão para prevenir erros
         const currentWhatsappStatus = whatsappStatus || 'disconnected';
         const currentQRCode = whatsappQRCode || null;
@@ -2738,6 +2739,7 @@ const DashboardWithFirebase = ({
             </div>
           </div>
         );
+      }
 
       case 'assistant': 
         return (
