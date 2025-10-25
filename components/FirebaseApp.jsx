@@ -1621,12 +1621,14 @@ const DashboardWithFirebase = ({
           );
         }
         
-        // Debug: Verificar tipos PRIMEIRO
+        // Proteção: Usar typeof para não causar ReferenceError
         console.log('🔍 [DEBUG] typeof realConversations:', typeof realConversations);
         
-        // Proteção: Se estados ainda não foram inicializados, mostrar loading
-        if (!realConversations || !currentMessages || typeof loadingConversations === 'undefined') {
-          console.log('⚠️ Estados ainda não inicializados - aguardando...');
+        // Se estados ainda não existem no escopo, mostrar loading
+        if (typeof realConversations === 'undefined' || 
+            typeof currentMessages === 'undefined' || 
+            typeof loadingConversations === 'undefined') {
+          console.log('⚠️ Estados ainda não no escopo - aguardando...');
           return (
             <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
               <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
