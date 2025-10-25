@@ -2140,7 +2140,6 @@ const DashboardWithFirebase = ({
             </div>
           </div>
         );
-      }
 
       case 'assistant': 
         return (
@@ -2334,7 +2333,6 @@ const DashboardWithFirebase = ({
             </div>
           </div>
         );
-      }
 
       case 'users':
         return (
