@@ -1610,15 +1610,24 @@ const DashboardWithFirebase = ({
         return renderCatalog();
 
       case 'conversas': {
-        // Proteção SSR: Se estados não existem, retorna loading
-        if (typeof realConversations === 'undefined' || 
-            typeof currentMessages === 'undefined' || 
-            typeof loadingConversations === 'undefined') {
-          console.log('⚠️ Estados undefined - mostrando loading SSR');
+        // Proteção SSR: Aguardar cliente estar pronto
+        if (typeof window === 'undefined') {
+          console.log('⚠️ SSR detectado - aguardando cliente');
           return (
             <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
               <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
               Inicializando...
+            </div>
+          );
+        }
+        
+        // Verificação adicional: estados devem estar definidos no cliente
+        if (typeof realConversations === 'undefined') {
+          console.log('⚠️ realConversations undefined no cliente - problema de inicialização');
+          return (
+            <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⚠️</div>
+              Erro de inicialização
             </div>
           );
         }
