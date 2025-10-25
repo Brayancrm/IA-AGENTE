@@ -504,8 +504,12 @@ const FirebaseApp = () => {
     
     setLoadingConversations(true);
     try {
+      console.log('🔍 Buscando conversas do backend...', `${BACKEND_URL}/api/conversations/${user.uid}`);
       const response = await fetch(`${BACKEND_URL}/api/conversations/${user.uid}`);
       const data = await response.json();
+      
+      console.log('📊 Resposta do backend:', data);
+      console.log('📱 Total de conversas:', data.conversations?.length || 0);
       
       if (data.conversations) {
         setRealConversations(data.conversations);
@@ -514,10 +518,14 @@ const FirebaseApp = () => {
           setSelectedConversation(data.conversations[0].contactNumber);
           fetchMessages(data.conversations[0].contactNumber);
         }
+      } else {
+        console.log('⚠️ Nenhuma conversa encontrada');
+        setRealConversations([]);
       }
     } catch (error) {
-      console.error('Erro ao buscar conversas:', error);
+      console.error('❌ Erro ao buscar conversas:', error);
       showToast('Erro ao carregar conversas', 'error');
+      setRealConversations([]);
     } finally {
       setLoadingConversations(false);
     }
@@ -1600,6 +1608,10 @@ const DashboardWithFirebase = ({
         // Emojis mais usados
         const frequentEmojis = ['😊', '👍', '❤️', '😂', '🎉', '🙏', '👏', '✅', '💯', '🔥', '😍', '🤝', '💪', '⭐', '📱', '💬', '📦', '✨'];
         
+        // Debug: Verificar estado das conversas
+        console.log('🔍 [RENDER] realConversations:', realConversations);
+        console.log('🔍 [RENDER] Total:', realConversations.length);
+        
         // Formatar conversas reais
         const conversations = realConversations.map((conv, index) => {
           const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
@@ -1636,6 +1648,8 @@ const DashboardWithFirebase = ({
             messageCount: conv.messageCount || 0
           };
         });
+        
+        console.log('🔍 [RENDER] conversations formatadas:', conversations);
         
         const currentConv = safeSelectedConv ? (conversations.find(c => c.id === safeSelectedConv) || conversations[0]) : conversations[0];
         
