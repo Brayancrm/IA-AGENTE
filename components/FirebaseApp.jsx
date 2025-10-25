@@ -510,16 +510,22 @@ const FirebaseApp = () => {
       
       console.log('📊 Resposta do backend:', data);
       console.log('📱 Total de conversas:', data.conversations?.length || 0);
+      console.log('🔍 Tipo de data.conversations:', typeof data.conversations, Array.isArray(data.conversations));
+      console.log('🔍 data.conversations:', JSON.stringify(data.conversations));
       
-      if (data.conversations) {
+      if (data.conversations && data.conversations.length > 0) {
+        console.log('✅ Atualizando state com conversas:', data.conversations);
         setRealConversations(data.conversations);
+        console.log('✅ setRealConversations chamado com', data.conversations.length, 'conversas');
+        
         // Selecionar a primeira conversa automaticamente se não houver nenhuma selecionada
         if (!selectedConversation && data.conversations.length > 0) {
+          console.log('✅ Selecionando primeira conversa:', data.conversations[0].contactNumber);
           setSelectedConversation(data.conversations[0].contactNumber);
           fetchMessages(data.conversations[0].contactNumber);
         }
       } else {
-        console.log('⚠️ Nenhuma conversa encontrada');
+        console.log('⚠️ Nenhuma conversa encontrada ou array vazio');
         setRealConversations([]);
       }
     } catch (error) {
@@ -589,6 +595,12 @@ const FirebaseApp = () => {
       return () => clearInterval(interval);
     }
   }, [user, currentPage]);
+
+  // Debug: Monitorar mudanças em realConversations
+  useEffect(() => {
+    console.log('🔄 [STATE CHANGED] realConversations atualizado:', realConversations);
+    console.log('🔄 [STATE CHANGED] Total:', realConversations?.length || 0);
+  }, [realConversations]);
 
   const regenerateQRCode = async () => {
     if (!user) return;
