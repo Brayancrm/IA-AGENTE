@@ -1951,7 +1951,7 @@ const DashboardWithFirebase = ({
           </div>
         );
 
-      case 'assistant': {
+      case 'whatsapp': {
         // Garantir valores padrão para prevenir erros
         const currentWhatsappStatus = whatsappStatus || 'disconnected';
         const currentQRCode = whatsappQRCode || null;
@@ -1960,7 +1960,7 @@ const DashboardWithFirebase = ({
         return (
           <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
             <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
-              🤖 Assistente Virtual - WhatsApp + IA
+              📱 Conexão WhatsApp
             </h2>
             
             {/* Status de Conexão WhatsApp */}
@@ -2138,6 +2138,16 @@ const DashboardWithFirebase = ({
                 </button>
               </div>
             </div>
+          </div>
+        );
+      }
+
+      case 'assistant': 
+        return (
+          <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
+              🤖 Configuração do Assistente
+            </h2>
 
             {/* Configuração de IA */}
             <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '24px', marginBottom: '24px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
@@ -2200,29 +2210,28 @@ const DashboardWithFirebase = ({
                         Sua chave API será criptografada e armazenada com segurança
                       </p>
                     </div>
+                    <div>
+                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                        Modelo
+                      </label>
+                      <select
+                        value={assistantForm.model || 'gpt-3.5-turbo'}
+                        onChange={(e) => setAssistantForm(prev => ({ ...prev, model: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '8px',
+                          border: '1px solid #d1d5db',
+                          fontSize: '1rem'
+                        }}
+                      >
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Rápido e Econômico)</option>
+                        <option value="gpt-4">GPT-4 (Mais Inteligente)</option>
+                        <option value="gpt-4-turbo">GPT-4 Turbo (Equilibrado)</option>
+                      </select>
+                    </div>
                   </>
                 )}
-
-                <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
-                    Modelo
-                  </label>
-                  <select
-                    value={assistantForm.model || 'gpt-3.5-turbo'}
-                    onChange={(e) => setAssistantForm(prev => ({ ...prev, model: e.target.value }))}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      borderRadius: '8px',
-                      border: '1px solid #d1d5db',
-                      fontSize: '1rem'
-                    }}
-                  >
-                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Rápido e Econômico)</option>
-                    <option value="gpt-4">GPT-4 (Mais Inteligente)</option>
-                    <option value="gpt-4-turbo">GPT-4 Turbo (Equilibrado)</option>
-                  </select>
-                </div>
 
                 {/* Flow Builder Visual */}
                 <div>
@@ -2475,6 +2484,7 @@ const DashboardWithFirebase = ({
     { id: 'catalog', label: 'Catálogo (Itens)', icon: '📦' },
     { id: 'crm', label: 'CRM', icon: '👥' },
     { id: 'integrations', label: 'Integrações', icon: '⚙️' },
+    { id: 'whatsapp', label: 'Conexão WhatsApp', icon: '📱' },
     { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' },
     ...(user?.isMaster ? [{ id: 'users', label: 'Gerenciar Usuários', icon: '👤' }] : [])
   ];
