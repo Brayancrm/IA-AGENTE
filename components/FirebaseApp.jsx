@@ -1621,36 +1621,25 @@ const DashboardWithFirebase = ({
           );
         }
         
-        // Proteção: Usar typeof para não causar ReferenceError
-        console.log('🔍 [DEBUG] typeof realConversations:', typeof realConversations);
+        // SOLUÇÃO: Usar valores padrão em vez de bloquear
+        const _realConversations = realConversations || [];
+        const _currentMessages = currentMessages || [];
+        const _loadingConversations = loadingConversations || false;
         
-        // Se estados ainda não existem no escopo, mostrar loading
-        if (typeof realConversations === 'undefined' || 
-            typeof currentMessages === 'undefined' || 
-            typeof loadingConversations === 'undefined') {
-          console.log('⚠️ Estados ainda não no escopo - aguardando...');
-          return (
-            <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
-              Carregando estados...
-            </div>
-          );
-        }
-        
-        // Debug: Estados estão prontos
-        console.log('✅ [DEBUG] Estados prontos!');
-        console.log('🔍 [DEBUG] realConversations:', realConversations);
-        console.log('🔍 [DEBUG] realConversations.length:', realConversations.length);
+        // Debug: Verificar valores
+        console.log('🔍 [DEBUG] realConversations (original):', realConversations);
+        console.log('🔍 [DEBUG] _realConversations (com fallback):', _realConversations);
+        console.log('🔍 [DEBUG] Total de conversas:', _realConversations.length);
         
         // Emojis mais usados
         const frequentEmojis = ['😊', '👍', '❤️', '😂', '🎉', '🙏', '👏', '✅', '💯', '🔥', '😍', '🤝', '💪', '⭐', '📱', '💬', '📦', '✨'];
         
         // Debug: Verificar estado das conversas
-        console.log('🔍 [RENDER] realConversations:', realConversations);
-        console.log('🔍 [RENDER] Total:', realConversations.length);
+        console.log('🔍 [RENDER] _realConversations:', _realConversations);
+        console.log('🔍 [RENDER] Total:', _realConversations.length);
         
-        // Formatar conversas reais (DIRETO do estado)
-        const conversations = realConversations.map((conv, index) => {
+        // Formatar conversas reais (usando valores com fallback)
+        const conversations = _realConversations.map((conv, index) => {
           const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
           const phone = conv.contactNumber || 'Cliente';
           const name = phone.replace('@c.us', '').replace(/\D/g, ''); // Extrai apenas números
