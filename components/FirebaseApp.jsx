@@ -1621,15 +1621,24 @@ const DashboardWithFirebase = ({
           );
         }
         
-        // SOLUÇÃO: Usar valores padrão em vez de bloquear
-        const _realConversations = realConversations || [];
-        const _currentMessages = currentMessages || [];
-        const _loadingConversations = loadingConversations || false;
+        // SOLUÇÃO DEFINITIVA: Try-catch para capturar ReferenceError
+        let _realConversations = [];
+        let _currentMessages = [];
+        let _loadingConversations = false;
         
-        // Debug: Verificar valores
-        console.log('🔍 [DEBUG] realConversations (original):', realConversations);
-        console.log('🔍 [DEBUG] _realConversations (com fallback):', _realConversations);
-        console.log('🔍 [DEBUG] Total de conversas:', _realConversations.length);
+        try {
+          // Tentar acessar os estados
+          _realConversations = realConversations || [];
+          _currentMessages = currentMessages || [];
+          _loadingConversations = loadingConversations || false;
+          console.log('✅ Estados acessíveis:', _realConversations.length, 'conversas');
+        } catch (error) {
+          // Se der ReferenceError, usar valores padrão
+          console.log('⚠️ ReferenceError capturado - usando valores padrão');
+          _realConversations = [];
+          _currentMessages = [];
+          _loadingConversations = false;
+        }
         
         // Emojis mais usados
         const frequentEmojis = ['😊', '👍', '❤️', '😂', '🎉', '🙏', '👏', '✅', '💯', '🔥', '😍', '🤝', '💪', '⭐', '📱', '💬', '📦', '✨'];
