@@ -1610,26 +1610,15 @@ const DashboardWithFirebase = ({
         return renderCatalog();
 
       case 'conversas': {
-        // Proteção: garante que todos os estados existem
-        const safeShowEmojiPicker = typeof showEmojiPicker !== 'undefined' ? showEmojiPicker : false;
-        const safeMessageInput = typeof messageInput !== 'undefined' ? messageInput : '';
-        const safeIsDragging = typeof isDragging !== 'undefined' ? isDragging : false;
-        const safeChatSearchQuery = typeof chatSearchQuery !== 'undefined' ? chatSearchQuery : '';
-        const safeIsCompactMode = typeof isCompactMode !== 'undefined' ? isCompactMode : false;
-        const safeSelectedConv = typeof selectedConversation !== 'undefined' ? selectedConversation : null;
-        const safeRealConversations = typeof realConversations !== 'undefined' ? realConversations : [];
-        const safeCurrentMessages = typeof currentMessages !== 'undefined' ? currentMessages : [];
-        const safeLoadingConversations = typeof loadingConversations !== 'undefined' ? loadingConversations : false;
-        
         // Emojis mais usados
         const frequentEmojis = ['😊', '👍', '❤️', '😂', '🎉', '🙏', '👏', '✅', '💯', '🔥', '😍', '🤝', '💪', '⭐', '📱', '💬', '📦', '✨'];
         
-        // Debug: Verificar estado das conversas
-        console.log('🔍 [RENDER] realConversations:', safeRealConversations);
-        console.log('🔍 [RENDER] Total:', safeRealConversations.length);
+        // Debug: Verificar estado das conversas (DIRETO do estado, sem safe wrappers)
+        console.log('🔍 [RENDER] realConversations:', realConversations);
+        console.log('🔍 [RENDER] Total:', realConversations.length);
         
-        // Formatar conversas reais
-        const conversations = safeRealConversations.map((conv, index) => {
+        // Formatar conversas reais (DIRETO do estado)
+        const conversations = realConversations.map((conv, index) => {
           const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
           const phone = conv.contactNumber || 'Cliente';
           const name = phone.replace('@c.us', '').replace(/\D/g, ''); // Extrai apenas números
