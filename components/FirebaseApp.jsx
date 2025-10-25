@@ -1621,11 +1621,22 @@ const DashboardWithFirebase = ({
           );
         }
         
-        // Estados estão sempre definidos (inicializados com useState)
-        // Não precisa verificar typeof realConversations
-        
-        // Debug: Verificar tipos DEPOIS da proteção
+        // Debug: Verificar tipos PRIMEIRO
         console.log('🔍 [DEBUG] typeof realConversations:', typeof realConversations);
+        
+        // Proteção: Se estados ainda não foram inicializados, mostrar loading
+        if (!realConversations || !currentMessages || typeof loadingConversations === 'undefined') {
+          console.log('⚠️ Estados ainda não inicializados - aguardando...');
+          return (
+            <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
+              Carregando estados...
+            </div>
+          );
+        }
+        
+        // Debug: Estados estão prontos
+        console.log('✅ [DEBUG] Estados prontos!');
         console.log('🔍 [DEBUG] realConversations:', realConversations);
         console.log('🔍 [DEBUG] realConversations.length:', realConversations.length);
         
