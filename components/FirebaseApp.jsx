@@ -1730,13 +1730,13 @@ const DashboardWithFirebase = ({
             
             <div style={{ display: 'flex', gap: '16px', height: 'calc(100% - 80px)', backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
               {/* Lista de Conversas - Sidebar Esquerda */}
-              <div style={{ width: safeIsCompactMode ? '280px' : '350px', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', transition: 'width 0.3s' }}>
+              <div style={{ width: _isCompactMode ? '280px' : '350px', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', transition: 'width 0.3s' }}>
                 {/* Header da lista */}
                 <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                     <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937' }}>Conversas</span>
                     <span style={{ backgroundColor: '#10b981', color: 'white', fontSize: '0.75rem', fontWeight: 'bold', padding: '2px 8px', borderRadius: '12px' }}>
-                      {safeLoadingConversations ? '...' : conversations.length}
+                      {_loadingConversations ? '...' : conversations.length}
                     </span>
                   </div>
                   <input
@@ -1758,7 +1758,7 @@ const DashboardWithFirebase = ({
                 
                 {/* Lista de conversas */}
                 <div style={{ flex: 1, overflowY: 'auto' }}>
-                  {safeLoadingConversations ? (
+                  {_loadingConversations ? (
                     <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
                       <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
                       Carregando conversas...
@@ -1776,28 +1776,28 @@ const DashboardWithFirebase = ({
                         fetchMessages(conv.id);
                       }}
                       style={{ 
-                        padding: safeIsCompactMode ? '12px' : '16px', 
+                        padding: _isCompactMode ? '12px' : '16px', 
                         borderBottom: '1px solid #f3f4f6', 
                         cursor: 'pointer',
-                        backgroundColor: safeSelectedConv === conv.id ? '#f0fdf4' : 'transparent',
+                        backgroundColor: _selectedConversation === conv.id ? '#f0fdf4' : 'transparent',
                         transition: 'all 0.2s'
                       }}
                       onMouseEnter={(e) => {
-                        if (safeSelectedConv !== conv.id) {
+                        if (_selectedConversation !== conv.id) {
                           e.currentTarget.style.backgroundColor = '#f9fafb';
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (safeSelectedConv !== conv.id) {
+                        if (_selectedConversation !== conv.id) {
                           e.currentTarget.style.backgroundColor = 'transparent';
                         }
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: safeIsCompactMode ? '8px' : '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: _isCompactMode ? '8px' : '12px' }}>
                         <div style={{ position: 'relative' }}>
                           <div style={{ 
-                            width: safeIsCompactMode ? '40px' : '48px', 
-                            height: safeIsCompactMode ? '40px' : '48px', 
+                            width: _isCompactMode ? '40px' : '48px', 
+                            height: _isCompactMode ? '40px' : '48px', 
                             borderRadius: '50%', 
                             backgroundColor: conv.color,
                             display: 'flex',
@@ -1805,7 +1805,7 @@ const DashboardWithFirebase = ({
                             justifyContent: 'center',
                             color: 'white',
                             fontWeight: 'bold',
-                            fontSize: safeIsCompactMode ? '1rem' : '1.25rem',
+                            fontSize: _isCompactMode ? '1rem' : '1.25rem',
                             transition: 'all 0.3s'
                           }}>
                             {conv.avatar}
@@ -1825,12 +1825,12 @@ const DashboardWithFirebase = ({
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                            <span style={{ fontWeight: 'bold', color: '#1f2937', fontSize: safeIsCompactMode ? '0.875rem' : '1rem' }}>{conv.name}</span>
+                            <span style={{ fontWeight: 'bold', color: '#1f2937', fontSize: _isCompactMode ? '0.875rem' : '1rem' }}>{conv.name}</span>
                             <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{conv.time}</span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ 
-                              fontSize: safeIsCompactMode ? '0.75rem' : '0.875rem', 
+                              fontSize: _isCompactMode ? '0.75rem' : '0.875rem', 
                               color: '#6b7280',
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
@@ -1867,7 +1867,7 @@ const DashboardWithFirebase = ({
                         Nenhuma conversa selecionada
                       </div>
                       <div style={{ fontSize: '0.875rem' }}>
-                        {safeLoadingConversations ? 'Carregando conversas...' : 'Aguardando mensagens de clientes'}
+                        {_loadingConversations ? 'Carregando conversas...' : 'Aguardando mensagens de clientes'}
                       </div>
                     </div>
                   </div>
@@ -1910,11 +1910,11 @@ const DashboardWithFirebase = ({
                       </div>
                   {/* Botão de pesquisa no chat */}
                   <button 
-                    onClick={() => setChatSearchQuery(safeChatSearchQuery ? '' : ' ')}
+                    onClick={() => setChatSearchQuery(_chatSearchQuery ? '' : ' ')}
                     style={{
                       padding: '8px 12px',
-                      backgroundColor: safeChatSearchQuery ? '#4f46e5' : '#f3f4f6',
-                      color: safeChatSearchQuery ? 'white' : '#6b7280',
+                      backgroundColor: _chatSearchQuery ? '#4f46e5' : '#f3f4f6',
+                      color: _chatSearchQuery ? 'white' : '#6b7280',
                       border: 'none',
                       borderRadius: '8px',
                       cursor: 'pointer',
@@ -1922,12 +1922,12 @@ const DashboardWithFirebase = ({
                       transition: 'all 0.2s'
                     }}
                     onMouseEnter={(e) => {
-                      if (!safeChatSearchQuery) {
+                      if (!_chatSearchQuery) {
                         e.currentTarget.style.backgroundColor = '#e5e7eb';
                       }
                     }}
                     onMouseLeave={(e) => {
-                      if (!safeChatSearchQuery) {
+                      if (!_chatSearchQuery) {
                         e.currentTarget.style.backgroundColor = '#f3f4f6';
                       }
                     }}
@@ -1952,12 +1952,12 @@ const DashboardWithFirebase = ({
                 </div>
                 
                 {/* Barra de pesquisa no chat */}
-                {safeChatSearchQuery && (
+                {_chatSearchQuery && (
                   <div style={{ padding: '12px 16px', backgroundColor: '#fffbeb', borderBottom: '1px solid #fde68a', display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <input
                       type="text"
                       placeholder="Pesquisar mensagens..."
-                      value={safeChatSearchQuery.trim()}
+                      value={_chatSearchQuery.trim()}
                       onChange={(e) => setChatSearchQuery(e.target.value)}
                       style={{
                         flex: 1,
@@ -1992,7 +1992,7 @@ const DashboardWithFirebase = ({
                     flex: 1, 
                     padding: '24px', 
                     overflowY: 'auto', 
-                    backgroundColor: safeIsDragging ? '#dcfce7' : '#f9fafb',
+                    backgroundColor: _isDragging ? '#dcfce7' : '#f9fafb',
                     backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,.02) 10px, rgba(0,0,0,.02) 20px)',
                     transition: 'background-color 0.3s',
                     position: 'relative'
@@ -2011,7 +2011,7 @@ const DashboardWithFirebase = ({
                     }
                   }}
                 >
-                  {safeIsDragging && (
+                  {_isDragging && (
                     <div style={{
                       position: 'absolute',
                       top: 0,
@@ -2035,7 +2035,7 @@ const DashboardWithFirebase = ({
                   )}
                   
                   {/* Mensagens Reais */}
-                  {safeCurrentMessages.length === 0 ? (
+                  {_currentMessages.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '48px 24px', color: '#6b7280' }}>
                       <div style={{ fontSize: '3rem', marginBottom: '16px' }}>💬</div>
                       <div style={{ fontSize: '1.125rem', fontWeight: '500', marginBottom: '8px' }}>
@@ -2046,7 +2046,7 @@ const DashboardWithFirebase = ({
                       </div>
                     </div>
                   ) : (
-                    safeCurrentMessages.map((msg, index) => {
+                    _currentMessages.map((msg, index) => {
                       const isFromMe = msg.isFromMe;
                       const msgTime = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
                       
@@ -2103,7 +2103,7 @@ const DashboardWithFirebase = ({
                 {/* Input de mensagem */}
                 <div style={{ padding: '16px', borderTop: '1px solid #e5e7eb', backgroundColor: 'white', position: 'relative' }}>
                   {/* Emoji Picker */}
-                  {safeShowEmojiPicker && (
+                  {_showEmojiPicker && (
                     <div style={{
                       position: 'absolute',
                       bottom: '80px',
@@ -2136,7 +2136,7 @@ const DashboardWithFirebase = ({
                           <button
                             key={idx}
                             onClick={() => {
-                              setMessageInput(safeMessageInput + emoji);
+                              setMessageInput(_messageInput + emoji);
                               setShowEmojiPicker(false);
                             }}
                             style={{
@@ -2166,10 +2166,10 @@ const DashboardWithFirebase = ({
                   
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     <button 
-                      onClick={() => setShowEmojiPicker(!safeShowEmojiPicker)}
+                      onClick={() => setShowEmojiPicker(!_showEmojiPicker)}
                       style={{
                         padding: '10px',
-                        backgroundColor: safeShowEmojiPicker ? '#e0e7ff' : '#f3f4f6',
+                        backgroundColor: _showEmojiPicker ? '#e0e7ff' : '#f3f4f6',
                         border: 'none',
                         borderRadius: '50%',
                         cursor: 'pointer',
@@ -2183,11 +2183,11 @@ const DashboardWithFirebase = ({
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = 'scale(1.1)';
-                        e.currentTarget.style.backgroundColor = safeShowEmojiPicker ? '#e0e7ff' : '#e5e7eb';
+                        e.currentTarget.style.backgroundColor = _showEmojiPicker ? '#e0e7ff' : '#e5e7eb';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.transform = 'scale(1)';
-                        e.currentTarget.style.backgroundColor = safeShowEmojiPicker ? '#e0e7ff' : '#f3f4f6';
+                        e.currentTarget.style.backgroundColor = _showEmojiPicker ? '#e0e7ff' : '#f3f4f6';
                       }}
                       title="Adicionar emoji"
                     >
@@ -2234,10 +2234,10 @@ const DashboardWithFirebase = ({
                     <input
                       type="text"
                       placeholder="Digite uma mensagem..."
-                      value={safeMessageInput}
+                      value={_messageInput}
                       onChange={(e) => setMessageInput(e.target.value)}
                       onKeyPress={(e) => {
-                        if (e.key === 'Enter' && safeMessageInput.trim()) {
+                        if (e.key === 'Enter' && _messageInput.trim()) {
                           sendMessage();
                         }
                       }}
@@ -2255,13 +2255,13 @@ const DashboardWithFirebase = ({
                     />
                     <button 
                       onClick={sendMessage}
-                      disabled={!safeMessageInput.trim()}
+                      disabled={!_messageInput.trim()}
                       style={{
                         padding: '10px 20px',
-                        backgroundColor: safeMessageInput.trim() ? '#10b981' : '#d1d5db',
+                        backgroundColor: _messageInput.trim() ? '#10b981' : '#d1d5db',
                         border: 'none',
                         borderRadius: '24px',
-                        cursor: safeMessageInput.trim() ? 'pointer' : 'not-allowed',
+                        cursor: _messageInput.trim() ? 'pointer' : 'not-allowed',
                         color: 'white',
                         fontWeight: 'bold',
                         display: 'flex',
@@ -2270,13 +2270,13 @@ const DashboardWithFirebase = ({
                         transition: 'all 0.2s'
                       }}
                       onMouseEnter={(e) => {
-                        if (safeMessageInput.trim()) {
+                        if (_messageInput.trim()) {
                           e.currentTarget.style.backgroundColor = '#059669';
                           e.currentTarget.style.transform = 'scale(1.05)';
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (safeMessageInput.trim()) {
+                        if (_messageInput.trim()) {
                           e.currentTarget.style.backgroundColor = '#10b981';
                           e.currentTarget.style.transform = 'scale(1)';
                         }
