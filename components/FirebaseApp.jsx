@@ -1494,6 +1494,332 @@ const DashboardWithFirebase = ({
       case 'catalog':
         return renderCatalog();
 
+      case 'conversas':
+        return (
+          <div style={{ padding: '24px', height: 'calc(100vh - 48px)' }}>
+            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
+              💬 Conversas WhatsApp
+            </h2>
+            
+            <div style={{ display: 'flex', gap: '16px', height: 'calc(100% - 80px)', backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+              {/* Lista de Conversas - Sidebar Esquerda */}
+              <div style={{ width: '350px', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column' }}>
+                {/* Header da lista */}
+                <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937' }}>Conversas</span>
+                    <span style={{ backgroundColor: '#10b981', color: 'white', fontSize: '0.75rem', fontWeight: 'bold', padding: '2px 8px', borderRadius: '12px' }}>3</span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="🔍 Buscar conversa..."
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem'
+                    }}
+                  />
+                </div>
+                
+                {/* Lista de conversas */}
+                <div style={{ flex: 1, overflowY: 'auto' }}>
+                  {/* Conversa 1 - Exemplo */}
+                  <div style={{ 
+                    padding: '16px', 
+                    borderBottom: '1px solid #f3f4f6', 
+                    cursor: 'pointer',
+                    backgroundColor: '#f0fdf4',
+                    transition: 'background-color 0.2s'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                      <div style={{ 
+                        width: '48px', 
+                        height: '48px', 
+                        borderRadius: '50%', 
+                        backgroundColor: '#10b981',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        fontSize: '1.25rem'
+                      }}>
+                        JM
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                          <span style={{ fontWeight: 'bold', color: '#1f2937' }}>João Miguel</span>
+                          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>10:30</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>Olá! Gostaria de saber sobre...</span>
+                          <span style={{ 
+                            backgroundColor: '#10b981', 
+                            color: 'white', 
+                            fontSize: '0.625rem', 
+                            fontWeight: 'bold', 
+                            padding: '2px 6px', 
+                            borderRadius: '10px',
+                            minWidth: '18px',
+                            textAlign: 'center'
+                          }}>2</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Conversa 2 - Exemplo */}
+                  <div style={{ 
+                    padding: '16px', 
+                    borderBottom: '1px solid #f3f4f6', 
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                      <div style={{ 
+                        width: '48px', 
+                        height: '48px', 
+                        borderRadius: '50%', 
+                        backgroundColor: '#3b82f6',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        fontSize: '1.25rem'
+                      }}>
+                        MS
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                          <span style={{ fontWeight: 'bold', color: '#1f2937' }}>Maria Silva</span>
+                          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Ontem</span>
+                        </div>
+                        <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                          ✓✓ Obrigada pelo atendimento!
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Conversa 3 - Exemplo */}
+                  <div style={{ 
+                    padding: '16px', 
+                    borderBottom: '1px solid #f3f4f6', 
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                      <div style={{ 
+                        width: '48px', 
+                        height: '48px', 
+                        borderRadius: '50%', 
+                        backgroundColor: '#f59e0b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        fontSize: '1.25rem'
+                      }}>
+                        PC
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                          <span style={{ fontWeight: 'bold', color: '#1f2937' }}>Pedro Costa</span>
+                          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>15/10</span>
+                        </div>
+                        <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                          ✓ Perfeito! Quando posso retirar?
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Área de Chat - Direita */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                {/* Header do chat */}
+                <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', backgroundColor: '#f9fafb', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ 
+                    width: '40px', 
+                    height: '40px', 
+                    borderRadius: '50%', 
+                    backgroundColor: '#10b981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontWeight: 'bold'
+                  }}>
+                    JM
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 'bold', color: '#1f2937' }}>João Miguel</div>
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Online • +55 11 98765-4321</div>
+                  </div>
+                  <button style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#f3f4f6',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    color: '#6b7280'
+                  }}>
+                    ⋮
+                  </button>
+                </div>
+                
+                {/* Mensagens */}
+                <div style={{ 
+                  flex: 1, 
+                  padding: '24px', 
+                  overflowY: 'auto', 
+                  backgroundColor: '#f9fafb',
+                  backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,.02) 10px, rgba(0,0,0,.02) 20px)'
+                }}>
+                  {/* Mensagem recebida */}
+                  <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
+                    <div style={{ maxWidth: '70%' }}>
+                      <div style={{ 
+                        backgroundColor: 'white', 
+                        padding: '12px 16px', 
+                        borderRadius: '12px',
+                        borderTopLeftRadius: '4px',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                      }}>
+                        <p style={{ margin: 0, color: '#1f2937', fontSize: '0.9rem' }}>
+                          Olá! Gostaria de saber sobre os produtos disponíveis no catálogo.
+                        </p>
+                        <span style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: '4px', display: 'block', textAlign: 'right' }}>10:28</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Mensagem enviada */}
+                  <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+                    <div style={{ maxWidth: '70%' }}>
+                      <div style={{ 
+                        backgroundColor: '#dcf8c6', 
+                        padding: '12px 16px', 
+                        borderRadius: '12px',
+                        borderTopRightRadius: '4px',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                      }}>
+                        <p style={{ margin: 0, color: '#1f2937', fontSize: '0.9rem' }}>
+                          Olá João! Temos vários produtos disponíveis. Você está procurando algo específico?
+                        </p>
+                        <span style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '4px', display: 'block', textAlign: 'right' }}>10:29 ✓✓</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Mensagem recebida */}
+                  <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
+                    <div style={{ maxWidth: '70%' }}>
+                      <div style={{ 
+                        backgroundColor: 'white', 
+                        padding: '12px 16px', 
+                        borderRadius: '12px',
+                        borderTopLeftRadius: '4px',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                      }}>
+                        <p style={{ margin: 0, color: '#1f2937', fontSize: '0.9rem' }}>
+                          Sim! Estou procurando notebooks. Qual o preço?
+                        </p>
+                        <span style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: '4px', display: 'block', textAlign: 'right' }}>10:30</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Indicador de digitação */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ maxWidth: '70%' }}>
+                      <div style={{ 
+                        backgroundColor: 'white', 
+                        padding: '12px 16px', 
+                        borderRadius: '12px',
+                        borderTopLeftRadius: '4px',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                        display: 'flex',
+                        gap: '4px'
+                      }}>
+                        <span style={{ width: '8px', height: '8px', backgroundColor: '#9ca3af', borderRadius: '50%', animation: 'pulse 1.4s infinite' }}></span>
+                        <span style={{ width: '8px', height: '8px', backgroundColor: '#9ca3af', borderRadius: '50%', animation: 'pulse 1.4s infinite 0.2s' }}></span>
+                        <span style={{ width: '8px', height: '8px', backgroundColor: '#9ca3af', borderRadius: '50%', animation: 'pulse 1.4s infinite 0.4s' }}></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Input de mensagem */}
+                <div style={{ padding: '16px', borderTop: '1px solid #e5e7eb', backgroundColor: 'white' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <button style={{
+                      padding: '10px',
+                      backgroundColor: '#f3f4f6',
+                      border: 'none',
+                      borderRadius: '50%',
+                      cursor: 'pointer',
+                      width: '40px',
+                      height: '40px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      😊
+                    </button>
+                    <button style={{
+                      padding: '10px',
+                      backgroundColor: '#f3f4f6',
+                      border: 'none',
+                      borderRadius: '50%',
+                      cursor: 'pointer',
+                      width: '40px',
+                      height: '40px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      📎
+                    </button>
+                    <input
+                      type="text"
+                      placeholder="Digite uma mensagem..."
+                      style={{
+                        flex: 1,
+                        padding: '12px 16px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '24px',
+                        fontSize: '0.9rem',
+                        outline: 'none'
+                      }}
+                    />
+                    <button style={{
+                      padding: '10px 20px',
+                      backgroundColor: '#10b981',
+                      border: 'none',
+                      borderRadius: '24px',
+                      cursor: 'pointer',
+                      color: 'white',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}>
+                      Enviar 📤
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
       case 'crm':
           return (
           <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
@@ -2155,15 +2481,6 @@ const DashboardWithFirebase = ({
                 🧠 Configuração de Inteligência Artificial
               </h3>
               
-              {/* Aviso para usuários comuns */}
-              {!user.isMaster && (
-                <div style={{ padding: '16px', backgroundColor: '#dbeafe', borderRadius: '8px', marginBottom: '24px' }}>
-                  <p style={{ fontSize: '0.875rem', color: '#1e40af', margin: 0 }}>
-                    ℹ️ <strong>Informação:</strong> A API Key e o Provedor de IA são gerenciados pelo administrador master. Você pode personalizar apenas as configurações específicas do seu assistente.
-                  </p>
-                </div>
-              )}
-              
               <form onSubmit={handleAssistantSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 {/* Campos visíveis apenas para o Master */}
                 {user.isMaster && (
@@ -2481,6 +2798,7 @@ const DashboardWithFirebase = ({
     { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
     { id: 'company', label: 'Cadastro da Empresa', icon: '🏢' },
     { id: 'catalog', label: 'Catálogo (Itens)', icon: '📦' },
+    { id: 'conversas', label: 'Conversas WhatsApp', icon: '💬' },
     { id: 'crm', label: 'CRM', icon: '👥' },
     { id: 'integrations', label: 'Integrações', icon: '⚙️' },
     { id: 'whatsapp', label: 'Conexão WhatsApp', icon: '📱' },
