@@ -1610,17 +1610,28 @@ const DashboardWithFirebase = ({
         return renderCatalog();
 
       case 'conversas': {
-        // Debug: Verificar tipos ANTES de qualquer verificação
+        // Proteção SSR: Se estados não existem, retorna loading
+        if (typeof realConversations === 'undefined' || 
+            typeof currentMessages === 'undefined' || 
+            typeof loadingConversations === 'undefined') {
+          console.log('⚠️ Estados undefined - mostrando loading SSR');
+          return (
+            <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
+              Inicializando...
+            </div>
+          );
+        }
+        
+        // Debug: Verificar tipos DEPOIS da proteção
         console.log('🔍 [DEBUG] typeof realConversations:', typeof realConversations);
-        console.log('🔍 [DEBUG] typeof currentMessages:', typeof currentMessages);
-        console.log('🔍 [DEBUG] typeof loadingConversations:', typeof loadingConversations);
         console.log('🔍 [DEBUG] realConversations:', realConversations);
-        console.log('🔍 [DEBUG] realConversations.length:', realConversations?.length);
+        console.log('🔍 [DEBUG] realConversations.length:', realConversations.length);
         
         // Emojis mais usados
         const frequentEmojis = ['😊', '👍', '❤️', '😂', '🎉', '🙏', '👏', '✅', '💯', '🔥', '😍', '🤝', '💪', '⭐', '📱', '💬', '📦', '✨'];
         
-        // Debug: Verificar estado das conversas (DIRETO do estado, sem closures)
+        // Debug: Verificar estado das conversas
         console.log('🔍 [RENDER] realConversations:', realConversations);
         console.log('🔍 [RENDER] Total:', realConversations.length);
         
