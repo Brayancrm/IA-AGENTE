@@ -1502,7 +1502,7 @@ const DashboardWithFirebase = ({
       case 'catalog':
         return renderCatalog();
 
-      case 'conversas': {
+      case 'conversas': 
         // Emojis mais usados
         const frequentEmojis = ['😊', '👍', '❤️', '😂', '🎉', '🙏', '👏', '✅', '💯', '🔥', '😍', '🤝', '💪', '⭐', '📱', '💬', '📦', '✨'];
         
@@ -2089,7 +2089,6 @@ const DashboardWithFirebase = ({
             </div>
           </div>
         );
-      }
 
       case 'crm':
           return (
@@ -2548,7 +2547,7 @@ const DashboardWithFirebase = ({
           </div>
         );
 
-      case 'whatsapp': {
+      case 'whatsapp':
         // Garantir valores padrão para prevenir erros
         const currentWhatsappStatus = whatsappStatus || 'disconnected';
         const currentQRCode = whatsappQRCode || null;
@@ -2737,7 +2736,6 @@ const DashboardWithFirebase = ({
             </div>
           </div>
         );
-      }
 
       case 'assistant': 
         return (
