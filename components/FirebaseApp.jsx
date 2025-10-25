@@ -53,6 +53,14 @@ const FirebaseApp = () => {
   const [whatsappQRCode, setWhatsappQRCode] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   
+  // Estados da seção Conversas
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [messageInput, setMessageInput] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [chatSearchQuery, setChatSearchQuery] = useState('');
+  const [isCompactMode, setIsCompactMode] = useState(false);
+  const [selectedConversation, setSelectedConversation] = useState('joao');
+  
   // CRM temporariamente desativado - será reconstruído depois
   
   // URL do backend
@@ -1494,16 +1502,51 @@ const DashboardWithFirebase = ({
       case 'catalog':
         return renderCatalog();
 
-      case 'conversas':
+      case 'conversas': {
+        // Emojis mais usados
+        const frequentEmojis = ['😊', '👍', '❤️', '😂', '🎉', '🙏', '👏', '✅', '💯', '🔥', '😍', '🤝', '💪', '⭐', '📱', '💬', '📦', '✨'];
+        
+        // Conversas mockadas
+        const conversations = [
+          { id: 'joao', name: 'João Miguel', phone: '+55 11 98765-4321', avatar: 'JM', color: '#10b981', lastMsg: 'Olá! Gostaria de saber sobre...', time: '10:30', unread: 2, online: true },
+          { id: 'maria', name: 'Maria Silva', phone: '+55 11 98765-1234', avatar: 'MS', color: '#3b82f6', lastMsg: '✓✓ Obrigada pelo atendimento!', time: 'Ontem', unread: 0, online: false },
+          { id: 'pedro', name: 'Pedro Costa', phone: '+55 11 98765-5678', avatar: 'PC', color: '#f59e0b', lastMsg: '✓ Perfeito! Quando posso retirar?', time: '15/10', unread: 0, online: false }
+        ];
+        
+        const currentConv = conversations.find(c => c.id === selectedConversation) || conversations[0];
+        
         return (
           <div style={{ padding: '24px', height: 'calc(100vh - 48px)' }}>
-            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
-              💬 Conversas WhatsApp
-            </h2>
+            {/* Header com ações */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
+                💬 Conversas WhatsApp
+              </h2>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                {/* Toggle modo compacto */}
+                <button
+                  onClick={() => setIsCompactMode(!isCompactMode)}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: isCompactMode ? '#4f46e5' : '#f3f4f6',
+                    color: isCompactMode ? 'white' : '#6b7280',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    transition: 'all 0.2s'
+                  }}
+                  title="Alternar visualização"
+                >
+                  {isCompactMode ? '📋 Compacto' : '📄 Normal'}
+                </button>
+              </div>
+            </div>
             
             <div style={{ display: 'flex', gap: '16px', height: 'calc(100% - 80px)', backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
               {/* Lista de Conversas - Sidebar Esquerda */}
-              <div style={{ width: '350px', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ width: isCompactMode ? '280px' : '350px', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', transition: 'width 0.3s' }}>
                 {/* Header da lista */}
                 <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
@@ -1518,125 +1561,99 @@ const DashboardWithFirebase = ({
                       padding: '8px 12px',
                       border: '1px solid #d1d5db',
                       borderRadius: '8px',
-                      fontSize: '0.875rem'
+                      fontSize: '0.875rem',
+                      transition: 'border-color 0.2s',
+                      outline: 'none'
                     }}
+                    onFocus={(e) => e.target.style.borderColor = '#4f46e5'}
+                    onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
                   />
                 </div>
                 
                 {/* Lista de conversas */}
                 <div style={{ flex: 1, overflowY: 'auto' }}>
-                  {/* Conversa 1 - Exemplo */}
-                  <div style={{ 
-                    padding: '16px', 
-                    borderBottom: '1px solid #f3f4f6', 
-                    cursor: 'pointer',
-                    backgroundColor: '#f0fdf4',
-                    transition: 'background-color 0.2s'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                      <div style={{ 
-                        width: '48px', 
-                        height: '48px', 
-                        borderRadius: '50%', 
-                        backgroundColor: '#10b981',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        fontWeight: 'bold',
-                        fontSize: '1.25rem'
-                      }}>
-                        JM
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                          <span style={{ fontWeight: 'bold', color: '#1f2937' }}>João Miguel</span>
-                          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>10:30</span>
+                  {conversations.map((conv) => (
+                    <div 
+                      key={conv.id}
+                      onClick={() => setSelectedConversation(conv.id)}
+                      style={{ 
+                        padding: isCompactMode ? '12px' : '16px', 
+                        borderBottom: '1px solid #f3f4f6', 
+                        cursor: 'pointer',
+                        backgroundColor: selectedConversation === conv.id ? '#f0fdf4' : 'transparent',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (selectedConversation !== conv.id) {
+                          e.currentTarget.style.backgroundColor = '#f9fafb';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (selectedConversation !== conv.id) {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: isCompactMode ? '8px' : '12px' }}>
+                        <div style={{ position: 'relative' }}>
+                          <div style={{ 
+                            width: isCompactMode ? '40px' : '48px', 
+                            height: isCompactMode ? '40px' : '48px', 
+                            borderRadius: '50%', 
+                            backgroundColor: conv.color,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            fontSize: isCompactMode ? '1rem' : '1.25rem',
+                            transition: 'all 0.3s'
+                          }}>
+                            {conv.avatar}
+                          </div>
+                          {conv.online && (
+                            <div style={{ 
+                              position: 'absolute', 
+                              bottom: '2px', 
+                              right: '2px', 
+                              width: '12px', 
+                              height: '12px', 
+                              backgroundColor: '#10b981', 
+                              border: '2px solid white', 
+                              borderRadius: '50%' 
+                            }}></div>
+                          )}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>Olá! Gostaria de saber sobre...</span>
-                          <span style={{ 
-                            backgroundColor: '#10b981', 
-                            color: 'white', 
-                            fontSize: '0.625rem', 
-                            fontWeight: 'bold', 
-                            padding: '2px 6px', 
-                            borderRadius: '10px',
-                            minWidth: '18px',
-                            textAlign: 'center'
-                          }}>2</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Conversa 2 - Exemplo */}
-                  <div style={{ 
-                    padding: '16px', 
-                    borderBottom: '1px solid #f3f4f6', 
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                      <div style={{ 
-                        width: '48px', 
-                        height: '48px', 
-                        borderRadius: '50%', 
-                        backgroundColor: '#3b82f6',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        fontWeight: 'bold',
-                        fontSize: '1.25rem'
-                      }}>
-                        MS
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                          <span style={{ fontWeight: 'bold', color: '#1f2937' }}>Maria Silva</span>
-                          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Ontem</span>
-                        </div>
-                        <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                          ✓✓ Obrigada pelo atendimento!
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Conversa 3 - Exemplo */}
-                  <div style={{ 
-                    padding: '16px', 
-                    borderBottom: '1px solid #f3f4f6', 
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                      <div style={{ 
-                        width: '48px', 
-                        height: '48px', 
-                        borderRadius: '50%', 
-                        backgroundColor: '#f59e0b',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        fontWeight: 'bold',
-                        fontSize: '1.25rem'
-                      }}>
-                        PC
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                          <span style={{ fontWeight: 'bold', color: '#1f2937' }}>Pedro Costa</span>
-                          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>15/10</span>
-                        </div>
-                        <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                          ✓ Perfeito! Quando posso retirar?
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                            <span style={{ fontWeight: 'bold', color: '#1f2937', fontSize: isCompactMode ? '0.875rem' : '1rem' }}>{conv.name}</span>
+                            <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{conv.time}</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ 
+                              fontSize: isCompactMode ? '0.75rem' : '0.875rem', 
+                              color: '#6b7280',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}>{conv.lastMsg}</span>
+                            {conv.unread > 0 && (
+                              <span style={{ 
+                                backgroundColor: '#10b981', 
+                                color: 'white', 
+                                fontSize: '0.625rem', 
+                                fontWeight: 'bold', 
+                                padding: '2px 6px', 
+                                borderRadius: '10px',
+                                minWidth: '18px',
+                                textAlign: 'center'
+                              }}>{conv.unread}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
               </div>
               
@@ -1644,44 +1661,164 @@ const DashboardWithFirebase = ({
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 {/* Header do chat */}
                 <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', backgroundColor: '#f9fafb', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ 
-                    width: '40px', 
-                    height: '40px', 
-                    borderRadius: '50%', 
-                    backgroundColor: '#10b981',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    fontWeight: 'bold'
-                  }}>
-                    JM
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ 
+                      width: '40px', 
+                      height: '40px', 
+                      borderRadius: '50%', 
+                      backgroundColor: currentConv.color,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontWeight: 'bold'
+                    }}>
+                      {currentConv.avatar}
+                    </div>
+                    {currentConv.online && (
+                      <div style={{ 
+                        position: 'absolute', 
+                        bottom: '0px', 
+                        right: '0px', 
+                        width: '12px', 
+                        height: '12px', 
+                        backgroundColor: '#10b981', 
+                        border: '2px solid #f9fafb', 
+                        borderRadius: '50%' 
+                      }}></div>
+                    )}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 'bold', color: '#1f2937' }}>João Miguel</div>
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Online • +55 11 98765-4321</div>
+                    <div style={{ fontWeight: 'bold', color: '#1f2937' }}>{currentConv.name}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                      {currentConv.online ? 'Online' : 'Offline'} • {currentConv.phone}
+                    </div>
                   </div>
+                  {/* Botão de pesquisa no chat */}
+                  <button 
+                    onClick={() => setChatSearchQuery(chatSearchQuery ? '' : ' ')}
+                    style={{
+                      padding: '8px 12px',
+                      backgroundColor: chatSearchQuery ? '#4f46e5' : '#f3f4f6',
+                      color: chatSearchQuery ? 'white' : '#6b7280',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!chatSearchQuery) {
+                        e.currentTarget.style.backgroundColor = '#e5e7eb';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!chatSearchQuery) {
+                        e.currentTarget.style.backgroundColor = '#f3f4f6';
+                      }
+                    }}
+                    title="Pesquisar no chat (Ctrl+F)"
+                  >
+                    🔍
+                  </button>
                   <button style={{
-                    padding: '8px 16px',
+                    padding: '8px 12px',
                     backgroundColor: '#f3f4f6',
                     border: 'none',
                     borderRadius: '8px',
                     cursor: 'pointer',
                     fontSize: '0.875rem',
-                    color: '#6b7280'
-                  }}>
+                    color: '#6b7280',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e5e7eb'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}>
                     ⋮
                   </button>
                 </div>
                 
+                {/* Barra de pesquisa no chat */}
+                {chatSearchQuery && (
+                  <div style={{ padding: '12px 16px', backgroundColor: '#fffbeb', borderBottom: '1px solid #fde68a', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      placeholder="Pesquisar mensagens..."
+                      value={chatSearchQuery.trim()}
+                      onChange={(e) => setChatSearchQuery(e.target.value)}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        border: '1px solid #fbbf24',
+                        borderRadius: '8px',
+                        fontSize: '0.875rem',
+                        outline: 'none'
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => setChatSearchQuery('')}
+                      style={{
+                        padding: '8px 12px',
+                        backgroundColor: '#f59e0b',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+                
                 {/* Mensagens */}
-                <div style={{ 
-                  flex: 1, 
-                  padding: '24px', 
-                  overflowY: 'auto', 
-                  backgroundColor: '#f9fafb',
-                  backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,.02) 10px, rgba(0,0,0,.02) 20px)'
-                }}>
+                <div 
+                  style={{ 
+                    flex: 1, 
+                    padding: '24px', 
+                    overflowY: 'auto', 
+                    backgroundColor: isDragging ? '#dcfce7' : '#f9fafb',
+                    backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,.02) 10px, rgba(0,0,0,.02) 20px)',
+                    transition: 'background-color 0.3s',
+                    position: 'relative'
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    const files = Array.from(e.dataTransfer.files);
+                    if (files.length > 0) {
+                      showToast(`${files.length} arquivo(s) adicionado(s)!`);
+                    }
+                  }}
+                >
+                  {isDragging && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1.5rem',
+                      fontWeight: 'bold',
+                      color: '#10b981',
+                      zIndex: 10,
+                      border: '3px dashed #10b981',
+                      borderRadius: '12px',
+                      margin: '12px'
+                    }}>
+                      📎 Solte os arquivos aqui
+                    </div>
+                  )}
                   {/* Mensagem recebida */}
                   <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
                     <div style={{ maxWidth: '70%' }}>
@@ -1757,60 +1894,193 @@ const DashboardWithFirebase = ({
                 </div>
                 
                 {/* Input de mensagem */}
-                <div style={{ padding: '16px', borderTop: '1px solid #e5e7eb', backgroundColor: 'white' }}>
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <button style={{
-                      padding: '10px',
-                      backgroundColor: '#f3f4f6',
-                      border: 'none',
-                      borderRadius: '50%',
-                      cursor: 'pointer',
-                      width: '40px',
-                      height: '40px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
+                <div style={{ padding: '16px', borderTop: '1px solid #e5e7eb', backgroundColor: 'white', position: 'relative' }}>
+                  {/* Emoji Picker */}
+                  {showEmojiPicker && (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '80px',
+                      left: '16px',
+                      backgroundColor: 'white',
+                      borderRadius: '12px',
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                      padding: '16px',
+                      zIndex: 100,
+                      width: '320px',
+                      maxHeight: '300px'
                     }}>
+                      <div style={{ marginBottom: '12px', fontWeight: 'bold', color: '#1f2937', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Emojis Rápidos</span>
+                        <button
+                          onClick={() => setShowEmojiPicker(false)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            fontSize: '1.2rem',
+                            cursor: 'pointer',
+                            color: '#6b7280'
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }}>
+                        {frequentEmojis.map((emoji, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              setMessageInput(messageInput + emoji);
+                              setShowEmojiPicker(false);
+                            }}
+                            style={{
+                              fontSize: '1.5rem',
+                              padding: '8px',
+                              backgroundColor: '#f9fafb',
+                              border: 'none',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#e5e7eb';
+                              e.currentTarget.style.transform = 'scale(1.2)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = '#f9fafb';
+                              e.currentTarget.style.transform = 'scale(1)';
+                            }}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <button 
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      style={{
+                        padding: '10px',
+                        backgroundColor: showEmojiPicker ? '#e0e7ff' : '#f3f4f6',
+                        border: 'none',
+                        borderRadius: '50%',
+                        cursor: 'pointer',
+                        width: '40px',
+                        height: '40px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.25rem',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.1)';
+                        e.currentTarget.style.backgroundColor = showEmojiPicker ? '#e0e7ff' : '#e5e7eb';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.backgroundColor = showEmojiPicker ? '#e0e7ff' : '#f3f4f6';
+                      }}
+                      title="Adicionar emoji"
+                    >
                       😊
                     </button>
-                    <button style={{
-                      padding: '10px',
-                      backgroundColor: '#f3f4f6',
-                      border: 'none',
-                      borderRadius: '50%',
-                      cursor: 'pointer',
-                      width: '40px',
-                      height: '40px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      📎
-                    </button>
+                    <label htmlFor="file-upload">
+                      <div style={{
+                        padding: '10px',
+                        backgroundColor: '#f3f4f6',
+                        border: 'none',
+                        borderRadius: '50%',
+                        cursor: 'pointer',
+                        width: '40px',
+                        height: '40px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.25rem',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.1)';
+                        e.currentTarget.style.backgroundColor = '#e5e7eb';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.backgroundColor = '#f3f4f6';
+                      }}
+                      title="Anexar arquivo">
+                        📎
+                      </div>
+                    </label>
+                    <input 
+                      id="file-upload" 
+                      type="file" 
+                      multiple
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        if (e.target.files.length > 0) {
+                          showToast(`${e.target.files.length} arquivo(s) selecionado(s)!`);
+                        }
+                      }}
+                    />
                     <input
                       type="text"
                       placeholder="Digite uma mensagem..."
+                      value={messageInput}
+                      onChange={(e) => setMessageInput(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && messageInput.trim()) {
+                          showToast('Mensagem enviada!');
+                          setMessageInput('');
+                        }
+                      }}
                       style={{
                         flex: 1,
                         padding: '12px 16px',
                         border: '1px solid #e5e7eb',
                         borderRadius: '24px',
                         fontSize: '0.9rem',
-                        outline: 'none'
+                        outline: 'none',
+                        transition: 'border-color 0.2s'
                       }}
+                      onFocus={(e) => e.target.style.borderColor = '#4f46e5'}
+                      onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
                     />
-                    <button style={{
-                      padding: '10px 20px',
-                      backgroundColor: '#10b981',
-                      border: 'none',
-                      borderRadius: '24px',
-                      cursor: 'pointer',
-                      color: 'white',
-                      fontWeight: 'bold',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}>
+                    <button 
+                      onClick={() => {
+                        if (messageInput.trim()) {
+                          showToast('Mensagem enviada!');
+                          setMessageInput('');
+                        }
+                      }}
+                      disabled={!messageInput.trim()}
+                      style={{
+                        padding: '10px 20px',
+                        backgroundColor: messageInput.trim() ? '#10b981' : '#d1d5db',
+                        border: 'none',
+                        borderRadius: '24px',
+                        cursor: messageInput.trim() ? 'pointer' : 'not-allowed',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (messageInput.trim()) {
+                          e.currentTarget.style.backgroundColor = '#059669';
+                          e.currentTarget.style.transform = 'scale(1.05)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (messageInput.trim()) {
+                          e.currentTarget.style.backgroundColor = '#10b981';
+                          e.currentTarget.style.transform = 'scale(1)';
+                        }
+                      }}
+                    >
                       Enviar 📤
                     </button>
                   </div>
@@ -1819,6 +2089,7 @@ const DashboardWithFirebase = ({
             </div>
           </div>
         );
+      }
 
       case 'crm':
           return (
