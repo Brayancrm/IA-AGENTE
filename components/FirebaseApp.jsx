@@ -582,13 +582,13 @@ const FirebaseApp = () => {
   // Buscar conversas quando o usuário estiver autenticado e na seção de conversas
   useEffect(() => {
     if (typeof window === 'undefined') return; // Skip durante SSR
-    if (user && typeof activeMenu !== 'undefined' && activeMenu === 'conversas') {
+    if (user && currentPage === 'conversas') {
       fetchConversations();
       // Atualizar conversas a cada 30 segundos
       const interval = setInterval(fetchConversations, 30000);
       return () => clearInterval(interval);
     }
-  }, [user, activeMenu]);
+  }, [user, currentPage]);
 
   const regenerateQRCode = async () => {
     if (!user) return;
