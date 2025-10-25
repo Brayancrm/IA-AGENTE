@@ -581,7 +581,8 @@ const FirebaseApp = () => {
 
   // Buscar conversas quando o usuário estiver autenticado e na seção de conversas
   useEffect(() => {
-    if (user && activeMenu === 'conversas') {
+    if (typeof window === 'undefined') return; // Skip durante SSR
+    if (user && typeof activeMenu !== 'undefined' && activeMenu === 'conversas') {
       fetchConversations();
       // Atualizar conversas a cada 30 segundos
       const interval = setInterval(fetchConversations, 30000);
