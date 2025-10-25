@@ -1655,7 +1655,9 @@ const DashboardWithFirebase = ({
         
         console.log('🔍 [RENDER] conversations formatadas:', conversations);
         
-        const currentConv = safeSelectedConv ? (conversations.find(c => c.id === safeSelectedConv) || conversations[0]) : conversations[0];
+        const currentConv = conversations.length > 0 
+          ? (safeSelectedConv ? (conversations.find(c => c.id === safeSelectedConv) || conversations[0]) : conversations[0])
+          : null;
         
         return (
           <div style={{ padding: '24px', height: 'calc(100vh - 48px)' }}>
@@ -1816,41 +1818,56 @@ const DashboardWithFirebase = ({
               
               {/* Área de Chat - Direita */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                {/* Header do chat */}
-                <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', backgroundColor: '#f9fafb', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ position: 'relative' }}>
-                    <div style={{ 
-                      width: '40px', 
-                      height: '40px', 
-                      borderRadius: '50%', 
-                      backgroundColor: currentConv.color,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'white',
-                      fontWeight: 'bold'
-                    }}>
-                      {currentConv.avatar}
-                    </div>
-                    {currentConv.online && (
-                      <div style={{ 
-                        position: 'absolute', 
-                        bottom: '0px', 
-                        right: '0px', 
-                        width: '12px', 
-                        height: '12px', 
-                        backgroundColor: '#10b981', 
-                        border: '2px solid #f9fafb', 
-                        borderRadius: '50%' 
-                      }}></div>
-                    )}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 'bold', color: '#1f2937' }}>{currentConv.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                      {currentConv.online ? 'Online' : 'Offline'} • {currentConv.phone}
+                {!currentConv ? (
+                  /* Nenhuma conversa selecionada */
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#6b7280' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '4rem', marginBottom: '16px' }}>💬</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: '500', marginBottom: '8px' }}>
+                        Nenhuma conversa selecionada
+                      </div>
+                      <div style={{ fontSize: '0.875rem' }}>
+                        {safeLoadingConversations ? 'Carregando conversas...' : 'Aguardando mensagens de clientes'}
+                      </div>
                     </div>
                   </div>
+                ) : (
+                  <>
+                    {/* Header do chat */}
+                    <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', backgroundColor: '#f9fafb', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ position: 'relative' }}>
+                        <div style={{ 
+                          width: '40px', 
+                          height: '40px', 
+                          borderRadius: '50%', 
+                          backgroundColor: currentConv.color,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          fontWeight: 'bold'
+                        }}>
+                          {currentConv.avatar}
+                        </div>
+                        {currentConv.online && (
+                          <div style={{ 
+                            position: 'absolute', 
+                            bottom: '0px', 
+                            right: '0px', 
+                            width: '12px', 
+                            height: '12px', 
+                            backgroundColor: '#10b981', 
+                            border: '2px solid #f9fafb', 
+                            borderRadius: '50%' 
+                          }}></div>
+                        )}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 'bold', color: '#1f2937' }}>{currentConv.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                          {currentConv.online ? 'Online' : 'Offline'} • {currentConv.phone}
+                        </div>
+                      </div>
                   {/* Botão de pesquisa no chat */}
                   <button 
                     onClick={() => setChatSearchQuery(safeChatSearchQuery ? '' : ' ')}
@@ -2229,6 +2246,8 @@ const DashboardWithFirebase = ({
                     </button>
                   </div>
                 </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
