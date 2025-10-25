@@ -1610,10 +1610,22 @@ const DashboardWithFirebase = ({
         return renderCatalog();
 
       case 'conversas': {
+        // Proteção para SSR/hidratação - verificar se estados existem
+        if (typeof realConversations === 'undefined' || 
+            typeof currentMessages === 'undefined' || 
+            typeof loadingConversations === 'undefined') {
+          return (
+            <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
+              Carregando...
+            </div>
+          );
+        }
+        
         // Emojis mais usados
         const frequentEmojis = ['😊', '👍', '❤️', '😂', '🎉', '🙏', '👏', '✅', '💯', '🔥', '😍', '🤝', '💪', '⭐', '📱', '💬', '📦', '✨'];
         
-        // Debug: Verificar estado das conversas (DIRETO do estado, sem safe wrappers)
+        // Debug: Verificar estado das conversas (DIRETO do estado, sem closures)
         console.log('🔍 [RENDER] realConversations:', realConversations);
         console.log('🔍 [RENDER] Total:', realConversations.length);
         
