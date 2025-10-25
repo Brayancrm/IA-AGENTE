@@ -1513,7 +1513,9 @@ const DashboardWithFirebase = ({
           { id: 'pedro', name: 'Pedro Costa', phone: '+55 11 98765-5678', avatar: 'PC', color: '#f59e0b', lastMsg: '✓ Perfeito! Quando posso retirar?', time: '15/10', unread: 0, online: false }
         ];
         
-        const currentConv = conversations.find(c => c.id === selectedConversation) || conversations[0];
+        // Proteção: garante que selectedConversation existe e tem valor
+        const safeSelectedConv = selectedConversation || 'joao';
+        const currentConv = conversations.find(c => c.id === safeSelectedConv) || conversations[0];
         
         return (
           <div style={{ padding: '24px', height: 'calc(100vh - 48px)' }}>
