@@ -1621,23 +1621,32 @@ const DashboardWithFirebase = ({
           );
         }
         
-        // SOLUÇÃO DEFINITIVA: Try-catch para capturar ReferenceError
+        // SOLUÇÃO DEFINITIVA: Try-catch para TODOS os estados
         let _realConversations = [];
         let _currentMessages = [];
         let _loadingConversations = false;
+        let _showEmojiPicker = false;
+        let _messageInput = '';
+        let _isDragging = false;
+        let _chatSearchQuery = '';
+        let _isCompactMode = false;
+        let _selectedConversation = null;
         
         try {
-          // Tentar acessar os estados
+          // Tentar acessar TODOS os estados
           _realConversations = realConversations || [];
           _currentMessages = currentMessages || [];
           _loadingConversations = loadingConversations || false;
-          console.log('✅ Estados acessíveis:', _realConversations.length, 'conversas');
+          _showEmojiPicker = showEmojiPicker || false;
+          _messageInput = messageInput || '';
+          _isDragging = isDragging || false;
+          _chatSearchQuery = chatSearchQuery || '';
+          _isCompactMode = isCompactMode || false;
+          _selectedConversation = selectedConversation || null;
+          console.log('✅ Todos estados acessíveis:', _realConversations.length, 'conversas');
         } catch (error) {
-          // Se der ReferenceError, usar valores padrão
-          console.log('⚠️ ReferenceError capturado - usando valores padrão');
-          _realConversations = [];
-          _currentMessages = [];
-          _loadingConversations = false;
+          // Se der ReferenceError, valores padrão já estão definidos
+          console.log('⚠️ ReferenceError capturado - usando valores padrão para todos estados');
         }
         
         // Emojis mais usados
@@ -1687,7 +1696,7 @@ const DashboardWithFirebase = ({
         console.log('🔍 [RENDER] conversations formatadas:', conversations);
         
         const currentConv = conversations.length > 0 
-          ? (safeSelectedConv ? (conversations.find(c => c.id === safeSelectedConv) || conversations[0]) : conversations[0])
+          ? (_selectedConversation ? (conversations.find(c => c.id === _selectedConversation) || conversations[0]) : conversations[0])
           : null;
         
         return (
@@ -1700,11 +1709,11 @@ const DashboardWithFirebase = ({
               <div style={{ display: 'flex', gap: '12px' }}>
                 {/* Toggle modo compacto */}
                 <button
-                  onClick={() => setIsCompactMode(!safeIsCompactMode)}
+                  onClick={() => setIsCompactMode(!_isCompactMode)}
                   style={{
                     padding: '8px 16px',
-                    backgroundColor: safeIsCompactMode ? '#4f46e5' : '#f3f4f6',
-                    color: safeIsCompactMode ? 'white' : '#6b7280',
+                    backgroundColor: _isCompactMode ? '#4f46e5' : '#f3f4f6',
+                    color: _isCompactMode ? 'white' : '#6b7280',
                     border: 'none',
                     borderRadius: '8px',
                     cursor: 'pointer',
@@ -1714,7 +1723,7 @@ const DashboardWithFirebase = ({
                   }}
                   title="Alternar visualização"
                 >
-                  {safeIsCompactMode ? '📋 Compacto' : '📄 Normal'}
+                  {_isCompactMode ? '📋 Compacto' : '📄 Normal'}
                 </button>
               </div>
             </div>
