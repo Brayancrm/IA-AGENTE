@@ -59,7 +59,10 @@ const FirebaseApp = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [chatSearchQuery, setChatSearchQuery] = useState('');
   const [isCompactMode, setIsCompactMode] = useState(false);
-  const [selectedConversation, setSelectedConversation] = useState('joao');
+  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [realConversations, setRealConversations] = useState([]);
+  const [currentMessages, setCurrentMessages] = useState([]);
+  const [loadingConversations, setLoadingConversations] = useState(false);
   
   // CRM temporariamente desativado - será reconstruído depois
   
@@ -494,6 +497,89 @@ const FirebaseApp = () => {
       showToast('Erro ao desconectar WhatsApp', 'error');
     }
   };
+
+  // Funções das Conversas
+  const fetchConversations = async () => {
+    if (!user) return;
+    
+    setLoadingConversations(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/conversations/${user.uid}`);
+      const data = await response.json();
+      
+      if (data.conversations) {
+        setRealConversations(data.conversations);
+        // Selecionar a primeira conversa automaticamente se não houver nenhuma selecionada
+        if (!selectedConversation && data.conversations.length > 0) {
+          setSelectedConversation(data.conversations[0].contactNumber);
+          fetchMessages(data.conversations[0].contactNumber);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao buscar conversas:', error);
+      showToast('Erro ao carregar conversas', 'error');
+    } finally {
+      setLoadingConversations(false);
+    }
+  };
+
+  const fetchMessages = async (contactNumber) => {
+    if (!user || !contactNumber) return;
+    
+    try {
+      // Buscar mensagens do Firebase Realtime Database
+      if (database) {
+        const messagesRef = ref(database, `conversations/${user.uid}/${contactNumber}/messages`);
+        onValue(messagesRef, (snapshot) => {
+          const messages = [];
+          snapshot.forEach((childSnapshot) => {
+            messages.push({
+              id: childSnapshot.key,
+              ...childSnapshot.val()
+            });
+          });
+          setCurrentMessages(messages);
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao buscar mensagens:', error);
+      showToast('Erro ao carregar mensagens', 'error');
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!user || !selectedConversation || !messageInput.trim()) return;
+    
+    try {
+      await fetch(`${BACKEND_URL}/api/messages/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+          to: selectedConversation,
+          message: messageInput
+        })
+      });
+      
+      setMessageInput('');
+      showToast('Mensagem enviada!', 'success');
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
+      showToast('Erro ao enviar mensagem', 'error');
+    }
+  };
+
+  // Buscar conversas quando o usuário estiver autenticado e na seção de conversas
+  useEffect(() => {
+    if (user && activeMenu === 'conversas') {
+      fetchConversations();
+      // Atualizar conversas a cada 30 segundos
+      const interval = setInterval(fetchConversations, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user, activeMenu]);
 
   const regenerateQRCode = async () => {
     if (!user) return;
@@ -1509,19 +1595,49 @@ const DashboardWithFirebase = ({
         const safeIsDragging = typeof isDragging !== 'undefined' ? isDragging : false;
         const safeChatSearchQuery = typeof chatSearchQuery !== 'undefined' ? chatSearchQuery : '';
         const safeIsCompactMode = typeof isCompactMode !== 'undefined' ? isCompactMode : false;
-        const safeSelectedConv = typeof selectedConversation !== 'undefined' ? selectedConversation : 'joao';
+        const safeSelectedConv = typeof selectedConversation !== 'undefined' ? selectedConversation : null;
         
         // Emojis mais usados
         const frequentEmojis = ['😊', '👍', '❤️', '😂', '🎉', '🙏', '👏', '✅', '💯', '🔥', '😍', '🤝', '💪', '⭐', '📱', '💬', '📦', '✨'];
         
-        // Conversas mockadas
-        const conversations = [
-          { id: 'joao', name: 'João Miguel', phone: '+55 11 98765-4321', avatar: 'JM', color: '#10b981', lastMsg: 'Olá! Gostaria de saber sobre...', time: '10:30', unread: 2, online: true },
-          { id: 'maria', name: 'Maria Silva', phone: '+55 11 98765-1234', avatar: 'MS', color: '#3b82f6', lastMsg: '✓✓ Obrigada pelo atendimento!', time: 'Ontem', unread: 0, online: false },
-          { id: 'pedro', name: 'Pedro Costa', phone: '+55 11 98765-5678', avatar: 'PC', color: '#f59e0b', lastMsg: '✓ Perfeito! Quando posso retirar?', time: '15/10', unread: 0, online: false }
-        ];
+        // Formatar conversas reais
+        const conversations = realConversations.map((conv, index) => {
+          const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+          const phone = conv.contactNumber || 'Cliente';
+          const name = phone.replace('@c.us', '').replace(/\D/g, ''); // Extrai apenas números
+          const initials = name.substring(0, 2).toUpperCase();
+          
+          // Formatar tempo
+          let timeDisplay = '';
+          if (conv.lastMessageTime) {
+            const msgDate = new Date(conv.lastMessageTime);
+            const now = new Date();
+            const diffHours = Math.floor((now - msgDate) / (1000 * 60 * 60));
+            
+            if (diffHours < 1) {
+              timeDisplay = 'Agora';
+            } else if (diffHours < 24) {
+              timeDisplay = `${diffHours}h atrás`;
+            } else {
+              timeDisplay = msgDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            }
+          }
+          
+          return {
+            id: conv.contactNumber,
+            name: phone,
+            phone: phone,
+            avatar: initials,
+            color: colors[index % colors.length],
+            lastMsg: conv.lastMessage || 'Nova conversa',
+            time: timeDisplay,
+            unread: 0,
+            online: false,
+            messageCount: conv.messageCount || 0
+          };
+        });
         
-        const currentConv = conversations.find(c => c.id === safeSelectedConv) || conversations[0];
+        const currentConv = safeSelectedConv ? (conversations.find(c => c.id === safeSelectedConv) || conversations[0]) : conversations[0];
         
         return (
           <div style={{ padding: '24px', height: 'calc(100vh - 48px)' }}>
@@ -1559,7 +1675,9 @@ const DashboardWithFirebase = ({
                 <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                     <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937' }}>Conversas</span>
-                    <span style={{ backgroundColor: '#10b981', color: 'white', fontSize: '0.75rem', fontWeight: 'bold', padding: '2px 8px', borderRadius: '12px' }}>3</span>
+                    <span style={{ backgroundColor: '#10b981', color: 'white', fontSize: '0.75rem', fontWeight: 'bold', padding: '2px 8px', borderRadius: '12px' }}>
+                      {loadingConversations ? '...' : conversations.length}
+                    </span>
                   </div>
                   <input
                     type="text"
@@ -1580,10 +1698,23 @@ const DashboardWithFirebase = ({
                 
                 {/* Lista de conversas */}
                 <div style={{ flex: 1, overflowY: 'auto' }}>
-                  {conversations.map((conv) => (
+                  {loadingConversations ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
+                      <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
+                      Carregando conversas...
+                    </div>
+                  ) : conversations.length === 0 ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
+                      <div style={{ fontSize: '2rem', marginBottom: '8px' }}>💬</div>
+                      Nenhuma conversa ainda
+                    </div>
+                  ) : conversations.map((conv) => (
                     <div 
                       key={conv.id}
-                      onClick={() => setSelectedConversation(conv.id)}
+                      onClick={() => {
+                        setSelectedConversation(conv.id);
+                        fetchMessages(conv.id);
+                      }}
                       style={{ 
                         padding: safeIsCompactMode ? '12px' : '16px', 
                         borderBottom: '1px solid #f3f4f6', 
@@ -1827,78 +1958,71 @@ const DashboardWithFirebase = ({
                       📎 Solte os arquivos aqui
                     </div>
                   )}
-                  {/* Mensagem recebida */}
-                  <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
-                    <div style={{ maxWidth: '70%' }}>
-                      <div style={{ 
-                        backgroundColor: 'white', 
-                        padding: '12px 16px', 
-                        borderRadius: '12px',
-                        borderTopLeftRadius: '4px',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                      }}>
-                        <p style={{ margin: 0, color: '#1f2937', fontSize: '0.9rem' }}>
-                          Olá! Gostaria de saber sobre os produtos disponíveis no catálogo.
-                        </p>
-                        <span style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: '4px', display: 'block', textAlign: 'right' }}>10:28</span>
-                      </div>
-                    </div>
-                  </div>
                   
-                  {/* Mensagem enviada */}
-                  <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'flex-end' }}>
-                    <div style={{ maxWidth: '70%' }}>
-                      <div style={{ 
-                        backgroundColor: '#dcf8c6', 
-                        padding: '12px 16px', 
-                        borderRadius: '12px',
-                        borderTopRightRadius: '4px',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                      }}>
-                        <p style={{ margin: 0, color: '#1f2937', fontSize: '0.9rem' }}>
-                          Olá João! Temos vários produtos disponíveis. Você está procurando algo específico?
-                        </p>
-                        <span style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '4px', display: 'block', textAlign: 'right' }}>10:29 ✓✓</span>
+                  {/* Mensagens Reais */}
+                  {currentMessages.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '48px 24px', color: '#6b7280' }}>
+                      <div style={{ fontSize: '3rem', marginBottom: '16px' }}>💬</div>
+                      <div style={{ fontSize: '1.125rem', fontWeight: '500', marginBottom: '8px' }}>
+                        Nenhuma mensagem ainda
+                      </div>
+                      <div style={{ fontSize: '0.875rem' }}>
+                        As mensagens da conversa aparecerão aqui
                       </div>
                     </div>
-                  </div>
-                  
-                  {/* Mensagem recebida */}
-                  <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
-                    <div style={{ maxWidth: '70%' }}>
-                      <div style={{ 
-                        backgroundColor: 'white', 
-                        padding: '12px 16px', 
-                        borderRadius: '12px',
-                        borderTopLeftRadius: '4px',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                      }}>
-                        <p style={{ margin: 0, color: '#1f2937', fontSize: '0.9rem' }}>
-                          Sim! Estou procurando notebooks. Qual o preço?
-                        </p>
-                        <span style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: '4px', display: 'block', textAlign: 'right' }}>10:30</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Indicador de digitação */}
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <div style={{ maxWidth: '70%' }}>
-                      <div style={{ 
-                        backgroundColor: 'white', 
-                        padding: '12px 16px', 
-                        borderRadius: '12px',
-                        borderTopLeftRadius: '4px',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                        display: 'flex',
-                        gap: '4px'
-                      }}>
-                        <span style={{ width: '8px', height: '8px', backgroundColor: '#9ca3af', borderRadius: '50%', animation: 'pulse 1.4s infinite' }}></span>
-                        <span style={{ width: '8px', height: '8px', backgroundColor: '#9ca3af', borderRadius: '50%', animation: 'pulse 1.4s infinite 0.2s' }}></span>
-                        <span style={{ width: '8px', height: '8px', backgroundColor: '#9ca3af', borderRadius: '50%', animation: 'pulse 1.4s infinite 0.4s' }}></span>
-                      </div>
-                    </div>
-                  </div>
+                  ) : (
+                    currentMessages.map((msg, index) => {
+                      const isFromMe = msg.isFromMe;
+                      const msgTime = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+                      
+                      return (
+                        <div 
+                          key={msg.id || index} 
+                          style={{ 
+                            marginBottom: '16px', 
+                            display: 'flex', 
+                            justifyContent: isFromMe ? 'flex-end' : 'flex-start',
+                            gap: '8px'
+                          }}
+                        >
+                          <div style={{ maxWidth: '70%' }}>
+                            <div style={{ 
+                              backgroundColor: isFromMe ? '#dcf8c6' : 'white', 
+                              padding: '12px 16px', 
+                              borderRadius: '12px',
+                              borderTopLeftRadius: isFromMe ? '12px' : '4px',
+                              borderTopRightRadius: isFromMe ? '4px' : '12px',
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                            }}>
+                              <p style={{ margin: 0, color: '#1f2937', fontSize: '0.9rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                {msg.body || ''}
+                              </p>
+                              {msg.aiGenerated && (
+                                <span style={{ 
+                                  fontSize: '0.7rem', 
+                                  color: '#8b5cf6', 
+                                  marginTop: '4px', 
+                                  display: 'block',
+                                  fontWeight: 'bold'
+                                }}>
+                                  🤖 IA
+                                </span>
+                              )}
+                              <span style={{ 
+                                fontSize: '0.7rem', 
+                                color: isFromMe ? '#6b7280' : '#9ca3af', 
+                                marginTop: '4px', 
+                                display: 'block', 
+                                textAlign: 'right' 
+                              }}>
+                                {msgTime} {isFromMe ? '✓✓' : ''}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
                 
                 {/* Input de mensagem */}
@@ -2039,8 +2163,7 @@ const DashboardWithFirebase = ({
                       onChange={(e) => setMessageInput(e.target.value)}
                       onKeyPress={(e) => {
                         if (e.key === 'Enter' && safeMessageInput.trim()) {
-                          showToast('Mensagem enviada!');
-                          setMessageInput('');
+                          sendMessage();
                         }
                       }}
                       style={{
@@ -2056,12 +2179,7 @@ const DashboardWithFirebase = ({
                       onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
                     />
                     <button 
-                      onClick={() => {
-                        if (safeMessageInput.trim()) {
-                          showToast('Mensagem enviada!');
-                          setMessageInput('');
-                        }
-                      }}
+                      onClick={sendMessage}
                       disabled={!safeMessageInput.trim()}
                       style={{
                         padding: '10px 20px',
