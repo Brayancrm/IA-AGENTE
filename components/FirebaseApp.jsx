@@ -1478,23 +1478,35 @@ const DashboardWithFirebase = ({
   };
 
   const renderContent = () => {
-    // SOLUÇÃO: Capturar estados ANTES do switch para garantir que estejam no escopo
-    const conversationsData = {
-      realConversations: realConversations || [],
-      currentMessages: currentMessages || [],
-      loadingConversations: loadingConversations || false,
-      showEmojiPicker: showEmojiPicker || false,
-      messageInput: messageInput || '',
-      isDragging: isDragging || false,
-      chatSearchQuery: chatSearchQuery || '',
-      isCompactMode: isCompactMode || false,
-      selectedConversation: selectedConversation || null
+    // SOLUÇÃO: Capturar estados com try-catch ANTES do switch
+    let conversationsData = {
+      realConversations: [],
+      currentMessages: [],
+      loadingConversations: false,
+      showEmojiPicker: false,
+      messageInput: '',
+      isDragging: false,
+      chatSearchQuery: '',
+      isCompactMode: false,
+      selectedConversation: null
     };
     
-    console.log('🎯 Estados capturados ANTES do switch:', {
-      realConversations: conversationsData.realConversations.length,
-      total: conversationsData.realConversations.length
-    });
+    try {
+      conversationsData = {
+        realConversations: realConversations || [],
+        currentMessages: currentMessages || [],
+        loadingConversations: loadingConversations || false,
+        showEmojiPicker: showEmojiPicker || false,
+        messageInput: messageInput || '',
+        isDragging: isDragging || false,
+        chatSearchQuery: chatSearchQuery || '',
+        isCompactMode: isCompactMode || false,
+        selectedConversation: selectedConversation || null
+      };
+      console.log('🎯 Estados capturados com SUCESSO:', conversationsData.realConversations.length, 'conversas');
+    } catch (error) {
+      console.log('⚠️ Erro ao capturar estados - usando valores padrão');
+    }
     
     switch (currentPage) {
       case 'dashboard':
