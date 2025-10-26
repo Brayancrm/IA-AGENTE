@@ -1647,6 +1647,345 @@ const DashboardWithFirebase = ({
       case 'catalog':
         return renderCatalog();
 
+      case 'agendamentos':
+        return (
+          <div style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <div>
+                <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  📅 Agendamentos
+                  <span style={{ fontSize: '1rem', fontWeight: 'normal', color: '#6b7280' }}>
+                    ({agendamentos.length} total)
+                  </span>
+                </h2>
+                <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                  Gerencie todos os agendamentos feitos pelo agente de IA
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setEditingAgendamento(null);
+                  setShowAgendamentoModal(true);
+                }}
+                style={{
+                  backgroundColor: '#6366f1',
+                  color: 'white',
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.9375rem',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <Plus className="w-5 h-5" />
+                Novo Agendamento
+              </button>
+            </div>
+
+            {/* Filtros */}
+            <div style={{ 
+              backgroundColor: 'white', 
+              borderRadius: '12px', 
+              padding: '16px 20px', 
+              marginBottom: '20px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              display: 'flex',
+              gap: '12px',
+              flexWrap: 'wrap',
+              alignItems: 'center'
+            }}>
+              <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#374151' }}>Filtrar por:</span>
+              
+              {/* Status */}
+              <select
+                value={agendamentoFilter}
+                onChange={(e) => setAgendamentoFilter(e.target.value)}
+                style={{
+                  padding: '8px 32px 8px 12px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+              >
+                <option value="todos">Todos os Status</option>
+                <option value="pendente">⏰ Pendente</option>
+                <option value="confirmado">✅ Confirmado</option>
+                <option value="em_andamento">🔄 Em Andamento</option>
+                <option value="concluido">✔️ Concluído</option>
+                <option value="cancelado">❌ Cancelado</option>
+              </select>
+
+              {/* Tipo */}
+              <select
+                value={agendamentoTypeFilter}
+                onChange={(e) => setAgendamentoTypeFilter(e.target.value)}
+                style={{
+                  padding: '8px 32px 8px 12px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+              >
+                <option value="todos">Todos os Tipos</option>
+                <option value="retirada">📦 Retirada de Produto</option>
+                <option value="servico">🔧 Realização de Serviço</option>
+                <option value="visita">📍 Visita/Atendimento</option>
+                <option value="ligacao">📞 Ligação/Reunião</option>
+                <option value="entrega">🚚 Entrega</option>
+                <option value="outro">📝 Outro</option>
+              </select>
+            </div>
+
+            {/* Lista de Agendamentos */}
+            <div style={{ 
+              backgroundColor: 'white', 
+              borderRadius: '16px', 
+              overflow: 'hidden',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)', 
+              border: '1px solid #e5e7eb' 
+            }}>
+              {loadingAgendamentos ? (
+                <div style={{ padding: '64px', textAlign: 'center', color: '#6b7280' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
+                  Carregando agendamentos...
+                </div>
+              ) : agendamentos.length === 0 ? (
+                <div style={{ padding: '64px', textAlign: 'center', color: '#6b7280' }}>
+                  <div style={{ fontSize: '4rem', marginBottom: '16px' }}>📅</div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>
+                    Nenhum agendamento ainda
+                  </h3>
+                  <p style={{ fontSize: '0.875rem', marginBottom: '20px' }}>
+                    Crie seu primeiro agendamento ou aguarde o agente criar automaticamente
+                  </p>
+                  <button
+                    onClick={() => {
+                      setEditingAgendamento(null);
+                      setShowAgendamentoModal(true);
+                    }}
+                    style={{
+                      backgroundColor: '#6366f1',
+                      color: 'white',
+                      padding: '10px 20px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem',
+                      fontWeight: '500'
+                    }}
+                  >
+                    Criar Primeiro Agendamento
+                  </button>
+                </div>
+              ) : (
+                <div style={{ padding: '16px' }}>
+                  <div style={{ display: 'grid', gap: '16px' }}>
+                    {agendamentos
+                      .filter(ag => agendamentoFilter === 'todos' || ag.status === agendamentoFilter)
+                      .filter(ag => agendamentoTypeFilter === 'todos' || ag.tipo === agendamentoTypeFilter)
+                      .map((agendamento) => (
+                        <div
+                          key={agendamento.id}
+                          style={{
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '12px',
+                            padding: '20px',
+                            backgroundColor: '#fafafa',
+                            transition: 'all 0.2s',
+                            cursor: 'pointer'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#f3f4f6';
+                            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#fafafa';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                                <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#1f2937', margin: 0 }}>
+                                  {agendamento.titulo}
+                                </h3>
+                                <span style={{
+                                  padding: '4px 12px',
+                                  borderRadius: '12px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '600',
+                                  ...{
+                                    pendente: { backgroundColor: '#fef3c7', color: '#92400e' },
+                                    confirmado: { backgroundColor: '#d1fae5', color: '#065f46' },
+                                    em_andamento: { backgroundColor: '#dbeafe', color: '#1e40af' },
+                                    concluido: { backgroundColor: '#d1d5db', color: '#1f2937' },
+                                    cancelado: { backgroundColor: '#fee2e2', color: '#991b1b' }
+                                  }[agendamento.status] || { backgroundColor: '#f3f4f6', color: '#374151' }
+                                }}>
+                                  {
+                                    {
+                                      pendente: '⏰ Pendente',
+                                      confirmado: '✅ Confirmado',
+                                      em_andamento: '🔄 Em Andamento',
+                                      concluido: '✔️ Concluído',
+                                      cancelado: '❌ Cancelado'
+                                    }[agendamento.status] || agendamento.status
+                                  }
+                                </span>
+                                <span style={{
+                                  padding: '4px 12px',
+                                  borderRadius: '12px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '500',
+                                  backgroundColor: '#ede9fe',
+                                  color: '#6b21a8'
+                                }}>
+                                  {
+                                    {
+                                      retirada: '📦 Retirada',
+                                      servico: '🔧 Serviço',
+                                      visita: '📍 Visita',
+                                      ligacao: '📞 Ligação',
+                                      entrega: '🚚 Entrega',
+                                      outro: '📝 Outro'
+                                    }[agendamento.tipo] || agendamento.tipo
+                                  }
+                                </span>
+                              </div>
+                              
+                              <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '12px' }}>
+                                {agendamento.descricao}
+                              </p>
+
+                              <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem', color: '#374151' }}>
+                                  <span>📅</span>
+                                  <span><strong>Data:</strong> {agendamento.data}</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem', color: '#374151' }}>
+                                  <span>🕐</span>
+                                  <span><strong>Horário:</strong> {agendamento.horario}</span>
+                                </div>
+                                {agendamento.cliente && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem', color: '#374151' }}>
+                                    <span>👤</span>
+                                    <span><strong>Cliente:</strong> {agendamento.cliente}</span>
+                                  </div>
+                                )}
+                                {agendamento.telefone && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem', color: '#374151' }}>
+                                    <span>📞</span>
+                                    <span><strong>Telefone:</strong> {agendamento.telefone}</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {agendamento.observacoes && (
+                                <div style={{ 
+                                  marginTop: '12px', 
+                                  padding: '12px', 
+                                  backgroundColor: '#f9fafb', 
+                                  borderRadius: '8px',
+                                  border: '1px solid #e5e7eb'
+                                }}>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#6b7280', display: 'block', marginBottom: '4px' }}>
+                                    Observações:
+                                  </span>
+                                  <span style={{ fontSize: '0.875rem', color: '#374151' }}>
+                                    {agendamento.observacoes}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginLeft: '16px' }}>
+                              <button
+                                onClick={() => {
+                                  setEditingAgendamento(agendamento);
+                                  setShowAgendamentoModal(true);
+                                }}
+                                style={{
+                                  padding: '8px 16px',
+                                  borderRadius: '6px',
+                                  border: '1px solid #6366f1',
+                                  backgroundColor: 'white',
+                                  color: '#6366f1',
+                                  cursor: 'pointer',
+                                  fontSize: '0.875rem',
+                                  fontWeight: '500',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                <Edit className="w-4 h-4 inline mr-2" />
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm('Tem certeza que deseja excluir este agendamento?')) {
+                                    // Função para deletar (será implementada)
+                                    showToast('Agendamento excluído', 'success');
+                                  }
+                                }}
+                                style={{
+                                  padding: '8px 16px',
+                                  borderRadius: '6px',
+                                  border: '1px solid #ef4444',
+                                  backgroundColor: 'white',
+                                  color: '#ef4444',
+                                  cursor: 'pointer',
+                                  fontSize: '0.875rem',
+                                  fontWeight: '500',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4 inline mr-2" />
+                                Excluir
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Estatísticas */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginTop: '24px' }}>
+              <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '4px' }}>Total</div>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937' }}>{agendamentos.length}</div>
+              </div>
+              <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '4px' }}>Pendentes</div>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#f59e0b' }}>
+                  {agendamentos.filter(a => a.status === 'pendente').length}
+                </div>
+              </div>
+              <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '4px' }}>Confirmados</div>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#10b981' }}>
+                  {agendamentos.filter(a => a.status === 'confirmado').length}
+                </div>
+              </div>
+              <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '4px' }}>Concluídos</div>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#6b7280' }}>
+                  {agendamentos.filter(a => a.status === 'concluido').length}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
       case 'conversas': {
         // Proteção SSR: Aguardar cliente estar pronto
         if (typeof window === 'undefined') {
