@@ -1478,6 +1478,24 @@ const DashboardWithFirebase = ({
   };
 
   const renderContent = () => {
+    // SOLUÇÃO: Capturar estados ANTES do switch para garantir que estejam no escopo
+    const conversationsData = {
+      realConversations: realConversations || [],
+      currentMessages: currentMessages || [],
+      loadingConversations: loadingConversations || false,
+      showEmojiPicker: showEmojiPicker || false,
+      messageInput: messageInput || '',
+      isDragging: isDragging || false,
+      chatSearchQuery: chatSearchQuery || '',
+      isCompactMode: isCompactMode || false,
+      selectedConversation: selectedConversation || null
+    };
+    
+    console.log('🎯 Estados capturados ANTES do switch:', {
+      realConversations: conversationsData.realConversations.length,
+      total: conversationsData.realConversations.length
+    });
+    
     switch (currentPage) {
       case 'dashboard':
         return (
@@ -1621,33 +1639,18 @@ const DashboardWithFirebase = ({
           );
         }
         
-        // SOLUÇÃO DEFINITIVA: Try-catch para TODOS os estados
-        let _realConversations = [];
-        let _currentMessages = [];
-        let _loadingConversations = false;
-        let _showEmojiPicker = false;
-        let _messageInput = '';
-        let _isDragging = false;
-        let _chatSearchQuery = '';
-        let _isCompactMode = false;
-        let _selectedConversation = null;
+        // USAR dados capturados ANTES do switch (já estão no escopo correto)
+        const _realConversations = conversationsData.realConversations;
+        const _currentMessages = conversationsData.currentMessages;
+        const _loadingConversations = conversationsData.loadingConversations;
+        const _showEmojiPicker = conversationsData.showEmojiPicker;
+        const _messageInput = conversationsData.messageInput;
+        const _isDragging = conversationsData.isDragging;
+        const _chatSearchQuery = conversationsData.chatSearchQuery;
+        const _isCompactMode = conversationsData.isCompactMode;
+        const _selectedConversation = conversationsData.selectedConversation;
         
-        try {
-          // Tentar acessar TODOS os estados
-          _realConversations = realConversations || [];
-          _currentMessages = currentMessages || [];
-          _loadingConversations = loadingConversations || false;
-          _showEmojiPicker = showEmojiPicker || false;
-          _messageInput = messageInput || '';
-          _isDragging = isDragging || false;
-          _chatSearchQuery = chatSearchQuery || '';
-          _isCompactMode = isCompactMode || false;
-          _selectedConversation = selectedConversation || null;
-          console.log('✅ Todos estados acessíveis:', _realConversations.length, 'conversas');
-        } catch (error) {
-          // Se der ReferenceError, valores padrão já estão definidos
-          console.log('⚠️ ReferenceError capturado - usando valores padrão para todos estados');
-        }
+        console.log('✅ Usando dados do conversationsData:', _realConversations.length, 'conversas');
         
         // Emojis mais usados
         const frequentEmojis = ['😊', '👍', '❤️', '😂', '🎉', '🙏', '👏', '✅', '💯', '🔥', '😍', '🤝', '💪', '⭐', '📱', '💬', '📦', '✨'];
