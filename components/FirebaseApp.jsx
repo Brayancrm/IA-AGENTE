@@ -64,6 +64,14 @@ const FirebaseApp = () => {
   const [currentMessages, setCurrentMessages] = useState([]);
   const [loadingConversations, setLoadingConversations] = useState(false);
   
+  // Estados de Agendamentos
+  const [agendamentos, setAgendamentos] = useState([]);
+  const [loadingAgendamentos, setLoadingAgendamentos] = useState(false);
+  const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
+  const [editingAgendamento, setEditingAgendamento] = useState(null);
+  const [agendamentoFilter, setAgendamentoFilter] = useState('todos'); // todos, pendente, confirmado, concluido, cancelado
+  const [agendamentoTypeFilter, setAgendamentoTypeFilter] = useState('todos'); // todos, retirada, servico, visita, etc
+  
   // CRM temporariamente desativado - será reconstruído depois
   
   // URL do backend
@@ -3287,6 +3295,7 @@ const DashboardWithFirebase = ({
     { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
     { id: 'company', label: 'Cadastro da Empresa', icon: '🏢' },
     { id: 'catalog', label: 'Catálogo (Itens)', icon: '📦' },
+    { id: 'agendamentos', label: 'Agendamentos', icon: '📅' },
     { id: 'conversas', label: 'Conversas WhatsApp', icon: '💬' },
     { id: 'crm', label: 'CRM', icon: '👥' },
     { id: 'integrations', label: 'Integrações', icon: '⚙️' },
