@@ -1753,6 +1753,20 @@ const DashboardWithFirebase = ({
         const filterAtual = (typeof agendamentoFilter !== 'undefined') ? agendamentoFilter : 'todos';
         const typeFilterAtual = (typeof agendamentoTypeFilter !== 'undefined') ? agendamentoTypeFilter : 'todos';
         
+        // Funções locais para garantir acesso
+        const handleOpenModal = () => {
+          console.log('🔘 [BOTÃO] Abrindo modal... setEditingAgendamento existe?', typeof setEditingAgendamento);
+          console.log('🔘 [BOTÃO] setShowAgendamentoModal existe?', typeof setShowAgendamentoModal);
+          setEditingAgendamento(null);
+          setShowAgendamentoModal(true);
+        };
+        
+        const handleEditAgendamento = (agendamento) => {
+          console.log('✏️ [BOTÃO] Editando agendamento:', agendamento.id);
+          setEditingAgendamento(agendamento);
+          setShowAgendamentoModal(true);
+        };
+        
         console.log('🎨 [RENDER agendamentos] agendamentosAtual.length:', agendamentosAtual.length, 'array:', agendamentosAtual);
         
         return (
@@ -1770,10 +1784,7 @@ const DashboardWithFirebase = ({
                 </p>
               </div>
               <button
-                onClick={() => {
-                  setEditingAgendamento(null);
-                  setShowAgendamentoModal(true);
-                }}
+                onClick={handleOpenModal}
                 style={{
                   backgroundColor: '#6366f1',
                   color: 'white',
@@ -1874,10 +1885,7 @@ const DashboardWithFirebase = ({
                     Crie seu primeiro agendamento ou aguarde o agente criar automaticamente
                   </p>
                   <button
-                    onClick={() => {
-                      setEditingAgendamento(null);
-                      setShowAgendamentoModal(true);
-                    }}
+                    onClick={handleOpenModal}
                     style={{
                       backgroundColor: '#6366f1',
                       color: 'white',
@@ -2015,10 +2023,7 @@ const DashboardWithFirebase = ({
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginLeft: '16px' }}>
                               <button
-                                onClick={() => {
-                                  setEditingAgendamento(agendamento);
-                                  setShowAgendamentoModal(true);
-                                }}
+                                onClick={() => handleEditAgendamento(agendamento)}
                                 style={{
                                   padding: '8px 16px',
                                   borderRadius: '6px',
