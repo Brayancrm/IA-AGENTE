@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFirebase } from '../hooks/useFirebase';
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as firebaseSignOut, sendPasswordResetEmail } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
@@ -82,56 +82,6 @@ const FirebaseApp = () => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
-
-  // 🆕 FUNÇÕES DE MANIPULAÇÃO DE AGENDAMENTOS (funções normais - será hoisted)
-  function handleOpenAgendamentoModal() {
-    console.log('🔘 [handleOpenAgendamentoModal] Abrindo modal...');
-    setEditingAgendamento(null);
-    setShowAgendamentoModal(true);
-  }
-
-  function handleEditAgendamento(agendamento) {
-    console.log('✏️ [handleEditAgendamento] Editando:', agendamento);
-    setEditingAgendamento(agendamento);
-    setShowAgendamentoModal(true);
-  }
-
-  function handleSaveAgendamento(e) {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const novoAgendamento = {
-      id: editingAgendamento?.id || `${Date.now()}`,
-      titulo: formData.get('titulo'),
-      descricao: formData.get('descricao'),
-      tipo: formData.get('tipo'),
-      status: formData.get('status') || 'pendente',
-      data: formData.get('data'),
-      horario: formData.get('horario'),
-      cliente: formData.get('cliente'),
-      telefone: formData.get('telefone'),
-      observacoes: formData.get('observacoes') || ''
-    };
-    
-    if (editingAgendamento) {
-      // Editar existente
-      setAgendamentos(prev => prev.map(a => a.id === novoAgendamento.id ? novoAgendamento : a));
-      showToast('Agendamento atualizado com sucesso!', 'success');
-    } else {
-      // Criar novo
-      setAgendamentos(prev => [...prev, novoAgendamento]);
-      showToast('Agendamento criado com sucesso!', 'success');
-    }
-    
-    setShowAgendamentoModal(false);
-    setEditingAgendamento(null);
-  }
-
-  function handleDeleteAgendamento(id) {
-    if (confirm('Tem certeza que deseja excluir este agendamento?')) {
-      setAgendamentos(prev => prev.filter(a => a.id !== id));
-      showToast('Agendamento excluído com sucesso!', 'success');
-    }
-  }
 
   // Componente Toast
   const Toast = ({ message, type, onClose }) => (
@@ -1651,6 +1601,54 @@ const DashboardWithFirebase = ({
     const agendamentosAtual = (typeof agendamentos !== 'undefined' && agendamentos) ? agendamentos : [];
     console.log('🎨 [renderAgendamentos] Executando... agendamentos.length:', agendamentosAtual.length);
     
+    // 🆕 FUNÇÕES LOCAIS (dentro do escopo de renderAgendamentos)
+    const handleOpenModal = () => {
+      console.log('🔘 [MODAL] Abrindo...');
+      setEditingAgendamento(null);
+      setShowAgendamentoModal(true);
+    };
+
+    const handleEdit = (agendamento) => {
+      console.log('✏️ [EDIT] Editando:', agendamento);
+      setEditingAgendamento(agendamento);
+      setShowAgendamentoModal(true);
+    };
+
+    const handleSave = (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const novoAgendamento = {
+        id: editingAgendamento?.id || `${Date.now()}`,
+        titulo: formData.get('titulo'),
+        descricao: formData.get('descricao'),
+        tipo: formData.get('tipo'),
+        status: formData.get('status') || 'pendente',
+        data: formData.get('data'),
+        horario: formData.get('horario'),
+        cliente: formData.get('cliente'),
+        telefone: formData.get('telefone'),
+        observacoes: formData.get('observacoes') || ''
+      };
+      
+      if (editingAgendamento) {
+        setAgendamentos(prev => prev.map(a => a.id === novoAgendamento.id ? novoAgendamento : a));
+        showToast('Agendamento atualizado!', 'success');
+      } else {
+        setAgendamentos(prev => [...prev, novoAgendamento]);
+        showToast('Agendamento criado!', 'success');
+      }
+      
+      setShowAgendamentoModal(false);
+      setEditingAgendamento(null);
+    };
+
+    const handleDelete = (id) => {
+      if (confirm('Tem certeza que deseja excluir?')) {
+        setAgendamentos(prev => prev.filter(a => a.id !== id));
+        showToast('Agendamento excluído!', 'success');
+      }
+    };
+    
     // Filtrar agendamentos
     const agendamentosFiltrados = agendamentosAtual.filter(agend => {
       const matchStatus = agendamentoFilter === 'todos' || agend.status === agendamentoFilter;
@@ -1710,7 +1708,7 @@ const DashboardWithFirebase = ({
               📅 Agendamentos
             </h2>
             <button
-              onClick={handleOpenAgendamentoModal}
+              onClick={handleOpenModal}
               style={{
                 backgroundColor: '#6366f1',
                 color: 'white',
@@ -1864,7 +1862,7 @@ const DashboardWithFirebase = ({
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button
-                      onClick={() => handleEditAgendamento(agend)}
+                      onClick={() => handleEdit(agend)}
                       style={{
                         padding: '8px',
                         backgroundColor: '#f3f4f6',
@@ -1878,7 +1876,7 @@ const DashboardWithFirebase = ({
                       ✏️
                     </button>
                     <button
-                      onClick={() => handleDeleteAgendamento(agend.id)}
+                      onClick={() => handleDelete(agend.id)}
                       style={{
                         padding: '8px',
                         backgroundColor: '#f3f4f6',
@@ -1925,6 +1923,260 @@ const DashboardWithFirebase = ({
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Modal de Agendamento (dentro de renderAgendamentos) */}
+        {showAgendamentoModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: '32px',
+              width: '90%',
+              maxWidth: '600px',
+              maxHeight: '90vh',
+              overflow: 'auto'
+            }}>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '24px', color: '#1f2937' }}>
+                {editingAgendamento ? '✏️ Editar Agendamento' : '📅 Novo Agendamento'}
+              </h3>
+              
+              <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                    Título *
+                  </label>
+                  <input
+                    type="text"
+                    name="titulo"
+                    required
+                    defaultValue={editingAgendamento?.titulo || ''}
+                    placeholder="Ex: Retirada de produto"
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                    Tipo *
+                  </label>
+                  <select
+                    name="tipo"
+                    required
+                    defaultValue={editingAgendamento?.tipo || ''}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    <option value="">Selecione</option>
+                    <option value="retirada">📦 Retirada</option>
+                    <option value="servico">🔧 Serviço</option>
+                    <option value="visita">🏢 Visita</option>
+                    <option value="entrega">🚚 Entrega</option>
+                    <option value="ligacao">📞 Ligação</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                      Data *
+                    </label>
+                    <input
+                      type="date"
+                      name="data"
+                      required
+                      defaultValue={editingAgendamento?.data || ''}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '8px',
+                        fontSize: '0.875rem'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                      Horário *
+                    </label>
+                    <input
+                      type="time"
+                      name="horario"
+                      required
+                      defaultValue={editingAgendamento?.horario || ''}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '8px',
+                        fontSize: '0.875rem'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                    Cliente *
+                  </label>
+                  <input
+                    type="text"
+                    name="cliente"
+                    required
+                    defaultValue={editingAgendamento?.cliente || ''}
+                    placeholder="Nome do cliente"
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                    Telefone
+                  </label>
+                  <input
+                    type="tel"
+                    name="telefone"
+                    defaultValue={editingAgendamento?.telefone || ''}
+                    placeholder="(11) 99999-9999"
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                    Descrição
+                  </label>
+                  <textarea
+                    name="descricao"
+                    rows={3}
+                    defaultValue={editingAgendamento?.descricao || ''}
+                    placeholder="Detalhes do agendamento"
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                    Observações
+                  </label>
+                  <textarea
+                    name="observacoes"
+                    rows={2}
+                    defaultValue={editingAgendamento?.observacoes || ''}
+                    placeholder="Observações adicionais"
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+
+                {editingAgendamento && (
+                  <div>
+                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                      Status
+                    </label>
+                    <select
+                      name="status"
+                      defaultValue={editingAgendamento?.status || 'pendente'}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '8px',
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      <option value="pendente">Pendente</option>
+                      <option value="confirmado">Confirmado</option>
+                      <option value="em_andamento">Em Andamento</option>
+                      <option value="concluido">Concluído</option>
+                      <option value="cancelado">Cancelado</option>
+                    </select>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                  <button
+                    type="submit"
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#6366f1',
+                      color: 'white',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: '500'
+                    }}
+                  >
+                    {editingAgendamento ? 'Atualizar' : 'Criar'} Agendamento
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAgendamentoModal(false)}
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#e5e7eb',
+                      color: '#374151',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: '500'
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
       </div>
@@ -4164,7 +4416,7 @@ const DashboardWithFirebase = ({
               {(typeof editingAgendamento !== 'undefined' && editingAgendamento) ? '✏️ Editar Agendamento' : '📅 Novo Agendamento'}
             </h3>
             
-            <form onSubmit={handleSaveAgendamento} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
               <div>
                 <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
