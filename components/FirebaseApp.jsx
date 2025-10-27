@@ -1587,9 +1587,9 @@ const DashboardWithFirebase = ({
         telefone: formData.get('telefone'),
         observacoes: formData.get('observacoes') || '',
         updatedAt: new Date().toISOString()
-      };
-      
-      try {
+    };
+    
+    try {
         if (editingItem) {
           // ✏️ EDITAR agendamento existente
           const agendamentoRef = ref(database, `users/data/${user.uid}/agendamentos/${editingItem.id}`);
@@ -1637,7 +1637,7 @@ const DashboardWithFirebase = ({
         await remove(agendamentoRef);
         console.log('✅ [FIREBASE] Agendamento excluído:', id);
         showToast('Agendamento excluído!', 'success');
-      } catch (error) {
+    } catch (error) {
         console.error('❌ [FIREBASE] Erro ao excluir agendamento:', error);
         showToast('❌ Erro ao excluir agendamento', 'error');
       }
@@ -1921,7 +1921,7 @@ const DashboardWithFirebase = ({
         )}
 
         {/* Modal de Agendamento (dentro de renderAgendamentos) */}
-        {modalOpen && (
+        {((typeof showAgendamentoModal !== 'undefined') ? showAgendamentoModal : false) && (
           <div style={{
             position: 'fixed',
             top: 0,
