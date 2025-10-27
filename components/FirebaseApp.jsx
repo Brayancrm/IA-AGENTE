@@ -1611,7 +1611,7 @@ const DashboardWithFirebase = ({
     const safeAgendamentoFilter = (typeof agendamentoFilter !== 'undefined') ? agendamentoFilter : 'todos';
     const safeAgendamentoTypeFilter = (typeof agendamentoTypeFilter !== 'undefined') ? agendamentoTypeFilter : 'todos';
     
-    console.log('🎯 Estados capturados:', safeRealConversations.length, 'conversas,', agendamentos?.length || 0, 'agendamentos (DIRETO)');
+    console.log('🎯 Estados capturados:', safeRealConversations.length, 'conversas,', (typeof agendamentos !== 'undefined' ? agendamentos.length : 0), 'agendamentos (DIRETO)');
     
     switch (currentPage) {
       case 'dashboard':
