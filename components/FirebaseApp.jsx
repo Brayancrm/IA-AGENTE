@@ -301,9 +301,11 @@ const FirebaseApp = () => {
 
   // Monitorar mudanças no estado agendamentos
   useEffect(() => {
-    console.log('📅 [STATE CHANGED] agendamentos atualizado:', agendamentos);
-    console.log('📅 [STATE CHANGED] Total:', agendamentos.length);
-  }, [agendamentos]);
+    if (typeof agendamentos !== 'undefined') {
+      console.log('📅 [STATE CHANGED] agendamentos atualizado:', agendamentos);
+      console.log('📅 [STATE CHANGED] Total:', agendamentos.length);
+    }
+  }, [typeof agendamentos !== 'undefined' ? agendamentos : []]);
 
   // Configurar listeners do Realtime Database
   const setupFirestoreListeners = () => {
@@ -1746,10 +1748,10 @@ const DashboardWithFirebase = ({
 
       case 'agendamentos':
         // USAR ESTADO DIRETO para evitar closure stale
-        const agendamentosAtual = agendamentos || [];
-        const loadingAtual = loadingAgendamentos || false;
-        const filterAtual = agendamentoFilter || 'todos';
-        const typeFilterAtual = agendamentoTypeFilter || 'todos';
+        const agendamentosAtual = (typeof agendamentos !== 'undefined' && agendamentos) ? agendamentos : [];
+        const loadingAtual = (typeof loadingAgendamentos !== 'undefined') ? loadingAgendamentos : false;
+        const filterAtual = (typeof agendamentoFilter !== 'undefined') ? agendamentoFilter : 'todos';
+        const typeFilterAtual = (typeof agendamentoTypeFilter !== 'undefined') ? agendamentoTypeFilter : 'todos';
         
         console.log('🎨 [RENDER agendamentos] agendamentosAtual.length:', agendamentosAtual.length, 'array:', agendamentosAtual);
         
