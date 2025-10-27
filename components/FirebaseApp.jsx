@@ -1598,7 +1598,11 @@ const DashboardWithFirebase = ({
 
   // Função para renderizar agendamentos (igual ao renderCatalog - tem acesso aos states!)
   const renderAgendamentos = () => {
+    // ✅ Capturar estados com proteção typeof
     const agendamentosAtual = (typeof agendamentos !== 'undefined' && agendamentos) ? agendamentos : [];
+    const filterStatus = (typeof agendamentoFilter !== 'undefined') ? agendamentoFilter : 'todos';
+    const filterType = (typeof agendamentoTypeFilter !== 'undefined') ? agendamentoTypeFilter : 'todos';
+    
     console.log('🎨 [renderAgendamentos] Executando... agendamentos.length:', agendamentosAtual.length);
     
     // 🆕 FUNÇÕES LOCAIS (dentro do escopo de renderAgendamentos)
@@ -1651,8 +1655,8 @@ const DashboardWithFirebase = ({
     
     // Filtrar agendamentos
     const agendamentosFiltrados = agendamentosAtual.filter(agend => {
-      const matchStatus = agendamentoFilter === 'todos' || agend.status === agendamentoFilter;
-      const matchType = agendamentoTypeFilter === 'todos' || agend.tipo === agendamentoTypeFilter;
+      const matchStatus = filterStatus === 'todos' || agend.status === filterStatus;
+      const matchType = filterType === 'todos' || agend.tipo === filterType;
       return matchStatus && matchType;
     });
 
@@ -1762,7 +1766,7 @@ const DashboardWithFirebase = ({
                 Status
               </label>
               <select
-                value={agendamentoFilter}
+                value={filterStatus}
                 onChange={(e) => setAgendamentoFilter(e.target.value)}
                 style={{
                   width: '100%',
@@ -1785,7 +1789,7 @@ const DashboardWithFirebase = ({
                 Tipo
               </label>
               <select
-                value={agendamentoTypeFilter}
+                value={filterType}
                 onChange={(e) => setAgendamentoTypeFilter(e.target.value)}
                 style={{
                   width: '100%',
