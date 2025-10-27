@@ -310,6 +310,11 @@ async function handleIncomingMessage(userId, message, client) {
           await tryAutoGeneratePaymentLink(userId, message.from, sanitizedNumber);
         }
         
+        // ============================================
+        // DETECTAR E SALVAR AGENDAMENTOS AUTOMATICAMENTE
+        // ============================================
+        await detectAndSaveAppointment(userId, message.from, aiResponse, sanitizedNumber);
+        
         // Detectar produtos mencionados e enviar imagens automaticamente
         const mentionedItems = detectMentionedProducts(aiResponse, aiResult.catalogItemsMap);
         
@@ -1634,6 +1639,124 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
     
   } catch (error) {
     console.error('❌ Erro ao detectar/salvar dados do cliente:', error);
+  }
+}
+
+// 📅 Função para detectar e salvar agendamentos criados pelo agente
+async function detectAndSaveAppointment(userId, phone, messageText, sanitizedNumber) {
+  try {
+    // Verificar se messageText existe
+    if (!messageText || typeof messageText !== 'string') {
+      return;
+    }
+    
+    // Buscar configurações do assistente para ver se agendamentos estão habilitados
+    const assistantSettingsSnapshot = await db.ref(`users/data/${userId}/assistant_settings`).once('value');
+    const assistantSettings = assistantSettingsSnapshot.val() || {};
+    
+    if (!assistantSettings.enableAppointments) {
+      return; // Agendamentos não habilitados
+    }
+    
+    const appointmentTypes = assistantSettings.appointmentTypes || [];
+    if (appointmentTypes.length === 0) {
+      return; // Nenhum tipo de agendamento configurado
+    }
+    
+    console.log('📅 [APPOINTMENT] Verificando se mensagem contém agendamento...');
+    console.log('   Tipos permitidos:', appointmentTypes.join(', '));
+    
+    const lowerText = messageText.toLowerCase();
+    
+    // Padrões para detectar agendamento
+    const appointmentKeywords = [
+      'agendado', 'agendamento', 'marcado', 'confirmado', 'reservado',
+      'horário confirmado', 'data confirmada', 'agendei', 'marquei'
+    ];
+    
+    const hasAppointmentKeyword = appointmentKeywords.some(keyword => lowerText.includes(keyword));
+    
+    if (!hasAppointmentKeyword) {
+      return; // Não parece ser um agendamento
+    }
+    
+    console.log('📅 [APPOINTMENT] Detectado palavra-chave de agendamento!');
+    
+    // Tentar extrair informações do agendamento
+    const dateRegex = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/;
+    const timeRegex = /(\d{1,2}[:h]\d{2})/;
+    
+    const dateMatch = messageText.match(dateRegex);
+    const timeMatch = messageText.match(timeRegex);
+    
+    if (!dateMatch || !timeMatch) {
+      console.log('📅 [APPOINTMENT] Data ou horário não encontrado, pulando...');
+      return;
+    }
+    
+    // Detectar tipo de agendamento
+    let detectedType = null;
+    const typeMap = {
+      'retirada': ['retirada', 'retirar', 'buscar'],
+      'servico': ['serviço', 'servico', 'atendimento'],
+      'visita': ['visita', 'visitar'],
+      'entrega': ['entrega', 'entregar', 'delivery'],
+      'ligacao': ['ligação', 'ligacao', 'ligar', 'telefone', 'call'],
+      'consulta': ['consulta', 'consultar', 'atendimento', 'médico', 'medico'],
+      'reuniao': ['reunião', 'reuniao', 'meeting', 'encontro']
+    };
+    
+    for (const [type, keywords] of Object.entries(typeMap)) {
+      if (appointmentTypes.includes(type) && keywords.some(keyword => lowerText.includes(keyword))) {
+        detectedType = type;
+        break;
+      }
+    }
+    
+    if (!detectedType) {
+      // Usar o primeiro tipo disponível como padrão
+      detectedType = appointmentTypes[0];
+    }
+    
+    console.log('📅 [APPOINTMENT] Informações extraídas:');
+    console.log('   Data:', dateMatch[0]);
+    console.log('   Horário:', timeMatch[0]);
+    console.log('   Tipo:', detectedType);
+    
+    // Buscar dados do cliente
+    const phoneNumber = phone.replace(/[^0-9]/g, '');
+    const customerRef = db.ref(`customerData/${userId}/${phoneNumber}`);
+    const customerSnapshot = await customerRef.once('value');
+    const customerData = customerSnapshot.val() || {};
+    
+    // Criar agendamento
+    const appointmentData = {
+      titulo: `${detectedType.charAt(0).toUpperCase() + detectedType.slice(1)} - ${customerData.name || 'Cliente'}`,
+      descricao: `Agendamento criado automaticamente via WhatsApp`,
+      tipo: detectedType,
+      status: 'confirmado',
+      data: dateMatch[0],
+      horario: timeMatch[0].replace('h', ':'),
+      cliente: customerData.name || 'Cliente',
+      telefone: phone,
+      observacoes: `Criado automaticamente da conversa`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      autoCreated: true,
+      fromWhatsApp: true
+    };
+    
+    // Salvar no Firebase
+    const agendamentosRef = db.ref(`users/data/${userId}/agendamentos`);
+    const newAgendamentoRef = agendamentosRef.push();
+    await newAgendamentoRef.set(appointmentData);
+    
+    console.log('✅ [APPOINTMENT] Agendamento salvo com sucesso!');
+    console.log('   ID:', newAgendamentoRef.key);
+    console.log('   Dados:', JSON.stringify(appointmentData, null, 2));
+    
+  } catch (error) {
+    console.error('❌ [APPOINTMENT] Erro ao detectar/salvar agendamento:', error);
   }
 }
 

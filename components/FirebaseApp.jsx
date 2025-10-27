@@ -3443,6 +3443,101 @@ const DashboardWithFirebase = ({
                   />
                 </div>
 
+                {/* Configuração de Agendamentos */}
+                <div style={{ 
+                  backgroundColor: '#f0f9ff', 
+                  border: '2px solid #3b82f6', 
+                  borderRadius: '12px', 
+                  padding: '24px',
+                  marginTop: '24px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={assistantForm.enableAppointments || false}
+                        onChange={(e) => setAssistantForm(prev => ({ 
+                          ...prev, 
+                          enableAppointments: e.target.checked,
+                          appointmentTypes: e.target.checked ? (prev.appointmentTypes || []) : []
+                        }))}
+                        style={{ width: '20px', height: '20px', marginRight: '12px', cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#1e40af' }}>
+                        📅 Habilitar Sistema de Agendamentos
+                      </span>
+                    </label>
+                  </div>
+                  
+                  <p style={{ fontSize: '0.875rem', color: '#1e40af', marginBottom: '16px' }}>
+                    Quando habilitado, o agente poderá criar agendamentos durante a conversa que aparecerão automaticamente na seção Agendamentos.
+                  </p>
+
+                  {assistantForm.enableAppointments && (
+                    <div>
+                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '12px', color: '#1e40af' }}>
+                        Tipos de Agendamento Permitidos:
+                      </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+                        {[
+                          { value: 'retirada', label: '📦 Retirada', icon: '📦' },
+                          { value: 'servico', label: '🔧 Serviço', icon: '🔧' },
+                          { value: 'visita', label: '🏢 Visita', icon: '🏢' },
+                          { value: 'entrega', label: '🚚 Entrega', icon: '🚚' },
+                          { value: 'ligacao', label: '📞 Ligação', icon: '📞' },
+                          { value: 'consulta', label: '🩺 Consulta', icon: '🩺' },
+                          { value: 'reuniao', label: '👥 Reunião', icon: '👥' }
+                        ].map((type) => {
+                          const isSelected = assistantForm.appointmentTypes?.includes(type.value);
+                          return (
+                            <label
+                              key={type.value}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                padding: '12px',
+                                backgroundColor: isSelected ? '#dbeafe' : 'white',
+                                border: `2px solid ${isSelected ? '#3b82f6' : '#d1d5db'}`,
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  const currentTypes = assistantForm.appointmentTypes || [];
+                                  const newTypes = e.target.checked
+                                    ? [...currentTypes, type.value]
+                                    : currentTypes.filter(t => t !== type.value);
+                                  setAssistantForm(prev => ({ ...prev, appointmentTypes: newTypes }));
+                                }}
+                                style={{ width: '18px', height: '18px', marginRight: '8px', cursor: 'pointer' }}
+                              />
+                              <span style={{ fontSize: '0.9rem', color: isSelected ? '#1e40af' : '#374151', fontWeight: isSelected ? 'bold' : 'normal' }}>
+                                {type.label}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <div style={{ 
+                        marginTop: '16px', 
+                        padding: '12px', 
+                        backgroundColor: '#fef3c7', 
+                        borderRadius: '8px', 
+                        border: '1px solid #fbbf24' 
+                      }}>
+                        <p style={{ fontSize: '0.875rem', color: '#92400e', margin: 0 }}>
+                          💡 <strong>Como funciona:</strong> Quando o agente criar um agendamento durante a conversa (com data, horário e tipo selecionado), 
+                          ele será salvo automaticamente na seção Agendamentos para você gerenciar.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Editor de Prompt Final (Opcional) */}
                 {assistantForm.flowSteps && assistantForm.flowSteps.length > 0 && (
                   <div style={{ marginTop: '24px' }}>
