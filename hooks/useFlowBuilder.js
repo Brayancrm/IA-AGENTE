@@ -86,18 +86,25 @@ export function useFlowBuilder(userId) {
  * Converte array de steps em prompt de texto
  * EXPORTADA para usar em outros componentes
  */
-export function convertStepsToPrompt(steps, agentProfile = null) {
+export function convertStepsToPrompt(steps) {
+  if (!steps || steps.length === 0) {
+    return 'Você é um assistente virtual prestativo.';
+  }
+
   let prompt = '';
+  let agentProfile = null;
 
   // ============================================
-  // PERFIL DO AGENTE
+  // BUSCAR PERFIL DO AGENTE DOS STEPS
   // ============================================
-  if (agentProfile && agentProfile.name) {
+  const agentProfileStep = steps.find(step => step.type === 'agent_profile');
+  
+  if (agentProfileStep && agentProfileStep.agentName) {
     prompt += '# PERFIL DO AGENTE\n\n';
     
-    prompt += `Seu nome é **${agentProfile.name}**`;
-    if (agentProfile.role) {
-      prompt += ` e você é ${agentProfile.role}`;
+    prompt += `Seu nome é **${agentProfileStep.agentName}**`;
+    if (agentProfileStep.agentRole) {
+      prompt += ` e você é ${agentProfileStep.agentRole}`;
     }
     prompt += '.\n\n';
 
@@ -110,8 +117,8 @@ export function convertStepsToPrompt(steps, agentProfile = null) {
       empathetic: 'Seja empático, compreensivo e acolhedor. Demonstre que você se importa.'
     };
     
-    if (agentProfile.tone && toneDescriptions[agentProfile.tone]) {
-      prompt += `**Tom de Voz:** ${toneDescriptions[agentProfile.tone]}\n\n`;
+    if (agentProfileStep.agentTone && toneDescriptions[agentProfileStep.agentTone]) {
+      prompt += `**Tom de Voz:** ${toneDescriptions[agentProfileStep.agentTone]}\n\n`;
     }
 
     // Estilo de Comunicação
@@ -122,31 +129,30 @@ export function convertStepsToPrompt(steps, agentProfile = null) {
       persuasive: 'Seja persuasivo e convincente. Mostre os benefícios claramente.'
     };
     
-    if (agentProfile.style && styleDescriptions[agentProfile.style]) {
-      prompt += `**Estilo:** ${styleDescriptions[agentProfile.style]}\n\n`;
+    if (agentProfileStep.agentStyle && styleDescriptions[agentProfileStep.agentStyle]) {
+      prompt += `**Estilo:** ${styleDescriptions[agentProfileStep.agentStyle]}\n\n`;
     }
 
-    // Personalidade
-    if (agentProfile.personality) {
-      prompt += `**Personalidade:** ${agentProfile.personality}\n\n`;
+    // Personalidade (do campo description)
+    if (agentProfileStep.description) {
+      prompt += `**Personalidade:** ${agentProfileStep.description}\n\n`;
     }
 
     prompt += '---\n\n';
+    
+    agentProfile = {
+      name: agentProfileStep.agentName,
+      role: agentProfileStep.agentRole
+    };
   }
 
   // ============================================
   // FLUXO DE ATENDIMENTO
   // ============================================
-  if (!steps || steps.length === 0) {
-    if (!agentProfile || !agentProfile.name) {
-      return 'Você é um assistente virtual prestativo.';
-    }
-    return prompt + 'Seja prestativo e ajude o cliente da melhor forma possível.';
-  }
-
   prompt += '# FLUXO DE ATENDIMENTO\n\nSiga este fluxo de atendimento na ordem especificada:\n\n';
 
   const actionDescriptions = {
+    agent_profile: 'Apresente-se com seu nome e função.', // Não aparece no prompt porque já foi processado acima
     greeting: 'Cumprimente o cliente de forma amigável.',
     ask_info: 'Pergunte as informações necessárias ao cliente.',
     show_catalog: 'Apresente os produtos/serviços disponíveis.',
@@ -158,8 +164,15 @@ export function convertStepsToPrompt(steps, agentProfile = null) {
     custom: 'Execute a ação personalizada conforme descrito.',
   };
 
-  steps.forEach((step, index) => {
-    prompt += `## ${index + 1}. ${step.title}\n\n`;
+  let stepNumber = 0;
+  steps.forEach((step) => {
+    // Pular o step de agent_profile no fluxo (já foi processado acima)
+    if (step.type === 'agent_profile') {
+      return;
+    }
+    
+    stepNumber++;
+    prompt += `## ${stepNumber}. ${step.title}\n\n`;
     
     const actionDesc = actionDescriptions[step.type] || '';
     if (actionDesc) {

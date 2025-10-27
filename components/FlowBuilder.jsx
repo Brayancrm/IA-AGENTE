@@ -21,6 +21,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
 
   // Tipos de ação disponíveis
   const actionTypes = [
+    { value: 'agent_profile', label: '🤖 Perfil do Agente', icon: '🤖' },
     { value: 'greeting', label: '👋 Cumprimentar', icon: '👋' },
     { value: 'ask_info', label: '❓ Perguntar Informação', icon: '❓' },
     { value: 'show_catalog', label: '📦 Mostrar Produtos/Serviços', icon: '📦' },
@@ -304,24 +305,132 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                               )}
                             </div>
 
+                            {/* Campos específicos para Perfil do Agente */}
+                            {editingStep.type === 'agent_profile' && (
+                              <div className="border-t pt-4 space-y-4">
+                                <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                                  <p className="text-sm text-amber-800 font-medium">
+                                    🤖 Configure a personalidade e apresentação do agente
+                                  </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                  {/* Nome do Agente */}
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                      Nome do Agente *
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={editingStep.agentName || ''}
+                                      onChange={(e) =>
+                                        setEditingStep({
+                                          ...editingStep,
+                                          agentName: e.target.value,
+                                        })
+                                      }
+                                      placeholder="Ex: Sofia, Pedro, Maria..."
+                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                  </div>
+
+                                  {/* Cargo/Função */}
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                      Cargo/Função
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={editingStep.agentRole || ''}
+                                      onChange={(e) =>
+                                        setEditingStep({
+                                          ...editingStep,
+                                          agentRole: e.target.value,
+                                        })
+                                      }
+                                      placeholder="Ex: Atendente, Consultor..."
+                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                  </div>
+
+                                  {/* Tom de Voz */}
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                      Tom de Voz
+                                    </label>
+                                    <select
+                                      value={editingStep.agentTone || 'friendly'}
+                                      onChange={(e) =>
+                                        setEditingStep({
+                                          ...editingStep,
+                                          agentTone: e.target.value,
+                                        })
+                                      }
+                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    >
+                                      <option value="friendly">😊 Amigável e Caloroso</option>
+                                      <option value="professional">👔 Profissional e Formal</option>
+                                      <option value="casual">😎 Casual e Descontraído</option>
+                                      <option value="enthusiastic">🎉 Entusiasmado</option>
+                                      <option value="empathetic">❤️ Empático e Acolhedor</option>
+                                    </select>
+                                  </div>
+
+                                  {/* Estilo de Comunicação */}
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                      Estilo de Comunicação
+                                    </label>
+                                    <select
+                                      value={editingStep.agentStyle || 'concise'}
+                                      onChange={(e) =>
+                                        setEditingStep({
+                                          ...editingStep,
+                                          agentStyle: e.target.value,
+                                        })
+                                      }
+                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    >
+                                      <option value="concise">📝 Conciso e Direto</option>
+                                      <option value="detailed">📚 Detalhado e Explicativo</option>
+                                      <option value="consultative">💡 Consultivo</option>
+                                      <option value="persuasive">🎯 Persuasivo</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                {/* Personalidade */}
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Personalidade (use o campo "Instruções" acima)
+                                  </label>
+                                  <p className="text-sm text-gray-500">
+                                    No campo "Instruções Detalhadas" acima, descreva características como: sempre usa emojis, evita termos técnicos, é paciente, etc.
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+
                             {/* Condição (Opcional) */}
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Condição (Opcional)
-                              </label>
-                              <input
-                                type="text"
-                                value={editingStep.condition || ''}
-                                onChange={(e) =>
-                                  setEditingStep({
-                                    ...editingStep,
-                                    condition: e.target.value,
-                                  })
-                                }
-                                placeholder="Ex: Se o cliente perguntar sobre produtos..."
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              />
-                            </div>
+                            {editingStep.type !== 'agent_profile' && (
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Condição (Opcional)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editingStep.condition || ''}
+                                  onChange={(e) =>
+                                    setEditingStep({
+                                      ...editingStep,
+                                      condition: e.target.value,
+                                    })
+                                  }
+                                  placeholder="Ex: Se o cliente perguntar sobre produtos..."
+                                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+                            )}
 
                             {/* Configurações de Catálogo (só para show_catalog) */}
                             {editingStep.type === 'show_catalog' && (

@@ -1032,15 +1032,7 @@ const DashboardWithFirebase = ({
     includeCatalogProducts: false,
     includeCatalogServices: false,
     flowMode: 'visual', // Sempre visual agora
-    flowSteps: [], // Steps do flow builder
-    // Perfil do Agente
-    agentProfile: {
-      name: '',
-      role: '',
-      tone: 'friendly',
-      style: 'professional',
-      personality: ''
-    }
+    flowSteps: [] // Steps do flow builder
   });
   const [userForm, setUserForm] = useState({
     name: '',
@@ -1180,7 +1172,7 @@ const DashboardWithFirebase = ({
     
     // Se houver steps, gerar o prompt automaticamente
     if (assistantForm.flowSteps && assistantForm.flowSteps.length > 0) {
-      dataToSave.systemPrompt = convertStepsToPrompt(assistantForm.flowSteps, assistantForm.agentProfile);
+      dataToSave.systemPrompt = convertStepsToPrompt(assistantForm.flowSteps);
     }
     
     saveAssistantSettings(dataToSave);
@@ -3431,172 +3423,6 @@ const DashboardWithFirebase = ({
                   </>
                 )}
 
-                {/* Perfil do Agente */}
-                <div style={{ 
-                  backgroundColor: '#fef3c7', 
-                  border: '2px solid #f59e0b', 
-                  borderRadius: '12px', 
-                  padding: '24px',
-                  marginBottom: '24px'
-                }}>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#92400e', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    🤖 Perfil do Agente
-                  </h3>
-                  <p style={{ fontSize: '0.875rem', color: '#92400e', marginBottom: '20px' }}>
-                    Configure como seu agente se apresenta e se comunica com os clientes
-                  </p>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    {/* Nome do Agente */}
-                    <div>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#78350f' }}>
-                        Nome do Agente *
-                      </label>
-                      <input
-                        type="text"
-                        value={assistantForm.agentProfile?.name || ''}
-                        onChange={(e) => setAssistantForm(prev => ({
-                          ...prev,
-                          agentProfile: { ...(prev.agentProfile || {}), name: e.target.value }
-                        }))}
-                        placeholder="Ex: Sofia, Pedro, Assistente Virtual..."
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          borderRadius: '8px',
-                          border: '2px solid #fbbf24',
-                          fontSize: '1rem',
-                          backgroundColor: 'white'
-                        }}
-                      />
-                    </div>
-
-                    {/* Cargo/Função */}
-                    <div>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#78350f' }}>
-                        Cargo/Função
-                      </label>
-                      <input
-                        type="text"
-                        value={assistantForm.agentProfile?.role || ''}
-                        onChange={(e) => setAssistantForm(prev => ({
-                          ...prev,
-                          agentProfile: { ...(prev.agentProfile || {}), role: e.target.value }
-                        }))}
-                        placeholder="Ex: Atendente, Consultor de Vendas..."
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          borderRadius: '8px',
-                          border: '2px solid #fbbf24',
-                          fontSize: '1rem',
-                          backgroundColor: 'white'
-                        }}
-                      />
-                    </div>
-
-                    {/* Tom de Voz */}
-                    <div>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#78350f' }}>
-                        Tom de Voz
-                      </label>
-                      <select
-                        value={assistantForm.agentProfile?.tone || 'friendly'}
-                        onChange={(e) => setAssistantForm(prev => ({
-                          ...prev,
-                          agentProfile: { ...(prev.agentProfile || {}), tone: e.target.value }
-                        }))}
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          borderRadius: '8px',
-                          border: '2px solid #fbbf24',
-                          fontSize: '1rem',
-                          backgroundColor: 'white'
-                        }}
-                      >
-                        <option value="friendly">😊 Amigável e Caloroso</option>
-                        <option value="professional">👔 Profissional e Formal</option>
-                        <option value="casual">😎 Casual e Descontraído</option>
-                        <option value="enthusiastic">🎉 Entusiasmado e Energético</option>
-                        <option value="empathetic">❤️ Empático e Acolhedor</option>
-                      </select>
-                    </div>
-
-                    {/* Estilo de Comunicação */}
-                    <div>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#78350f' }}>
-                        Estilo de Comunicação
-                      </label>
-                      <select
-                        value={assistantForm.agentProfile?.style || 'professional'}
-                        onChange={(e) => setAssistantForm(prev => ({
-                          ...prev,
-                          agentProfile: { ...(prev.agentProfile || {}), style: e.target.value }
-                        }))}
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          borderRadius: '8px',
-                          border: '2px solid #fbbf24',
-                          fontSize: '1rem',
-                          backgroundColor: 'white'
-                        }}
-                      >
-                        <option value="concise">📝 Conciso e Direto</option>
-                        <option value="detailed">📚 Detalhado e Explicativo</option>
-                        <option value="consultative">💡 Consultivo e Educativo</option>
-                        <option value="persuasive">🎯 Persuasivo e Convincente</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Personalidade (texto longo) */}
-                  <div style={{ marginTop: '16px' }}>
-                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#78350f' }}>
-                      Personalidade e Características
-                    </label>
-                    <textarea
-                      value={assistantForm.agentProfile?.personality || ''}
-                      onChange={(e) => setAssistantForm(prev => ({
-                        ...prev,
-                        agentProfile: { ...(prev.agentProfile || {}), personality: e.target.value }
-                      }))}
-                      placeholder="Ex: Sempre usa emojis, gosta de fazer perguntas abertas, é paciente com dúvidas, evita termos técnicos..."
-                      rows={3}
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        borderRadius: '8px',
-                        border: '2px solid #fbbf24',
-                        fontSize: '0.875rem',
-                        backgroundColor: 'white',
-                        resize: 'vertical'
-                      }}
-                    />
-                  </div>
-
-                  {/* Preview do Perfil */}
-                  {assistantForm.agentProfile?.name && (
-                    <div style={{ 
-                      marginTop: '16px', 
-                      padding: '16px', 
-                      backgroundColor: 'white', 
-                      borderRadius: '8px',
-                      border: '2px solid #fbbf24'
-                    }}>
-                      <p style={{ fontSize: '0.875rem', fontWeight: 'bold', color: '#92400e', marginBottom: '8px' }}>
-                        📋 Preview da Apresentação:
-                      </p>
-                      <p style={{ fontSize: '0.875rem', color: '#374151', margin: 0, fontStyle: 'italic' }}>
-                        "Olá! 👋 Meu nome é <strong>{assistantForm.agentProfile.name}</strong>
-                        {assistantForm.agentProfile.role && `, sou ${assistantForm.agentProfile.role}`}.
-                        Estou aqui para ajudar você!"
-                      </p>
-                    </div>
-                  )}
-                </div>
-
                 {/* Flow Builder Visual */}
                 <div>
                   <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '12px', color: '#374151' }}>
@@ -3610,8 +3436,8 @@ const DashboardWithFirebase = ({
                         ...prev,
                         flowSteps: newSteps,
                         flowMode: 'visual',
-                        // Gerar prompt automaticamente dos steps com perfil do agente
-                        systemPrompt: convertStepsToPrompt(newSteps, prev.agentProfile)
+                        // Gerar prompt automaticamente dos steps
+                        systemPrompt: convertStepsToPrompt(newSteps)
                       }));
                     }}
                   />

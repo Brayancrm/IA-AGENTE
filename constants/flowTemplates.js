@@ -14,6 +14,17 @@ export const FLOW_TEMPLATES = [
     estimatedTime: '3-5 min',
     steps: [
       {
+        id: Date.now() + '-0',
+        type: 'agent_profile',
+        title: 'Perfil do Agente',
+        description: 'Sempre usa emojis, é prestativo e focado em ajudar o cliente a encontrar o produto perfeito.',
+        agentName: 'Sofia',
+        agentRole: 'Assistente de Vendas',
+        agentTone: 'friendly',
+        agentStyle: 'consultative',
+        condition: ''
+      },
+      {
         id: Date.now() + '-1',
         type: 'greeting',
         title: 'Cumprimentar Cliente',
@@ -138,6 +149,17 @@ export const FLOW_TEMPLATES = [
     category: 'Serviços',
     estimatedTime: '2-3 min',
     steps: [
+      {
+        id: Date.now() + '-0',
+        type: 'agent_profile',
+        title: 'Perfil do Agente',
+        description: 'Eficiente, organizado e sempre confirma horários e datas claramente.',
+        agentName: 'Marina',
+        agentRole: 'Assistente de Agendamentos',
+        agentTone: 'professional',
+        agentStyle: 'concise',
+        condition: ''
+      },
       {
         id: Date.now() + '-1',
         type: 'greeting',
@@ -273,6 +295,17 @@ export const FLOW_TEMPLATES = [
     category: 'Vendas',
     estimatedTime: '3-4 min',
     steps: [
+      {
+        id: Date.now() + '-0',
+        type: 'agent_profile',
+        title: 'Perfil do Agente',
+        description: 'Atencioso com os detalhes do pedido, sempre confirma preferências e restrições alimentares.',
+        agentName: 'Carlos',
+        agentRole: 'Atendente',
+        agentTone: 'friendly',
+        agentStyle: 'concise',
+        condition: ''
+      },
       {
         id: Date.now() + '-1',
         type: 'greeting',
