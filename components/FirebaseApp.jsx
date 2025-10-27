@@ -1598,10 +1598,12 @@ const DashboardWithFirebase = ({
 
   // Função para renderizar agendamentos (igual ao renderCatalog - tem acesso aos states!)
   const renderAgendamentos = () => {
-    // ✅ Capturar estados com proteção typeof
+    // ✅ Capturar TODOS os estados usados com proteção typeof
     const agendamentosAtual = (typeof agendamentos !== 'undefined' && agendamentos) ? agendamentos : [];
     const filterStatus = (typeof agendamentoFilter !== 'undefined') ? agendamentoFilter : 'todos';
     const filterType = (typeof agendamentoTypeFilter !== 'undefined') ? agendamentoTypeFilter : 'todos';
+    const modalOpen = (typeof showAgendamentoModal !== 'undefined') ? showAgendamentoModal : false;
+    const editingItem = (typeof editingAgendamento !== 'undefined') ? editingAgendamento : null;
     
     console.log('🎨 [renderAgendamentos] Executando... agendamentos.length:', agendamentosAtual.length);
     
@@ -1931,7 +1933,7 @@ const DashboardWithFirebase = ({
         )}
 
         {/* Modal de Agendamento (dentro de renderAgendamentos) */}
-        {showAgendamentoModal && (
+        {modalOpen && (
           <div style={{
             position: 'fixed',
             top: 0,
@@ -1954,7 +1956,7 @@ const DashboardWithFirebase = ({
               overflow: 'auto'
             }}>
               <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '24px', color: '#1f2937' }}>
-                {editingAgendamento ? '✏️ Editar Agendamento' : '📅 Novo Agendamento'}
+                {editingItem ? '✏️ Editar Agendamento' : '📅 Novo Agendamento'}
               </h3>
               
               <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1966,7 +1968,7 @@ const DashboardWithFirebase = ({
                     type="text"
                     name="titulo"
                     required
-                    defaultValue={editingAgendamento?.titulo || ''}
+                    defaultValue={editingItem?.titulo || ''}
                     placeholder="Ex: Retirada de produto"
                     style={{
                       width: '100%',
@@ -1985,7 +1987,7 @@ const DashboardWithFirebase = ({
                   <select
                     name="tipo"
                     required
-                    defaultValue={editingAgendamento?.tipo || ''}
+                    defaultValue={editingItem?.tipo || ''}
                     style={{
                       width: '100%',
                       padding: '10px',
@@ -2012,7 +2014,7 @@ const DashboardWithFirebase = ({
                       type="date"
                       name="data"
                       required
-                      defaultValue={editingAgendamento?.data || ''}
+                      defaultValue={editingItem?.data || ''}
                       style={{
                         width: '100%',
                         padding: '10px',
@@ -2030,7 +2032,7 @@ const DashboardWithFirebase = ({
                       type="time"
                       name="horario"
                       required
-                      defaultValue={editingAgendamento?.horario || ''}
+                      defaultValue={editingItem?.horario || ''}
                       style={{
                         width: '100%',
                         padding: '10px',
@@ -2050,7 +2052,7 @@ const DashboardWithFirebase = ({
                     type="text"
                     name="cliente"
                     required
-                    defaultValue={editingAgendamento?.cliente || ''}
+                    defaultValue={editingItem?.cliente || ''}
                     placeholder="Nome do cliente"
                     style={{
                       width: '100%',
@@ -2069,7 +2071,7 @@ const DashboardWithFirebase = ({
                   <input
                     type="tel"
                     name="telefone"
-                    defaultValue={editingAgendamento?.telefone || ''}
+                    defaultValue={editingItem?.telefone || ''}
                     placeholder="(11) 99999-9999"
                     style={{
                       width: '100%',
@@ -2088,7 +2090,7 @@ const DashboardWithFirebase = ({
                   <textarea
                     name="descricao"
                     rows={3}
-                    defaultValue={editingAgendamento?.descricao || ''}
+                    defaultValue={editingItem?.descricao || ''}
                     placeholder="Detalhes do agendamento"
                     style={{
                       width: '100%',
@@ -2108,7 +2110,7 @@ const DashboardWithFirebase = ({
                   <textarea
                     name="observacoes"
                     rows={2}
-                    defaultValue={editingAgendamento?.observacoes || ''}
+                    defaultValue={editingItem?.observacoes || ''}
                     placeholder="Observações adicionais"
                     style={{
                       width: '100%',
@@ -2121,14 +2123,14 @@ const DashboardWithFirebase = ({
                   />
                 </div>
 
-                {editingAgendamento && (
+                {editingItem && (
                   <div>
                     <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
                       Status
                     </label>
                     <select
                       name="status"
-                      defaultValue={editingAgendamento?.status || 'pendente'}
+                      defaultValue={editingItem?.status || 'pendente'}
                       style={{
                         width: '100%',
                         padding: '10px',
@@ -2160,7 +2162,7 @@ const DashboardWithFirebase = ({
                       fontWeight: '500'
                     }}
                   >
-                    {editingAgendamento ? 'Atualizar' : 'Criar'} Agendamento
+                    {editingItem ? 'Atualizar' : 'Criar'} Agendamento
                   </button>
                   <button
                     type="button"
