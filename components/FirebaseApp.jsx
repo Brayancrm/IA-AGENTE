@@ -1536,14 +1536,31 @@ const DashboardWithFirebase = ({
     // 🆕 FUNÇÕES LOCAIS (dentro do escopo de renderAgendamentos)
     const handleOpenModal = () => {
       console.log('🔘 [MODAL] Abrindo...');
+      console.log('🔘 [MODAL] modalOpen ANTES:', modalOpen);
+      console.log('🔘 [MODAL] showAgendamentoModal DIRETO:', showAgendamentoModal);
+      console.log('🔘 [MODAL] updateModal é função?', typeof updateModal === 'function');
+      console.log('🔘 [MODAL] setShowAgendamentoModal é função?', typeof setShowAgendamentoModal === 'function');
       updateEditing(null);
       updateModal(true);
+      console.log('🔘 [MODAL] updateModal(true) chamado!');
+      // FORÇAR re-render chamando o setState DIRETO também
+      if (typeof setShowAgendamentoModal === 'function') {
+        setShowAgendamentoModal(true);
+        console.log('🔘 [MODAL] setShowAgendamentoModal(true) chamado DIRETAMENTE!');
+      }
     };
 
     const handleEdit = (agendamento) => {
       console.log('✏️ [EDIT] Editando:', agendamento);
       updateEditing(agendamento);
       updateModal(true);
+      // FORÇAR re-render chamando os setStates DIRETO
+      if (typeof setEditingAgendamento === 'function') {
+        setEditingAgendamento(agendamento);
+      }
+      if (typeof setShowAgendamentoModal === 'function') {
+        setShowAgendamentoModal(true);
+      }
     };
 
     const handleSave = async (e) => {
@@ -1590,6 +1607,13 @@ const DashboardWithFirebase = ({
         
         updateModal(false);
         updateEditing(null);
+        // FORÇAR re-render
+        if (typeof setShowAgendamentoModal === 'function') {
+          setShowAgendamentoModal(false);
+        }
+        if (typeof setEditingAgendamento === 'function') {
+          setEditingAgendamento(null);
+        }
       } catch (error) {
         console.error('❌ [FIREBASE] Erro ao salvar agendamento:', error);
         showToast('❌ Erro ao salvar agendamento', 'error');
@@ -2127,7 +2151,12 @@ const DashboardWithFirebase = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => updateModal(false)}
+                    onClick={() => {
+                      updateModal(false);
+                      if (typeof setShowAgendamentoModal === 'function') {
+                        setShowAgendamentoModal(false);
+                      }
+                    }}
                     style={{
                       flex: 1,
                       backgroundColor: '#e5e7eb',
