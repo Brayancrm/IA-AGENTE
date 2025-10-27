@@ -1745,8 +1745,9 @@ const DashboardWithFirebase = ({
         return renderCatalog();
 
       case 'agendamentos':
+        console.log('🎨 [RENDER agendamentos] safeAgendamentos.length:', safeAgendamentos.length, 'array:', safeAgendamentos);
         return (
-          <div style={{ padding: '24px' }}>
+          <div key={`agendamentos-${safeAgendamentos.length}`} style={{ padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <div>
                 <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
