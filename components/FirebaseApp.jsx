@@ -196,6 +196,101 @@ const FirebaseApp = () => {
     return () => off(sessionRef);
   }, [user, database]);
 
+  // useEffect para carregar agendamentos de teste (será substituído por dados do Firebase)
+  useEffect(() => {
+    if (!user) return;
+    
+    // Simulando dados de agendamentos de teste
+    const agendamentosTest = [
+      {
+        id: '1',
+        titulo: 'Retirada de Notebook HP',
+        descricao: 'Cliente solicitou retirada do notebook para manutenção preventiva',
+        tipo: 'retirada',
+        status: 'confirmado',
+        data: '28/10/2025',
+        horario: '14:00',
+        cliente: 'João Silva',
+        telefone: '(11) 98765-4321',
+        observacoes: 'Cliente estará disponível após às 14h. Levar nota fiscal.'
+      },
+      {
+        id: '2',
+        titulo: 'Instalação de Sistema',
+        descricao: 'Instalação completa do sistema de gestão empresarial',
+        tipo: 'servico',
+        status: 'pendente',
+        data: '29/10/2025',
+        horario: '09:00',
+        cliente: 'Maria Santos',
+        telefone: '(11) 99876-5432',
+        observacoes: 'Preparar servidor e backup antes da instalação'
+      },
+      {
+        id: '3',
+        titulo: 'Demonstração de Produto',
+        descricao: 'Apresentação das funcionalidades do novo software para equipe',
+        tipo: 'visita',
+        status: 'confirmado',
+        data: '30/10/2025',
+        horario: '15:30',
+        cliente: 'Empresa ABC Ltda',
+        telefone: '(11) 3456-7890',
+        observacoes: 'Levar material de demonstração e laptop'
+      },
+      {
+        id: '4',
+        titulo: 'Entrega de Equipamentos',
+        descricao: 'Entrega de 5 impressoras modelo XYZ-2000',
+        tipo: 'entrega',
+        status: 'em_andamento',
+        data: '27/10/2025',
+        horario: '10:30',
+        cliente: 'Tech Solutions',
+        telefone: '(11) 2345-6789',
+        observacoes: 'Entregar no setor de TI, 3º andar'
+      },
+      {
+        id: '5',
+        titulo: 'Reunião de Fechamento',
+        descricao: 'Discussão final sobre contrato de manutenção anual',
+        tipo: 'ligacao',
+        status: 'pendente',
+        data: '31/10/2025',
+        horario: '16:00',
+        cliente: 'Carlos Oliveira',
+        telefone: '(11) 91234-5678',
+        observacoes: 'Enviar proposta comercial antes da reunião'
+      },
+      {
+        id: '6',
+        titulo: 'Manutenção Preventiva Concluída',
+        descricao: 'Manutenção preventiva em servidores - já realizada',
+        tipo: 'servico',
+        status: 'concluido',
+        data: '25/10/2025',
+        horario: '08:00',
+        cliente: 'Digital Corp',
+        telefone: '(11) 98765-1234',
+        observacoes: 'Serviço executado conforme checklist. Relatório enviado.'
+      },
+      {
+        id: '7',
+        titulo: 'Treinamento de Equipe - Cancelado',
+        descricao: 'Treinamento sobre novo sistema (cancelado por solicitação do cliente)',
+        tipo: 'visita',
+        status: 'cancelado',
+        data: '26/10/2025',
+        horario: '13:00',
+        cliente: 'Inovação Tech',
+        telefone: '(11) 99999-8888',
+        observacoes: 'Cliente solicitou reagendamento para próxima semana'
+      }
+    ];
+    
+    setAgendamentos(agendamentosTest);
+  }, [user]);
+
   // Configurar listeners do Realtime Database
   const setupFirestoreListeners = () => {
     if (!user || !database) return;
