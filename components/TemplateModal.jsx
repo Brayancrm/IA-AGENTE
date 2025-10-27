@@ -102,26 +102,56 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
 
         {/* Categories */}
         <div style={{
-          padding: '16px 24px',
-          borderBottom: '1px solid #e5e7eb',
-          overflowX: 'auto'
+          padding: '24px',
+          borderBottom: '2px solid #e5e7eb',
+          overflowX: 'auto',
+          background: '#f9fafb'
         }}>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ 
+            display: 'flex', 
+            gap: '12px',
+            flexWrap: 'wrap'
+          }}>
             {categories.map(cat => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
                 style={{
-                  padding: '8px 16px',
-                  borderRadius: '20px',
-                  border: selectedCategory === cat ? '2px solid #3b82f6' : '1px solid #d1d5db',
-                  background: selectedCategory === cat ? '#eff6ff' : 'white',
-                  color: selectedCategory === cat ? '#3b82f6' : '#6b7280',
-                  fontWeight: selectedCategory === cat ? '600' : '400',
+                  padding: '12px 24px',
+                  borderRadius: '12px',
+                  border: selectedCategory === cat ? 'none' : '2px solid #e5e7eb',
+                  background: selectedCategory === cat 
+                    ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' 
+                    : 'white',
+                  color: selectedCategory === cat ? 'white' : '#4b5563',
+                  fontWeight: selectedCategory === cat ? '700' : '500',
                   cursor: 'pointer',
-                  transition: 'all 0.2s',
+                  transition: 'all 0.3s ease',
                   whiteSpace: 'nowrap',
-                  fontSize: '14px'
+                  fontSize: '15px',
+                  boxShadow: selectedCategory === cat 
+                    ? '0 4px 12px rgba(59, 130, 246, 0.4)' 
+                    : '0 2px 4px rgba(0, 0, 0, 0.05)',
+                  transform: selectedCategory === cat ? 'translateY(-2px)' : 'translateY(0)',
+                  letterSpacing: '0.3px'
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedCategory !== cat) {
+                    e.target.style.background = '#f3f4f6';
+                    e.target.style.borderColor = '#3b82f6';
+                    e.target.style.color = '#3b82f6';
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.2)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedCategory !== cat) {
+                    e.target.style.background = 'white';
+                    e.target.style.borderColor = '#e5e7eb';
+                    e.target.style.color = '#4b5563';
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.05)';
+                  }
                 }}
               >
                 {cat === 'all' ? 'Todos' : cat}
