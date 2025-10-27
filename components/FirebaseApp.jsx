@@ -917,6 +917,19 @@ const FirebaseApp = () => {
         connectWhatsApp={connectWhatsApp}
         disconnectWhatsApp={disconnectWhatsApp}
         regenerateQRCode={regenerateQRCode}
+        agendamentos={agendamentos}
+        setAgendamentos={setAgendamentos}
+        loadingAgendamentos={loadingAgendamentos}
+        showAgendamentoModal={showAgendamentoModal}
+        setShowAgendamentoModal={setShowAgendamentoModal}
+        editingAgendamento={editingAgendamento}
+        setEditingAgendamento={setEditingAgendamento}
+        agendamentoFilter={agendamentoFilter}
+        setAgendamentoFilter={setAgendamentoFilter}
+        agendamentoTypeFilter={agendamentoTypeFilter}
+        setAgendamentoTypeFilter={setAgendamentoTypeFilter}
+        database={database}
+        showToast={showToast}
       />
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
@@ -951,7 +964,20 @@ const DashboardWithFirebase = ({
   isConnecting = false,
   connectWhatsApp,
   disconnectWhatsApp,
-  regenerateQRCode
+  regenerateQRCode,
+  agendamentos = [],
+  setAgendamentos,
+  loadingAgendamentos = false,
+  showAgendamentoModal = false,
+  setShowAgendamentoModal,
+  editingAgendamento = null,
+  setEditingAgendamento,
+  agendamentoFilter = 'todos',
+  setAgendamentoFilter,
+  agendamentoTypeFilter = 'todos',
+  setAgendamentoTypeFilter,
+  database,
+  showToast
 }) => {
   const [isActive, setIsActive] = useState(assistantSettings.isActive || true);
   const [showCatalogModal, setShowCatalogModal] = useState(false);
