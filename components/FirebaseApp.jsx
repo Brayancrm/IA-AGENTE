@@ -1522,56 +1522,22 @@ const DashboardWithFirebase = ({
 
   // Função para renderizar agendamentos (igual ao renderCatalog - tem acesso aos states!)
   const renderAgendamentos = () => {
-    // ✅ Capturar TODOS os estados E SETTERS usados
-    const agendamentosAtual = (typeof agendamentos !== 'undefined' && agendamentos) ? agendamentos : [];
-    const filterStatus = (typeof agendamentoFilter !== 'undefined') ? agendamentoFilter : 'todos';
-    const filterType = (typeof agendamentoTypeFilter !== 'undefined') ? agendamentoTypeFilter : 'todos';
-    const modalOpen = (typeof showAgendamentoModal !== 'undefined') ? showAgendamentoModal : false;
-    const editingItem = (typeof editingAgendamento !== 'undefined') ? editingAgendamento : null;
-    
-    // ✅ Capturar as funções setState (COM PROTEÇÃO)
-    const updateAgendamentos = (typeof setAgendamentos === 'function') ? setAgendamentos : () => {};
-    const updateModal = (typeof setShowAgendamentoModal === 'function') ? setShowAgendamentoModal : () => {};
-    const updateEditing = (typeof setEditingAgendamento === 'function') ? setEditingAgendamento : () => {};
-    const updateFilterStatus = (typeof setAgendamentoFilter === 'function') ? setAgendamentoFilter : () => {};
-    const updateFilterType = (typeof setAgendamentoTypeFilter === 'function') ? setAgendamentoTypeFilter : () => {};
-    
-    console.log('🎨 [renderAgendamentos] Executando... agendamentos.length:', agendamentosAtual.length);
-    console.log('🎨 [renderAgendamentos] showAgendamentoModal (ESTADO DIRETO):', (typeof showAgendamentoModal !== 'undefined') ? showAgendamentoModal : 'undefined');
-    console.log('🎨 [renderAgendamentos] Condição do modal será:', ((typeof showAgendamentoModal !== 'undefined') ? showAgendamentoModal : false));
+    console.log('🎨 [renderAgendamentos] INÍCIO - agendamentos:', agendamentos);
+    console.log('🎨 [renderAgendamentos] showAgendamentoModal:', showAgendamentoModal);
+    console.log('🎨 [renderAgendamentos] editingAgendamento:', editingAgendamento);
     
     // 🆕 FUNÇÕES LOCAIS (dentro do escopo de renderAgendamentos)
     const handleOpenModal = () => {
-      console.log('🔘 [MODAL] Abrindo...');
-      console.log('🔘 [MODAL] modalOpen (capturado) ANTES:', modalOpen);
-      console.log('🔘 [MODAL] updateModal é função?', typeof updateModal === 'function');
-      
-      // Limpar edição
-      updateEditing(null);
-      if (typeof setEditingAgendamento === 'function') {
-        setEditingAgendamento(null);
-      }
-      
-      // Abrir modal
-      updateModal(true);
-      if (typeof setShowAgendamentoModal === 'function') {
-        setShowAgendamentoModal(true);
-        console.log('🔘 [MODAL] setShowAgendamentoModal(true) chamado!');
-        console.log('🔘 [MODAL] showAgendamentoModal APÓS setState:', showAgendamentoModal);
-      }
+      console.log('🔘 [MODAL] Abrindo modal...');
+      setEditingAgendamento(null);
+      setShowAgendamentoModal(true);
+      console.log('🔘 [MODAL] setShowAgendamentoModal(true) chamado!');
     };
 
     const handleEdit = (agendamento) => {
       console.log('✏️ [EDIT] Editando:', agendamento);
-      updateEditing(agendamento);
-      updateModal(true);
-      // FORÇAR re-render chamando os setStates DIRETO
-      if (typeof setEditingAgendamento === 'function') {
-        setEditingAgendamento(agendamento);
-      }
-      if (typeof setShowAgendamentoModal === 'function') {
-        setShowAgendamentoModal(true);
-      }
+      setEditingAgendamento(agendamento);
+      setShowAgendamentoModal(true);
     };
 
     const handleSave = async (e) => {
@@ -1597,12 +1563,12 @@ const DashboardWithFirebase = ({
         updatedAt: new Date().toISOString()
     };
     
-    try {
-        if (editingItem) {
+      try {
+        if (editingAgendamento) {
           // ✏️ EDITAR agendamento existente
-          const agendamentoRef = ref(database, `users/data/${user.uid}/agendamentos/${editingItem.id}`);
+          const agendamentoRef = ref(database, `users/data/${user.uid}/agendamentos/${editingAgendamento.id}`);
           await set(agendamentoRef, agendamentoData);
-          console.log('✅ [FIREBASE] Agendamento atualizado:', editingItem.id);
+          console.log('✅ [FIREBASE] Agendamento atualizado:', editingAgendamento.id);
           showToast('Agendamento atualizado!', 'success');
         } else {
           // 📅 CRIAR novo agendamento
@@ -1616,15 +1582,8 @@ const DashboardWithFirebase = ({
           showToast('Agendamento criado!', 'success');
         }
         
-        updateModal(false);
-        updateEditing(null);
-        // FORÇAR re-render
-        if (typeof setShowAgendamentoModal === 'function') {
-          setShowAgendamentoModal(false);
-        }
-        if (typeof setEditingAgendamento === 'function') {
-          setEditingAgendamento(null);
-        }
+        setShowAgendamentoModal(false);
+        setEditingAgendamento(null);
       } catch (error) {
         console.error('❌ [FIREBASE] Erro ao salvar agendamento:', error);
         showToast('❌ Erro ao salvar agendamento', 'error');
@@ -1652,20 +1611,20 @@ const DashboardWithFirebase = ({
     };
     
     // Filtrar agendamentos
-    const agendamentosFiltrados = agendamentosAtual.filter(agend => {
-      const matchStatus = filterStatus === 'todos' || agend.status === filterStatus;
-      const matchType = filterType === 'todos' || agend.tipo === filterType;
+    const agendamentosFiltrados = agendamentos.filter(agend => {
+      const matchStatus = agendamentoFilter === 'todos' || agend.status === agendamentoFilter;
+      const matchType = agendamentoTypeFilter === 'todos' || agend.tipo === agendamentoTypeFilter;
       return matchStatus && matchType;
     });
 
     // Estatísticas
     const stats = {
-      total: agendamentosAtual.length,
-      pendente: agendamentosAtual.filter(a => a.status === 'pendente').length,
-      confirmado: agendamentosAtual.filter(a => a.status === 'confirmado').length,
-      concluido: agendamentosAtual.filter(a => a.status === 'concluido').length,
-      cancelado: agendamentosAtual.filter(a => a.status === 'cancelado').length,
-      em_andamento: agendamentosAtual.filter(a => a.status === 'em_andamento').length,
+      total: agendamentos.length,
+      pendente: agendamentos.filter(a => a.status === 'pendente').length,
+      confirmado: agendamentos.filter(a => a.status === 'confirmado').length,
+      concluido: agendamentos.filter(a => a.status === 'concluido').length,
+      cancelado: agendamentos.filter(a => a.status === 'cancelado').length,
+      em_andamento: agendamentos.filter(a => a.status === 'em_andamento').length,
     };
 
     const getStatusColor = (status) => {
@@ -1764,8 +1723,8 @@ const DashboardWithFirebase = ({
                 Status
               </label>
               <select
-                value={filterStatus}
-                onChange={(e) => updateFilterStatus(e.target.value)}
+                value={agendamentoFilter}
+                onChange={(e) => setAgendamentoFilter(e.target.value)}
                 style={{
                   width: '100%',
                   padding: '8px',
@@ -1787,8 +1746,8 @@ const DashboardWithFirebase = ({
                 Tipo
               </label>
               <select
-                value={filterType}
-                onChange={(e) => updateFilterType(e.target.value)}
+                value={agendamentoTypeFilter}
+                onChange={(e) => setAgendamentoTypeFilter(e.target.value)}
                 style={{
                   width: '100%',
                   padding: '8px',
@@ -1822,7 +1781,7 @@ const DashboardWithFirebase = ({
               Nenhum agendamento encontrado
             </h3>
             <p style={{ color: '#6b7280' }}>
-              {agendamentosAtual.length === 0 
+              {agendamentos.length === 0 
                 ? 'Crie seu primeiro agendamento clicando no botão acima'
                 : 'Nenhum agendamento corresponde aos filtros selecionados'}
             </p>
@@ -1929,7 +1888,7 @@ const DashboardWithFirebase = ({
         )}
 
         {/* Modal de Agendamento (dentro de renderAgendamentos) */}
-        {((typeof showAgendamentoModal !== 'undefined') ? showAgendamentoModal : false) && (
+        {showAgendamentoModal && (
           <div style={{
             position: 'fixed',
             top: 0,
@@ -1952,7 +1911,7 @@ const DashboardWithFirebase = ({
               overflow: 'auto'
             }}>
               <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '24px', color: '#1f2937' }}>
-                {editingItem ? '✏️ Editar Agendamento' : '📅 Novo Agendamento'}
+                {editingAgendamento ? '✏️ Editar Agendamento' : '📅 Novo Agendamento'}
               </h3>
               
               <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1964,7 +1923,7 @@ const DashboardWithFirebase = ({
                     type="text"
                     name="titulo"
                     required
-                    defaultValue={editingItem?.titulo || ''}
+                    defaultValue={editingAgendamento?.titulo || ''}
                     placeholder="Ex: Retirada de produto"
                     style={{
                       width: '100%',
@@ -1983,7 +1942,7 @@ const DashboardWithFirebase = ({
                   <select
                     name="tipo"
                     required
-                    defaultValue={editingItem?.tipo || ''}
+                    defaultValue={editingAgendamento?.tipo || ''}
                     style={{
                       width: '100%',
                       padding: '10px',
@@ -2010,7 +1969,7 @@ const DashboardWithFirebase = ({
                       type="date"
                       name="data"
                       required
-                      defaultValue={editingItem?.data || ''}
+                      defaultValue={editingAgendamento?.data || ''}
                       style={{
                         width: '100%',
                         padding: '10px',
@@ -2028,7 +1987,7 @@ const DashboardWithFirebase = ({
                       type="time"
                       name="horario"
                       required
-                      defaultValue={editingItem?.horario || ''}
+                      defaultValue={editingAgendamento?.horario || ''}
                       style={{
                         width: '100%',
                         padding: '10px',
@@ -2048,7 +2007,7 @@ const DashboardWithFirebase = ({
                     type="text"
                     name="cliente"
                     required
-                    defaultValue={editingItem?.cliente || ''}
+                    defaultValue={editingAgendamento?.cliente || ''}
                     placeholder="Nome do cliente"
                     style={{
                       width: '100%',
@@ -2067,7 +2026,7 @@ const DashboardWithFirebase = ({
                   <input
                     type="tel"
                     name="telefone"
-                    defaultValue={editingItem?.telefone || ''}
+                    defaultValue={editingAgendamento?.telefone || ''}
                     placeholder="(11) 99999-9999"
                     style={{
                       width: '100%',
@@ -2086,7 +2045,7 @@ const DashboardWithFirebase = ({
                   <textarea
                     name="descricao"
                     rows={3}
-                    defaultValue={editingItem?.descricao || ''}
+                    defaultValue={editingAgendamento?.descricao || ''}
                     placeholder="Detalhes do agendamento"
                     style={{
                       width: '100%',
@@ -2106,7 +2065,7 @@ const DashboardWithFirebase = ({
                   <textarea
                     name="observacoes"
                     rows={2}
-                    defaultValue={editingItem?.observacoes || ''}
+                    defaultValue={editingAgendamento?.observacoes || ''}
                     placeholder="Observações adicionais"
                     style={{
                       width: '100%',
@@ -2119,14 +2078,14 @@ const DashboardWithFirebase = ({
                   />
                 </div>
 
-                {editingItem && (
+                {editingAgendamento && (
                   <div>
                     <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
                       Status
                     </label>
                     <select
                       name="status"
-                      defaultValue={editingItem?.status || 'pendente'}
+                      defaultValue={editingAgendamento?.status || 'pendente'}
                       style={{
                         width: '100%',
                         padding: '10px',
@@ -2158,16 +2117,11 @@ const DashboardWithFirebase = ({
                       fontWeight: '500'
                     }}
                   >
-                    {editingItem ? 'Atualizar' : 'Criar'} Agendamento
+                    {editingAgendamento ? 'Atualizar' : 'Criar'} Agendamento
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      updateModal(false);
-                      if (typeof setShowAgendamentoModal === 'function') {
-                        setShowAgendamentoModal(false);
-                      }
-                    }}
+                    onClick={() => setShowAgendamentoModal(false)}
                     style={{
                       flex: 1,
                       backgroundColor: '#e5e7eb',
