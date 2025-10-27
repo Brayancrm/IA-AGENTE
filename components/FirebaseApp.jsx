@@ -1613,15 +1613,7 @@ const DashboardWithFirebase = ({
     const safeAgendamentoFilter = (typeof agendamentoFilter !== 'undefined') ? agendamentoFilter : 'todos';
     const safeAgendamentoTypeFilter = (typeof agendamentoTypeFilter !== 'undefined') ? agendamentoTypeFilter : 'todos';
     
-    // Capturar funções de estado para usar nos botões (verificar se são REALMENTE funções)
-    const safeSetEditingAgendamento = (typeof setEditingAgendamento === 'function') ? setEditingAgendamento : null;
-    const safeSetShowAgendamentoModal = (typeof setShowAgendamentoModal === 'function') ? setShowAgendamentoModal : null;
-    
     console.log('🎯 Estados capturados:', safeRealConversations.length, 'conversas,', (typeof agendamentos !== 'undefined' ? agendamentos.length : 0), 'agendamentos (DIRETO)');
-    console.log('🔧 Funções capturadas:', {
-      setEditingAgendamento: safeSetEditingAgendamento ? 'function ✓' : 'NULL ✗',
-      setShowAgendamentoModal: safeSetShowAgendamentoModal ? 'function ✓' : 'NULL ✗'
-    });
     
     switch (currentPage) {
       case 'dashboard':
@@ -1761,31 +1753,33 @@ const DashboardWithFirebase = ({
         const filterAtual = (typeof agendamentoFilter !== 'undefined') ? agendamentoFilter : 'todos';
         const typeFilterAtual = (typeof agendamentoTypeFilter !== 'undefined') ? agendamentoTypeFilter : 'todos';
         
-        // Funções locais para garantir acesso
+        // Funções locais - usar try/catch para chamar direto
         const handleOpenModal = () => {
-          console.log('🔘 [BOTÃO] Clique detectado! Verificando funções...');
-          console.log('🔘 [BOTÃO] safeSetEditingAgendamento:', safeSetEditingAgendamento);
-          console.log('🔘 [BOTÃO] typeof:', typeof safeSetEditingAgendamento);
-          console.log('🔘 [BOTÃO] safeSetShowAgendamentoModal:', safeSetShowAgendamentoModal);
-          console.log('🔘 [BOTÃO] typeof:', typeof safeSetShowAgendamentoModal);
-          
-          if (safeSetEditingAgendamento && safeSetShowAgendamentoModal) {
-            console.log('✅ [BOTÃO] Funções OK! Chamando...');
-            safeSetEditingAgendamento(null);
-            safeSetShowAgendamentoModal(true);
+          console.log('🔘 [BOTÃO] Clique detectado!');
+          try {
+            // Tentar usar as funções DIRETAMENTE
+            console.log('🔘 [BOTÃO] Tentando chamar setEditingAgendamento(null)...');
+            setEditingAgendamento(null);
+            console.log('✅ [BOTÃO] setEditingAgendamento OK!');
+            
+            console.log('🔘 [BOTÃO] Tentando chamar setShowAgendamentoModal(true)...');
+            setShowAgendamentoModal(true);
+            console.log('✅ [BOTÃO] setShowAgendamentoModal OK!');
+            
             console.log('✅ [BOTÃO] Modal aberto com sucesso!');
-          } else {
-            console.error('❌ [BOTÃO] Funções de estado não disponíveis!');
-            console.error('❌ [BOTÃO] safeSetEditingAgendamento is truthy?', !!safeSetEditingAgendamento);
-            console.error('❌ [BOTÃO] safeSetShowAgendamentoModal is truthy?', !!safeSetShowAgendamentoModal);
+          } catch (error) {
+            console.error('❌ [BOTÃO] ERRO ao chamar funções:', error);
+            console.error('❌ [BOTÃO] Mensagem:', error.message);
           }
         };
         
         const handleEditAgendamento = (agendamento) => {
           console.log('✏️ [BOTÃO] Editando agendamento:', agendamento.id);
-          if (safeSetEditingAgendamento && safeSetShowAgendamentoModal) {
-            safeSetEditingAgendamento(agendamento);
-            safeSetShowAgendamentoModal(true);
+          try {
+            setEditingAgendamento(agendamento);
+            setShowAgendamentoModal(true);
+          } catch (error) {
+            console.error('❌ [BOTÃO] ERRO ao editar:', error);
           }
         };
         
