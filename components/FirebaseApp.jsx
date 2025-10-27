@@ -198,13 +198,14 @@ const FirebaseApp = () => {
 
   // useEffect para carregar agendamentos de teste (será substituído por dados do Firebase)
   useEffect(() => {
-    console.log('📅 [useEffect Agendamentos] Executando... user:', user?.email);
+    console.log('📅📅📅 [useEffect Agendamentos] INICIOU! user existe?', !!user, 'email:', user?.email);
+    
     if (!user) {
-      console.log('📅 [useEffect Agendamentos] Sem usuário, retornando');
+      console.log('📅 [useEffect Agendamentos] ❌ Sem usuário, retornando');
       return;
     }
     
-    console.log('📅 [useEffect Agendamentos] Criando 7 agendamentos de teste...');
+    console.log('📅 [useEffect Agendamentos] ✅ Usuário OK! Criando 7 agendamentos de teste...');
     
     // Simulando dados de agendamentos de teste
     const agendamentosTest = [
