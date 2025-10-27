@@ -208,7 +208,9 @@ const FirebaseApp = () => {
 
   // Monitorar mudanças no estado showAgendamentoModal
   useEffect(() => {
-    console.log('🔔 [STATE CHANGED] showAgendamentoModal mudou para:', showAgendamentoModal);
+    if (typeof showAgendamentoModal !== 'undefined') {
+      console.log('🔔 [STATE CHANGED] showAgendamentoModal:', showAgendamentoModal);
+    }
   }, [showAgendamentoModal]);
 
   // Configurar listeners do Realtime Database
@@ -1528,15 +1530,12 @@ const DashboardWithFirebase = ({
     const typeFilterAtual = agendamentoTypeFilter || 'todos';
     
     console.log('🎨 [renderAgendamentos] INÍCIO - agendamentos:', agendamentosAtual.length);
-    console.log('🎨 [renderAgendamentos] showAgendamentoModal:', showAgendamentoModal);
-    console.log('🎨 [renderAgendamentos] editingAgendamento:', editingAgendamento);
     
     // 🆕 FUNÇÕES LOCAIS (dentro do escopo de renderAgendamentos)
     const handleOpenModal = () => {
       console.log('🔘 [MODAL] Abrindo modal...');
       setEditingAgendamento(null);
       setShowAgendamentoModal(true);
-      console.log('🔘 [MODAL] setShowAgendamentoModal(true) chamado!');
     };
 
     const handleEdit = (agendamento) => {
