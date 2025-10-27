@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useFirebase } from '../hooks/useFirebase';
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as firebaseSignOut, sendPasswordResetEmail } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
@@ -82,6 +82,56 @@ const FirebaseApp = () => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
+
+  // 🆕 FUNÇÕES DE MANIPULAÇÃO DE AGENDAMENTOS (usando useCallback para estabilidade)
+  const handleOpenAgendamentoModal = useCallback(() => {
+    console.log('🔘 [handleOpenAgendamentoModal] Abrindo modal...');
+    setEditingAgendamento(null);
+    setShowAgendamentoModal(true);
+  }, []);
+
+  const handleEditAgendamento = useCallback((agendamento) => {
+    console.log('✏️ [handleEditAgendamento] Editando:', agendamento);
+    setEditingAgendamento(agendamento);
+    setShowAgendamentoModal(true);
+  }, []);
+
+  const handleSaveAgendamento = useCallback((e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const novoAgendamento = {
+      id: editingAgendamento?.id || `${Date.now()}`,
+      titulo: formData.get('titulo'),
+      descricao: formData.get('descricao'),
+      tipo: formData.get('tipo'),
+      status: formData.get('status') || 'pendente',
+      data: formData.get('data'),
+      horario: formData.get('horario'),
+      cliente: formData.get('cliente'),
+      telefone: formData.get('telefone'),
+      observacoes: formData.get('observacoes') || ''
+    };
+    
+    if (editingAgendamento) {
+      // Editar existente
+      setAgendamentos(prev => prev.map(a => a.id === novoAgendamento.id ? novoAgendamento : a));
+      showToast('Agendamento atualizado com sucesso!', 'success');
+    } else {
+      // Criar novo
+      setAgendamentos(prev => [...prev, novoAgendamento]);
+      showToast('Agendamento criado com sucesso!', 'success');
+    }
+    
+    setShowAgendamentoModal(false);
+    setEditingAgendamento(null);
+  }, [editingAgendamento]);
+
+  const handleDeleteAgendamento = useCallback((id) => {
+    if (confirm('Tem certeza que deseja excluir este agendamento?')) {
+      setAgendamentos(prev => prev.filter(a => a.id !== id));
+      showToast('Agendamento excluído com sucesso!', 'success');
+    }
+  }, []);
 
   // Componente Toast
   const Toast = ({ message, type, onClose }) => (
@@ -195,56 +245,6 @@ const FirebaseApp = () => {
 
     return () => off(sessionRef);
   }, [user, database]);
-
-  // 🆕 FUNÇÕES DE MANIPULAÇÃO DE AGENDAMENTOS (nível do componente)
-  const handleOpenAgendamentoModal = () => {
-    console.log('🔘 [handleOpenAgendamentoModal] Abrindo modal...');
-    setEditingAgendamento(null);
-    setShowAgendamentoModal(true);
-  };
-
-  const handleEditAgendamento = (agendamento) => {
-    console.log('✏️ [handleEditAgendamento] Editando:', agendamento);
-    setEditingAgendamento(agendamento);
-    setShowAgendamentoModal(true);
-  };
-
-  const handleSaveAgendamento = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const novoAgendamento = {
-      id: editingAgendamento?.id || `${Date.now()}`,
-      titulo: formData.get('titulo'),
-      descricao: formData.get('descricao'),
-      tipo: formData.get('tipo'),
-      status: formData.get('status') || 'pendente',
-      data: formData.get('data'),
-      horario: formData.get('horario'),
-      cliente: formData.get('cliente'),
-      telefone: formData.get('telefone'),
-      observacoes: formData.get('observacoes') || ''
-    };
-    
-    if (editingAgendamento) {
-      // Editar existente
-      setAgendamentos(prev => prev.map(a => a.id === novoAgendamento.id ? novoAgendamento : a));
-      showToast('Agendamento atualizado com sucesso!', 'success');
-    } else {
-      // Criar novo
-      setAgendamentos(prev => [...prev, novoAgendamento]);
-      showToast('Agendamento criado com sucesso!', 'success');
-    }
-    
-    setShowAgendamentoModal(false);
-    setEditingAgendamento(null);
-  };
-
-  const handleDeleteAgendamento = (id) => {
-    if (confirm('Tem certeza que deseja excluir este agendamento?')) {
-      setAgendamentos(prev => prev.filter(a => a.id !== id));
-      showToast('Agendamento excluído com sucesso!', 'success');
-    }
-  };
 
   // useEffect para carregar agendamentos de teste (será substituído por dados do Firebase)
   useEffect(() => {
