@@ -1522,7 +1522,12 @@ const DashboardWithFirebase = ({
 
   // Função para renderizar agendamentos (igual ao renderCatalog - tem acesso aos states!)
   const renderAgendamentos = () => {
-    console.log('🎨 [renderAgendamentos] INÍCIO - agendamentos:', agendamentos);
+    // ✅ Proteção segura - usar valores padrão se undefined
+    const agendamentosAtual = agendamentos || [];
+    const filterAtual = agendamentoFilter || 'todos';
+    const typeFilterAtual = agendamentoTypeFilter || 'todos';
+    
+    console.log('🎨 [renderAgendamentos] INÍCIO - agendamentos:', agendamentosAtual.length);
     console.log('🎨 [renderAgendamentos] showAgendamentoModal:', showAgendamentoModal);
     console.log('🎨 [renderAgendamentos] editingAgendamento:', editingAgendamento);
     
@@ -1611,20 +1616,20 @@ const DashboardWithFirebase = ({
     };
     
     // Filtrar agendamentos
-    const agendamentosFiltrados = agendamentos.filter(agend => {
-      const matchStatus = agendamentoFilter === 'todos' || agend.status === agendamentoFilter;
-      const matchType = agendamentoTypeFilter === 'todos' || agend.tipo === agendamentoTypeFilter;
+    const agendamentosFiltrados = agendamentosAtual.filter(agend => {
+      const matchStatus = filterAtual === 'todos' || agend.status === filterAtual;
+      const matchType = typeFilterAtual === 'todos' || agend.tipo === typeFilterAtual;
       return matchStatus && matchType;
     });
 
     // Estatísticas
     const stats = {
-      total: agendamentos.length,
-      pendente: agendamentos.filter(a => a.status === 'pendente').length,
-      confirmado: agendamentos.filter(a => a.status === 'confirmado').length,
-      concluido: agendamentos.filter(a => a.status === 'concluido').length,
-      cancelado: agendamentos.filter(a => a.status === 'cancelado').length,
-      em_andamento: agendamentos.filter(a => a.status === 'em_andamento').length,
+      total: agendamentosAtual.length,
+      pendente: agendamentosAtual.filter(a => a.status === 'pendente').length,
+      confirmado: agendamentosAtual.filter(a => a.status === 'confirmado').length,
+      concluido: agendamentosAtual.filter(a => a.status === 'concluido').length,
+      cancelado: agendamentosAtual.filter(a => a.status === 'cancelado').length,
+      em_andamento: agendamentosAtual.filter(a => a.status === 'em_andamento').length,
     };
 
     const getStatusColor = (status) => {
@@ -1781,7 +1786,7 @@ const DashboardWithFirebase = ({
               Nenhum agendamento encontrado
             </h3>
             <p style={{ color: '#6b7280' }}>
-              {agendamentos.length === 0 
+              {agendamentosAtual.length === 0 
                 ? 'Crie seu primeiro agendamento clicando no botão acima'
                 : 'Nenhum agendamento corresponde aos filtros selecionados'}
             </p>
