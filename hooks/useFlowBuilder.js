@@ -86,12 +86,65 @@ export function useFlowBuilder(userId) {
  * Converte array de steps em prompt de texto
  * EXPORTADA para usar em outros componentes
  */
-export function convertStepsToPrompt(steps) {
-  if (!steps || steps.length === 0) {
-    return 'Você é um assistente virtual prestativo.';
+export function convertStepsToPrompt(steps, agentProfile = null) {
+  let prompt = '';
+
+  // ============================================
+  // PERFIL DO AGENTE
+  // ============================================
+  if (agentProfile && agentProfile.name) {
+    prompt += '# PERFIL DO AGENTE\n\n';
+    
+    prompt += `Seu nome é **${agentProfile.name}**`;
+    if (agentProfile.role) {
+      prompt += ` e você é ${agentProfile.role}`;
+    }
+    prompt += '.\n\n';
+
+    // Tom de Voz
+    const toneDescriptions = {
+      friendly: 'Seja amigável, caloroso e acolhedor. Use uma linguagem leve e simpática.',
+      professional: 'Mantenha um tom profissional, formal e respeitoso. Use linguagem técnica quando apropriado.',
+      casual: 'Seja casual, descontraído e natural. Converse como um amigo.',
+      enthusiastic: 'Seja entusiasmado, energético e motivador. Demonstre empolgação!',
+      empathetic: 'Seja empático, compreensivo e acolhedor. Demonstre que você se importa.'
+    };
+    
+    if (agentProfile.tone && toneDescriptions[agentProfile.tone]) {
+      prompt += `**Tom de Voz:** ${toneDescriptions[agentProfile.tone]}\n\n`;
+    }
+
+    // Estilo de Comunicação
+    const styleDescriptions = {
+      concise: 'Seja conciso e direto ao ponto. Evite textos longos.',
+      detailed: 'Seja detalhado e explicativo. Forneça informações completas.',
+      consultative: 'Seja consultivo e educativo. Explique o porquê das coisas.',
+      persuasive: 'Seja persuasivo e convincente. Mostre os benefícios claramente.'
+    };
+    
+    if (agentProfile.style && styleDescriptions[agentProfile.style]) {
+      prompt += `**Estilo:** ${styleDescriptions[agentProfile.style]}\n\n`;
+    }
+
+    // Personalidade
+    if (agentProfile.personality) {
+      prompt += `**Personalidade:** ${agentProfile.personality}\n\n`;
+    }
+
+    prompt += '---\n\n';
   }
 
-  let prompt = '# FLUXO DE ATENDIMENTO\n\nSiga este fluxo de atendimento na ordem especificada:\n\n';
+  // ============================================
+  // FLUXO DE ATENDIMENTO
+  // ============================================
+  if (!steps || steps.length === 0) {
+    if (!agentProfile || !agentProfile.name) {
+      return 'Você é um assistente virtual prestativo.';
+    }
+    return prompt + 'Seja prestativo e ajude o cliente da melhor forma possível.';
+  }
+
+  prompt += '# FLUXO DE ATENDIMENTO\n\nSiga este fluxo de atendimento na ordem especificada:\n\n';
 
   const actionDescriptions = {
     greeting: 'Cumprimente o cliente de forma amigável.',
@@ -125,6 +178,9 @@ export function convertStepsToPrompt(steps) {
   });
 
   prompt += '\n## REGRAS IMPORTANTES\n\n';
+  if (agentProfile && agentProfile.name) {
+    prompt += `- SEMPRE se apresente como ${agentProfile.name}${agentProfile.role ? ` (${agentProfile.role})` : ''} no início da conversa\n`;
+  }
   prompt += '- Siga os passos na ordem especificada\n';
   prompt += '- Se o cliente fizer uma pergunta fora do fluxo, responda e retorne ao passo atual\n';
   prompt += '- Seja sempre educado e profissional\n';
