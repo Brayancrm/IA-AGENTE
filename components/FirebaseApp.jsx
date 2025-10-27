@@ -206,6 +206,11 @@ const FirebaseApp = () => {
     }
   }, [typeof agendamentos !== 'undefined' ? agendamentos : []]);
 
+  // Monitorar mudanças no estado showAgendamentoModal
+  useEffect(() => {
+    console.log('🔔 [STATE CHANGED] showAgendamentoModal mudou para:', showAgendamentoModal);
+  }, [showAgendamentoModal]);
+
   // Configurar listeners do Realtime Database
   const setupFirestoreListeners = () => {
     if (!user || !database) return;
@@ -1532,6 +1537,8 @@ const DashboardWithFirebase = ({
     const updateFilterType = (typeof setAgendamentoTypeFilter === 'function') ? setAgendamentoTypeFilter : () => {};
     
     console.log('🎨 [renderAgendamentos] Executando... agendamentos.length:', agendamentosAtual.length);
+    console.log('🎨 [renderAgendamentos] showAgendamentoModal (ESTADO DIRETO):', (typeof showAgendamentoModal !== 'undefined') ? showAgendamentoModal : 'undefined');
+    console.log('🎨 [renderAgendamentos] Condição do modal será:', ((typeof showAgendamentoModal !== 'undefined') ? showAgendamentoModal : false));
     
     // 🆕 FUNÇÕES LOCAIS (dentro do escopo de renderAgendamentos)
     const handleOpenModal = () => {
@@ -1550,6 +1557,7 @@ const DashboardWithFirebase = ({
       if (typeof setShowAgendamentoModal === 'function') {
         setShowAgendamentoModal(true);
         console.log('🔘 [MODAL] setShowAgendamentoModal(true) chamado!');
+        console.log('🔘 [MODAL] showAgendamentoModal APÓS setState:', showAgendamentoModal);
       }
     };
 
