@@ -1581,54 +1581,23 @@ const DashboardWithFirebase = ({
   };
 
   const renderContent = () => {
-    // SOLUÇÃO: Capturar estados com try-catch ANTES do switch
-    let conversationsData = {
-      realConversations: [],
-      currentMessages: [],
-      loadingConversations: false,
-      showEmojiPicker: false,
-      messageInput: '',
-      isDragging: false,
-      chatSearchQuery: '',
-      isCompactMode: false,
-      selectedConversation: null
-    };
+    // SOLUÇÃO DEFINITIVA: Usar typeof para verificar existência antes de acessar
+    const safeRealConversations = (typeof realConversations !== 'undefined' && realConversations) ? realConversations : [];
+    const safeCurrentMessages = (typeof currentMessages !== 'undefined' && currentMessages) ? currentMessages : [];
+    const safeLoadingConversations = (typeof loadingConversations !== 'undefined') ? loadingConversations : false;
+    const safeShowEmojiPicker = (typeof showEmojiPicker !== 'undefined') ? showEmojiPicker : false;
+    const safeMessageInput = (typeof messageInput !== 'undefined') ? messageInput : '';
+    const safeIsDragging = (typeof isDragging !== 'undefined') ? isDragging : false;
+    const safeChatSearchQuery = (typeof chatSearchQuery !== 'undefined') ? chatSearchQuery : '';
+    const safeIsCompactMode = (typeof isCompactMode !== 'undefined') ? isCompactMode : false;
+    const safeSelectedConversation = (typeof selectedConversation !== 'undefined') ? selectedConversation : null;
     
-    let agendamentosData = {
-      agendamentos: [],
-      loadingAgendamentos: false,
-      agendamentoFilter: 'todos',
-      agendamentoTypeFilter: 'todos'
-    };
+    const safeAgendamentos = (typeof agendamentos !== 'undefined' && agendamentos) ? agendamentos : [];
+    const safeLoadingAgendamentos = (typeof loadingAgendamentos !== 'undefined') ? loadingAgendamentos : false;
+    const safeAgendamentoFilter = (typeof agendamentoFilter !== 'undefined') ? agendamentoFilter : 'todos';
+    const safeAgendamentoTypeFilter = (typeof agendamentoTypeFilter !== 'undefined') ? agendamentoTypeFilter : 'todos';
     
-    try {
-      conversationsData = {
-        realConversations: realConversations || [],
-        currentMessages: currentMessages || [],
-        loadingConversations: loadingConversations || false,
-        showEmojiPicker: showEmojiPicker || false,
-        messageInput: messageInput || '',
-        isDragging: isDragging || false,
-        chatSearchQuery: chatSearchQuery || '',
-        isCompactMode: isCompactMode || false,
-        selectedConversation: selectedConversation || null
-      };
-      console.log('🎯 Estados de conversas capturados com SUCESSO:', conversationsData.realConversations.length, 'conversas');
-    } catch (error) {
-      console.log('⚠️ Erro ao capturar estados de conversas - usando valores padrão');
-    }
-    
-    try {
-      agendamentosData = {
-        agendamentos: agendamentos || [],
-        loadingAgendamentos: loadingAgendamentos || false,
-        agendamentoFilter: agendamentoFilter || 'todos',
-        agendamentoTypeFilter: agendamentoTypeFilter || 'todos'
-      };
-      console.log('📅 Estados de agendamentos capturados com SUCESSO:', agendamentosData.agendamentos.length, 'agendamentos');
-    } catch (error) {
-      console.log('⚠️ Erro ao capturar estados de agendamentos - usando valores padrão');
-    }
+    console.log('🎯 Estados capturados:', safeRealConversations.length, 'conversas,', safeAgendamentos.length, 'agendamentos');
     
     switch (currentPage) {
       case 'dashboard':
@@ -1769,11 +1738,11 @@ const DashboardWithFirebase = ({
                 <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                   📅 Agendamentos
                   <span style={{ fontSize: '1rem', fontWeight: 'normal', color: '#6b7280' }}>
-                    ({agendamentosData.agendamentosData.agendamentos.length} total)
+                    ({safeAgendamentos.length} total)
                   </span>
                 </h2>
                 <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>
-                  Gerencie todos os agendamentosData.agendamentos feitos pelo agente de IA
+                  Gerencie todos os agendamentos feitos pelo agente de IA
                 </p>
               </div>
               <button
@@ -1816,7 +1785,7 @@ const DashboardWithFirebase = ({
               
               {/* Status */}
               <select
-                value={agendamentosData.agendamentoFilter}
+                value={safeAgendamentoFilter}
                 onChange={(e) => setAgendamentoFilter(e.target.value)}
                 style={{
                   padding: '8px 32px 8px 12px',
@@ -1837,7 +1806,7 @@ const DashboardWithFirebase = ({
 
               {/* Tipo */}
               <select
-                value={agendamentosData.agendamentoTypeFilter}
+                value={safeAgendamentoTypeFilter}
                 onChange={(e) => setAgendamentoTypeFilter(e.target.value)}
                 style={{
                   padding: '8px 32px 8px 12px',
@@ -1866,12 +1835,12 @@ const DashboardWithFirebase = ({
               boxShadow: '0 4px 6px rgba(0,0,0,0.1)', 
               border: '1px solid #e5e7eb' 
             }}>
-              {agendamentosData.loadingAgendamentos ? (
+              {safeLoadingAgendamentos ? (
                 <div style={{ padding: '64px', textAlign: 'center', color: '#6b7280' }}>
                   <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
                   Carregando agendamentos...
                 </div>
-              ) : agendamentosData.agendamentos.length === 0 ? (
+              ) : safeAgendamentos.length === 0 ? (
                 <div style={{ padding: '64px', textAlign: 'center', color: '#6b7280' }}>
                   <div style={{ fontSize: '4rem', marginBottom: '16px' }}>📅</div>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>
@@ -1902,9 +1871,9 @@ const DashboardWithFirebase = ({
               ) : (
                 <div style={{ padding: '16px' }}>
                   <div style={{ display: 'grid', gap: '16px' }}>
-                    {agendamentosData.agendamentos 
-                      .filter(ag => agendamentosData.agendamentoFilter === 'todos' || ag.status === agendamentosData.agendamentoFilter)
-                      .filter(ag => agendamentosData.agendamentoTypeFilter === 'todos' || ag.tipo === agendamentosData.agendamentoTypeFilter)
+                    {safeAgendamentos 
+                      .filter(ag => safeAgendamentoFilter === 'todos' || ag.status === safeAgendamentoFilter)
+                      .filter(ag => safeAgendamentoTypeFilter === 'todos' || ag.tipo === safeAgendamentoTypeFilter)
                       .map((agendamento) => (
                         <div
                           key={agendamento.id}
@@ -2076,24 +2045,24 @@ const DashboardWithFirebase = ({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginTop: '24px' }}>
               <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                 <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '4px' }}>Total</div>
-                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937' }}>{agendamentosData.agendamentos.length}</div>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937' }}>{safeAgendamentos.length}</div>
               </div>
               <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                 <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '4px' }}>Pendentes</div>
                 <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#f59e0b' }}>
-                  {agendamentosData.agendamentos.filter(a => a.status === 'pendente').length}
+                  {safeAgendamentos.filter(a => a.status === 'pendente').length}
                 </div>
               </div>
               <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                 <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '4px' }}>Confirmados</div>
                 <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#10b981' }}>
-                  {agendamentosData.agendamentos.filter(a => a.status === 'confirmado').length}
+                  {safeAgendamentos.filter(a => a.status === 'confirmado').length}
                 </div>
               </div>
               <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                 <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '4px' }}>Concluídos</div>
                 <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#6b7280' }}>
-                  {agendamentosData.agendamentos.filter(a => a.status === 'concluido').length}
+                  {safeAgendamentos.filter(a => a.status === 'concluido').length}
                 </div>
               </div>
             </div>
@@ -2113,15 +2082,15 @@ const DashboardWithFirebase = ({
         }
         
         // USAR dados capturados ANTES do switch (já estão no escopo correto)
-        const _realConversations = conversationsData.realConversations;
-        const _currentMessages = conversationsData.currentMessages;
-        const _loadingConversations = conversationsData.loadingConversations;
-        const _showEmojiPicker = conversationsData.showEmojiPicker;
-        const _messageInput = conversationsData.messageInput;
-        const _isDragging = conversationsData.isDragging;
-        const _chatSearchQuery = conversationsData.chatSearchQuery;
-        const _isCompactMode = conversationsData.isCompactMode;
-        const _selectedConversation = conversationsData.selectedConversation;
+        const _realConversations = safeRealConversations;
+        const _currentMessages = safeCurrentMessages;
+        const _loadingConversations = safeLoadingConversations;
+        const _showEmojiPicker = safeShowEmojiPicker;
+        const _messageInput = safeMessageInput;
+        const _isDragging = safeIsDragging;
+        const _chatSearchQuery = safeChatSearchQuery;
+        const _isCompactMode = safeIsCompactMode;
+        const _selectedConversation = safeSelectedConversation;
         
         console.log('✅ Usando dados do conversationsData:', _realConversations.length, 'conversas');
         
