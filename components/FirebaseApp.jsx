@@ -1613,7 +1613,15 @@ const DashboardWithFirebase = ({
     const safeAgendamentoFilter = (typeof agendamentoFilter !== 'undefined') ? agendamentoFilter : 'todos';
     const safeAgendamentoTypeFilter = (typeof agendamentoTypeFilter !== 'undefined') ? agendamentoTypeFilter : 'todos';
     
+    // Capturar funções de estado para usar nos botões
+    const safeSetEditingAgendamento = typeof setEditingAgendamento !== 'undefined' ? setEditingAgendamento : null;
+    const safeSetShowAgendamentoModal = typeof setShowAgendamentoModal !== 'undefined' ? setShowAgendamentoModal : null;
+    
     console.log('🎯 Estados capturados:', safeRealConversations.length, 'conversas,', (typeof agendamentos !== 'undefined' ? agendamentos.length : 0), 'agendamentos (DIRETO)');
+    console.log('🔧 Funções capturadas:', {
+      setEditingAgendamento: typeof safeSetEditingAgendamento,
+      setShowAgendamentoModal: typeof safeSetShowAgendamentoModal
+    });
     
     switch (currentPage) {
       case 'dashboard':
@@ -1755,16 +1763,25 @@ const DashboardWithFirebase = ({
         
         // Funções locais para garantir acesso
         const handleOpenModal = () => {
-          console.log('🔘 [BOTÃO] Abrindo modal... setEditingAgendamento existe?', typeof setEditingAgendamento);
-          console.log('🔘 [BOTÃO] setShowAgendamentoModal existe?', typeof setShowAgendamentoModal);
-          setEditingAgendamento(null);
-          setShowAgendamentoModal(true);
+          console.log('🔘 [BOTÃO] Abrindo modal...');
+          console.log('🔘 [BOTÃO] safeSetEditingAgendamento existe?', typeof safeSetEditingAgendamento);
+          console.log('🔘 [BOTÃO] safeSetShowAgendamentoModal existe?', typeof safeSetShowAgendamentoModal);
+          
+          if (safeSetEditingAgendamento && safeSetShowAgendamentoModal) {
+            safeSetEditingAgendamento(null);
+            safeSetShowAgendamentoModal(true);
+            console.log('✅ [BOTÃO] Modal aberto com sucesso!');
+          } else {
+            console.error('❌ [BOTÃO] Funções de estado não disponíveis!');
+          }
         };
         
         const handleEditAgendamento = (agendamento) => {
           console.log('✏️ [BOTÃO] Editando agendamento:', agendamento.id);
-          setEditingAgendamento(agendamento);
-          setShowAgendamentoModal(true);
+          if (safeSetEditingAgendamento && safeSetShowAgendamentoModal) {
+            safeSetEditingAgendamento(agendamento);
+            safeSetShowAgendamentoModal(true);
+          }
         };
         
         console.log('🎨 [RENDER agendamentos] agendamentosAtual.length:', agendamentosAtual.length, 'array:', agendamentosAtual);
