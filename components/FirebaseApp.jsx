@@ -1613,14 +1613,14 @@ const DashboardWithFirebase = ({
     const safeAgendamentoFilter = (typeof agendamentoFilter !== 'undefined') ? agendamentoFilter : 'todos';
     const safeAgendamentoTypeFilter = (typeof agendamentoTypeFilter !== 'undefined') ? agendamentoTypeFilter : 'todos';
     
-    // Capturar funções de estado para usar nos botões
-    const safeSetEditingAgendamento = typeof setEditingAgendamento !== 'undefined' ? setEditingAgendamento : null;
-    const safeSetShowAgendamentoModal = typeof setShowAgendamentoModal !== 'undefined' ? setShowAgendamentoModal : null;
+    // Capturar funções de estado para usar nos botões (verificar se são REALMENTE funções)
+    const safeSetEditingAgendamento = (typeof setEditingAgendamento === 'function') ? setEditingAgendamento : null;
+    const safeSetShowAgendamentoModal = (typeof setShowAgendamentoModal === 'function') ? setShowAgendamentoModal : null;
     
     console.log('🎯 Estados capturados:', safeRealConversations.length, 'conversas,', (typeof agendamentos !== 'undefined' ? agendamentos.length : 0), 'agendamentos (DIRETO)');
     console.log('🔧 Funções capturadas:', {
-      setEditingAgendamento: typeof safeSetEditingAgendamento,
-      setShowAgendamentoModal: typeof safeSetShowAgendamentoModal
+      setEditingAgendamento: safeSetEditingAgendamento ? 'function ✓' : 'NULL ✗',
+      setShowAgendamentoModal: safeSetShowAgendamentoModal ? 'function ✓' : 'NULL ✗'
     });
     
     switch (currentPage) {
@@ -1763,16 +1763,21 @@ const DashboardWithFirebase = ({
         
         // Funções locais para garantir acesso
         const handleOpenModal = () => {
-          console.log('🔘 [BOTÃO] Abrindo modal...');
-          console.log('🔘 [BOTÃO] safeSetEditingAgendamento existe?', typeof safeSetEditingAgendamento);
-          console.log('🔘 [BOTÃO] safeSetShowAgendamentoModal existe?', typeof safeSetShowAgendamentoModal);
+          console.log('🔘 [BOTÃO] Clique detectado! Verificando funções...');
+          console.log('🔘 [BOTÃO] safeSetEditingAgendamento:', safeSetEditingAgendamento);
+          console.log('🔘 [BOTÃO] typeof:', typeof safeSetEditingAgendamento);
+          console.log('🔘 [BOTÃO] safeSetShowAgendamentoModal:', safeSetShowAgendamentoModal);
+          console.log('🔘 [BOTÃO] typeof:', typeof safeSetShowAgendamentoModal);
           
           if (safeSetEditingAgendamento && safeSetShowAgendamentoModal) {
+            console.log('✅ [BOTÃO] Funções OK! Chamando...');
             safeSetEditingAgendamento(null);
             safeSetShowAgendamentoModal(true);
             console.log('✅ [BOTÃO] Modal aberto com sucesso!');
           } else {
             console.error('❌ [BOTÃO] Funções de estado não disponíveis!');
+            console.error('❌ [BOTÃO] safeSetEditingAgendamento is truthy?', !!safeSetEditingAgendamento);
+            console.error('❌ [BOTÃO] safeSetShowAgendamentoModal is truthy?', !!safeSetShowAgendamentoModal);
           }
         };
         
