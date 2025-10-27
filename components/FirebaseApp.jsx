@@ -1596,6 +1596,46 @@ const DashboardWithFirebase = ({
     );
   };
 
+  // Função para renderizar agendamentos (igual ao renderCatalog - tem acesso aos states!)
+  const renderAgendamentos = () => {
+    console.log('🎨 [renderAgendamentos] Executando... agendamentos.length:', agendamentos?.length || 0);
+    
+    const handleOpenModal = () => {
+      console.log('🔘 [BOTÃO] Tentando abrir modal...');
+      setEditingAgendamento(null);
+      setShowAgendamentoModal(true);
+      console.log('✅ [BOTÃO] Modal deve abrir!');
+    };
+    
+    return (
+      <div style={{ padding: '24px' }}>
+        <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
+          📅 Agendamentos ({agendamentos?.length || 0} total)
+        </h2>
+        
+        <button
+          onClick={handleOpenModal}
+          style={{
+            backgroundColor: '#6366f1',
+            color: 'white',
+            padding: '12px 24px',
+            borderRadius: '8px',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            fontWeight: '500'
+          }}
+        >
+          + TESTAR BOTÃO
+        </button>
+        
+        <p style={{ marginTop: '20px', color: '#6b7280' }}>
+          Se você clicar no botão e não der erro ReferenceError, significa que a solução funciona!
+        </p>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     // SOLUÇÃO DEFINITIVA: Usar typeof para verificar existência antes de acessar
     const safeRealConversations = (typeof realConversations !== 'undefined' && realConversations) ? realConversations : [];
@@ -1747,44 +1787,9 @@ const DashboardWithFirebase = ({
         return renderCatalog();
 
       case 'agendamentos':
-        // USAR ESTADO DIRETO para evitar closure stale
-        const agendamentosAtual = (typeof agendamentos !== 'undefined' && agendamentos) ? agendamentos : [];
-        const loadingAtual = (typeof loadingAgendamentos !== 'undefined') ? loadingAgendamentos : false;
-        const filterAtual = (typeof agendamentoFilter !== 'undefined') ? agendamentoFilter : 'todos';
-        const typeFilterAtual = (typeof agendamentoTypeFilter !== 'undefined') ? agendamentoTypeFilter : 'todos';
-        
-        // Funções locais - usar try/catch para chamar direto
-        const handleOpenModal = () => {
-          console.log('🔘 [BOTÃO] Clique detectado!');
-          try {
-            // Tentar usar as funções DIRETAMENTE
-            console.log('🔘 [BOTÃO] Tentando chamar setEditingAgendamento(null)...');
-            setEditingAgendamento(null);
-            console.log('✅ [BOTÃO] setEditingAgendamento OK!');
-            
-            console.log('🔘 [BOTÃO] Tentando chamar setShowAgendamentoModal(true)...');
-            setShowAgendamentoModal(true);
-            console.log('✅ [BOTÃO] setShowAgendamentoModal OK!');
-            
-            console.log('✅ [BOTÃO] Modal aberto com sucesso!');
-          } catch (error) {
-            console.error('❌ [BOTÃO] ERRO ao chamar funções:', error);
-            console.error('❌ [BOTÃO] Mensagem:', error.message);
-          }
-        };
-        
-        const handleEditAgendamento = (agendamento) => {
-          console.log('✏️ [BOTÃO] Editando agendamento:', agendamento.id);
-          try {
-            setEditingAgendamento(agendamento);
-            setShowAgendamentoModal(true);
-          } catch (error) {
-            console.error('❌ [BOTÃO] ERRO ao editar:', error);
-          }
-        };
-        
-        console.log('🎨 [RENDER agendamentos] agendamentosAtual.length:', agendamentosAtual.length, 'array:', agendamentosAtual);
-        
+        return renderAgendamentos();
+
+      case 'agendamentos_OLD_CODE':
         return (
           <div key={`agendamentos-${agendamentosAtual.length}`} style={{ padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
