@@ -2056,7 +2056,12 @@ const DashboardWithFirebase = ({
         console.log('🔍 [RENDER] Total:', _realConversations.length);
         
         // Formatar conversas reais (usando valores com fallback)
+        console.log('🔍 [FORMAT] Iniciando formatação de', _realConversations.length, 'conversas');
+        console.log('🔍 [FORMAT] Dados brutos:', JSON.stringify(_realConversations));
+        
         const conversations = _realConversations.map((conv, index) => {
+          console.log(`🔍 [FORMAT] Processando conversa ${index + 1}:`, conv);
+          
           const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
           const phone = conv.contactNumber || 'Cliente';
           const name = phone.replace('@c.us', '').replace(/\D/g, ''); // Extrai apenas números
@@ -2078,7 +2083,7 @@ const DashboardWithFirebase = ({
             }
           }
           
-          return {
+          const formatted = {
             id: conv.contactNumber,
             name: phone,
             phone: phone,
@@ -2090,8 +2095,12 @@ const DashboardWithFirebase = ({
             online: false,
             messageCount: conv.messageCount || 0
           };
+          
+          console.log(`✅ [FORMAT] Conversa ${index + 1} formatada:`, formatted);
+          return formatted;
         });
         
+        console.log('✅ [FORMAT] Total de conversas formatadas:', conversations.length);
         console.log('🔍 [RENDER] conversations formatadas:', conversations);
         
         const currentConv = conversations.length > 0 
