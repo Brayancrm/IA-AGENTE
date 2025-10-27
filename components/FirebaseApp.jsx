@@ -1598,7 +1598,8 @@ const DashboardWithFirebase = ({
 
   // Função para renderizar agendamentos (igual ao renderCatalog - tem acesso aos states!)
   const renderAgendamentos = () => {
-    console.log('🎨 [renderAgendamentos] Executando... agendamentos.length:', agendamentos?.length || 0);
+    const agendamentosAtual = (typeof agendamentos !== 'undefined' && agendamentos) ? agendamentos : [];
+    console.log('🎨 [renderAgendamentos] Executando... agendamentos.length:', agendamentosAtual.length);
     
     const handleOpenModal = () => {
       console.log('🔘 [BOTÃO] Tentando abrir modal...');
@@ -1610,7 +1611,7 @@ const DashboardWithFirebase = ({
     return (
       <div style={{ padding: '24px' }}>
         <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
-          📅 Agendamentos ({agendamentos?.length || 0} total)
+          📅 Agendamentos ({agendamentosAtual.length} total)
         </h2>
         
         <button
