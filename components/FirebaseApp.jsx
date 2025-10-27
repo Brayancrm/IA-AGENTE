@@ -6,12 +6,12 @@ import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndP
 import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { ref, push, set, remove, onValue, off } from 'firebase/database';
 import SimpleLanding from './SimpleLanding';
-import AgendamentoModal from './AgendamentoModal';
 import dynamic from 'next/dynamic';
 import { convertStepsToPrompt } from '../hooks/useFlowBuilder';
 
-// Import dinâmico do FlowBuilder para evitar problemas de SSR
+// Import dinâmico para evitar problemas de SSR
 const FlowBuilder = dynamic(() => import('./FlowBuilder'), { ssr: false });
+const AgendamentoModal = dynamic(() => import('./AgendamentoModal'), { ssr: false });
 import {
   Package,
   Plus,
