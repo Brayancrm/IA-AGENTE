@@ -1622,9 +1622,10 @@ const DashboardWithFirebase = ({
 
     const handleSave = (e) => {
       e.preventDefault();
+      console.log('💾 [SAVE] Salvando agendamento...');
       const formData = new FormData(e.target);
       const novoAgendamento = {
-        id: editingAgendamento?.id || `${Date.now()}`,
+        id: editingItem?.id || `${Date.now()}`,
         titulo: formData.get('titulo'),
         descricao: formData.get('descricao'),
         tipo: formData.get('tipo'),
@@ -1636,7 +1637,7 @@ const DashboardWithFirebase = ({
         observacoes: formData.get('observacoes') || ''
       };
       
-      if (editingAgendamento) {
+      if (editingItem) {
         setAgendamentos(prev => prev.map(a => a.id === novoAgendamento.id ? novoAgendamento : a));
         showToast('Agendamento atualizado!', 'success');
       } else {
@@ -1646,6 +1647,7 @@ const DashboardWithFirebase = ({
       
       setShowAgendamentoModal(false);
       setEditingAgendamento(null);
+      console.log('✅ [SAVE] Agendamento salvo!');
     };
 
     const handleDelete = (id) => {
