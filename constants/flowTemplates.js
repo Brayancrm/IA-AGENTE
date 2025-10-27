@@ -6,6 +6,9 @@
  */
 
 export const FLOW_TEMPLATES = [
+  // ========================================
+  // VENDAS
+  // ========================================
   {
     id: 'ecommerce-simples',
     name: '🛒 E-commerce Simples',
@@ -54,20 +57,13 @@ export const FLOW_TEMPLATES = [
       },
       {
         id: Date.now() + '-5',
-        type: 'ask_invoice',
-        title: 'Perguntar sobre Nota Fiscal',
-        description: 'Pergunte se o cliente deseja nota fiscal. Se sim, colete CPF ou CNPJ para emissão.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-6',
         type: 'collect_address',
         title: 'Coletar Endereço de Entrega',
         description: 'Solicite o endereço completo: rua, número, complemento, bairro, cidade, estado e CEP. Confirme os dados antes de prosseguir.',
         condition: 'Se houver entrega física'
       },
       {
-        id: Date.now() + '-7',
+        id: Date.now() + '-6',
         type: 'send_confirmation',
         title: 'Enviar Confirmação',
         description: 'Confirme o pedido com todos os detalhes: itens, valor, forma de pagamento, prazo de entrega. Forneça um número de pedido para rastreamento.',
@@ -83,6 +79,17 @@ export const FLOW_TEMPLATES = [
     category: 'Vendas',
     estimatedTime: '5-8 min',
     steps: [
+      {
+        id: Date.now() + '-0',
+        type: 'agent_profile',
+        title: 'Perfil do Agente',
+        description: 'Consultivo, faz perguntas estratégicas, escuta ativamente e foca em entender necessidades reais.',
+        agentName: 'Roberto',
+        agentRole: 'Consultor de Negócios',
+        agentTone: 'professional',
+        agentStyle: 'consultative',
+        condition: ''
+      },
       {
         id: Date.now() + '-1',
         type: 'greeting',
@@ -120,169 +127,16 @@ export const FLOW_TEMPLATES = [
       },
       {
         id: Date.now() + '-6',
-        type: 'custom',
-        title: 'Superar Objeções',
-        description: 'Pergunte se há alguma dúvida ou preocupação. Responda de forma honesta e mostre como sua solução resolve essas questões.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-7',
         type: 'process_order',
         title: 'Fechar Venda',
         description: 'Se o cliente está pronto, conduza o fechamento. Se não, ofereça um próximo passo (demonstração, proposta, reunião).',
         condition: ''
       },
       {
-        id: Date.now() + '-8',
+        id: Date.now() + '-7',
         type: 'send_confirmation',
         title: 'Pós-venda e Próximos Passos',
         description: 'Confirme os detalhes, envie documentos necessários e estabeleça os próximos passos. Agradeça e mantenha o canal aberto.',
-        condition: ''
-      }
-    ]
-  },
-
-  {
-    id: 'agendamento',
-    name: '📅 Agendamento de Serviços',
-    description: 'Ideal para consultas, reservas e agendamentos',
-    category: 'Serviços',
-    estimatedTime: '2-3 min',
-    steps: [
-      {
-        id: Date.now() + '-0',
-        type: 'agent_profile',
-        title: 'Perfil do Agente',
-        description: 'Eficiente, organizado e sempre confirma horários e datas claramente.',
-        agentName: 'Marina',
-        agentRole: 'Assistente de Agendamentos',
-        agentTone: 'professional',
-        agentStyle: 'concise',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-1',
-        type: 'greeting',
-        title: 'Cumprimentar Cliente',
-        description: 'Seja cordial e pergunte qual serviço o cliente deseja agendar.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-2',
-        type: 'show_catalog',
-        title: 'Mostrar Serviços Disponíveis',
-        description: 'Liste os serviços oferecidos com descrições breves e valores. Ajude o cliente a escolher o mais adequado.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-3',
-        type: 'custom',
-        title: 'Verificar Disponibilidade',
-        description: 'Mostre datas e horários disponíveis. Ofereça pelo menos 3 opções. Pergunte a preferência do cliente.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-4',
-        type: 'ask_info',
-        title: 'Coletar Informações',
-        description: 'Solicite nome completo, telefone e e-mail. Se necessário, pergunte sobre observações especiais ou preparação necessária.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-5',
-        type: 'send_confirmation',
-        title: 'Confirmar Agendamento',
-        description: 'Confirme data, horário, serviço e local. Envie um resumo e explique a política de cancelamento. Ofereça adicionar ao calendário.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-6',
-        type: 'custom',
-        title: 'Enviar Lembrete',
-        description: 'Informe que enviaremos um lembrete 24h antes. Forneça contato para emergências ou reagendamento.',
-        condition: ''
-      }
-    ]
-  },
-
-  {
-    id: 'suporte-faq',
-    name: '❓ Suporte e FAQ',
-    description: 'Para atendimento ao cliente e resolução de dúvidas',
-    category: 'Suporte',
-    estimatedTime: '2-4 min',
-    steps: [
-      {
-        id: Date.now() + '-1',
-        type: 'greeting',
-        title: 'Cumprimentar e Oferecer Ajuda',
-        description: 'Seja empático e pergunte como pode ajudar. Mostre que está pronto para resolver o problema.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-2',
-        type: 'ask_info',
-        title: 'Identificar o Problema',
-        description: 'Faça perguntas para entender o problema. Peça detalhes como número do pedido, produto, ou descrição do erro.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-3',
-        type: 'custom',
-        title: 'Buscar Solução',
-        description: 'Com base no problema, ofereça soluções do FAQ. Se for algo comum, explique o passo a passo da solução.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-4',
-        type: 'custom',
-        title: 'Resolver ou Escalar',
-        description: 'Se resolveu, confirme com o cliente. Se não, informe que vai escalar para um especialista e forneça prazo de retorno.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-5',
-        type: 'send_confirmation',
-        title: 'Finalizar Atendimento',
-        description: 'Agradeça o contato. Pergunte se há mais algo. Envie protocolo de atendimento e mantenha canal aberto.',
-        condition: ''
-      }
-    ]
-  },
-
-  {
-    id: 'captacao-leads',
-    name: '🎯 Captação de Leads',
-    description: 'Para capturar informações de potenciais clientes',
-    category: 'Marketing',
-    estimatedTime: '1-2 min',
-    steps: [
-      {
-        id: Date.now() + '-1',
-        type: 'greeting',
-        title: 'Cumprimentar e Apresentar Oferta',
-        description: 'Seja direto mas amigável. Apresente rapidamente o benefício da oferta (e-book, desconto, trial, etc).',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-2',
-        type: 'ask_info',
-        title: 'Coletar Nome e E-mail',
-        description: 'Solicite nome e e-mail. Explique que usará apenas para enviar o material e informações relevantes.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-3',
-        type: 'ask_info',
-        title: 'Perguntar sobre Interesse',
-        description: 'Faça 1-2 perguntas rápidas sobre o interesse ou necessidade. Isso ajuda a segmentar e personalizar o follow-up.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-4',
-        type: 'send_confirmation',
-        title: 'Enviar Material',
-        description: 'Confirme que o material foi enviado por e-mail. Agradeça e mencione que entraremos em contato em breve.',
         condition: ''
       }
     ]
@@ -352,12 +206,159 @@ export const FLOW_TEMPLATES = [
   },
 
   {
+    id: 'joalheria',
+    name: '💎 Joalheria/Semi-joias',
+    description: 'Para joalherias, semi-joias, bijuterias e acessórios',
+    category: 'Vendas',
+    estimatedTime: '4-6 min',
+    steps: [
+      {
+        id: Date.now() + '-0',
+        type: 'agent_profile',
+        title: 'Perfil do Agente',
+        description: 'Sofisticada, atenta a detalhes, entende de estilo e ajuda a cliente a escolher a peça perfeita.',
+        agentName: 'Gabriela',
+        agentRole: 'Consultora de Estilo',
+        agentTone: 'professional',
+        agentStyle: 'detailed',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-1',
+        type: 'greeting',
+        title: 'Cumprimentar com Elegância',
+        description: 'Tom sofisticado e atencioso. Pergunte se está procurando algo especial ou apenas admirando as peças.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-2',
+        type: 'ask_info',
+        title: 'Descobrir Ocasião',
+        description: 'É presente ou para você? Para qual ocasião? (casamento, aniversário, dia a dia, formatura). Isso guia a recomendação.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-3',
+        type: 'ask_info',
+        title: 'Conhecer Preferências',
+        description: 'Que estilo prefere: clássico, moderno, minimalista, statement? Metal preferido: ouro, prata, rosé? Pedras: sim ou não?',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-4',
+        type: 'show_catalog',
+        title: 'Apresentar Coleções',
+        description: 'Mostre peças adequadas ao estilo e ocasião. Use fotos de alta qualidade. Destaque detalhes: quilates, pureza, origem das pedras.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-5',
+        type: 'custom',
+        title: 'Personalizar',
+        description: 'Ofereça personalização: gravação de iniciais/datas, ajuste de tamanho, embalagem especial de presente, cartão personalizado.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-6',
+        type: 'request_payment',
+        title: 'Processar Venda',
+        description: 'Ofereça parcelamento sem juros. Para presentes, pergunte se quer entrega expressa ou retirada em loja em embalagem especial.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-7',
+        type: 'send_confirmation',
+        title: 'Cuidados e Garantia',
+        description: 'Envie dicas de como conservar a joia/semi-joia, certificado de autenticidade (se aplicável), informações de garantia e política de troca.',
+        condition: ''
+      }
+    ]
+  },
+
+  // ========================================
+  // SERVIÇOS
+  // ========================================
+  {
+    id: 'agendamento',
+    name: '📅 Agendamento de Serviços',
+    description: 'Ideal para consultas, reservas e agendamentos',
+    category: 'Serviços',
+    estimatedTime: '2-3 min',
+    steps: [
+      {
+        id: Date.now() + '-0',
+        type: 'agent_profile',
+        title: 'Perfil do Agente',
+        description: 'Eficiente, organizado e sempre confirma horários e datas claramente.',
+        agentName: 'Marina',
+        agentRole: 'Assistente de Agendamentos',
+        agentTone: 'professional',
+        agentStyle: 'concise',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-1',
+        type: 'greeting',
+        title: 'Cumprimentar Cliente',
+        description: 'Seja cordial e pergunte qual serviço o cliente deseja agendar.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-2',
+        type: 'show_catalog',
+        title: 'Mostrar Serviços Disponíveis',
+        description: 'Liste os serviços oferecidos com descrições breves e valores. Ajude o cliente a escolher o mais adequado.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-3',
+        type: 'custom',
+        title: 'Verificar Disponibilidade',
+        description: 'Mostre datas e horários disponíveis. Ofereça pelo menos 3 opções. Pergunte a preferência do cliente.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-4',
+        type: 'ask_info',
+        title: 'Coletar Informações',
+        description: 'Solicite nome completo, telefone e e-mail. Se necessário, pergunte sobre observações especiais ou preparação necessária.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-5',
+        type: 'send_confirmation',
+        title: 'Confirmar Agendamento',
+        description: 'Confirme data, horário, serviço e local. Envie um resumo e explique a política de cancelamento. Ofereça adicionar ao calendário.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-6',
+        type: 'custom',
+        title: 'Enviar Lembrete',
+        description: 'Informe que enviaremos um lembrete 24h antes. Forneça contato para emergências ou reagendamento.',
+        condition: ''
+      }
+    ]
+  },
+
+  {
     id: 'academia-personal',
     name: '🏋️ Academia/Personal Trainer',
     description: 'Para academias, personal trainers e consultoria fitness',
     category: 'Serviços',
     estimatedTime: '3-4 min',
     steps: [
+      {
+        id: Date.now() + '-0',
+        type: 'agent_profile',
+        title: 'Perfil do Agente',
+        description: 'Motivador, inspirador e focado em transformação. Usa linguagem energética e positiva.',
+        agentName: 'Bruno',
+        agentRole: 'Consultor Fitness',
+        agentTone: 'enthusiastic',
+        agentStyle: 'persuasive',
+        condition: ''
+      },
       {
         id: Date.now() + '-1',
         type: 'greeting',
@@ -407,9 +408,20 @@ export const FLOW_TEMPLATES = [
     id: 'imobiliaria',
     name: '🏠 Imobiliária',
     description: 'Para corretores, imobiliárias e gestão de imóveis',
-    category: 'Vendas',
+    category: 'Serviços',
     estimatedTime: '5-7 min',
     steps: [
+      {
+        id: Date.now() + '-0',
+        type: 'agent_profile',
+        title: 'Perfil do Agente',
+        description: 'Profissional, conhece bem o mercado, detalhista e ajuda a encontrar o imóvel dos sonhos.',
+        agentName: 'Patricia',
+        agentRole: 'Corretora de Imóveis',
+        agentTone: 'professional',
+        agentStyle: 'detailed',
+        condition: ''
+      },
       {
         id: Date.now() + '-1',
         type: 'greeting',
@@ -463,12 +475,86 @@ export const FLOW_TEMPLATES = [
   },
 
   {
+    id: 'oficina-mecanica',
+    name: '🚗 Oficina Mecânica/Manutenção',
+    description: 'Para oficinas, mecânicos, funilaria e borracharias',
+    category: 'Serviços',
+    estimatedTime: '3-5 min',
+    steps: [
+      {
+        id: Date.now() + '-0',
+        type: 'agent_profile',
+        title: 'Perfil do Agente',
+        description: 'Técnico, prestativo e explica os problemas de forma clara sem ser muito técnico.',
+        agentName: 'João',
+        agentRole: 'Atendente Técnico',
+        agentTone: 'casual',
+        agentStyle: 'concise',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-1',
+        type: 'greeting',
+        title: 'Cumprimentar',
+        description: 'Seja prestativo e técnico. Pergunte qual problema está tendo com o veículo.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-2',
+        type: 'ask_info',
+        title: 'Diagnóstico Inicial',
+        description: 'Pergunte: modelo e ano do veículo, sintomas específicos (barulho, luz acesa, etc), quando começou, o que já tentou fazer.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-3',
+        type: 'custom',
+        title: 'Agendar Avaliação',
+        description: 'Marque horário para trazer o veículo para diagnóstico presencial. Explique que após avaliação será passado orçamento.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-4',
+        type: 'show_catalog',
+        title: 'Enviar Orçamento',
+        description: 'Após diagnóstico, detalhe serviços necessários: peças a trocar + mão de obra + prazo estimado. Seja transparente.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-5',
+        type: 'process_order',
+        title: 'Aprovar Serviço',
+        description: 'Confirme autorização do cliente para executar os serviços. Reforce prazo e valor. Pergunte sobre forma de pagamento.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-6',
+        type: 'send_confirmation',
+        title: 'Avisar Conclusão',
+        description: 'Quando carro estiver pronto, avise imediatamente. Explique o que foi feito, forneça nota fiscal e dicas de manutenção.',
+        condition: ''
+      }
+    ]
+  },
+
+  {
     id: 'eventos-festas',
     name: '💍 Eventos e Festas',
     description: 'Para buffets, decoradores, fotógrafos e organizadores',
     category: 'Serviços',
     estimatedTime: '5-8 min',
     steps: [
+      {
+        id: Date.now() + '-0',
+        type: 'agent_profile',
+        title: 'Perfil do Agente',
+        description: 'Animada, criativa, atenta a todos os detalhes e focada em tornar o evento inesquecível.',
+        agentName: 'Juliana',
+        agentRole: 'Organizadora de Eventos',
+        agentTone: 'enthusiastic',
+        agentStyle: 'detailed',
+        condition: ''
+      },
       {
         id: Date.now() + '-1',
         type: 'greeting',
@@ -513,13 +599,6 @@ export const FLOW_TEMPLATES = [
       },
       {
         id: Date.now() + '-7',
-        type: 'ask_info',
-        title: 'Coletar Detalhes Finais',
-        description: 'Menu escolhido, cores da decoração, playlist musical, estilo de fotos. Agende reuniões de alinhamento.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-8',
         type: 'send_confirmation',
         title: 'Confirmar e Acompanhar',
         description: 'Envie lembretes periódicos. Confirme tudo 7 dias antes. Disponibilize contato direto para emergências.',
@@ -535,6 +614,17 @@ export const FLOW_TEMPLATES = [
     category: 'Serviços',
     estimatedTime: '4-6 min',
     steps: [
+      {
+        id: Date.now() + '-0',
+        type: 'agent_profile',
+        title: 'Perfil do Agente',
+        description: 'Sério, confiável, discreto e transmite segurança. Usa linguagem técnica quando necessário mas explica de forma clara.',
+        agentName: 'Dr. Ricardo',
+        agentRole: 'Assistente Jurídico',
+        agentTone: 'professional',
+        agentStyle: 'detailed',
+        condition: ''
+      },
       {
         id: Date.now() + '-1',
         type: 'greeting',
@@ -581,12 +671,89 @@ export const FLOW_TEMPLATES = [
   },
 
   {
+    id: 'pet-shop',
+    name: '🐾 Pet Shop/Veterinária',
+    description: 'Para pet shops, clínicas veterinárias, banho e tosa',
+    category: 'Serviços',
+    estimatedTime: '3-4 min',
+    steps: [
+      {
+        id: Date.now() + '-0',
+        type: 'agent_profile',
+        title: 'Perfil do Agente',
+        description: 'Carinhosa com animais, usa muitos emojis de pets, sempre pergunta sobre o bem-estar do bichinho.',
+        agentName: 'Carla',
+        agentRole: 'Atendente Pet',
+        agentTone: 'friendly',
+        agentStyle: 'concise',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-1',
+        type: 'greeting',
+        title: 'Cumprimentar (com amor aos pets!)',
+        description: 'Seja carinhoso! Pergunte qual pet tem (cachorro, gato, outro), nome e idade dele. Demonstre amor genuíno por animais.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-2',
+        type: 'ask_info',
+        title: 'Entender Necessidade',
+        description: 'O que precisa? Consulta veterinária, vacina, banho e tosa, ração, acessórios, medicamentos? Ouça com atenção.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-3',
+        type: 'show_catalog',
+        title: 'Mostrar Produtos/Serviços',
+        description: 'Apresente catálogo segmentado: produtos para cães, gatos, outros. Destaque promoções e produtos recomendados para raça/idade.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-4',
+        type: 'custom',
+        title: 'Agendar (se serviço)',
+        description: 'Se for banho, tosa ou consulta, marque horário. Pergunte sobre temperamento do pet para preparar equipe adequadamente.',
+        condition: 'Se for serviço'
+      },
+      {
+        id: Date.now() + '-5',
+        type: 'process_order',
+        title: 'Processar Pedido/Agendamento',
+        description: 'Confirme itens do pedido ou horário agendado. Calcule total. Pergunte sobre programa de fidelidade ou clube de vantagens.',
+        condition: ''
+      },
+      {
+        id: Date.now() + '-6',
+        type: 'send_confirmation',
+        title: 'Dicas e Confirmação',
+        description: 'Dê dicas de cuidados com o pet. Confirme detalhes (horário, endereço). Se produto, informe prazo de entrega. Use emojis de pets! 🐶🐱',
+        condition: ''
+      }
+    ]
+  },
+
+  // ========================================
+  // SAÚDE
+  // ========================================
+  {
     id: 'clinica-medica',
     name: '🏥 Clínica Médica/Odontológica',
     description: 'Para médicos, dentistas, psicólogos e clínicas',
     category: 'Saúde',
     estimatedTime: '3-4 min',
     steps: [
+      {
+        id: Date.now() + '-0',
+        type: 'agent_profile',
+        title: 'Perfil do Agente',
+        description: 'Empático, acolhedor, discreto e transmite confiança. Demonstra genuína preocupação com o bem-estar.',
+        agentName: 'Dra. Amanda',
+        agentRole: 'Assistente de Atendimento',
+        agentTone: 'empathetic',
+        agentStyle: 'detailed',
+        condition: ''
+      },
       {
         id: Date.now() + '-1',
         type: 'greeting',
@@ -639,58 +806,9 @@ export const FLOW_TEMPLATES = [
     ]
   },
 
-  {
-    id: 'oficina-mecanica',
-    name: '🚗 Oficina Mecânica/Manutenção',
-    description: 'Para oficinas, mecânicos, funilaria e borracharias',
-    category: 'Serviços',
-    estimatedTime: '3-5 min',
-    steps: [
-      {
-        id: Date.now() + '-1',
-        type: 'greeting',
-        title: 'Cumprimentar',
-        description: 'Seja prestativo e técnico. Pergunte qual problema está tendo com o veículo.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-2',
-        type: 'ask_info',
-        title: 'Diagnóstico Inicial',
-        description: 'Pergunte: modelo e ano do veículo, sintomas específicos (barulho, luz acesa, etc), quando começou, o que já tentou fazer.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-3',
-        type: 'custom',
-        title: 'Agendar Avaliação',
-        description: 'Marque horário para trazer o veículo para diagnóstico presencial. Explique que após avaliação será passado orçamento.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-4',
-        type: 'show_catalog',
-        title: 'Enviar Orçamento',
-        description: 'Após diagnóstico, detalhe serviços necessários: peças a trocar + mão de obra + prazo estimado. Seja transparente.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-5',
-        type: 'process_order',
-        title: 'Aprovar Serviço',
-        description: 'Confirme autorização do cliente para executar os serviços. Reforce prazo e valor. Pergunte sobre forma de pagamento.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-6',
-        type: 'send_confirmation',
-        title: 'Avisar Conclusão',
-        description: 'Quando carro estiver pronto, avise imediatamente. Explique o que foi feito, forneça nota fiscal e dicas de manutenção.',
-        condition: ''
-      }
-    ]
-  },
-
+  // ========================================
+  // EDUCAÇÃO
+  // ========================================
   {
     id: 'escola-idiomas',
     name: '🎓 Escola de Idiomas/Cursos Online',
@@ -698,6 +816,17 @@ export const FLOW_TEMPLATES = [
     category: 'Educação',
     estimatedTime: '4-5 min',
     steps: [
+      {
+        id: Date.now() + '-0',
+        type: 'agent_profile',
+        title: 'Perfil do Agente',
+        description: 'Motivador, educador e sempre elogia a decisão de investir em aprendizado. Usa linguagem positiva.',
+        agentName: 'Prof. Lucas',
+        agentRole: 'Consultor Educacional',
+        agentTone: 'enthusiastic',
+        agentStyle: 'consultative',
+        condition: ''
+      },
       {
         id: Date.now() + '-1',
         type: 'greeting',
@@ -758,6 +887,17 @@ export const FLOW_TEMPLATES = [
     estimatedTime: '5-7 min',
     steps: [
       {
+        id: Date.now() + '-0',
+        type: 'agent_profile',
+        title: 'Perfil do Agente',
+        description: 'Acolhedora, transmite confiança aos pais, demonstra cuidado e atenção com as crianças.',
+        agentName: 'Ana Paula',
+        agentRole: 'Coordenadora Pedagógica',
+        agentTone: 'empathetic',
+        agentStyle: 'detailed',
+        condition: ''
+      },
+      {
         id: Date.now() + '-1',
         type: 'greeting',
         title: 'Cumprimentar Pais',
@@ -802,116 +942,113 @@ export const FLOW_TEMPLATES = [
     ]
   },
 
+  // ========================================
+  // SUPORTE E MARKETING
+  // ========================================
   {
-    id: 'pet-shop',
-    name: '🐾 Pet Shop/Veterinária',
-    description: 'Para pet shops, clínicas veterinárias, banho e tosa',
-    category: 'Serviços',
-    estimatedTime: '3-4 min',
+    id: 'suporte-faq',
+    name: '❓ Suporte e FAQ',
+    description: 'Para atendimento ao cliente e resolução de dúvidas',
+    category: 'Suporte',
+    estimatedTime: '2-4 min',
     steps: [
+      {
+        id: Date.now() + '-0',
+        type: 'agent_profile',
+        title: 'Perfil do Agente',
+        description: 'Paciente, claro nas explicações, focado em resolver o problema rapidamente e deixar o cliente satisfeito.',
+        agentName: 'Alex',
+        agentRole: 'Especialista de Suporte',
+        agentTone: 'empathetic',
+        agentStyle: 'concise',
+        condition: ''
+      },
       {
         id: Date.now() + '-1',
         type: 'greeting',
-        title: 'Cumprimentar (com amor aos pets!)',
-        description: 'Seja carinhoso! Pergunte qual pet tem (cachorro, gato, outro), nome e idade dele. Demonstre amor genuíno por animais.',
+        title: 'Cumprimentar e Oferecer Ajuda',
+        description: 'Seja empático e pergunte como pode ajudar. Mostre que está pronto para resolver o problema.',
         condition: ''
       },
       {
         id: Date.now() + '-2',
         type: 'ask_info',
-        title: 'Entender Necessidade',
-        description: 'O que precisa? Consulta veterinária, vacina, banho e tosa, ração, acessórios, medicamentos? Ouça com atenção.',
+        title: 'Identificar o Problema',
+        description: 'Faça perguntas para entender o problema. Peça detalhes como número do pedido, produto, ou descrição do erro.',
         condition: ''
       },
       {
         id: Date.now() + '-3',
-        type: 'show_catalog',
-        title: 'Mostrar Produtos/Serviços',
-        description: 'Apresente catálogo segmentado: produtos para cães, gatos, outros. Destaque promoções e produtos recomendados para raça/idade.',
+        type: 'custom',
+        title: 'Buscar Solução',
+        description: 'Com base no problema, ofereça soluções do FAQ. Se for algo comum, explique o passo a passo da solução.',
         condition: ''
       },
       {
         id: Date.now() + '-4',
         type: 'custom',
-        title: 'Agendar (se serviço)',
-        description: 'Se for banho, tosa ou consulta, marque horário. Pergunte sobre temperamento do pet para preparar equipe adequadamente.',
-        condition: 'Se for serviço'
-      },
-      {
-        id: Date.now() + '-5',
-        type: 'process_order',
-        title: 'Processar Pedido/Agendamento',
-        description: 'Confirme itens do pedido ou horário agendado. Calcule total. Pergunte sobre programa de fidelidade ou clube de vantagens.',
+        title: 'Resolver ou Escalar',
+        description: 'Se resolveu, confirme com o cliente. Se não, informe que vai escalar para um especialista e forneça prazo de retorno.',
         condition: ''
       },
       {
-        id: Date.now() + '-6',
+        id: Date.now() + '-5',
         type: 'send_confirmation',
-        title: 'Dicas e Confirmação',
-        description: 'Dê dicas de cuidados com o pet. Confirme detalhes (horário, endereço). Se produto, informe prazo de entrega. Use emojis de pets! 🐶🐱',
+        title: 'Finalizar Atendimento',
+        description: 'Agradeça o contato. Pergunte se há mais algo. Envie protocolo de atendimento e mantenha canal aberto.',
         condition: ''
       }
     ]
   },
 
   {
-    id: 'joalheria',
-    name: '💎 Joalheria/Semi-joias',
-    description: 'Para joalherias, semi-joias, bijuterias e acessórios',
-    category: 'Vendas',
-    estimatedTime: '4-6 min',
+    id: 'captacao-leads',
+    name: '🎯 Captação de Leads',
+    description: 'Para capturar informações de potenciais clientes',
+    category: 'Marketing',
+    estimatedTime: '1-2 min',
     steps: [
+      {
+        id: Date.now() + '-0',
+        type: 'agent_profile',
+        title: 'Perfil do Agente',
+        description: 'Direto, persuasivo e focado em capturar informações rapidamente sem ser invasivo.',
+        agentName: 'Felipe',
+        agentRole: 'Assistente de Marketing',
+        agentTone: 'enthusiastic',
+        agentStyle: 'concise',
+        condition: ''
+      },
       {
         id: Date.now() + '-1',
         type: 'greeting',
-        title: 'Cumprimentar com Elegância',
-        description: 'Tom sofisticado e atencioso. Pergunte se está procurando algo especial ou apenas admirando as peças.',
+        title: 'Cumprimentar e Apresentar Oferta',
+        description: 'Seja direto mas amigável. Apresente rapidamente o benefício da oferta (e-book, desconto, trial, etc).',
         condition: ''
       },
       {
         id: Date.now() + '-2',
         type: 'ask_info',
-        title: 'Descobrir Ocasião',
-        description: 'É presente ou para você? Para qual ocasião? (casamento, aniversário, dia a dia, formatura). Isso guia a recomendação.',
+        title: 'Coletar Nome e E-mail',
+        description: 'Solicite nome e e-mail. Explique que usará apenas para enviar o material e informações relevantes.',
         condition: ''
       },
       {
         id: Date.now() + '-3',
         type: 'ask_info',
-        title: 'Conhecer Preferências',
-        description: 'Que estilo prefere: clássico, moderno, minimalista, statement? Metal preferido: ouro, prata, rosé? Pedras: sim ou não?',
+        title: 'Perguntar sobre Interesse',
+        description: 'Faça 1-2 perguntas rápidas sobre o interesse ou necessidade. Isso ajuda a segmentar e personalizar o follow-up.',
         condition: ''
       },
       {
         id: Date.now() + '-4',
-        type: 'show_catalog',
-        title: 'Apresentar Coleções',
-        description: 'Mostre peças adequadas ao estilo e ocasião. Use fotos de alta qualidade. Destaque detalhes: quilates, pureza, origem das pedras.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-5',
-        type: 'custom',
-        title: 'Personalizar',
-        description: 'Ofereça personalização: gravação de iniciais/datas, ajuste de tamanho, embalagem especial de presente, cartão personalizado.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-6',
-        type: 'request_payment',
-        title: 'Processar Venda',
-        description: 'Ofereça parcelamento sem juros. Para presentes, pergunte se quer entrega expressa ou retirada em loja em embalagem especial.',
-        condition: ''
-      },
-      {
-        id: Date.now() + '-7',
         type: 'send_confirmation',
-        title: 'Cuidados e Garantia',
-        description: 'Envie dicas de como conservar a joia/semi-joia, certificado de autenticidade (se aplicável), informações de garantia e política de troca.',
+        title: 'Enviar Material',
+        description: 'Confirme que o material foi enviado por e-mail. Agradeça e mencione que entraremos em contato em breve.',
         condition: ''
       }
     ]
-  }
+  },
 ];
 
 /**
@@ -935,4 +1072,3 @@ export function getTemplatesByCategory(category) {
 export function getCategories() {
   return [...new Set(FLOW_TEMPLATES.map(t => t.category))];
 }
-
