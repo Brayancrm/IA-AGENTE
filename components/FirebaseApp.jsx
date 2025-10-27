@@ -83,20 +83,20 @@ const FirebaseApp = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // 🆕 FUNÇÕES DE MANIPULAÇÃO DE AGENDAMENTOS (usando useCallback para estabilidade)
-  const handleOpenAgendamentoModal = useCallback(() => {
+  // 🆕 FUNÇÕES DE MANIPULAÇÃO DE AGENDAMENTOS (funções normais - será hoisted)
+  function handleOpenAgendamentoModal() {
     console.log('🔘 [handleOpenAgendamentoModal] Abrindo modal...');
     setEditingAgendamento(null);
     setShowAgendamentoModal(true);
-  }, []);
+  }
 
-  const handleEditAgendamento = useCallback((agendamento) => {
+  function handleEditAgendamento(agendamento) {
     console.log('✏️ [handleEditAgendamento] Editando:', agendamento);
     setEditingAgendamento(agendamento);
     setShowAgendamentoModal(true);
-  }, []);
+  }
 
-  const handleSaveAgendamento = useCallback((e) => {
+  function handleSaveAgendamento(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
     const novoAgendamento = {
@@ -124,14 +124,14 @@ const FirebaseApp = () => {
     
     setShowAgendamentoModal(false);
     setEditingAgendamento(null);
-  }, [editingAgendamento]);
+  }
 
-  const handleDeleteAgendamento = useCallback((id) => {
+  function handleDeleteAgendamento(id) {
     if (confirm('Tem certeza que deseja excluir este agendamento?')) {
       setAgendamentos(prev => prev.filter(a => a.id !== id));
       showToast('Agendamento excluído com sucesso!', 'success');
     }
-  }, []);
+  }
 
   // Componente Toast
   const Toast = ({ message, type, onClose }) => (
