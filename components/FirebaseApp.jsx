@@ -1609,8 +1609,6 @@ const DashboardWithFirebase = ({
     const safeLoadingAgendamentos = (typeof loadingAgendamentos !== 'undefined') ? loadingAgendamentos : false;
     const safeAgendamentoFilter = (typeof agendamentoFilter !== 'undefined') ? agendamentoFilter : 'todos';
     const safeAgendamentoTypeFilter = (typeof agendamentoTypeFilter !== 'undefined') ? agendamentoTypeFilter : 'todos';
-    const safeShowAgendamentoModal = (typeof showAgendamentoModal !== 'undefined') ? showAgendamentoModal : false;
-    const safeEditingAgendamento = (typeof editingAgendamento !== 'undefined') ? editingAgendamento : null;
     
     console.log('🎯 Estados capturados:', safeRealConversations.length, 'conversas,', safeAgendamentos.length, 'agendamentos');
     
@@ -3808,7 +3806,7 @@ const DashboardWithFirebase = ({
       </div>
 
       {/* Modal de Agendamentos */}
-      {safeShowAgendamentoModal && (
+      {(typeof showAgendamentoModal !== 'undefined' && showAgendamentoModal) && (
         <div style={{
           position: 'fixed',
           top: 0,
@@ -3831,7 +3829,7 @@ const DashboardWithFirebase = ({
             overflow: 'auto'
           }}>
             <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '24px', color: '#1f2937' }}>
-              {safeEditingAgendamento ? '✏️ Editar Agendamento' : '📅 Novo Agendamento'}
+              {(typeof editingAgendamento !== 'undefined' && editingAgendamento) ? '✏️ Editar Agendamento' : '📅 Novo Agendamento'}
             </h3>
             
             <form onSubmit={(e) => {
