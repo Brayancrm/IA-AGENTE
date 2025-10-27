@@ -200,11 +200,10 @@ const FirebaseApp = () => {
 
   // Monitorar mudanças no estado agendamentos
   useEffect(() => {
-    if (typeof agendamentos !== 'undefined') {
-      console.log('📅 [STATE CHANGED] agendamentos atualizado:', agendamentos);
-      console.log('📅 [STATE CHANGED] Total:', agendamentos.length);
+    if (agendamentos && Array.isArray(agendamentos)) {
+      console.log('📅 [STATE CHANGED] agendamentos atualizado:', agendamentos.length);
     }
-  }, [typeof agendamentos !== 'undefined' ? agendamentos : []]);
+  }, [agendamentos]);
 
   // Monitorar mudanças no estado showAgendamentoModal
   useEffect(() => {
@@ -2166,7 +2165,7 @@ const DashboardWithFirebase = ({
     const safeAgendamentoFilter = (typeof agendamentoFilter !== 'undefined') ? agendamentoFilter : 'todos';
     const safeAgendamentoTypeFilter = (typeof agendamentoTypeFilter !== 'undefined') ? agendamentoTypeFilter : 'todos';
     
-    console.log('🎯 Estados capturados:', safeRealConversations.length, 'conversas,', (typeof agendamentos !== 'undefined' ? agendamentos.length : 0), 'agendamentos (DIRETO)');
+    console.log('🎯 Estados capturados:', safeRealConversations.length, 'conversas,', safeAgendamentos.length, 'agendamentos');
     
     switch (currentPage) {
       case 'dashboard':
