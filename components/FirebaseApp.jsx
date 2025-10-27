@@ -1536,17 +1536,20 @@ const DashboardWithFirebase = ({
     // 🆕 FUNÇÕES LOCAIS (dentro do escopo de renderAgendamentos)
     const handleOpenModal = () => {
       console.log('🔘 [MODAL] Abrindo...');
-      console.log('🔘 [MODAL] modalOpen ANTES:', modalOpen);
-      console.log('🔘 [MODAL] showAgendamentoModal DIRETO:', showAgendamentoModal);
+      console.log('🔘 [MODAL] modalOpen (capturado) ANTES:', modalOpen);
       console.log('🔘 [MODAL] updateModal é função?', typeof updateModal === 'function');
-      console.log('🔘 [MODAL] setShowAgendamentoModal é função?', typeof setShowAgendamentoModal === 'function');
+      
+      // Limpar edição
       updateEditing(null);
+      if (typeof setEditingAgendamento === 'function') {
+        setEditingAgendamento(null);
+      }
+      
+      // Abrir modal
       updateModal(true);
-      console.log('🔘 [MODAL] updateModal(true) chamado!');
-      // FORÇAR re-render chamando o setState DIRETO também
       if (typeof setShowAgendamentoModal === 'function') {
         setShowAgendamentoModal(true);
-        console.log('🔘 [MODAL] setShowAgendamentoModal(true) chamado DIRETAMENTE!');
+        console.log('🔘 [MODAL] setShowAgendamentoModal(true) chamado!');
       }
     };
 
