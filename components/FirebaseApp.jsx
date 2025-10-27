@@ -1611,7 +1611,7 @@ const DashboardWithFirebase = ({
     const safeAgendamentoFilter = (typeof agendamentoFilter !== 'undefined') ? agendamentoFilter : 'todos';
     const safeAgendamentoTypeFilter = (typeof agendamentoTypeFilter !== 'undefined') ? agendamentoTypeFilter : 'todos';
     
-    console.log('🎯 Estados capturados:', safeRealConversations.length, 'conversas,', safeAgendamentos.length, 'agendamentos');
+    console.log('🎯 Estados capturados:', safeRealConversations.length, 'conversas,', agendamentos?.length || 0, 'agendamentos (DIRETO)');
     
     switch (currentPage) {
       case 'dashboard':
@@ -1745,15 +1745,22 @@ const DashboardWithFirebase = ({
         return renderCatalog();
 
       case 'agendamentos':
-        console.log('🎨 [RENDER agendamentos] safeAgendamentos.length:', safeAgendamentos.length, 'array:', safeAgendamentos);
+        // USAR ESTADO DIRETO para evitar closure stale
+        const agendamentosAtual = agendamentos || [];
+        const loadingAtual = loadingAgendamentos || false;
+        const filterAtual = agendamentoFilter || 'todos';
+        const typeFilterAtual = agendamentoTypeFilter || 'todos';
+        
+        console.log('🎨 [RENDER agendamentos] agendamentosAtual.length:', agendamentosAtual.length, 'array:', agendamentosAtual);
+        
         return (
-          <div key={`agendamentos-${safeAgendamentos.length}`} style={{ padding: '24px' }}>
+          <div key={`agendamentos-${agendamentosAtual.length}`} style={{ padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <div>
                 <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                   📅 Agendamentos
                   <span style={{ fontSize: '1rem', fontWeight: 'normal', color: '#6b7280' }}>
-                    ({safeAgendamentos.length} total)
+                    ({agendamentosAtual.length} total)
                   </span>
                 </h2>
                 <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>
@@ -1800,7 +1807,7 @@ const DashboardWithFirebase = ({
               
               {/* Status */}
               <select
-                value={safeAgendamentoFilter}
+                value={filterAtual}
                 onChange={(e) => setAgendamentoFilter(e.target.value)}
                 style={{
                   padding: '8px 32px 8px 12px',
@@ -1821,7 +1828,7 @@ const DashboardWithFirebase = ({
 
               {/* Tipo */}
               <select
-                value={safeAgendamentoTypeFilter}
+                value={typeFilterAtual}
                 onChange={(e) => setAgendamentoTypeFilter(e.target.value)}
                 style={{
                   padding: '8px 32px 8px 12px',
@@ -1850,12 +1857,12 @@ const DashboardWithFirebase = ({
               boxShadow: '0 4px 6px rgba(0,0,0,0.1)', 
               border: '1px solid #e5e7eb' 
             }}>
-              {safeLoadingAgendamentos ? (
+              {loadingAtual ? (
                 <div style={{ padding: '64px', textAlign: 'center', color: '#6b7280' }}>
                   <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
                   Carregando agendamentos...
                 </div>
-              ) : safeAgendamentos.length === 0 ? (
+              ) : agendamentosAtual.length === 0 ? (
                 <div style={{ padding: '64px', textAlign: 'center', color: '#6b7280' }}>
                   <div style={{ fontSize: '4rem', marginBottom: '16px' }}>📅</div>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>
@@ -1886,9 +1893,9 @@ const DashboardWithFirebase = ({
               ) : (
                 <div style={{ padding: '16px' }}>
                   <div style={{ display: 'grid', gap: '16px' }}>
-                    {safeAgendamentos 
-                      .filter(ag => safeAgendamentoFilter === 'todos' || ag.status === safeAgendamentoFilter)
-                      .filter(ag => safeAgendamentoTypeFilter === 'todos' || ag.tipo === safeAgendamentoTypeFilter)
+                    {agendamentosAtual 
+                      .filter(ag => filterAtual === 'todos' || ag.status === filterAtual)
+                      .filter(ag => typeFilterAtual === 'todos' || ag.tipo === typeFilterAtual)
                       .map((agendamento) => (
                         <div
                           key={agendamento.id}
@@ -2060,24 +2067,24 @@ const DashboardWithFirebase = ({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginTop: '24px' }}>
               <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                 <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '4px' }}>Total</div>
-                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937' }}>{safeAgendamentos.length}</div>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937' }}>{agendamentosAtual.length}</div>
               </div>
               <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                 <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '4px' }}>Pendentes</div>
                 <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#f59e0b' }}>
-                  {safeAgendamentos.filter(a => a.status === 'pendente').length}
+                  {agendamentosAtual.filter(a => a.status === 'pendente').length}
                 </div>
               </div>
               <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                 <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '4px' }}>Confirmados</div>
                 <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#10b981' }}>
-                  {safeAgendamentos.filter(a => a.status === 'confirmado').length}
+                  {agendamentosAtual.filter(a => a.status === 'confirmado').length}
                 </div>
               </div>
               <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                 <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '4px' }}>Concluídos</div>
                 <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#6b7280' }}>
-                  {safeAgendamentos.filter(a => a.status === 'concluido').length}
+                  {agendamentosAtual.filter(a => a.status === 'concluido').length}
                 </div>
               </div>
             </div>
