@@ -196,108 +196,7 @@ const FirebaseApp = () => {
     return () => off(sessionRef);
   }, [user, database]);
 
-  // useEffect para carregar agendamentos de teste (será substituído por dados do Firebase)
-  useEffect(() => {
-    console.log('📅📅📅 [useEffect Agendamentos] INICIOU! user existe?', !!user, 'email:', user?.email);
-    
-    if (!user) {
-      console.log('📅 [useEffect Agendamentos] ❌ Sem usuário, retornando');
-      return;
-    }
-    
-    console.log('📅 [useEffect Agendamentos] ✅ Usuário OK! Criando 7 agendamentos de teste...');
-    
-    // Simulando dados de agendamentos de teste
-    const agendamentosTest = [
-      {
-        id: '1',
-        titulo: 'Retirada de Notebook HP',
-        descricao: 'Cliente solicitou retirada do notebook para manutenção preventiva',
-        tipo: 'retirada',
-        status: 'confirmado',
-        data: '28/10/2025',
-        horario: '14:00',
-        cliente: 'João Silva',
-        telefone: '(11) 98765-4321',
-        observacoes: 'Cliente estará disponível após às 14h. Levar nota fiscal.'
-      },
-      {
-        id: '2',
-        titulo: 'Instalação de Sistema',
-        descricao: 'Instalação completa do sistema de gestão empresarial',
-        tipo: 'servico',
-        status: 'pendente',
-        data: '29/10/2025',
-        horario: '09:00',
-        cliente: 'Maria Santos',
-        telefone: '(11) 99876-5432',
-        observacoes: 'Preparar servidor e backup antes da instalação'
-      },
-      {
-        id: '3',
-        titulo: 'Demonstração de Produto',
-        descricao: 'Apresentação das funcionalidades do novo software para equipe',
-        tipo: 'visita',
-        status: 'confirmado',
-        data: '30/10/2025',
-        horario: '15:30',
-        cliente: 'Empresa ABC Ltda',
-        telefone: '(11) 3456-7890',
-        observacoes: 'Levar material de demonstração e laptop'
-      },
-      {
-        id: '4',
-        titulo: 'Entrega de Equipamentos',
-        descricao: 'Entrega de 5 impressoras modelo XYZ-2000',
-        tipo: 'entrega',
-        status: 'em_andamento',
-        data: '27/10/2025',
-        horario: '10:30',
-        cliente: 'Tech Solutions',
-        telefone: '(11) 2345-6789',
-        observacoes: 'Entregar no setor de TI, 3º andar'
-      },
-      {
-        id: '5',
-        titulo: 'Reunião de Fechamento',
-        descricao: 'Discussão final sobre contrato de manutenção anual',
-        tipo: 'ligacao',
-        status: 'pendente',
-        data: '31/10/2025',
-        horario: '16:00',
-        cliente: 'Carlos Oliveira',
-        telefone: '(11) 91234-5678',
-        observacoes: 'Enviar proposta comercial antes da reunião'
-      },
-      {
-        id: '6',
-        titulo: 'Manutenção Preventiva Concluída',
-        descricao: 'Manutenção preventiva em servidores - já realizada',
-        tipo: 'servico',
-        status: 'concluido',
-        data: '25/10/2025',
-        horario: '08:00',
-        cliente: 'Digital Corp',
-        telefone: '(11) 98765-1234',
-        observacoes: 'Serviço executado conforme checklist. Relatório enviado.'
-      },
-      {
-        id: '7',
-        titulo: 'Treinamento de Equipe - Cancelado',
-        descricao: 'Treinamento sobre novo sistema (cancelado por solicitação do cliente)',
-        tipo: 'visita',
-        status: 'cancelado',
-        data: '26/10/2025',
-        horario: '13:00',
-        cliente: 'Inovação Tech',
-        telefone: '(11) 99999-8888',
-        observacoes: 'Cliente solicitou reagendamento para próxima semana'
-      }
-    ];
-    
-    setAgendamentos(agendamentosTest);
-    console.log('📅 [useEffect Agendamentos] setAgendamentos() chamado com', agendamentosTest.length, 'agendamentos');
-  }, [user]);
+  // 📅 Agendamentos serão carregados automaticamente pelo listener do Firebase (setupFirestoreListeners)
 
   // Monitorar mudanças no estado agendamentos
   useEffect(() => {
@@ -363,6 +262,26 @@ const FirebaseApp = () => {
         items.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
       }
       setCatalogItems(items);
+    });
+
+    // 📅 Listener para agendamentos no Realtime Database
+    const agendamentosRef = ref(database, `users/data/${userId}/agendamentos`);
+    onValue(agendamentosRef, (snapshot) => {
+      const agendamentosList = [];
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        Object.keys(data).forEach((key) => {
+          agendamentosList.push({ id: key, ...data[key] });
+        });
+        // Ordenar por data (mais recente primeiro)
+        agendamentosList.sort((a, b) => {
+          const dateA = new Date(a.data + ' ' + a.horario);
+          const dateB = new Date(b.data + ' ' + b.horario);
+          return dateB - dateA;
+        });
+      }
+      console.log('📅 [FIREBASE] Agendamentos carregados:', agendamentosList.length);
+      setAgendamentos(agendamentosList);
     });
 
     // Se for usuário master, ouvir usuários registrados no Realtime Database
@@ -1627,12 +1546,17 @@ const DashboardWithFirebase = ({
       updateModal(true);
     };
 
-    const handleSave = (e) => {
+    const handleSave = async (e) => {
       e.preventDefault();
-      console.log('💾 [SAVE] Salvando agendamento...');
+      
+      if (!user || !database) {
+        showToast('❌ Erro: Usuário não autenticado', 'error');
+        return;
+      }
+      
+      console.log('💾 [SAVE] Salvando agendamento no Firebase...');
       const formData = new FormData(e.target);
-      const novoAgendamento = {
-        id: editingItem?.id || `${Date.now()}`,
+      const agendamentoData = {
         titulo: formData.get('titulo'),
         descricao: formData.get('descricao'),
         tipo: formData.get('tipo'),
@@ -1641,26 +1565,54 @@ const DashboardWithFirebase = ({
         horario: formData.get('horario'),
         cliente: formData.get('cliente'),
         telefone: formData.get('telefone'),
-        observacoes: formData.get('observacoes') || ''
+        observacoes: formData.get('observacoes') || '',
+        updatedAt: new Date().toISOString()
       };
       
-      if (editingItem) {
-        updateAgendamentos(prev => prev.map(a => a.id === novoAgendamento.id ? novoAgendamento : a));
-        showToast('Agendamento atualizado!', 'success');
-      } else {
-        updateAgendamentos(prev => [...prev, novoAgendamento]);
-        showToast('Agendamento criado!', 'success');
+      try {
+        if (editingItem) {
+          // ✏️ EDITAR agendamento existente
+          const agendamentoRef = ref(database, `users/data/${user.uid}/agendamentos/${editingItem.id}`);
+          await set(agendamentoRef, agendamentoData);
+          console.log('✅ [FIREBASE] Agendamento atualizado:', editingItem.id);
+          showToast('Agendamento atualizado!', 'success');
+        } else {
+          // 📅 CRIAR novo agendamento
+          const agendamentosRef = ref(database, `users/data/${user.uid}/agendamentos`);
+          const newAgendamentoRef = push(agendamentosRef);
+          await set(newAgendamentoRef, {
+            ...agendamentoData,
+            createdAt: new Date().toISOString()
+          });
+          console.log('✅ [FIREBASE] Novo agendamento criado:', newAgendamentoRef.key);
+          showToast('Agendamento criado!', 'success');
+        }
+        
+        updateModal(false);
+        updateEditing(null);
+      } catch (error) {
+        console.error('❌ [FIREBASE] Erro ao salvar agendamento:', error);
+        showToast('❌ Erro ao salvar agendamento', 'error');
       }
-      
-      updateModal(false);
-      updateEditing(null);
-      console.log('✅ [SAVE] Agendamento salvo!');
     };
 
-    const handleDelete = (id) => {
-      if (confirm('Tem certeza que deseja excluir?')) {
-        updateAgendamentos(prev => prev.filter(a => a.id !== id));
+    const handleDelete = async (id) => {
+      if (!confirm('Tem certeza que deseja excluir?')) return;
+      
+      if (!user || !database) {
+        showToast('❌ Erro: Usuário não autenticado', 'error');
+        return;
+      }
+      
+      try {
+        console.log('🗑️ [DELETE] Excluindo agendamento:', id);
+        const agendamentoRef = ref(database, `users/data/${user.uid}/agendamentos/${id}`);
+        await remove(agendamentoRef);
+        console.log('✅ [FIREBASE] Agendamento excluído:', id);
         showToast('Agendamento excluído!', 'success');
+      } catch (error) {
+        console.error('❌ [FIREBASE] Erro ao excluir agendamento:', error);
+        showToast('❌ Erro ao excluir agendamento', 'error');
       }
     };
     
