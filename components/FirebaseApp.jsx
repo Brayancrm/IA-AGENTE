@@ -1605,12 +1605,12 @@ const DashboardWithFirebase = ({
     const modalOpen = (typeof showAgendamentoModal !== 'undefined') ? showAgendamentoModal : false;
     const editingItem = (typeof editingAgendamento !== 'undefined') ? editingAgendamento : null;
     
-    // ✅ Capturar as funções setState
-    const updateAgendamentos = setAgendamentos;
-    const updateModal = setShowAgendamentoModal;
-    const updateEditing = setEditingAgendamento;
-    const updateFilterStatus = setAgendamentoFilter;
-    const updateFilterType = setAgendamentoTypeFilter;
+    // ✅ Capturar as funções setState (COM PROTEÇÃO)
+    const updateAgendamentos = (typeof setAgendamentos === 'function') ? setAgendamentos : () => {};
+    const updateModal = (typeof setShowAgendamentoModal === 'function') ? setShowAgendamentoModal : () => {};
+    const updateEditing = (typeof setEditingAgendamento === 'function') ? setEditingAgendamento : () => {};
+    const updateFilterStatus = (typeof setAgendamentoFilter === 'function') ? setAgendamentoFilter : () => {};
+    const updateFilterType = (typeof setAgendamentoTypeFilter === 'function') ? setAgendamentoTypeFilter : () => {};
     
     console.log('🎨 [renderAgendamentos] Executando... agendamentos.length:', agendamentosAtual.length);
     
