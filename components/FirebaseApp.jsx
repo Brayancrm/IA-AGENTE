@@ -1598,26 +1598,33 @@ const DashboardWithFirebase = ({
 
   // Função para renderizar agendamentos (igual ao renderCatalog - tem acesso aos states!)
   const renderAgendamentos = () => {
-    // ✅ Capturar TODOS os estados usados com proteção typeof
+    // ✅ Capturar TODOS os estados E SETTERS usados
     const agendamentosAtual = (typeof agendamentos !== 'undefined' && agendamentos) ? agendamentos : [];
     const filterStatus = (typeof agendamentoFilter !== 'undefined') ? agendamentoFilter : 'todos';
     const filterType = (typeof agendamentoTypeFilter !== 'undefined') ? agendamentoTypeFilter : 'todos';
     const modalOpen = (typeof showAgendamentoModal !== 'undefined') ? showAgendamentoModal : false;
     const editingItem = (typeof editingAgendamento !== 'undefined') ? editingAgendamento : null;
     
+    // ✅ Capturar as funções setState
+    const updateAgendamentos = setAgendamentos;
+    const updateModal = setShowAgendamentoModal;
+    const updateEditing = setEditingAgendamento;
+    const updateFilterStatus = setAgendamentoFilter;
+    const updateFilterType = setAgendamentoTypeFilter;
+    
     console.log('🎨 [renderAgendamentos] Executando... agendamentos.length:', agendamentosAtual.length);
     
     // 🆕 FUNÇÕES LOCAIS (dentro do escopo de renderAgendamentos)
     const handleOpenModal = () => {
       console.log('🔘 [MODAL] Abrindo...');
-      setEditingAgendamento(null);
-      setShowAgendamentoModal(true);
+      updateEditing(null);
+      updateModal(true);
     };
 
     const handleEdit = (agendamento) => {
       console.log('✏️ [EDIT] Editando:', agendamento);
-      setEditingAgendamento(agendamento);
-      setShowAgendamentoModal(true);
+      updateEditing(agendamento);
+      updateModal(true);
     };
 
     const handleSave = (e) => {
@@ -1638,21 +1645,21 @@ const DashboardWithFirebase = ({
       };
       
       if (editingItem) {
-        setAgendamentos(prev => prev.map(a => a.id === novoAgendamento.id ? novoAgendamento : a));
+        updateAgendamentos(prev => prev.map(a => a.id === novoAgendamento.id ? novoAgendamento : a));
         showToast('Agendamento atualizado!', 'success');
       } else {
-        setAgendamentos(prev => [...prev, novoAgendamento]);
+        updateAgendamentos(prev => [...prev, novoAgendamento]);
         showToast('Agendamento criado!', 'success');
       }
       
-      setShowAgendamentoModal(false);
-      setEditingAgendamento(null);
+      updateModal(false);
+      updateEditing(null);
       console.log('✅ [SAVE] Agendamento salvo!');
     };
 
     const handleDelete = (id) => {
       if (confirm('Tem certeza que deseja excluir?')) {
-        setAgendamentos(prev => prev.filter(a => a.id !== id));
+        updateAgendamentos(prev => prev.filter(a => a.id !== id));
         showToast('Agendamento excluído!', 'success');
       }
     };
@@ -1771,7 +1778,7 @@ const DashboardWithFirebase = ({
               </label>
               <select
                 value={filterStatus}
-                onChange={(e) => setAgendamentoFilter(e.target.value)}
+                onChange={(e) => updateFilterStatus(e.target.value)}
                 style={{
                   width: '100%',
                   padding: '8px',
@@ -1794,7 +1801,7 @@ const DashboardWithFirebase = ({
               </label>
               <select
                 value={filterType}
-                onChange={(e) => setAgendamentoTypeFilter(e.target.value)}
+                onChange={(e) => updateFilterType(e.target.value)}
                 style={{
                   width: '100%',
                   padding: '8px',
@@ -2168,7 +2175,7 @@ const DashboardWithFirebase = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowAgendamentoModal(false)}
+                    onClick={() => updateModal(false)}
                     style={{
                       flex: 1,
                       backgroundColor: '#e5e7eb',
