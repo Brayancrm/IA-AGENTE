@@ -641,20 +641,10 @@ const FirebaseApp = () => {
     }
   }, [user, currentPage]);
 
-  // Debug: Monitorar mudanças em realConversations E forçar re-render
-  const [conversationsKey, setConversationsKey] = useState(0);
-  
+  // Debug: Monitorar mudanças em realConversations
   useEffect(() => {
-    console.log('🔄 [STATE CHANGED] realConversations atualizado:', realConversations);
-    console.log('🔄 [STATE CHANGED] Total:', realConversations?.length || 0);
-    console.log('🔄 [STATE CHANGED] currentPage:', currentPage);
-    
-    // Forçar re-render quando conversas mudarem
-    if (realConversations && realConversations.length > 0 && currentPage === 'conversas') {
-      console.log('✅ [FORCE UPDATE] Forçando re-render com', realConversations.length, 'conversas!');
-      setConversationsKey(prev => prev + 1); // Força re-render
-    }
-  }, [realConversations, currentPage]);
+    console.log('🔄 [STATE CHANGED] realConversations:', realConversations?.length || 0, 'conversas');
+  }, [realConversations]);
 
   const regenerateQRCode = async () => {
     if (!user) return;
@@ -1895,10 +1885,6 @@ const DashboardWithFirebase = ({
     const safeAgendamentoFilter = (typeof agendamentoFilter !== 'undefined') ? (agendamentoFilter || 'todos') : 'todos';
     const safeAgendamentoTypeFilter = (typeof agendamentoTypeFilter !== 'undefined') ? (agendamentoTypeFilter || 'todos') : 'todos';
     
-    // Logs DEPOIS de criar as variáveis safe
-    console.log('🔄 [RENDER CONTENT] Função renderContent chamada! Timestamp:', Date.now());
-    console.log('🎯 Estados protegidos:', safeRealConversations.length, 'conversas,', safeAgendamentos.length, 'agendamentos');
-    
     switch (currentPage) {
       case 'dashboard':
         return (
@@ -2056,22 +2042,11 @@ const DashboardWithFirebase = ({
         const _isCompactMode = safeIsCompactMode;
         const _selectedConversation = safeSelectedConversation;
         
-        console.log('✅ Usando dados protegidos:', _realConversations.length, 'conversas');
-        console.log('🔍 _realConversations:', _realConversations);
-        
         // Emojis mais usados
         const frequentEmojis = ['😊', '👍', '❤️', '😂', '🎉', '🙏', '👏', '✅', '💯', '🔥', '😍', '🤝', '💪', '⭐', '📱', '💬', '📦', '✨'];
         
-        // Debug: Verificar estado das conversas
-        console.log('🔍 [RENDER] _realConversations:', _realConversations);
-        console.log('🔍 [RENDER] Total:', _realConversations.length);
-        
-        // Formatar conversas reais (usando valores com fallback)
-        console.log('🔍 [FORMAT] Iniciando formatação de', _realConversations.length, 'conversas');
-        console.log('🔍 [FORMAT] Dados brutos:', JSON.stringify(_realConversations));
-        
+        // Formatar conversas reais de forma SIMPLES
         const conversations = _realConversations.map((conv, index) => {
-          console.log(`🔍 [FORMAT] Processando conversa ${index + 1}:`, conv);
           
           const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
           const phone = conv.contactNumber || 'Cliente';
@@ -2094,7 +2069,7 @@ const DashboardWithFirebase = ({
             }
           }
           
-          const formatted = {
+          return {
             id: conv.contactNumber,
             name: phone,
             phone: phone,
@@ -2106,24 +2081,18 @@ const DashboardWithFirebase = ({
             online: false,
             messageCount: conv.messageCount || 0
           };
-          
-          console.log(`✅ [FORMAT] Conversa ${index + 1} formatada:`, formatted);
-          return formatted;
         });
-        
-        console.log('✅ [FORMAT] Total de conversas formatadas:', conversations.length);
-        console.log('🔍 [RENDER] conversations formatadas:', conversations);
         
         const currentConv = conversations.length > 0 
           ? (_selectedConversation ? (conversations.find(c => c.id === _selectedConversation) || conversations[0]) : conversations[0])
           : null;
         
         return (
-          <div key={`conversations-${conversationsKey}-${_realConversations.length}`} style={{ padding: '24px', height: 'calc(100vh - 48px)' }}>
+          <div style={{ padding: '24px', height: 'calc(100vh - 48px)' }}>
             {/* Header com ações */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
-                💬 Conversas WhatsApp
+                💬 Conversas WhatsApp ({_realConversations.length})
               </h2>
               <div style={{ display: 'flex', gap: '12px' }}>
                 {/* Toggle modo compacto */}
