@@ -110,32 +110,36 @@ async function createSession(userId) {
         console.log('📊 Status da sessão:', statusSession, 'para:', userId);
         
         if (statusSession === 'isLogged' || statusSession === 'qrReadSuccess') {
-          // 🔥 NOVO: Salvar dados da sessão no Firebase para persistência
-          try {
-            const sessionToken = await client.getSessionTokenBrowser();
-            console.log('💾 Salvando token de sessão no Firebase...');
-            
-            await sessionRef.update({
-              status: 'connected',
-              connectedAt: new Date().toISOString(),
-              lastActivity: new Date().toISOString(),
-              qrCode: null, // Limpar QR Code após conexão
-              sessionToken: sessionToken, // 🔥 SALVAR TOKEN!
-              sessionSaved: true
-            });
-            
-            console.log('✅ WhatsApp conectado e sessão PERSISTIDA para:', userId);
-          } catch (tokenError) {
-            console.error('⚠️ Erro ao salvar token (continuando):', tokenError.message);
-            // Continua mesmo se não conseguir salvar o token
-            await sessionRef.update({
-              status: 'connected',
-              connectedAt: new Date().toISOString(),
-              lastActivity: new Date().toISOString(),
-              qrCode: null
-            });
-            console.log('✅ WhatsApp conectado para:', userId);
-          }
+          // Atualizar status inicial
+          await sessionRef.update({
+            status: 'connected',
+            connectedAt: new Date().toISOString(),
+            lastActivity: new Date().toISOString(),
+            qrCode: null
+          });
+          
+          console.log('✅ WhatsApp conectado para:', userId);
+          
+          // 🔥 Salvar token após o client estar pronto (com delay)
+          setTimeout(async () => {
+            try {
+              const activeClient = activeClients.get(userId);
+              if (activeClient) {
+                const sessionToken = await activeClient.getSessionTokenBrowser();
+                console.log('💾 Salvando token de sessão no Firebase...');
+                
+                await sessionRef.update({
+                  sessionToken: sessionToken,
+                  sessionSaved: true,
+                  tokenSavedAt: new Date().toISOString()
+                });
+                
+                console.log('✅ Token de sessão PERSISTIDO no Firebase!');
+              }
+            } catch (tokenError) {
+              console.error('⚠️ Erro ao salvar token:', tokenError.message);
+            }
+          }, 2000); // Aguardar 2 segundos para o client estar pronto
         } else if (statusSession === 'notLogged' || statusSession === 'qrReadFail') {
           sessionRef.update({
             status: 'disconnected',
