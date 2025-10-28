@@ -1871,23 +1871,8 @@ const DashboardWithFirebase = ({
   };
 
   const renderContent = () => {
-    // SOLUÇÃO DEFINITIVA: Usar typeof para verificar existência antes de acessar
-    const safeRealConversations = (typeof realConversations !== 'undefined' && realConversations) ? realConversations : [];
-    const safeCurrentMessages = (typeof currentMessages !== 'undefined' && currentMessages) ? currentMessages : [];
-    const safeLoadingConversations = (typeof loadingConversations !== 'undefined') ? loadingConversations : false;
-    const safeShowEmojiPicker = (typeof showEmojiPicker !== 'undefined') ? showEmojiPicker : false;
-    const safeMessageInput = (typeof messageInput !== 'undefined') ? messageInput : '';
-    const safeIsDragging = (typeof isDragging !== 'undefined') ? isDragging : false;
-    const safeChatSearchQuery = (typeof chatSearchQuery !== 'undefined') ? chatSearchQuery : '';
-    const safeIsCompactMode = (typeof isCompactMode !== 'undefined') ? isCompactMode : false;
-    const safeSelectedConversation = (typeof selectedConversation !== 'undefined') ? selectedConversation : null;
-    
-    const safeAgendamentos = (typeof agendamentos !== 'undefined' && agendamentos) ? agendamentos : [];
-    const safeLoadingAgendamentos = (typeof loadingAgendamentos !== 'undefined') ? loadingAgendamentos : false;
-    const safeAgendamentoFilter = (typeof agendamentoFilter !== 'undefined') ? agendamentoFilter : 'todos';
-    const safeAgendamentoTypeFilter = (typeof agendamentoTypeFilter !== 'undefined') ? agendamentoTypeFilter : 'todos';
-    
-    console.log('🎯 Estados capturados:', safeRealConversations.length, 'conversas,', safeAgendamentos.length, 'agendamentos');
+    console.log('🎯 Estados DIRETOS no render:', realConversations?.length || 0, 'conversas,', agendamentos?.length || 0, 'agendamentos');
+    console.log('🔍 realConversations atual:', realConversations);
     
     switch (currentPage) {
       case 'dashboard':
@@ -2035,18 +2020,19 @@ const DashboardWithFirebase = ({
           );
         }
         
-        // USAR dados capturados ANTES do switch (já estão no escopo correto)
-        const _realConversations = safeRealConversations;
-        const _currentMessages = safeCurrentMessages;
-        const _loadingConversations = safeLoadingConversations;
-        const _showEmojiPicker = safeShowEmojiPicker;
-        const _messageInput = safeMessageInput;
-        const _isDragging = safeIsDragging;
-        const _chatSearchQuery = safeChatSearchQuery;
-        const _isCompactMode = safeIsCompactMode;
-        const _selectedConversation = safeSelectedConversation;
+        // USAR valores diretos dos states (SEM captura prévia)
+        const _realConversations = realConversations || [];
+        const _currentMessages = currentMessages || [];
+        const _loadingConversations = loadingConversations || false;
+        const _showEmojiPicker = showEmojiPicker || false;
+        const _messageInput = messageInput || '';
+        const _isDragging = isDragging || false;
+        const _chatSearchQuery = chatSearchQuery || '';
+        const _isCompactMode = isCompactMode || false;
+        const _selectedConversation = selectedConversation || null;
         
-        console.log('✅ Usando dados do conversationsData:', _realConversations.length, 'conversas');
+        console.log('✅ Usando dados DIRETOS:', _realConversations.length, 'conversas');
+        console.log('🔍 _realConversations:', _realConversations);
         
         // Emojis mais usados
         const frequentEmojis = ['😊', '👍', '❤️', '😂', '🎉', '🙏', '👏', '✅', '💯', '🔥', '😍', '🤝', '💪', '⭐', '📱', '💬', '📦', '✨'];
