@@ -77,14 +77,6 @@ const FirebaseApp = () => {
   
   // URL do backend
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
-  
-  // 🔍 LOG DE RENDER DO COMPONENTE
-  console.log('🔄 [COMPONENT RENDER] FirebaseApp renderizado!', {
-    currentPage,
-    conversationsCount: realConversations?.length || 0,
-    agendamentosCount: agendamentos?.length || 0,
-    timestamp: Date.now()
-  });
 
   // Função para mostrar toast
   const showToast = (message, type = 'success') => {
@@ -653,7 +645,13 @@ const FirebaseApp = () => {
   useEffect(() => {
     console.log('🔄 [STATE CHANGED] realConversations atualizado:', realConversations);
     console.log('🔄 [STATE CHANGED] Total:', realConversations?.length || 0);
-  }, [realConversations]);
+    console.log('🔄 [STATE CHANGED] currentPage:', currentPage);
+    
+    // Forçar re-render se necessário
+    if (realConversations && realConversations.length > 0 && currentPage === 'conversas') {
+      console.log('✅ [STATE CHANGED] Temos conversas e estamos na página correta!');
+    }
+  }, [realConversations, currentPage]);
 
   const regenerateQRCode = async () => {
     if (!user) return;
