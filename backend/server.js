@@ -2804,13 +2804,15 @@ async function emitirNotaFiscal(userId, orderId, orderData, payment) {
 // ROTAS DA API
 // ============================================
 
-// Rota de teste
+// Rota de teste / healthcheck
 app.get('/', (req, res) => {
+  console.log('🏥 Healthcheck recebido');
   res.json({
     status: 'online',
     service: 'WhatsApp IA Backend',
     version: '1.0.0',
-    activeSessions: activeClients.size
+    activeSessions: activeClients.size,
+    timestamp: new Date().toISOString()
   });
 });
 
