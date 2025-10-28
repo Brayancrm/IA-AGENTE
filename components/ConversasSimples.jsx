@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ref, onValue, off } from 'firebase/database';
+import { onAuthStateChanged } from 'firebase/auth';
 import { useFirebase } from '../hooks/useFirebase';
 
 /**
@@ -13,6 +14,32 @@ export default function ConversasSimples({ userId, backendUrl }) {
   const [conversaSelecionada, setConversaSelecionada] = useState(null);
   const [mensagens, setMensagens] = useState([]);
   const [carregandoMensagens, setCarregandoMensagens] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+
+  // Esperar o Firebase Auth estar REALMENTE pronto
+  useEffect(() => {
+    if (!auth) return;
+
+    console.log('🔐 Configurando listener de autenticação...');
+    
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user && user.uid === userId) {
+        console.log('✅ Firebase Auth CONFIRMADO e sincronizado!', {
+          uid: user.uid,
+          email: user.email
+        });
+        setAuthReady(true);
+      } else {
+        console.warn('⚠️ Auth state mudou, mas usuário não corresponde', {
+          user: user?.uid,
+          expectedUserId: userId
+        });
+        setAuthReady(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [auth, userId]);
 
   // Debug: Verificar estado do Firebase
   useEffect(() => {
@@ -20,10 +47,11 @@ export default function ConversasSimples({ userId, backendUrl }) {
       hasDatabase: !!database,
       hasAuth: !!auth,
       isReady,
+      authReady,
       currentUser: auth?.currentUser?.uid,
       expectedUserId: userId
     });
-  }, [database, auth, isReady, userId]);
+  }, [database, auth, isReady, authReady, userId]);
 
   // Buscar conversas do backend
   useEffect(() => {
@@ -61,6 +89,13 @@ export default function ConversasSimples({ userId, backendUrl }) {
       return;
     }
 
+    // 🔥 CRÍTICO: Aguardar o Firebase Auth confirmar via onAuthStateChanged
+    if (!authReady) {
+      console.warn('⏳ Aguardando Firebase Auth sincronizar com Realtime Database...');
+      setMensagens([]);
+      return;
+    }
+
     // Verificar se o usuário está autenticado
     if (!auth.currentUser) {
       console.warn('⚠️ Usuário não autenticado, aguardando...');
@@ -84,6 +119,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
       uid: auth.currentUser.uid,
       email: auth.currentUser.email
     });
+    console.log('🔥 authReady = true - Firebase Auth SINCRONIZADO com Realtime Database!');
 
     // Limpar o contactNumber para usar como chave no Firebase
     const phoneNumber = conversaSelecionada.replace(/@c\.us|_c_us/g, '');
@@ -125,7 +161,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
       // Se o timer já executou, off será chamado quando o componente desmontar
       off(messagesRef);
     };
-  }, [conversaSelecionada, database, userId, auth, isReady]);
+  }, [conversaSelecionada, database, userId, auth, isReady, authReady]);
 
   // Formatar telefone para exibição
   const formatarTelefone = (contactNumber) => {
