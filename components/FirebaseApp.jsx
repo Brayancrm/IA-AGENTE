@@ -1871,8 +1871,23 @@ const DashboardWithFirebase = ({
   };
 
   const renderContent = () => {
-    console.log('🎯 Estados DIRETOS no render:', realConversations?.length || 0, 'conversas,', agendamentos?.length || 0, 'agendamentos');
-    console.log('🔍 realConversations atual:', realConversations);
+    // Proteção SSR e undefined - garantir que sempre temos valores válidos
+    const safeRealConversations = (typeof realConversations !== 'undefined') ? (realConversations || []) : [];
+    const safeCurrentMessages = (typeof currentMessages !== 'undefined') ? (currentMessages || []) : [];
+    const safeLoadingConversations = (typeof loadingConversations !== 'undefined') ? loadingConversations : false;
+    const safeAgendamentos = (typeof agendamentos !== 'undefined') ? (agendamentos || []) : [];
+    const safeLoadingAgendamentos = (typeof loadingAgendamentos !== 'undefined') ? loadingAgendamentos : false;
+    const safeShowEmojiPicker = (typeof showEmojiPicker !== 'undefined') ? showEmojiPicker : false;
+    const safeMessageInput = (typeof messageInput !== 'undefined') ? (messageInput || '') : '';
+    const safeIsDragging = (typeof isDragging !== 'undefined') ? isDragging : false;
+    const safeChatSearchQuery = (typeof chatSearchQuery !== 'undefined') ? (chatSearchQuery || '') : '';
+    const safeIsCompactMode = (typeof isCompactMode !== 'undefined') ? isCompactMode : false;
+    const safeSelectedConversation = (typeof selectedConversation !== 'undefined') ? selectedConversation : null;
+    const safeAgendamentoFilter = (typeof agendamentoFilter !== 'undefined') ? (agendamentoFilter || 'todos') : 'todos';
+    const safeAgendamentoTypeFilter = (typeof agendamentoTypeFilter !== 'undefined') ? (agendamentoTypeFilter || 'todos') : 'todos';
+    
+    console.log('🎯 Estados protegidos no render:', safeRealConversations.length, 'conversas,', safeAgendamentos.length, 'agendamentos');
+    console.log('🔍 realConversations atual:', safeRealConversations);
     
     switch (currentPage) {
       case 'dashboard':
@@ -2020,18 +2035,18 @@ const DashboardWithFirebase = ({
           );
         }
         
-        // USAR valores diretos dos states (SEM captura prévia)
-        const _realConversations = realConversations || [];
-        const _currentMessages = currentMessages || [];
-        const _loadingConversations = loadingConversations || false;
-        const _showEmojiPicker = showEmojiPicker || false;
-        const _messageInput = messageInput || '';
-        const _isDragging = isDragging || false;
-        const _chatSearchQuery = chatSearchQuery || '';
-        const _isCompactMode = isCompactMode || false;
-        const _selectedConversation = selectedConversation || null;
+        // USAR valores já protegidos e validados
+        const _realConversations = safeRealConversations;
+        const _currentMessages = safeCurrentMessages;
+        const _loadingConversations = safeLoadingConversations;
+        const _showEmojiPicker = safeShowEmojiPicker;
+        const _messageInput = safeMessageInput;
+        const _isDragging = safeIsDragging;
+        const _chatSearchQuery = safeChatSearchQuery;
+        const _isCompactMode = safeIsCompactMode;
+        const _selectedConversation = safeSelectedConversation;
         
-        console.log('✅ Usando dados DIRETOS:', _realConversations.length, 'conversas');
+        console.log('✅ Usando dados protegidos:', _realConversations.length, 'conversas');
         console.log('🔍 _realConversations:', _realConversations);
         
         // Emojis mais usados
