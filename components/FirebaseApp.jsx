@@ -77,6 +77,14 @@ const FirebaseApp = () => {
   
   // URL do backend
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+  
+  // 🔍 LOG DE RENDER DO COMPONENTE
+  console.log('🔄 [COMPONENT RENDER] FirebaseApp renderizado!', {
+    currentPage,
+    conversationsCount: realConversations?.length || 0,
+    agendamentosCount: agendamentos?.length || 0,
+    timestamp: Date.now()
+  });
 
   // Função para mostrar toast
   const showToast = (message, type = 'success') => {
@@ -1871,6 +1879,10 @@ const DashboardWithFirebase = ({
   };
 
   const renderContent = () => {
+    console.log('🔄 [RENDER CONTENT] Função renderContent chamada! Timestamp:', Date.now());
+    console.log('🔄 [RENDER CONTENT] realConversations RAW antes de safe:', realConversations);
+    console.log('🔄 [RENDER CONTENT] Length:', realConversations?.length);
+    
     // Proteção SSR e undefined - garantir que sempre temos valores válidos
     const safeRealConversations = (typeof realConversations !== 'undefined') ? (realConversations || []) : [];
     const safeCurrentMessages = (typeof currentMessages !== 'undefined') ? (currentMessages || []) : [];
