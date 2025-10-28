@@ -81,6 +81,20 @@ async function createSession(userId) {
   const sessionRef = db.ref(`whatsapp_sessions/${userId}`);
   
   try {
+    // 🔥 CRÍTICO: Fechar sessão antiga se existir
+    const existingClient = activeClients.get(userId);
+    if (existingClient) {
+      console.log('🔄 Fechando sessão anterior para evitar conflitos...');
+      try {
+        await existingClient.close();
+        activeClients.delete(userId);
+        console.log('✅ Sessão anterior fechada com sucesso');
+      } catch (closeError) {
+        console.warn('⚠️ Erro ao fechar sessão anterior (continuando):', closeError.message);
+        activeClients.delete(userId);
+      }
+    }
+    
     // 🔥 NOVO: Verificar se existe sessão salva no Firebase para restaurar
     const sessionSnapshot = await sessionRef.once('value');
     const sessionData = sessionSnapshot.val();
@@ -96,6 +110,9 @@ async function createSession(userId) {
       // 🔥 NOVO: Habilitar persistência de sessão
       tokenStore: 'file',
       folderNameToken: '/tokens',
+      // 🔥 CRÍTICO: Flags adicionais para evitar conflitos de perfil
+      disableWelcome: true,
+      updatesLog: false,
       catchQR: (base64Qr, asciiQR) => {
         console.log('📷 QR Code gerado para:', userId);
         // Salvar QR Code no Realtime Database
@@ -159,6 +176,8 @@ async function createSession(userId) {
       puppeteerOptions: {
         headless: true,
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || '/nix/store/chromium/bin/chromium',
+        // 🔥 CRÍTICO: UserDataDir único por usuário para evitar conflitos de perfil
+        userDataDir: `/tokens/chrome_profile_${userId}`,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -168,7 +187,16 @@ async function createSession(userId) {
           '--no-zygote',
           '--disable-gpu',
           '--disable-software-rasterizer',
-          '--disable-dev-profile'
+          '--disable-dev-profile',
+          // 🔥 CRÍTICO: Flags adicionais para evitar bloqueio de perfil
+          '--disable-features=IsolateOrigins,site-per-process',
+          '--disable-site-isolation-trials',
+          '--disable-web-security',
+          '--disable-extensions',
+          '--disable-background-networking',
+          '--disable-sync',
+          '--metrics-recording-only',
+          '--mute-audio'
         ]
       }
     });
