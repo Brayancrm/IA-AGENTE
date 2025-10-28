@@ -127,6 +127,23 @@ export default function ConversasSimples({ userId, backendUrl }) {
 
     // Aguardar um pouco antes de configurar o listener
     const timer = setTimeout(() => {
+      // Debug detalhado do Firebase Auth antes de tentar acessar
+      console.log('🔍 [TENTATIVA DE ACESSO] Detalhes completos:', {
+        path: `messages/${userId}/${phoneNumber}`,
+        authCurrentUser: auth.currentUser ? {
+          uid: auth.currentUser.uid,
+          email: auth.currentUser.email,
+          emailVerified: auth.currentUser.emailVerified,
+          isAnonymous: auth.currentUser.isAnonymous,
+          metadata: {
+            creationTime: auth.currentUser.metadata.creationTime,
+            lastSignInTime: auth.currentUser.metadata.lastSignInTime
+          }
+        } : null,
+        databaseConnected: !!database,
+        messagesRefPath: messagesRef.toString()
+      });
+      
       const unsubscribe = onValue(messagesRef, (snapshot) => {
         const data = snapshot.val();
         
@@ -140,13 +157,28 @@ export default function ConversasSimples({ userId, backendUrl }) {
           console.log('✅ Mensagens carregadas:', messagesArray.length);
           setMensagens(messagesArray);
         } else {
-          console.log('ℹ️ Nenhuma mensagem encontrada');
+          console.log('ℹ️ Nenhuma mensagem encontrada (snapshot vazio)');
           setMensagens([]);
         }
         
         setCarregandoMensagens(false);
       }, (error) => {
         console.error('❌ Erro ao buscar mensagens:', error);
+        console.error('❌ Detalhes do erro:', {
+          code: error.code,
+          message: error.message,
+          name: error.name,
+          stack: error.stack?.split('\n')[0]
+        });
+        
+        // Verificar se é realmente um erro de permissão
+        if (error.code === 'PERMISSION_DENIED') {
+          console.error('🚨 CONFIRMADO: Erro de permissão do Firebase!');
+          console.error('🔍 Verifique no Firebase Console:');
+          console.error(`   Path: messages/${userId}/${phoneNumber}`);
+          console.error(`   UID autenticado: ${auth.currentUser?.uid}`);
+        }
+        
         setCarregandoMensagens(false);
         setMensagens([]);
       });
