@@ -174,10 +174,62 @@ async function createSession(userId) {
       await handleIncomingMessage(userId, message, client);
     });
 
+    // 🔥 NOVO: Monitorar desconexão e reconectar automaticamente
+    client.onStateChange((state) => {
+      console.log('🔄 Estado do WhatsApp mudou:', state, 'para:', userId);
+      
+      if (state === 'CONFLICT' || state === 'UNPAIRED' || state === 'UNLAUNCHED') {
+        console.log('⚠️ WhatsApp desconectado! Tentando reconectar em 10 segundos...');
+        
+        sessionRef.update({
+          status: 'disconnected',
+          lastActivity: new Date().toISOString(),
+          disconnectReason: state
+        });
+        
+        // Tentar reconectar após 10 segundos
+        setTimeout(async () => {
+          try {
+            console.log('🔄 Tentando reconectar WhatsApp para:', userId);
+            await createSession(userId);
+          } catch (error) {
+            console.error('❌ Erro ao reconectar:', error.message);
+          }
+        }, 10000);
+      }
+    });
+
     // Salvar cliente ativo
     activeClients.set(userId, client);
     
     console.log('✅ Sessão criada com sucesso para:', userId);
+    
+    // 🔥 NOVO: Healthcheck periódico da conexão
+    const healthCheckInterval = setInterval(async () => {
+      try {
+        const isConnected = await client.isConnected();
+        
+        if (isConnected) {
+          // Atualizar lastActivity
+          await sessionRef.update({
+            lastActivity: new Date().toISOString()
+          });
+        } else {
+          console.log('⚠️ [Healthcheck] WhatsApp desconectado para:', userId);
+          clearInterval(healthCheckInterval);
+          
+          // Tentar reconectar
+          try {
+            await createSession(userId);
+          } catch (error) {
+            console.error('❌ Erro ao reconectar:', error.message);
+          }
+        }
+      } catch (error) {
+        console.error('❌ [Healthcheck] Erro:', error.message);
+      }
+    }, 30000); // Verificar a cada 30 segundos
+    
     return client;
     
   } catch (error) {
