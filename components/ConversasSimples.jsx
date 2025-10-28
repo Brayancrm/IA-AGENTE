@@ -15,6 +15,8 @@ export default function ConversasSimples({ userId, backendUrl }) {
   const [mensagens, setMensagens] = useState([]);
   const [carregandoMensagens, setCarregandoMensagens] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [mensagemInput, setMensagemInput] = useState('');
+  const [enviandoMensagem, setEnviandoMensagem] = useState(false);
 
   // Esperar o Firebase Auth estar REALMENTE pronto
   useEffect(() => {
@@ -196,6 +198,46 @@ export default function ConversasSimples({ userId, backendUrl }) {
       off(messagesRef);
     };
   }, [conversaSelecionada, database, userId, auth, isReady, authReady]);
+
+  // Enviar mensagem
+  const enviarMensagem = async () => {
+    if (!mensagemInput.trim() || !conversaSelecionada || enviandoMensagem) return;
+
+    setEnviandoMensagem(true);
+    try {
+      console.log('📤 Enviando mensagem:', mensagemInput);
+      
+      // Formatar o número para o backend (adicionar @c.us se necessário)
+      const phoneForBackend = conversaSelecionada.includes('@c.us') 
+        ? conversaSelecionada.replace('_c_us', '@c.us')
+        : conversaSelecionada.replace('_c_us', '') + '@c.us';
+
+      const response = await fetch(`${backendUrl}/api/messages/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userId,
+          to: phoneForBackend,
+          message: mensagemInput.trim()
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao enviar mensagem');
+      }
+
+      console.log('✅ Mensagem enviada com sucesso!');
+      setMensagemInput(''); // Limpar input
+      
+    } catch (error) {
+      console.error('❌ Erro ao enviar mensagem:', error);
+      alert('Erro ao enviar mensagem. Tente novamente.');
+    } finally {
+      setEnviandoMensagem(false);
+    }
+  };
 
   // Formatar telefone para exibição
   const formatarTelefone = (contactNumber) => {
@@ -469,6 +511,73 @@ export default function ConversasSimples({ userId, backendUrl }) {
                     );
                   })
                 )}
+              </div>
+
+              {/* Input de mensagem */}
+              <div style={{ 
+                padding: '16px', 
+                borderTop: '1px solid #e5e7eb', 
+                backgroundColor: 'white',
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'center'
+              }}>
+                <input
+                  type="text"
+                  placeholder="Digite uma mensagem..."
+                  value={mensagemInput}
+                  onChange={(e) => setMensagemInput(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !enviandoMensagem) {
+                      enviarMensagem();
+                    }
+                  }}
+                  disabled={enviandoMensagem}
+                  style={{
+                    flex: 1,
+                    padding: '12px 16px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '24px',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    transition: 'border-color 0.2s'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                  onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                />
+                <button 
+                  onClick={enviarMensagem}
+                  disabled={!mensagemInput.trim() || enviandoMensagem}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: mensagemInput.trim() && !enviandoMensagem ? '#10b981' : '#d1d5db',
+                    border: 'none',
+                    borderRadius: '24px',
+                    cursor: mensagemInput.trim() && !enviandoMensagem ? 'pointer' : 'not-allowed',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s',
+                    minWidth: '100px',
+                    justifyContent: 'center'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (mensagemInput.trim() && !enviandoMensagem) {
+                      e.currentTarget.style.backgroundColor = '#059669';
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (mensagemInput.trim() && !enviandoMensagem) {
+                      e.currentTarget.style.backgroundColor = '#10b981';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }
+                  }}
+                >
+                  {enviandoMensagem ? 'Enviando...' : 'Enviar 📤'}
+                </button>
               </div>
             </>
           )}
