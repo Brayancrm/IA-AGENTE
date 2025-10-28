@@ -7,12 +7,23 @@ import { useFirebase } from '../hooks/useFirebase';
  * SEM complexidade desnecessária - foco em FUNCIONAR
  */
 export default function ConversasSimples({ userId, backendUrl }) {
-  const { database } = useFirebase();
+  const { database, auth, isReady } = useFirebase();
   const [conversas, setConversas] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [conversaSelecionada, setConversaSelecionada] = useState(null);
   const [mensagens, setMensagens] = useState([]);
   const [carregandoMensagens, setCarregandoMensagens] = useState(false);
+
+  // Debug: Verificar estado do Firebase
+  useEffect(() => {
+    console.log('🔍 [DEBUG] Firebase State:', {
+      hasDatabase: !!database,
+      hasAuth: !!auth,
+      isReady,
+      currentUser: auth?.currentUser?.uid,
+      expectedUserId: userId
+    });
+  }, [database, auth, isReady, userId]);
 
   // Buscar conversas do backend
   useEffect(() => {
@@ -44,13 +55,35 @@ export default function ConversasSimples({ userId, backendUrl }) {
 
   // Buscar mensagens da conversa selecionada do Firebase
   useEffect(() => {
-    if (!conversaSelecionada || !database || !userId) {
+    // Verificações de segurança
+    if (!conversaSelecionada || !database || !userId || !auth || !isReady) {
+      setMensagens([]);
+      return;
+    }
+
+    // Verificar se o usuário está autenticado
+    if (!auth.currentUser) {
+      console.warn('⚠️ Usuário não autenticado, aguardando...');
+      setMensagens([]);
+      return;
+    }
+
+    // Verificar se o userId corresponde ao usuário autenticado
+    if (auth.currentUser.uid !== userId) {
+      console.error('❌ Inconsistência: auth.uid !== userId', {
+        authUid: auth.currentUser.uid,
+        userId: userId
+      });
       setMensagens([]);
       return;
     }
 
     setCarregandoMensagens(true);
     console.log('💬 Buscando mensagens da conversa:', conversaSelecionada);
+    console.log('✅ Auth verificado:', {
+      uid: auth.currentUser.uid,
+      email: auth.currentUser.email
+    });
 
     // Limpar o contactNumber para usar como chave no Firebase
     const phoneNumber = conversaSelecionada.replace(/@c\.us|_c_us/g, '');
@@ -92,7 +125,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
       // Se o timer já executou, off será chamado quando o componente desmontar
       off(messagesRef);
     };
-  }, [conversaSelecionada, database, userId]);
+  }, [conversaSelecionada, database, userId, auth, isReady]);
 
   // Formatar telefone para exibição
   const formatarTelefone = (contactNumber) => {
