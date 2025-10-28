@@ -12,6 +12,7 @@ import { convertStepsToPrompt } from '../hooks/useFlowBuilder';
 // Import dinâmico para evitar problemas de SSR
 const FlowBuilder = dynamic(() => import('./FlowBuilder'), { ssr: false });
 const AgendamentoModal = dynamic(() => import('./AgendamentoModal'), { ssr: false });
+const ConversasSimples = dynamic(() => import('./ConversasSimples'), { ssr: false });
 import {
   Package,
   Plus,
@@ -2020,37 +2021,20 @@ const DashboardWithFirebase = ({
         return renderAgendamentos();
 
       case 'conversas': {
-        // Proteção SSR: Aguardar cliente estar pronto
-        if (typeof window === 'undefined') {
-          console.log('⚠️ SSR detectado - aguardando cliente');
+        // Usar componente SIMPLES e NOVO sem complexidade
+        if (!user) return null;
+        
+        return (
+          <ConversasSimples 
+            userId={user.uid}
+            backendUrl={BACKEND_URL}
+          />
+        );
+      }
+
+      case 'crm':
           return (
-            <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
-              Inicializando...
-            </div>
-          );
-        }
-        
-        // USAR valores já protegidos e validados
-        const _realConversations = safeRealConversations;
-        const _currentMessages = safeCurrentMessages;
-        const _loadingConversations = safeLoadingConversations;
-        const _showEmojiPicker = safeShowEmojiPicker;
-        const _messageInput = safeMessageInput;
-        const _isDragging = safeIsDragging;
-        const _chatSearchQuery = safeChatSearchQuery;
-        const _isCompactMode = safeIsCompactMode;
-        const _selectedConversation = safeSelectedConversation;
-        
-        // Emojis mais usados
-        const frequentEmojis = ['😊', '👍', '❤️', '😂', '🎉', '🙏', '👏', '✅', '💯', '🔥', '😍', '🤝', '💪', '⭐', '📱', '💬', '📦', '✨'];
-        
-        // Formatar conversas reais de forma SIMPLES
-        const conversations = _realConversations.map((conv, index) => {
-          
-          const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
-          const phone = conv.contactNumber || 'Cliente';
-          const name = phone.replace('@c.us', '').replace(/\D/g, ''); // Extrai apenas números
+          <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
           const initials = name.substring(0, 2).toUpperCase();
           
           // Formatar tempo
