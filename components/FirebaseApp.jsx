@@ -2024,10 +2024,13 @@ const DashboardWithFirebase = ({
         // Usar componente SIMPLES e NOVO sem complexidade
         if (!user) return null;
         
+        // Definir backend URL diretamente (sem depender da constante BACKEND_URL)
+        const conversasBackendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://ia-agente-backend.up.railway.app';
+        
         return (
           <ConversasSimples 
             userId={user.uid}
-            backendUrl={BACKEND_URL}
+            backendUrl={conversasBackendUrl}
           />
         );
       }
