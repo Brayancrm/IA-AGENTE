@@ -121,15 +121,17 @@ export default function ConversasSimples({ userId, backendUrl }) {
     });
     console.log('🔥 authReady = true - Firebase Auth SINCRONIZADO com Realtime Database!');
 
-    // Limpar o contactNumber para usar como chave no Firebase
-    const phoneNumber = conversaSelecionada.replace(/@c\.us|_c_us/g, '');
-    const messagesRef = ref(database, `messages/${userId}/${phoneNumber}`);
+    // NÃO remover o _c_us! O Firebase usa ele no caminho
+    const phoneNumber = conversaSelecionada; // Manter o formato original: 393883477676_c_us
+    
+    // CAMINHO CORRETO: /conversations/{userId}/{phoneNumber}/messages
+    const messagesRef = ref(database, `conversations/${userId}/${phoneNumber}/messages`);
 
     // Aguardar um pouco antes de configurar o listener
     const timer = setTimeout(() => {
       // Debug detalhado do Firebase Auth antes de tentar acessar
       console.log('🔍 [TENTATIVA DE ACESSO] Detalhes completos:', {
-        path: `messages/${userId}/${phoneNumber}`,
+        path: `conversations/${userId}/${phoneNumber}/messages`,
         authCurrentUser: auth.currentUser ? {
           uid: auth.currentUser.uid,
           email: auth.currentUser.email,
@@ -175,7 +177,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
         if (error.code === 'PERMISSION_DENIED') {
           console.error('🚨 CONFIRMADO: Erro de permissão do Firebase!');
           console.error('🔍 Verifique no Firebase Console:');
-          console.error(`   Path: messages/${userId}/${phoneNumber}`);
+          console.error(`   Path: conversations/${userId}/${phoneNumber}/messages`);
           console.error(`   UID autenticado: ${auth.currentUser?.uid}`);
         }
         
