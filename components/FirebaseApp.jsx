@@ -641,15 +641,18 @@ const FirebaseApp = () => {
     }
   }, [user, currentPage]);
 
-  // Debug: Monitorar mudanças em realConversations
+  // Debug: Monitorar mudanças em realConversations E forçar re-render
+  const [conversationsKey, setConversationsKey] = useState(0);
+  
   useEffect(() => {
     console.log('🔄 [STATE CHANGED] realConversations atualizado:', realConversations);
     console.log('🔄 [STATE CHANGED] Total:', realConversations?.length || 0);
     console.log('🔄 [STATE CHANGED] currentPage:', currentPage);
     
-    // Forçar re-render se necessário
+    // Forçar re-render quando conversas mudarem
     if (realConversations && realConversations.length > 0 && currentPage === 'conversas') {
-      console.log('✅ [STATE CHANGED] Temos conversas e estamos na página correta!');
+      console.log('✅ [FORCE UPDATE] Forçando re-render com', realConversations.length, 'conversas!');
+      setConversationsKey(prev => prev + 1); // Força re-render
     }
   }, [realConversations, currentPage]);
 
@@ -2116,7 +2119,7 @@ const DashboardWithFirebase = ({
           : null;
         
         return (
-          <div style={{ padding: '24px', height: 'calc(100vh - 48px)' }}>
+          <div key={`conversations-${conversationsKey}-${_realConversations.length}`} style={{ padding: '24px', height: 'calc(100vh - 48px)' }}>
             {/* Header com ações */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
