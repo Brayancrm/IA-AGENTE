@@ -81,8 +81,21 @@ async function createSession(userId) {
   const sessionRef = db.ref(`whatsapp_sessions/${userId}`);
   
   try {
+    // 🔥 NOVO: Verificar se existe sessão salva no Firebase para restaurar
+    const sessionSnapshot = await sessionRef.once('value');
+    const sessionData = sessionSnapshot.val();
+    
+    if (sessionData && sessionData.sessionToken) {
+      console.log('🔄 Tentando restaurar sessão existente do Firebase...');
+    } else {
+      console.log('🆕 Criando nova sessão WhatsApp...');
+    }
+    
     const client = await wppconnect.create({
       session: `user_${userId}`,
+      // 🔥 NOVO: Habilitar persistência de sessão
+      tokenStore: 'file',
+      folderNameToken: './tokens',
       catchQR: (base64Qr, asciiQR) => {
         console.log('📷 QR Code gerado para:', userId);
         // Salvar QR Code no Realtime Database
@@ -93,17 +106,36 @@ async function createSession(userId) {
           updatedAt: new Date().toISOString()
         });
       },
-      statusFind: (statusSession, session) => {
+      statusFind: async (statusSession, session) => {
         console.log('📊 Status da sessão:', statusSession, 'para:', userId);
         
         if (statusSession === 'isLogged' || statusSession === 'qrReadSuccess') {
-          sessionRef.update({
-            status: 'connected',
-            connectedAt: new Date().toISOString(),
-            lastActivity: new Date().toISOString(),
-            qrCode: null // Limpar QR Code após conexão
-          });
-          console.log('✅ WhatsApp conectado para:', userId);
+          // 🔥 NOVO: Salvar dados da sessão no Firebase para persistência
+          try {
+            const sessionToken = await client.getSessionTokenBrowser();
+            console.log('💾 Salvando token de sessão no Firebase...');
+            
+            await sessionRef.update({
+              status: 'connected',
+              connectedAt: new Date().toISOString(),
+              lastActivity: new Date().toISOString(),
+              qrCode: null, // Limpar QR Code após conexão
+              sessionToken: sessionToken, // 🔥 SALVAR TOKEN!
+              sessionSaved: true
+            });
+            
+            console.log('✅ WhatsApp conectado e sessão PERSISTIDA para:', userId);
+          } catch (tokenError) {
+            console.error('⚠️ Erro ao salvar token (continuando):', tokenError.message);
+            // Continua mesmo se não conseguir salvar o token
+            await sessionRef.update({
+              status: 'connected',
+              connectedAt: new Date().toISOString(),
+              lastActivity: new Date().toISOString(),
+              qrCode: null
+            });
+            console.log('✅ WhatsApp conectado para:', userId);
+          }
         } else if (statusSession === 'notLogged' || statusSession === 'qrReadFail') {
           sessionRef.update({
             status: 'disconnected',
