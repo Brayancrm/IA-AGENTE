@@ -176,26 +176,62 @@ const FirebaseApp = () => {
 
   // Listener para status do WhatsApp
   useEffect(() => {
-    if (!user || !database) return;
+    if (!user || !database) {
+      console.log('⚠️ [WhatsApp Listener] Aguardando user ou database...');
+      return;
+    }
 
+    console.log('🔄 [WhatsApp Listener] INICIANDO monitoramento em tempo real');
+    console.log('📍 [WhatsApp Listener] Path:', `whatsapp_sessions/${user.uid}`);
+    
     const sessionRef = ref(database, `whatsapp_sessions/${user.uid}`);
     
     const unsubscribe = onValue(sessionRef, (snapshot) => {
+      console.log('📡 [WhatsApp Listener] Evento recebido do Firebase!');
+      
       if (snapshot.exists()) {
         const session = snapshot.val();
-        setWhatsappStatus(session.status || 'disconnected');
+        const newStatus = session.status || 'disconnected';
+        
+        console.log('✅ [WhatsApp Status] Dados encontrados no Firebase:');
+        console.log('   Status:', newStatus);
+        console.log('   Tem QR Code?', !!session.qrCode);
+        console.log('   Timestamp:', new Date().toLocaleTimeString());
+        
+        setWhatsappStatus(newStatus);
         setWhatsappQRCode(session.qrCode || null);
         
-        console.log('Status WhatsApp atualizado:', session.status);
-        console.log('QR Code recebido (primeiros 50 caracteres):', session.qrCode ? session.qrCode.substring(0, 50) : 'null');
-        console.log('QR Code tem prefixo data:image?', session.qrCode ? session.qrCode.startsWith('data:image') : false);
+        // Log visual diferente para cada status
+        if (newStatus === 'connected') {
+          console.log('🟢 WhatsApp CONECTADO!');
+        } else if (newStatus === 'disconnected') {
+          console.log('🔴 WhatsApp DESCONECTADO!');
+        } else if (newStatus === 'qrcode') {
+          console.log('📱 Aguardando QR Code...');
+        } else if (newStatus === 'connecting') {
+          console.log('🔄 Conectando...');
+        }
       } else {
+        console.log('⚠️ [WhatsApp Status] Nenhum dado encontrado no Firebase');
+        console.log('   Path:', `whatsapp_sessions/${user.uid}`);
+        console.log('   Definindo status como: disconnected');
+        
         setWhatsappStatus('disconnected');
         setWhatsappQRCode(null);
       }
+    }, (error) => {
+      console.error('❌ [WhatsApp Listener] Erro ao monitorar status:', error);
+      console.error('   Código:', error.code);
+      console.error('   Mensagem:', error.message);
     });
 
-    return () => off(sessionRef);
+    console.log('✅ [WhatsApp Listener] Listener configurado com sucesso!');
+    console.log('   Atualizações em tempo real ATIVAS');
+
+    return () => {
+      console.log('🔌 [WhatsApp Listener] Desconectando listener...');
+      off(sessionRef);
+    };
   }, [user, database]);
 
   // 📅 Agendamentos serão carregados automaticamente pelo listener do Firebase (setupFirestoreListeners)
