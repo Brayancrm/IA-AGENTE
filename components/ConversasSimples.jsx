@@ -56,32 +56,40 @@ export default function ConversasSimples({ userId, backendUrl }) {
     const phoneNumber = conversaSelecionada.replace(/@c\.us|_c_us/g, '');
     const messagesRef = ref(database, `messages/${userId}/${phoneNumber}`);
 
-    const unsubscribe = onValue(messagesRef, (snapshot) => {
-      const data = snapshot.val();
-      
-      if (data) {
-        // Converter objeto em array e ordenar por timestamp
-        const messagesArray = Object.entries(data).map(([key, value]) => ({
-          id: key,
-          ...value
-        })).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    // Aguardar um pouco antes de configurar o listener
+    const timer = setTimeout(() => {
+      const unsubscribe = onValue(messagesRef, (snapshot) => {
+        const data = snapshot.val();
         
-        console.log('✅ Mensagens carregadas:', messagesArray.length);
-        setMensagens(messagesArray);
-      } else {
-        console.log('ℹ️ Nenhuma mensagem encontrada');
+        if (data) {
+          // Converter objeto em array e ordenar por timestamp
+          const messagesArray = Object.entries(data).map(([key, value]) => ({
+            id: key,
+            ...value
+          })).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+          
+          console.log('✅ Mensagens carregadas:', messagesArray.length);
+          setMensagens(messagesArray);
+        } else {
+          console.log('ℹ️ Nenhuma mensagem encontrada');
+          setMensagens([]);
+        }
+        
+        setCarregandoMensagens(false);
+      }, (error) => {
+        console.error('❌ Erro ao buscar mensagens:', error);
+        setCarregandoMensagens(false);
         setMensagens([]);
-      }
-      
-      setCarregandoMensagens(false);
-    }, (error) => {
-      console.error('❌ Erro ao buscar mensagens:', error);
-      setCarregandoMensagens(false);
-      setMensagens([]);
-    });
+      });
+
+      // Salvar o unsubscribe para cleanup
+      return unsubscribe;
+    }, 500); // Aguardar 500ms para garantir autenticação
 
     // Cleanup
     return () => {
+      clearTimeout(timer);
+      // Se o timer já executou, off será chamado quando o componente desmontar
       off(messagesRef);
     };
   }, [conversaSelecionada, database, userId]);
