@@ -17,6 +17,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
   const [authReady, setAuthReady] = useState(false);
   const [mensagemInput, setMensagemInput] = useState('');
   const [enviandoMensagem, setEnviandoMensagem] = useState(false);
+  const [whatsappStatus, setWhatsappStatus] = useState('checking'); // checking, connected, disconnected
 
   // Esperar o Firebase Auth estar REALMENTE pronto
   useEffect(() => {
@@ -54,6 +55,32 @@ export default function ConversasSimples({ userId, backendUrl }) {
       expectedUserId: userId
     });
   }, [database, auth, isReady, authReady, userId]);
+
+  // Monitorar status do WhatsApp no Firebase
+  useEffect(() => {
+    if (!database || !userId) return;
+
+    console.log('🔍 Monitorando status do WhatsApp...');
+    const statusRef = ref(database, `sessions/${userId}/status`);
+
+    const unsubscribe = onValue(statusRef, (snapshot) => {
+      const status = snapshot.val();
+      console.log('📱 Status WhatsApp:', status);
+      
+      if (status === 'connected') {
+        setWhatsappStatus('connected');
+      } else if (status === 'disconnected') {
+        setWhatsappStatus('disconnected');
+      } else {
+        setWhatsappStatus('checking');
+      }
+    }, (error) => {
+      console.error('❌ Erro ao monitorar status:', error);
+      setWhatsappStatus('disconnected');
+    });
+
+    return () => off(statusRef);
+  }, [database, userId]);
 
   // Buscar conversas do backend
   useEffect(() => {
@@ -295,19 +322,45 @@ export default function ConversasSimples({ userId, backendUrl }) {
             borderBottom: '1px solid #e5e7eb', 
             backgroundColor: '#f9fafb' 
           }}>
-            <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937' }}>
-              Conversas
-              <span style={{ 
-                backgroundColor: '#10b981', 
-                color: 'white', 
-                fontSize: '0.75rem', 
-                fontWeight: 'bold', 
-                padding: '2px 8px', 
-                borderRadius: '12px', 
-                marginLeft: '8px' 
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937' }}>Conversas</span>
+                <span style={{ 
+                  backgroundColor: '#10b981', 
+                  color: 'white', 
+                  fontSize: '0.75rem', 
+                  fontWeight: 'bold', 
+                  padding: '2px 8px', 
+                  borderRadius: '12px'
+                }}>
+                  {conversas.length}
+                </span>
+              </div>
+              
+              {/* Status do WhatsApp */}
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px',
+                padding: '4px 10px',
+                borderRadius: '12px',
+                backgroundColor: whatsappStatus === 'connected' ? '#dcfce7' : whatsappStatus === 'disconnected' ? '#fee2e2' : '#f3f4f6',
+                border: `1px solid ${whatsappStatus === 'connected' ? '#86efac' : whatsappStatus === 'disconnected' ? '#fca5a5' : '#d1d5db'}`
               }}>
-                {conversas.length}
-              </span>
+                <div style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: whatsappStatus === 'connected' ? '#22c55e' : whatsappStatus === 'disconnected' ? '#ef4444' : '#9ca3af'
+                }}></div>
+                <span style={{ 
+                  fontSize: '0.75rem', 
+                  fontWeight: '600',
+                  color: whatsappStatus === 'connected' ? '#16a34a' : whatsappStatus === 'disconnected' ? '#dc2626' : '#6b7280'
+                }}>
+                  {whatsappStatus === 'connected' ? 'Conectado' : whatsappStatus === 'disconnected' ? 'Desconectado' : 'Verificando...'}
+                </span>
+              </div>
             </div>
           </div>
           
