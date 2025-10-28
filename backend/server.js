@@ -95,7 +95,7 @@ async function createSession(userId) {
       session: `user_${userId}`,
       // 🔥 NOVO: Habilitar persistência de sessão
       tokenStore: 'file',
-      folderNameToken: './tokens',
+      folderNameToken: '/tokens',
       catchQR: (base64Qr, asciiQR) => {
         console.log('📷 QR Code gerado para:', userId);
         // Salvar QR Code no Realtime Database
