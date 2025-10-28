@@ -1877,10 +1877,6 @@ const DashboardWithFirebase = ({
   };
 
   const renderContent = () => {
-    console.log('🔄 [RENDER CONTENT] Função renderContent chamada! Timestamp:', Date.now());
-    console.log('🔄 [RENDER CONTENT] realConversations RAW antes de safe:', realConversations);
-    console.log('🔄 [RENDER CONTENT] Length:', realConversations?.length);
-    
     // Proteção SSR e undefined - garantir que sempre temos valores válidos
     const safeRealConversations = (typeof realConversations !== 'undefined') ? (realConversations || []) : [];
     const safeCurrentMessages = (typeof currentMessages !== 'undefined') ? (currentMessages || []) : [];
@@ -1896,8 +1892,9 @@ const DashboardWithFirebase = ({
     const safeAgendamentoFilter = (typeof agendamentoFilter !== 'undefined') ? (agendamentoFilter || 'todos') : 'todos';
     const safeAgendamentoTypeFilter = (typeof agendamentoTypeFilter !== 'undefined') ? (agendamentoTypeFilter || 'todos') : 'todos';
     
-    console.log('🎯 Estados protegidos no render:', safeRealConversations.length, 'conversas,', safeAgendamentos.length, 'agendamentos');
-    console.log('🔍 realConversations atual:', safeRealConversations);
+    // Logs DEPOIS de criar as variáveis safe
+    console.log('🔄 [RENDER CONTENT] Função renderContent chamada! Timestamp:', Date.now());
+    console.log('🎯 Estados protegidos:', safeRealConversations.length, 'conversas,', safeAgendamentos.length, 'agendamentos');
     
     switch (currentPage) {
       case 'dashboard':
