@@ -2860,7 +2860,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online',
     service: 'WhatsApp IA Backend',
-    version: '1.0.3', // ✅ TUDO FUNCIONANDO - Teste final de persistência
+    version: '1.0.4', // 🎉 PERSISTÊNCIA COMPLETA - Deploy para teste definitivo!
     activeSessions: activeClients.size,
     timestamp: new Date().toISOString()
   });
