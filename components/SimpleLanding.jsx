@@ -222,7 +222,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
               e.target.style.color = '#ffffff';
             }}
           >
-            📺 Ver Demo
+            📖 Saiba Mais
           </button>
         </div>
       </section>
