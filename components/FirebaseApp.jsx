@@ -3907,17 +3907,22 @@ const DashboardWithFirebase = ({
 
       return (
         <div style={{ minHeight: '100vh', backgroundColor: '#0f1419', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
-          <div style={{ display: 'flex', minHeight: '100vh' }}>
-            {/* Sidebar Modernizada */}
+            {/* Sidebar Modernizada - FIXA */}
             <div style={{ 
-              width: '280px', 
+              position: 'fixed',
+              left: 0,
+              top: 0,
+              width: '280px',
+              height: '100vh',
               backgroundColor: '#1a1f36', 
               color: 'white', 
               padding: '32px 24px',
               display: 'flex',
               flexDirection: 'column',
               boxShadow: '2px 0 20px rgba(0,0,0,0.3)',
-              borderRight: '1px solid rgba(16, 185, 129, 0.1)'
+              borderRight: '1px solid rgba(16, 185, 129, 0.1)',
+              overflowY: 'auto',
+              zIndex: 1000
             }}>
           {/* Logo/Título */}
           <div style={{ marginBottom: '40px' }}>
@@ -4050,15 +4055,16 @@ const DashboardWithFirebase = ({
           </div>
         </div>
 
-            {/* Main Content */}
+            {/* Main Content - COM MARGEM PARA A SIDEBAR FIXA */}
             <div style={{ 
-              flex: 1, 
+              marginLeft: '280px',
+              minHeight: '100vh',
               backgroundColor: '#0f1419',
               overflowY: 'auto'
             }}>
               {renderContent()}
             </div>
-      </div>
+        </div>
 
       {/* Modal do Catálogo */}
       {showCatalogModal && (
