@@ -131,9 +131,6 @@ const SimpleLanding = ({ onLoginSuccess }) => {
               objectFit: 'contain'
             }} 
           />
-          <span style={{ fontSize: '1.25rem', fontWeight: '700', color: '#ffffff' }}>
-            WhatsApp Sales Agent
-          </span>
         </div>
         <button
           onClick={() => openModal('login')}

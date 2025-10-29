@@ -3924,7 +3924,7 @@ const DashboardWithFirebase = ({
               overflowY: 'auto',
               zIndex: 1000
             }}>
-          {/* Logo/Título */}
+          {/* Logo */}
           <div style={{ marginBottom: '40px', textAlign: 'center' }}>
             <img 
               src="/logo.png" 
@@ -3932,24 +3932,9 @@ const DashboardWithFirebase = ({
               style={{ 
                 width: '80px', 
                 height: '80px',
-                objectFit: 'contain',
-                marginBottom: '16px'
+                objectFit: 'contain'
               }} 
             />
-            <h1 style={{ 
-              fontSize: '1.5rem', 
-              fontWeight: '700', 
-              marginBottom: '4px',
-              background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}>
-              WhatsApp Sales Agent
-            </h1>
-            <p style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-              Sistema de Vendas com IA
-            </p>
           </div>
 
           {/* Badge Master */}
