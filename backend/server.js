@@ -160,8 +160,23 @@ async function createSession(userId) {
             try {
               const activeClient = activeClients.get(userId);
               if (activeClient) {
-                const sessionToken = await activeClient.getSessionTokenBrowser();
+                const sessionTokenRaw = await activeClient.getSessionTokenBrowser();
+                
+                // 🔥 CRÍTICO: Converter token para string se for object
+                let sessionToken;
+                if (typeof sessionTokenRaw === 'object' && sessionTokenRaw !== null) {
+                  sessionToken = JSON.stringify(sessionTokenRaw);
+                  console.log('💾 Token convertido de object para string (JSON)');
+                } else if (typeof sessionTokenRaw === 'string') {
+                  sessionToken = sessionTokenRaw;
+                } else {
+                  console.error('⚠️ Token em formato inválido:', typeof sessionTokenRaw);
+                  return;
+                }
+                
                 console.log('💾 Salvando token de sessão no Firebase...');
+                console.log(`   Tipo: ${typeof sessionToken}`);
+                console.log(`   Tamanho: ${sessionToken.length} caracteres`);
                 
                 await sessionRef.update({
                   sessionToken: sessionToken,
@@ -169,7 +184,7 @@ async function createSession(userId) {
                   tokenSavedAt: new Date().toISOString()
                 });
                 
-                console.log('✅ Token de sessão PERSISTIDO no Firebase!');
+                console.log('✅ Token de sessão PERSISTIDO no Firebase como STRING!');
               }
             } catch (tokenError) {
               console.error('⚠️ Erro ao salvar token:', tokenError.message);
@@ -2860,7 +2875,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online',
     service: 'WhatsApp IA Backend',
-    version: '1.0.9-fix-crashes', // 🔥 CORREÇÃO: Validação melhorada + prevenção de crashes
+    version: '1.0.10-fix-token-object', // 🔥 CORREÇÃO CRÍTICA: Converte token object para string
     activeSessions: activeClients.size,
     timestamp: new Date().toISOString()
   });
