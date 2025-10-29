@@ -3805,36 +3805,64 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log('');
   
   // 🔥 CRÍTICO: Auto-restaurar sessões do WhatsApp após reinício
-  console.log('🔄 Verificando sessões ativas para restaurar...');
+  console.log('');
+  console.log('='.repeat(50));
+  console.log('🔄 [AUTO-RESTORE] INICIANDO verificação de sessões...');
+  console.log('='.repeat(50));
+  
   try {
+    console.log('📡 [AUTO-RESTORE] Buscando sessões no Firebase...');
     const sessionsSnapshot = await db.ref('whatsapp_sessions').once('value');
     const sessions = sessionsSnapshot.val();
     
+    console.log('📊 [AUTO-RESTORE] Dados recebidos:', sessions ? 'SIM' : 'NÃO');
+    
     if (sessions) {
-      const connectedSessions = Object.entries(sessions)
+      console.log(`📋 [AUTO-RESTORE] Total de sessões no Firebase: ${Object.keys(sessions).length}`);
+      
+      const allSessions = Object.entries(sessions);
+      console.log('🔍 [AUTO-RESTORE] Detalhes de cada sessão:');
+      allSessions.forEach(([userId, data]) => {
+        console.log(`   - UserID: ${userId}`);
+        console.log(`     Status: ${data.status}`);
+        console.log(`     Tem token: ${!!data.sessionToken}`);
+      });
+      
+      const connectedSessions = allSessions
         .filter(([userId, data]) => data.status === 'connected' && data.sessionToken);
       
+      console.log(`✅ [AUTO-RESTORE] Sessões conectadas com token: ${connectedSessions.length}`);
+      
       if (connectedSessions.length > 0) {
-        console.log(`📱 Encontradas ${connectedSessions.length} sessão(ões) para restaurar`);
+        console.log(`📱 [AUTO-RESTORE] Encontradas ${connectedSessions.length} sessão(ões) para restaurar`);
         
         for (const [userId, sessionData] of connectedSessions) {
-          console.log(`🔄 Restaurando sessão para: ${userId}`);
+          console.log(`🔄 [AUTO-RESTORE] Restaurando sessão para: ${userId}`);
           try {
             await createSession(userId);
-            console.log(`✅ Sessão restaurada com sucesso para: ${userId}`);
+            console.log(`✅ [AUTO-RESTORE] Sessão restaurada com sucesso para: ${userId}`);
           } catch (error) {
-            console.error(`❌ Erro ao restaurar sessão para ${userId}:`, error.message);
+            console.error(`❌ [AUTO-RESTORE] Erro ao restaurar sessão para ${userId}:`, error.message);
+            console.error(`   Stack:`, error.stack);
           }
         }
+        console.log('🎉 [AUTO-RESTORE] Processo de restauração CONCLUÍDO!');
       } else {
-        console.log('ℹ️ Nenhuma sessão ativa encontrada para restaurar');
+        console.log('ℹ️ [AUTO-RESTORE] Nenhuma sessão ativa encontrada para restaurar');
+        console.log('   Motivo: Nenhuma sessão com status="connected" E sessionToken presente');
       }
     } else {
-      console.log('ℹ️ Nenhuma sessão registrada no Firebase');
+      console.log('ℹ️ [AUTO-RESTORE] Nenhuma sessão registrada no Firebase');
     }
   } catch (error) {
-    console.error('❌ Erro ao verificar sessões para restaurar:', error.message);
+    console.error('❌ [AUTO-RESTORE] ERRO CRÍTICO ao verificar sessões:', error.message);
+    console.error('   Stack:', error.stack);
   }
+  
+  console.log('='.repeat(50));
+  console.log('✅ [AUTO-RESTORE] Verificação finalizada');
+  console.log('='.repeat(50));
+  console.log('');
 });
 
 // Tratamento de erros não capturados
