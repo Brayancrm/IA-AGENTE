@@ -4162,7 +4162,6 @@ const DashboardWithFirebase = ({
               {renderContent()}
             </div>
           </div>
-        </>
 
             {/* Modal do Catálogo */}
             {showCatalogModal && (
@@ -4903,6 +4902,7 @@ const DashboardWithFirebase = ({
         </div>
       )}
     </div>
+    </>
   );
 };
 
