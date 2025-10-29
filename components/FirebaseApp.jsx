@@ -1925,43 +1925,238 @@ const DashboardWithFirebase = ({
     switch (currentPage) {
       case 'dashboard':
         return (
-          <div style={{ padding: '24px' }}>
-            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
-              Dashboard
-            </h2>
-            <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937' }}>
-                  Status do Sistema
-                </h3>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ padding: '40px', maxWidth: '1400px', margin: '0 auto' }}>
+            {/* Header */}
+            <div style={{ marginBottom: '32px' }}>
+              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#111827', marginBottom: '8px' }}>
+                Dashboard
+              </h2>
+              <p style={{ fontSize: '1rem', color: '#6b7280' }}>
+                Visão geral do seu sistema de vendas com IA
+              </p>
+            </div>
+
+            {/* Toggle Assistente */}
+            <div style={{ 
+              backgroundColor: 'white', 
+              borderRadius: '16px', 
+              padding: '24px', 
+              marginBottom: '24px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+              border: '1px solid #e5e7eb'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#111827', marginBottom: '4px' }}>
+                    Assistente de IA
+                  </h3>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                    {isActive ? '🟢 Ativo e respondendo mensagens' : '🔴 Desativado'}
+                  </p>
+                </div>
+                <label style={{ 
+                  position: 'relative', 
+                  display: 'inline-block', 
+                  width: '56px', 
+                  height: '28px',
+                  cursor: 'pointer'
+                }}>
                   <input
                     type="checkbox"
                     checked={isActive}
                     onChange={(e) => setIsActive(e.target.checked)}
-                    style={{ width: '20px', height: '20px' }}
+                    style={{ opacity: 0, width: 0, height: 0 }}
                   />
-                  <span style={{ color: '#6b7280' }}>Assistente Ativo</span>
+                  <span style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: isActive ? '#10b981' : '#d1d5db',
+                    borderRadius: '28px',
+                    transition: '0.3s',
+                    boxShadow: isActive ? '0 0 12px rgba(16, 185, 129, 0.4)' : 'none'
+                  }}>
+                    <span style={{
+                      position: 'absolute',
+                      content: '',
+                      height: '22px',
+                      width: '22px',
+                      left: isActive ? '30px' : '3px',
+                      bottom: '3px',
+                      backgroundColor: 'white',
+                      borderRadius: '50%',
+                      transition: '0.3s',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                    }} />
+                  </span>
                 </label>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
-                <div style={{ padding: '16px', backgroundColor: '#f3f4f6', borderRadius: '8px' }}>
-                  <h4 style={{ fontWeight: 'bold', marginBottom: '8px' }}>Configuração da Empresa</h4>
-                  <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>
-                    {companyProfile.companyName ? '✅ Completa' : '⚠️ Pendente'}
-                  </p>
+            </div>
+
+            {/* Cards de Status */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+              gap: '20px',
+              marginBottom: '32px'
+            }}>
+              <div style={{ 
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                borderRadius: '16px', 
+                padding: '24px',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+                color: 'white',
+                transition: 'transform 0.2s ease',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                <div style={{ fontSize: '2.5rem', marginBottom: '12px', opacity: 0.9 }}>🏢</div>
+                <h4 style={{ fontWeight: '600', marginBottom: '8px', fontSize: '1rem' }}>Configuração da Empresa</h4>
+                <p style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '4px' }}>
+                  {companyProfile.companyName ? '✓ Completa' : 'Pendente'}
+                </p>
+                <p style={{ fontSize: '0.875rem', opacity: 0.9 }}>
+                  {companyProfile.companyName || 'Configure os dados da sua empresa'}
+                </p>
+              </div>
+
+              <div style={{ 
+                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                borderRadius: '16px', 
+                padding: '24px',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)',
+                color: 'white',
+                transition: 'transform 0.2s ease',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                <div style={{ fontSize: '2.5rem', marginBottom: '12px', opacity: 0.9 }}>⚙️</div>
+                <h4 style={{ fontWeight: '600', marginBottom: '8px', fontSize: '1rem' }}>Integrações</h4>
+                <p style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '4px' }}>
+                  {integrationsConfig.openaiApiKey ? '✓ Configurado' : 'Pendente'}
+                </p>
+                <p style={{ fontSize: '0.875rem', opacity: 0.9 }}>
+                  {integrationsConfig.openaiApiKey ? 'API Key configurada' : 'Configure sua API Key'}
+                </p>
+              </div>
+
+              <div style={{ 
+                background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                borderRadius: '16px', 
+                padding: '24px',
+                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)',
+                color: 'white',
+                transition: 'transform 0.2s ease',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                <div style={{ fontSize: '2.5rem', marginBottom: '12px', opacity: 0.9 }}>📦</div>
+                <h4 style={{ fontWeight: '600', marginBottom: '8px', fontSize: '1rem' }}>Catálogo</h4>
+                <p style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '4px' }}>
+                  {catalogItems.length} itens
+                </p>
+                <p style={{ fontSize: '0.875rem', opacity: 0.9 }}>
+                  {catalogItems.filter(i => i.type === 'product').length} produtos · {catalogItems.filter(i => i.type === 'service').length} serviços
+                </p>
+              </div>
+            </div>
+
+            {/* Card de Boas-Vindas */}
+            <div style={{ 
+              backgroundColor: 'white', 
+              borderRadius: '20px', 
+              padding: '32px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+              border: '1px solid #e5e7eb'
+            }}>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#111827', marginBottom: '16px' }}>
+                🚀 Começe Agora
+              </h3>
+              <p style={{ color: '#6b7280', marginBottom: '24px', lineHeight: '1.6' }}>
+                Configure seu assistente de vendas com IA em poucos passos. Complete as configurações abaixo para começar a atender seus clientes automaticamente pelo WhatsApp.
+              </p>
+              <div style={{ display: 'grid', gap: '16px' }}>
+                <div style={{ 
+                  padding: '20px', 
+                  backgroundColor: companyProfile.companyName ? '#f0fdf4' : '#fef3c7', 
+                  borderRadius: '12px',
+                  border: `2px solid ${companyProfile.companyName ? '#86efac' : '#fde047'}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => setCurrentPage('company')}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(8px)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ fontSize: '2rem' }}>{companyProfile.companyName ? '✅' : '1️⃣'}</div>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ fontWeight: '600', color: '#111827', marginBottom: '4px' }}>
+                        Dados da Empresa
+                      </h4>
+                      <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                        {companyProfile.companyName ? 'Configurado ✓' : 'Clique para configurar'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div style={{ padding: '16px', backgroundColor: '#f3f4f6', borderRadius: '8px' }}>
-                  <h4 style={{ fontWeight: 'bold', marginBottom: '8px' }}>Integrações</h4>
-                  <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>
-                    {integrationsConfig.openaiApiKey ? '✅ Configurado' : '⚠️ Pendente'}
-                  </p>
+
+                <div style={{ 
+                  padding: '20px', 
+                  backgroundColor: integrationsConfig.openaiApiKey ? '#f0fdf4' : '#fef3c7', 
+                  borderRadius: '12px',
+                  border: `2px solid ${integrationsConfig.openaiApiKey ? '#86efac' : '#fde047'}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => setCurrentPage('integrations')}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(8px)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ fontSize: '2rem' }}>{integrationsConfig.openaiApiKey ? '✅' : '2️⃣'}</div>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ fontWeight: '600', color: '#111827', marginBottom: '4px' }}>
+                        Integração com IA
+                      </h4>
+                      <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                        {integrationsConfig.openaiApiKey ? 'API Key configurada ✓' : 'Configure sua API Key'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div style={{ padding: '16px', backgroundColor: '#f3f4f6', borderRadius: '8px' }}>
-                  <h4 style={{ fontWeight: 'bold', marginBottom: '8px' }}>Catálogo</h4>
-                  <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>
-                    📦 {catalogItems.length} itens
-                  </p>
+
+                <div style={{ 
+                  padding: '20px', 
+                  backgroundColor: assistantSettings.systemPrompt ? '#f0fdf4' : '#fef3c7', 
+                  borderRadius: '12px',
+                  border: `2px solid ${assistantSettings.systemPrompt ? '#86efac' : '#fde047'}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => setCurrentPage('assistant')}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(8px)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ fontSize: '2rem' }}>{assistantSettings.systemPrompt ? '✅' : '3️⃣'}</div>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ fontWeight: '600', color: '#111827', marginBottom: '4px' }}>
+                        Configuração do Assistente
+                      </h4>
+                      <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                        {assistantSettings.systemPrompt ? 'Prompt configurado ✓' : 'Defina o comportamento da IA'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
