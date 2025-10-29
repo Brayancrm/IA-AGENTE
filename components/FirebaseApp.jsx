@@ -2214,21 +2214,21 @@ const DashboardWithFirebase = ({
           <div style={{ padding: '40px', maxWidth: '900px', margin: '0 auto' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#111827', marginBottom: '8px' }}>
+              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
                 Cadastro da Empresa
               </h2>
-              <p style={{ fontSize: '1rem', color: '#6b7280' }}>
+              <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
                 Configure os dados da sua empresa para personalizar o atendimento
               </p>
             </div>
 
             {/* Formulário */}
             <div style={{ 
-              backgroundColor: 'white', 
+              backgroundColor: '#1a1f36', 
               borderRadius: '20px', 
               padding: '40px', 
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)', 
-              border: '1px solid #e5e7eb' 
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)', 
+              border: '1px solid rgba(16, 185, 129, 0.2)' 
             }}>
               <form onSubmit={handleCompanySubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div>
@@ -2238,7 +2238,7 @@ const DashboardWithFirebase = ({
                     gap: '8px',
                     fontWeight: '600', 
                     marginBottom: '10px', 
-                    color: '#111827',
+                    color: '#ffffff',
                     fontSize: '0.9375rem'
                   }}>
                     <span style={{ fontSize: '1.25rem' }}>🏢</span>
