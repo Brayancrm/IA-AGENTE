@@ -100,31 +100,112 @@ const SimpleLanding = ({ onLoginSuccess }) => {
   };
 
   return (
+    <>
+      <style jsx>{`
+        /* Reset e garantir que nada ultrapasse a tela */
+        * {
+          box-sizing: border-box;
+        }
+        
+        body {
+          overflow-x: hidden;
+          margin: 0;
+          padding: 0;
+        }
+        
+        /* Estilos responsivos para mobile */
+        @media (max-width: 768px) {
+          .landing-header {
+            padding: 15px 20px !important;
+          }
+          
+          .landing-logo-header {
+            width: 50px !important;
+            height: 50px !important;
+          }
+          
+          .landing-btn-header {
+            padding: 8px 16px !important;
+            font-size: 0.875rem !important;
+          }
+          
+          .hero-section {
+            padding: 100px 20px 60px !important;
+          }
+          
+          .hero-logo {
+            width: 120px !important;
+            height: 120px !important;
+          }
+          
+          .hero-title {
+            font-size: 2rem !important;
+            padding: 0 10px;
+          }
+          
+          .hero-description {
+            font-size: 1rem !important;
+            padding: 0 10px;
+          }
+          
+          .hero-buttons {
+            flex-direction: column !important;
+            width: 100% !important;
+            padding: 0 20px;
+          }
+          
+          .hero-btn {
+            width: 100% !important;
+          }
+          
+          .features-section,
+          .how-it-works-section,
+          .stats-section,
+          .pricing-section,
+          .cta-section {
+            padding-left: 20px !important;
+            padding-right: 20px !important;
+          }
+          
+          .pricing-grid {
+            grid-template-columns: 1fr !important;
+            max-width: 100% !important;
+            gap: 20px !important;
+          }
+        }
+      `}</style>
+      
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#0f1419',
+        backgroundColor: '#0f1419',
       color: 'white',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-    }}>
-      {/* Header */}
-      <header style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: 'rgba(26, 31, 54, 0.8)',
-        backdropFilter: 'blur(10px)',
-        borderBottom: '1px solid rgba(16, 185, 129, 0.2)',
-        padding: '20px 40px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        zIndex: 1000
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        overflowX: 'hidden',
+        width: '100%'
       }}>
+      {/* Header */}
+      <header 
+        className="landing-header"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: 'rgba(26, 31, 54, 0.8)',
+          backdropFilter: 'blur(10px)',
+          borderBottom: '1px solid rgba(16, 185, 129, 0.2)',
+          padding: '20px 40px',
+      display: 'flex',
+          justifyContent: 'space-between',
+      alignItems: 'center',
+          zIndex: 1000
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img 
             src="/logo.png" 
-            alt="dadosIA Logo" 
+            alt="dadosIA Logo"
+            className="landing-logo-header"
             style={{ 
               width: '96px', 
               height: '96px',
@@ -134,6 +215,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
         </div>
         <button
           onClick={() => openModal('login')}
+          className="landing-btn-header"
           style={{
             backgroundColor: 'transparent',
             border: '2px solid #10b981',
@@ -159,18 +241,22 @@ const SimpleLanding = ({ onLoginSuccess }) => {
       </header>
 
       {/* Hero Section */}
-      <section style={{
-        paddingTop: '140px',
-        paddingBottom: '80px',
-        textAlign: 'center',
-        maxWidth: '1200px',
-        margin: '0 auto',
-        padding: '140px 40px 80px'
-      }}>
+      <section 
+        className="hero-section"
+        style={{
+          paddingTop: '140px',
+          paddingBottom: '80px',
+          textAlign: 'center',
+          maxWidth: '1200px',
+          margin: '0 auto',
+          padding: '140px 40px 80px'
+        }}
+      >
         <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}>
           <img 
             src="/logo.png" 
-            alt="dadosIA Logo" 
+            alt="dadosIA Logo"
+            className="hero-logo"
             style={{ 
               width: '240px', 
               height: '240px',
@@ -178,31 +264,40 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             }} 
           />
         </div>
-        <h1 style={{
-          fontSize: '3.5rem',
-          fontWeight: '800',
-          marginBottom: '24px',
-          background: 'linear-gradient(135deg, #ffffff 0%, #10b981 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-          lineHeight: '1.2'
-        }}>
+        <h1 
+          className="hero-title"
+          style={{
+            fontSize: '3.5rem',
+            fontWeight: '800',
+            marginBottom: '24px',
+            background: 'linear-gradient(135deg, #ffffff 0%, #10b981 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            lineHeight: '1.2'
+          }}
+        >
           Transforme seu WhatsApp em<br />uma Máquina de Vendas
-          </h1>
-          <p style={{
-          fontSize: '1.25rem',
-          color: '#9ca3af',
-          marginBottom: '40px',
-          maxWidth: '700px',
-          margin: '0 auto 40px',
+        </h1>
+        <p 
+          className="hero-description"
+          style={{
+            fontSize: '1.25rem',
+            color: '#9ca3af',
+            marginBottom: '40px',
+            maxWidth: '700px',
+            margin: '0 auto 40px',
             lineHeight: '1.6'
           }}>
           Automatize atendimentos, gerencie conversas e venda mais com inteligência artificial integrada ao seu WhatsApp
           </p>
-        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <div 
+          className="hero-buttons"
+          style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}
+        >
           <button
             onClick={() => setShowPlanModal(true)}
+            className="hero-btn"
             style={{
               background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               color: 'white',
@@ -228,6 +323,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
           </button>
           <button
             onClick={() => setShowInfoModal(true)}
+            className="hero-btn"
             style={{
               backgroundColor: 'transparent',
               border: '2px solid rgba(255, 255, 255, 0.2)',
@@ -254,7 +350,9 @@ const SimpleLanding = ({ onLoginSuccess }) => {
       </section>
 
       {/* Features Section */}
-      <section style={{
+      <section 
+        className="features-section"
+        style={{
         padding: '80px 40px',
         backgroundColor: '#1a1f36',
         borderTop: '1px solid rgba(16, 185, 129, 0.2)',
@@ -279,7 +377,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             Recursos poderosos para automatizar e escalar suas vendas
           </p>
 
-          <div style={{
+      <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
             gap: '32px'
@@ -327,22 +425,24 @@ const SimpleLanding = ({ onLoginSuccess }) => {
       </section>
 
       {/* How It Works Section */}
-      <section style={{
+      <section 
+        className="how-it-works-section"
+        style={{
         padding: '80px 40px',
         maxWidth: '1200px',
         margin: '0 auto'
       }}>
         <h2 style={{
-          fontSize: '2.5rem',
+            fontSize: '2.5rem',
           fontWeight: '700',
           textAlign: 'center',
-          marginBottom: '16px',
+            marginBottom: '16px',
           color: '#ffffff'
-        }}>
+          }}>
           Como Funciona?
         </h2>
-        <p style={{
-          fontSize: '1.125rem',
+          <p style={{
+            fontSize: '1.125rem',
           color: '#9ca3af',
           textAlign: 'center',
           marginBottom: '60px'
@@ -377,7 +477,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                 boxShadow: '0 4px 20px rgba(16, 185, 129, 0.4)'
               }}>
                 {step.number}
-              </div>
+        </div>
               <h3 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '12px', color: '#ffffff' }}>
                 {step.title}
               </h3>
@@ -486,7 +586,9 @@ const SimpleLanding = ({ onLoginSuccess }) => {
       </section>
 
       {/* Pricing Section */}
-      <section style={{
+      <section 
+        className="pricing-section"
+        style={{
         padding: '100px 40px',
         maxWidth: '1200px',
         margin: '0 auto'
@@ -509,14 +611,17 @@ const SimpleLanding = ({ onLoginSuccess }) => {
           Planos flexíveis para empresas de todos os tamanhos
         </p>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '24px',
-          maxWidth: '1600px',
-          margin: '0 auto',
-          padding: '0 20px'
-        }}>
+        <div 
+          className="pricing-grid"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '24px',
+            maxWidth: '1600px',
+            margin: '0 auto',
+            padding: '0 20px'
+          }}
+        >
           {/* Teste Gratuito */}
           <div style={{
             backgroundColor: '#1a1f36',
@@ -585,18 +690,18 @@ const SimpleLanding = ({ onLoginSuccess }) => {
               ))}
             </ul>
 
-            <button
+          <button
               onClick={() => handleSelectPlan('teste-gratuito')}
-              style={{
-                width: '100%',
+            style={{
+              width: '100%',
                 padding: '14px',
-                borderRadius: '12px',
+              borderRadius: '12px',
                 background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                border: 'none',
+              border: 'none',
                 color: '#ffffff',
                 fontSize: '1rem',
                 fontWeight: '700',
-                cursor: 'pointer',
+              cursor: 'pointer',
                 boxShadow: '0 4px 16px rgba(16, 185, 129, 0.4)',
                 transition: 'all 0.2s ease'
               }}
@@ -610,11 +715,11 @@ const SimpleLanding = ({ onLoginSuccess }) => {
               }}
             >
               🚀 Começar Teste Grátis
-            </button>
-          </div>
+          </button>
+        </div>
 
           {/* Plano Básico */}
-          <div style={{
+        <div style={{
             backgroundColor: '#1a1f36',
             padding: '40px',
             borderRadius: '20px',
@@ -655,8 +760,8 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                 <li key={idx} style={{ 
                   padding: '12px 0', 
                   color: '#9ca3af',
-                  display: 'flex',
-                  alignItems: 'center',
+          display: 'flex',
+          alignItems: 'center',
                   gap: '12px',
                   borderBottom: idx < 5 ? '1px solid rgba(255,255,255,0.05)' : 'none'
                 }}>
@@ -895,7 +1000,9 @@ const SimpleLanding = ({ onLoginSuccess }) => {
       </section>
 
       {/* CTA Final Section */}
-      <section style={{
+      <section 
+        className="cta-section"
+        style={{
         padding: '100px 40px',
         textAlign: 'center',
         maxWidth: '800px',
@@ -1805,7 +1912,8 @@ const SimpleLanding = ({ onLoginSuccess }) => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 
