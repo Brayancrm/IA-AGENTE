@@ -76,30 +76,42 @@ const activeClients = new Map();
 
 // Função para criar/restaurar sessão WhatsApp
 async function createSession(userId) {
-  console.log(`📱 Criando sessão WhatsApp para usuário: ${userId}`);
+  console.log(`📱 Verificando sessão WhatsApp para usuário: ${userId}`);
   
   const sessionRef = db.ref(`whatsapp_sessions/${userId}`);
   
   try {
-    // 🔥 CRÍTICO: Fechar sessão antiga se existir
+    // 🔥 NOVO: Verificar se já existe client ATIVO em memória
     const existingClient = activeClients.get(userId);
     if (existingClient) {
-      console.log('🔄 Fechando sessão anterior para evitar conflitos...');
-      try {
-        await existingClient.close();
-        activeClients.delete(userId);
-        console.log('✅ Sessão anterior fechada com sucesso');
-      } catch (closeError) {
-        console.warn('⚠️ Erro ao fechar sessão anterior (continuando):', closeError.message);
-        activeClients.delete(userId);
-      }
-      // 🔥 Aguardar 2 segundos para garantir que o processo foi encerrado
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log('✅ Sessão JÁ EXISTE e está ativa em memória');
+      console.log('🔄 Reutilizando sessão existente (SEM criar nova)');
+      
+      // Apenas atualizar status no Firebase
+      await sessionRef.update({
+        status: 'connected',
+        lastActivity: new Date().toISOString()
+      });
+      
+      return existingClient; // ✅ RETORNA A SESSÃO EXISTENTE
     }
     
-    // 🔥 CRÍTICO: Limpar arquivos de lock do Chromium antes de iniciar
+    // 🔥 NOVO: Verificar se existe sessão salva nos arquivos do WPPConnect
     const fs = require('fs');
     const path = require('path');
+    const tokenDir = `/tokens/user_${userId}`;
+    
+    if (fs.existsSync(tokenDir)) {
+      const files = fs.readdirSync(tokenDir);
+      if (files.length > 0) {
+        console.log(`✅ Sessão encontrada nos arquivos (${files.length} arquivos)`);
+        console.log('🔄 WPPConnect vai reutilizar automaticamente');
+      }
+    } else {
+      console.log('🆕 Primeira conexão - criando nova sessão');
+    }
+    
+    // 🔥 Limpar arquivos de lock do Chromium antes de iniciar
     const profileDir = `/tokens/chrome_profile_${userId}`;
     const lockFile = path.join(profileDir, 'SingletonLock');
     
@@ -113,27 +125,8 @@ async function createSession(userId) {
       console.warn('⚠️ Erro ao remover lock (continuando):', lockError.message);
     }
     
-    // 🔥 NOVO: Verificar se existe sessão salva no Firebase para restaurar
-    const sessionSnapshot = await sessionRef.once('value');
-    const sessionData = sessionSnapshot.val();
-    
-    let restoreSessionToken = null;
-    if (sessionData && sessionData.sessionToken) {
-      console.log('🔄 Tentando restaurar sessão existente do Firebase...');
-      console.log(`   Token encontrado: ${sessionData.sessionToken.length} caracteres`);
-      
-      // 🔥 CRÍTICO: Parse do token JSON string de volta para object
-      try {
-        restoreSessionToken = JSON.parse(sessionData.sessionToken);
-        console.log('✅ Token parseado com sucesso para restauração');
-      } catch (parseError) {
-        console.warn('⚠️ Erro ao fazer parse do token, será criada nova sessão:', parseError.message);
-        restoreSessionToken = null;
-      }
-    } else {
-      console.log('🆕 Criando nova sessão WhatsApp...');
-    }
-    
+    // 🔥 Configuração do cliente WPPConnect
+    // O WPPConnect gerencia automaticamente a persistência via tokenStore: 'file'
     const clientOptions = {
       session: `user_${userId}`,
       // 🔥 NOVO: Habilitar persistência de sessão
@@ -245,13 +238,9 @@ async function createSession(userId) {
       }
     };
     
-    // 🔥 CRÍTICO: Adicionar token de restauração se existir
-    if (restoreSessionToken) {
-      console.log('🔑 Adicionando token de restauração nas opções do client...');
-      clientOptions.sessionToken = restoreSessionToken;
-    }
-    
-    // Criar client WPPConnect
+    // 🔥 Criar/Restaurar client WPPConnect
+    // Se existir sessão nos arquivos /tokens, WPPConnect restaura automaticamente
+    console.log('🚀 Iniciando WPPConnect...');
     const client = await wppconnect.create(clientOptions);
 
     // Configurar listeners de mensagens
@@ -2895,7 +2884,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online',
     service: 'WhatsApp IA Backend',
-    version: '1.0.11-fix-token-restore', // 🔥 CORREÇÃO: Usa token para restaurar sessão
+    version: '1.0.12-fix-persistence', // 🔥 CORREÇÃO: Não recria sessão ao reiniciar
     activeSessions: activeClients.size,
     timestamp: new Date().toISOString()
   });
