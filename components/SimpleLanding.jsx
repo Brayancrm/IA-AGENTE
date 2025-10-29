@@ -28,6 +28,7 @@ if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
 
 const SimpleLanding = ({ onLoginSuccess }) => {
   const [showModal, setShowModal] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
   const [mode, setMode] = useState('login'); // 'login' ou 'register'
   const [formData, setFormData] = useState({
     name: '',
@@ -164,17 +165,17 @@ const SimpleLanding = ({ onLoginSuccess }) => {
           lineHeight: '1.2'
         }}>
           Transforme seu WhatsApp em<br />uma Máquina de Vendas
-        </h1>
-        <p style={{
+          </h1>
+          <p style={{
           fontSize: '1.25rem',
           color: '#9ca3af',
           marginBottom: '40px',
           maxWidth: '700px',
           margin: '0 auto 40px',
-          lineHeight: '1.6'
-        }}>
+            lineHeight: '1.6'
+          }}>
           Automatize atendimentos, gerencie conversas e venda mais com inteligência artificial integrada ao seu WhatsApp
-        </p>
+          </p>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <button
             onClick={() => openModal('register')}
@@ -202,6 +203,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             🚀 Começar Grátis
           </button>
           <button
+            onClick={() => setShowInfoModal(true)}
             style={{
               backgroundColor: 'transparent',
               border: '2px solid rgba(255, 255, 255, 0.2)',
@@ -342,8 +344,8 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                 borderRadius: '50%',
                 background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                 margin: '0 auto 24px',
-                display: 'flex',
-                alignItems: 'center',
+          display: 'flex',
+          alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '2rem',
                 fontWeight: '800',
@@ -398,6 +400,318 @@ const SimpleLanding = ({ onLoginSuccess }) => {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section style={{
+        padding: '100px 40px',
+        maxWidth: '1200px',
+        margin: '0 auto'
+      }}>
+        <h2 style={{
+          fontSize: '2.5rem',
+          fontWeight: '700',
+          textAlign: 'center',
+          marginBottom: '16px',
+          color: '#ffffff'
+        }}>
+          Escolha o Plano Ideal
+        </h2>
+        <p style={{
+          fontSize: '1.125rem',
+          color: '#9ca3af',
+          textAlign: 'center',
+          marginBottom: '60px'
+        }}>
+          Planos flexíveis para empresas de todos os tamanhos
+        </p>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '32px',
+          maxWidth: '1000px',
+          margin: '0 auto'
+        }}>
+          {/* Plano Básico */}
+          <div style={{
+            backgroundColor: '#1a1f36',
+            padding: '40px',
+            borderRadius: '20px',
+            border: '2px solid rgba(16, 185, 129, 0.2)',
+            position: 'relative',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-8px)';
+            e.currentTarget.style.borderColor = '#10b981';
+            e.currentTarget.style.boxShadow = '0 12px 32px rgba(16, 185, 129, 0.3)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+              <h3 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px' }}>
+                Básico
+              </h3>
+              <div style={{ marginBottom: '8px' }}>
+                <span style={{ fontSize: '3rem', fontWeight: '800', color: '#10b981' }}>R$ 399</span>
+                <span style={{ fontSize: '1.25rem', color: '#9ca3af' }}>,90</span>
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>por mês</div>
+            </div>
+            
+            <ul style={{ listStyle: 'none', padding: 0, marginBottom: '32px' }}>
+              {[
+                'Até 500 conversas/mês',
+                '1 atendente simultâneo',
+                'Catálogo de produtos',
+                'Respostas automáticas',
+                'Relatórios básicos',
+                'Suporte por email'
+              ].map((feature, idx) => (
+                <li key={idx} style={{ 
+                  padding: '12px 0', 
+                  color: '#9ca3af',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  borderBottom: idx < 5 ? '1px solid rgba(255,255,255,0.05)' : 'none'
+                }}>
+                  <span style={{ color: '#10b981', fontSize: '1.25rem' }}>✓</span>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+
+            <button
+              onClick={() => openModal('register')}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '12px',
+                border: '2px solid #10b981',
+                backgroundColor: 'transparent',
+                color: '#10b981',
+                fontSize: '1rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#10b981';
+                e.target.style.color = '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#10b981';
+              }}
+            >
+              Começar Agora
+            </button>
+          </div>
+
+          {/* Plano Pro (Destaque) */}
+          <div style={{
+            backgroundColor: '#1a1f36',
+            padding: '40px',
+            borderRadius: '20px',
+            border: '3px solid #10b981',
+            position: 'relative',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-8px)';
+            e.currentTarget.style.boxShadow = '0 16px 40px rgba(16, 185, 129, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.3)';
+          }}>
+            {/* Badge Popular */}
+            <div style={{
+              position: 'absolute',
+              top: '-12px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: '#10b981',
+              color: '#ffffff',
+              padding: '6px 20px',
+              borderRadius: '20px',
+              fontSize: '0.75rem',
+              fontWeight: '700',
+              letterSpacing: '0.5px'
+            }}>
+              MAIS POPULAR
+            </div>
+
+            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+              <h3 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px' }}>
+                Pro
+              </h3>
+              <div style={{ marginBottom: '8px' }}>
+                <span style={{ fontSize: '3rem', fontWeight: '800', color: '#10b981' }}>R$ 1.099</span>
+                <span style={{ fontSize: '1.25rem', color: '#9ca3af' }}>,90</span>
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>por mês</div>
+            </div>
+            
+            <ul style={{ listStyle: 'none', padding: 0, marginBottom: '32px' }}>
+              {[
+                'Conversas ilimitadas',
+                '5 atendentes simultâneos',
+                'Tudo do Básico +',
+                'IA conversacional avançada',
+                'Agendamentos automáticos',
+                'Integração com pagamentos',
+                'Relatórios avançados',
+                'Suporte prioritário'
+              ].map((feature, idx) => (
+                <li key={idx} style={{ 
+                  padding: '12px 0', 
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  borderBottom: idx < 7 ? '1px solid rgba(255,255,255,0.05)' : 'none'
+                }}>
+                  <span style={{ color: '#10b981', fontSize: '1.25rem' }}>✓</span>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+
+            <button
+              onClick={() => openModal('register')}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                border: 'none',
+                color: '#ffffff',
+                fontSize: '1rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(16, 185, 129, 0.4)',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 16px rgba(16, 185, 129, 0.4)';
+              }}
+            >
+              Começar Agora
+            </button>
+          </div>
+
+          {/* Plano Enterprise */}
+          <div style={{
+            backgroundColor: '#1a1f36',
+            padding: '40px',
+            borderRadius: '20px',
+            border: '2px solid rgba(16, 185, 129, 0.2)',
+            position: 'relative',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-8px)';
+            e.currentTarget.style.borderColor = '#10b981';
+            e.currentTarget.style.boxShadow = '0 12px 32px rgba(16, 185, 129, 0.3)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+              <h3 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px' }}>
+                Enterprise
+              </h3>
+              <div style={{ marginBottom: '8px' }}>
+                <span style={{ fontSize: '3rem', fontWeight: '800', color: '#10b981' }}>R$ 1.999</span>
+                <span style={{ fontSize: '1.25rem', color: '#9ca3af' }}>,90</span>
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>por mês</div>
+            </div>
+            
+            <ul style={{ listStyle: 'none', padding: 0, marginBottom: '32px' }}>
+              {[
+                'Tudo ilimitado',
+                'Atendentes ilimitados',
+                'Tudo do Pro +',
+                'API dedicada',
+                'Customizações personalizadas',
+                'Gerente de conta dedicado',
+                'Treinamento da equipe',
+                'Suporte 24/7 prioritário'
+              ].map((feature, idx) => (
+                <li key={idx} style={{ 
+                  padding: '12px 0', 
+                  color: '#9ca3af',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  borderBottom: idx < 7 ? '1px solid rgba(255,255,255,0.05)' : 'none'
+                }}>
+                  <span style={{ color: '#10b981', fontSize: '1.25rem' }}>✓</span>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+
+            <button
+              onClick={() => openModal('register')}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '12px',
+                border: '2px solid #10b981',
+                backgroundColor: 'transparent',
+                color: '#10b981',
+                fontSize: '1rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#10b981';
+                e.target.style.color = '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#10b981';
+              }}
+            >
+              Começar Agora
+            </button>
+          </div>
+        </div>
+
+        {/* Garantia */}
+        <div style={{
+          textAlign: 'center',
+          marginTop: '60px',
+          padding: '32px',
+          backgroundColor: 'rgba(16, 185, 129, 0.05)',
+          borderRadius: '16px',
+          border: '1px solid rgba(16, 185, 129, 0.2)'
+        }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '16px' }}>🛡️</div>
+          <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '12px' }}>
+            Garantia de 7 dias
+          </h3>
+          <p style={{ fontSize: '1rem', color: '#9ca3af', maxWidth: '600px', margin: '0 auto' }}>
+            Experimente sem riscos. Se não ficar satisfeito, devolvemos 100% do seu investimento.
+          </p>
         </div>
       </section>
 
@@ -553,135 +867,135 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                   : 'Comece gratuitamente agora'
                 }
               </p>
-            </div>
+        </div>
 
-            {/* Formulário */}
-            <form onSubmit={handleSubmit}>
-              {mode === 'register' && (
+        {/* Formulário */}
+        <form onSubmit={handleSubmit}>
+          {mode === 'register' && (
                 <div style={{ marginBottom: '20px' }}>
-                  <input
-                    type="text"
-                    placeholder="Nome completo"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '14px 16px',
-                      borderRadius: '12px',
-                      border: '2px solid rgba(255,255,255,0.1)',
-                      backgroundColor: '#0f1419',
-                      color: '#ffffff',
-                      fontSize: '1rem',
-                      boxSizing: 'border-box',
-                      outline: 'none',
-                      transition: 'border-color 0.2s ease'
-                    }}
-                    onFocus={(e) => e.target.style.borderColor = '#10b981'}
-                    onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-                  />
-                </div>
-              )}
-
-              <div style={{ marginBottom: '20px' }}>
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '14px 16px',
-                    borderRadius: '12px',
-                    border: '2px solid rgba(255,255,255,0.1)',
-                    backgroundColor: '#0f1419',
-                    color: '#ffffff',
-                    fontSize: '1rem',
-                    boxSizing: 'border-box',
-                    outline: 'none',
-                    transition: 'border-color 0.2s ease'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#10b981'}
-                  onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-                />
-              </div>
-
-              <div style={{ marginBottom: '20px' }}>
-                <input
-                  type="password"
-                  placeholder="Senha"
-                  value={formData.password}
-                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '14px 16px',
-                    borderRadius: '12px',
-                    border: '2px solid rgba(255,255,255,0.1)',
-                    backgroundColor: '#0f1419',
-                    color: '#ffffff',
-                    fontSize: '1rem',
-                    boxSizing: 'border-box',
-                    outline: 'none',
-                    transition: 'border-color 0.2s ease'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#10b981'}
-                  onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-                />
-              </div>
-
-              {mode === 'register' && (
-                <div style={{ marginBottom: '20px' }}>
-                  <input
-                    type="text"
-                    placeholder="Nome da empresa (opcional)"
-                    value={formData.companyName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
-                    style={{
-                      width: '100%',
-                      padding: '14px 16px',
-                      borderRadius: '12px',
-                      border: '2px solid rgba(255,255,255,0.1)',
-                      backgroundColor: '#0f1419',
-                      color: '#ffffff',
-                      fontSize: '1rem',
-                      boxSizing: 'border-box',
-                      outline: 'none',
-                      transition: 'border-color 0.2s ease'
-                    }}
-                    onFocus={(e) => e.target.style.borderColor = '#10b981'}
-                    onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-                  />
-                </div>
-              )}
-
-              {error && (
-                <div style={{
-                  backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                  color: '#fecaca',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  marginBottom: '16px',
-                  fontSize: '0.875rem'
-                }}>
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
+              <input
+                type="text"
+                placeholder="Nome completo"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                required
                 style={{
                   width: '100%',
-                  background: loading ? '#6b7280' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  color: 'white',
-                  padding: '16px',
+                      padding: '14px 16px',
                   borderRadius: '12px',
+                      border: '2px solid rgba(255,255,255,0.1)',
+                      backgroundColor: '#0f1419',
+                      color: '#ffffff',
+                  fontSize: '1rem',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                      transition: 'border-color 0.2s ease'
+                }}
+                    onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                    onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+              />
+            </div>
+          )}
+
+              <div style={{ marginBottom: '20px' }}>
+            <input
+              type="email"
+              placeholder="Email"
+              value={formData.email}
+              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              required
+              style={{
+                width: '100%',
+                    padding: '14px 16px',
+                borderRadius: '12px',
+                    border: '2px solid rgba(255,255,255,0.1)',
+                    backgroundColor: '#0f1419',
+                    color: '#ffffff',
+                fontSize: '1rem',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                    transition: 'border-color 0.2s ease'
+              }}
+                  onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+            />
+          </div>
+
+              <div style={{ marginBottom: '20px' }}>
+            <input
+              type="password"
+              placeholder="Senha"
+              value={formData.password}
+              onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+              required
+              style={{
+                width: '100%',
+                    padding: '14px 16px',
+                borderRadius: '12px',
+                    border: '2px solid rgba(255,255,255,0.1)',
+                    backgroundColor: '#0f1419',
+                    color: '#ffffff',
+                fontSize: '1rem',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                    transition: 'border-color 0.2s ease'
+              }}
+                  onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+            />
+          </div>
+
+          {mode === 'register' && (
+                <div style={{ marginBottom: '20px' }}>
+              <input
+                type="text"
+                    placeholder="Nome da empresa (opcional)"
+                value={formData.companyName}
+                onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
+                style={{
+                  width: '100%',
+                      padding: '14px 16px',
+                  borderRadius: '12px',
+                      border: '2px solid rgba(255,255,255,0.1)',
+                      backgroundColor: '#0f1419',
+                      color: '#ffffff',
+                  fontSize: '1rem',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                      transition: 'border-color 0.2s ease'
+                }}
+                    onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                    onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+              />
+            </div>
+          )}
+
+          {error && (
+            <div style={{
+              backgroundColor: 'rgba(239, 68, 68, 0.2)',
+              color: '#fecaca',
+              padding: '12px',
+              borderRadius: '8px',
+              marginBottom: '16px',
+              fontSize: '0.875rem'
+            }}>
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: '100%',
+                  background: loading ? '#6b7280' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: 'white',
+              padding: '16px',
+              borderRadius: '12px',
                   fontWeight: '700',
-                  fontSize: '1.125rem',
-                  border: 'none',
-                  cursor: loading ? 'not-allowed' : 'pointer',
+              fontSize: '1.125rem',
+              border: 'none',
+              cursor: loading ? 'not-allowed' : 'pointer',
                   boxShadow: loading ? 'none' : '0 4px 16px rgba(16, 185, 129, 0.4)',
                   transition: 'all 0.2s ease'
                 }}
@@ -699,30 +1013,277 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                 }}
               >
                 {loading ? 'Carregando...' : (mode === 'login' ? '🚀 Entrar' : '✨ Criar Conta Grátis')}
-              </button>
-            </form>
+          </button>
+        </form>
 
-            {/* Toggle entre Login/Register */}
+        {/* Toggle entre Login/Register */}
             <div style={{ textAlign: 'center', marginTop: '28px' }}>
-              <button
-                onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-                style={{
-                  backgroundColor: 'transparent',
+          <button
+            onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+            style={{
+              backgroundColor: 'transparent',
                   color: '#9ca3af',
-                  border: 'none',
-                  cursor: 'pointer',
+              border: 'none',
+              cursor: 'pointer',
                   fontSize: '0.9375rem',
                   textDecoration: 'none',
                   transition: 'color 0.2s ease'
-                }}
+            }}
                 onMouseEnter={(e) => e.target.style.color = '#10b981'}
                 onMouseLeave={(e) => e.target.style.color = '#9ca3af'}
-              >
-                {mode === 'login' 
+          >
+            {mode === 'login' 
                   ? 'Não tem conta? Criar conta →' 
                   : '← Já tem conta? Fazer login'
-                }
+            }
+          </button>
+        </div>
+      </div>
+        </div>
+      )}
+
+      {/* Modal "Saiba Mais" */}
+      {showInfoModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            padding: '20px',
+            overflowY: 'auto'
+          }}
+          onClick={() => setShowInfoModal(false)}
+        >
+          <div
+            style={{
+              backgroundColor: '#1a1f36',
+              borderRadius: '24px',
+              padding: '48px',
+              maxWidth: '800px',
+              width: '100%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              border: '1px solid rgba(16, 185, 129, 0.2)',
+              position: 'relative',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Botão Fechar */}
+            <button
+              onClick={() => setShowInfoModal(false)}
+              style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#9ca3af',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '8px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                e.target.style.color = '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#9ca3af';
+              }}
+            >
+              ✕
+            </button>
+
+            {/* Conteúdo do Modal */}
+            <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+              <div style={{ fontSize: '4rem', marginBottom: '16px' }}>💬</div>
+              <h2 style={{
+                fontSize: '2.5rem',
+                fontWeight: '700',
+                marginBottom: '16px',
+                color: '#ffffff'
+              }}>
+                WhatsApp Sales Agent
+              </h2>
+              <p style={{
+                fontSize: '1.125rem',
+                color: '#10b981',
+                fontWeight: '600'
+              }}>
+                A Solução Completa para Automatizar suas Vendas
+              </p>
+            </div>
+
+            {/* Descrição */}
+            <div style={{ marginBottom: '40px' }}>
+              <h3 style={{
+                fontSize: '1.5rem',
+                fontWeight: '700',
+                color: '#ffffff',
+                marginBottom: '16px'
+              }}>
+                🎯 O Que É?
+              </h3>
+              <p style={{
+                fontSize: '1rem',
+                color: '#9ca3af',
+                lineHeight: '1.8',
+                marginBottom: '20px'
+              }}>
+                O <strong style={{ color: '#10b981' }}>WhatsApp Sales Agent</strong> é uma plataforma completa de automação de vendas via WhatsApp que integra inteligência artificial, gestão de conversas, catálogo de produtos e muito mais em um único sistema.
+              </p>
+              <p style={{
+                fontSize: '1rem',
+                color: '#9ca3af',
+                lineHeight: '1.8'
+              }}>
+                Nossa solução permite que você atenda seus clientes 24/7, processe pedidos automaticamente e aumente suas vendas sem aumentar sua equipe.
+              </p>
+            </div>
+
+            {/* Principais Benefícios */}
+            <div style={{ marginBottom: '40px' }}>
+              <h3 style={{
+                fontSize: '1.5rem',
+                fontWeight: '700',
+                color: '#ffffff',
+                marginBottom: '24px'
+              }}>
+                ✨ Principais Benefícios
+              </h3>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                gap: '20px'
+              }}>
+                {[
+                  { icon: '🤖', title: 'Atendimento Automatizado', desc: 'IA responde perguntas e processa pedidos automaticamente' },
+                  { icon: '⚡', title: 'Resposta Instantânea', desc: 'Seus clientes nunca mais ficarão esperando' },
+                  { icon: '📈', title: 'Aumente suas Vendas', desc: 'Converta mais conversas em vendas reais' },
+                  { icon: '💰', title: 'Reduza Custos', desc: 'Menos necessidade de equipe de atendimento' },
+                  { icon: '📊', title: 'Dashboard Completo', desc: 'Veja todas as métricas e conversas em tempo real' },
+                  { icon: '🔒', title: '100% Seguro', desc: 'Seus dados e dos clientes totalmente protegidos' }
+                ].map((benefit, idx) => (
+                  <div key={idx} style={{
+                    backgroundColor: '#0f1419',
+                    padding: '20px',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(16, 185, 129, 0.2)'
+                  }}>
+                    <div style={{ fontSize: '2rem', marginBottom: '12px' }}>{benefit.icon}</div>
+                    <h4 style={{ fontSize: '1rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+                      {benefit.title}
+                    </h4>
+                    <p style={{ fontSize: '0.875rem', color: '#9ca3af', lineHeight: '1.6' }}>
+                      {benefit.desc}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Como Funciona */}
+            <div style={{ marginBottom: '40px' }}>
+              <h3 style={{
+                fontSize: '1.5rem',
+                fontWeight: '700',
+                color: '#ffffff',
+                marginBottom: '24px'
+              }}>
+                🚀 Como Funciona
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {[
+                  { step: '1', title: 'Conecte seu WhatsApp', desc: 'Escaneie o QR Code em segundos e conecte sua conta' },
+                  { step: '2', title: 'Configure seu Catálogo', desc: 'Adicione produtos, serviços e preços' },
+                  { step: '3', title: 'Personalize a IA', desc: 'Ensine o assistente como responder seus clientes' },
+                  { step: '4', title: 'Comece a Vender', desc: 'A IA cuida do atendimento, você acompanha tudo' }
+                ].map((item, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    gap: '16px',
+                    alignItems: 'flex-start',
+                    padding: '20px',
+                    backgroundColor: '#0f1419',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(16, 185, 129, 0.2)'
+                  }}>
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1.25rem',
+                      fontWeight: '800',
+                      color: '#ffffff',
+                      flexShrink: 0
+                    }}>
+                      {item.step}
+                    </div>
+                    <div>
+                      <h4 style={{ fontSize: '1.125rem', fontWeight: '700', color: '#ffffff', marginBottom: '6px' }}>
+                        {item.title}
+                      </h4>
+                      <p style={{ fontSize: '0.9375rem', color: '#9ca3af', lineHeight: '1.6' }}>
+                        {item.desc}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* CTA */}
+            <div style={{ textAlign: 'center', marginTop: '40px' }}>
+              <button
+                onClick={() => {
+                  setShowInfoModal(false);
+                  openModal('register');
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: 'white',
+                  padding: '18px 48px',
+                  borderRadius: '12px',
+                  fontSize: '1.125rem',
+                  fontWeight: '700',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 20px rgba(16, 185, 129, 0.4)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 6px 24px rgba(16, 185, 129, 0.5)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = '0 4px 20px rgba(16, 185, 129, 0.4)';
+                }}
+              >
+                🚀 Começar Gratuitamente
               </button>
+              <p style={{ marginTop: '16px', fontSize: '0.875rem', color: '#9ca3af' }}>
+                Sem necessidade de cartão de crédito
+              </p>
             </div>
           </div>
         </div>
