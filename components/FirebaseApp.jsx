@@ -3294,23 +3294,58 @@ const DashboardWithFirebase = ({
 
       case 'assistant': 
         return (
-          <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
-              🤖 Configuração do Assistente
-            </h2>
+          <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto' }}>
+            {/* Header */}
+            <div style={{ marginBottom: '32px' }}>
+              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#111827', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '2.5rem' }}>🤖</span>
+                Configuração do Assistente
+              </h2>
+              <p style={{ fontSize: '1rem', color: '#6b7280' }}>
+                Configure a inteligência artificial e o fluxo de atendimento
+              </p>
+            </div>
 
             {/* Configuração de IA */}
-            <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '24px', marginBottom: '24px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '16px' }}>
-                🧠 Configuração de Inteligência Artificial
+            <div style={{ 
+              backgroundColor: 'white', 
+              borderRadius: '20px', 
+              padding: '32px', 
+              marginBottom: '24px', 
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)', 
+              border: '2px solid #e5e7eb' 
+            }}>
+              <h3 style={{ 
+                fontSize: '1.5rem', 
+                fontWeight: '700', 
+                color: '#111827', 
+                marginBottom: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+              }}>
+                <span style={{ fontSize: '1.75rem' }}>🧠</span>
+                Inteligência Artificial
               </h3>
+              <p style={{ fontSize: '0.9375rem', color: '#6b7280', marginBottom: '24px' }}>
+                Configure o modelo e comportamento da IA
+              </p>
               
-              <form onSubmit={handleAssistantSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <form onSubmit={handleAssistantSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
                 {/* Campos visíveis apenas para o Master */}
                 {user.isMaster && (
                   <>
                     <div>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                      <label style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontWeight: '600', 
+                        marginBottom: '10px', 
+                        color: '#111827',
+                        fontSize: '0.9375rem'
+                      }}>
+                        <span style={{ fontSize: '1.25rem' }}>⚙️</span>
                         Provedor de IA
                       </label>
                       <select
@@ -3318,10 +3353,21 @@ const DashboardWithFirebase = ({
                         onChange={(e) => setAssistantForm(prev => ({ ...prev, aiProvider: e.target.value }))}
                         style={{
                           width: '100%',
-                          padding: '12px',
-                          borderRadius: '8px',
-                          border: '1px solid #d1d5db',
-                          fontSize: '1rem'
+                          padding: '14px 16px',
+                          borderRadius: '12px',
+                          border: '2px solid #e5e7eb',
+                          fontSize: '1rem',
+                          transition: 'all 0.2s ease',
+                          outline: 'none',
+                          backgroundColor: 'white'
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = '#8b5cf6';
+                          e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.1)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = '#e5e7eb';
+                          e.target.style.boxShadow = 'none';
                         }}
                       >
                         <option value="openai">OpenAI (GPT-3.5 / GPT-4)</option>
@@ -3331,7 +3377,16 @@ const DashboardWithFirebase = ({
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                      <label style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontWeight: '600', 
+                        marginBottom: '10px', 
+                        color: '#111827',
+                        fontSize: '0.9375rem'
+                      }}>
+                        <span style={{ fontSize: '1.25rem' }}>🔑</span>
                         API Key
                       </label>
                       <input
@@ -3340,19 +3395,40 @@ const DashboardWithFirebase = ({
                         onChange={(e) => setAssistantForm(prev => ({ ...prev, apiKey: e.target.value }))}
                         style={{
                           width: '100%',
-                          padding: '12px',
-                          borderRadius: '8px',
-                          border: '1px solid #d1d5db',
-                          fontSize: '1rem'
+                          padding: '14px 16px',
+                          borderRadius: '12px',
+                          border: '2px solid #e5e7eb',
+                          fontSize: '1rem',
+                          transition: 'all 0.2s ease',
+                          outline: 'none',
+                          backgroundColor: 'white'
                         }}
                         placeholder="sk-..."
+                        onFocus={(e) => {
+                          e.target.style.borderColor = '#8b5cf6';
+                          e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.1)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = '#e5e7eb';
+                          e.target.style.boxShadow = 'none';
+                        }}
                       />
-                      <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '4px' }}>
+                      <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>🔒</span>
                         Sua chave API será criptografada e armazenada com segurança
                       </p>
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                      <label style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontWeight: '600', 
+                        marginBottom: '10px', 
+                        color: '#111827',
+                        fontSize: '0.9375rem'
+                      }}>
+                        <span style={{ fontSize: '1.25rem' }}>🎯</span>
                         Modelo
                       </label>
                       <select
@@ -3360,10 +3436,21 @@ const DashboardWithFirebase = ({
                         onChange={(e) => setAssistantForm(prev => ({ ...prev, model: e.target.value }))}
                         style={{
                           width: '100%',
-                          padding: '12px',
-                          borderRadius: '8px',
-                          border: '1px solid #d1d5db',
-                          fontSize: '1rem'
+                          padding: '14px 16px',
+                          borderRadius: '12px',
+                          border: '2px solid #e5e7eb',
+                          fontSize: '1rem',
+                          transition: 'all 0.2s ease',
+                          outline: 'none',
+                          backgroundColor: 'white'
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = '#8b5cf6';
+                          e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.1)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = '#e5e7eb';
+                          e.target.style.boxShadow = 'none';
                         }}
                       >
                         <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Rápido e Econômico)</option>
@@ -3531,21 +3618,44 @@ const DashboardWithFirebase = ({
                   </div>
                 )}
 
-                <button
-                  type="submit"
-                  style={{
-                    backgroundColor: '#4f46e5',
-                    color: 'white',
-                    padding: '12px 24px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    alignSelf: 'flex-start'
-                  }}
-                >
-                  💾 Salvar Configurações
-                </button>
+                {/* Botão Salvar */}
+                <div style={{ 
+                  marginTop: '16px',
+                  paddingTop: '32px',
+                  borderTop: '2px solid #e5e7eb',
+                  display: 'flex',
+                  justifyContent: 'flex-end'
+                }}>
+                  <button
+                    type="submit"
+                    style={{
+                      background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                      color: 'white',
+                      padding: '16px 40px',
+                      borderRadius: '12px',
+                      border: 'none',
+                      fontWeight: '600',
+                      fontSize: '1.0625rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 4px 16px rgba(139, 92, 246, 0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = 'translateY(-2px)';
+                      e.target.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = '0 4px 16px rgba(139, 92, 246, 0.3)';
+                    }}
+                  >
+                    <span style={{ fontSize: '1.5rem' }}>💾</span>
+                    Salvar Configurações do Assistente
+                  </button>
+                </div>
               </form>
             </div>
 
