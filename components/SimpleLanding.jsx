@@ -29,6 +29,8 @@ if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
 const SimpleLanding = ({ onLoginSuccess }) => {
   const [showModal, setShowModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null);
   const [mode, setMode] = useState('login'); // 'login' ou 'register'
   const [formData, setFormData] = useState({
     name: '',
@@ -87,6 +89,13 @@ const SimpleLanding = ({ onLoginSuccess }) => {
 
   const openModal = (authMode) => {
     setMode(authMode);
+    setShowModal(true);
+  };
+
+  const handleSelectPlan = (plan) => {
+    setSelectedPlan(plan);
+    setShowPlanModal(false);
+    setMode('register');
     setShowModal(true);
   };
 
@@ -178,7 +187,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
           </p>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <button
-            onClick={() => openModal('register')}
+            onClick={() => setShowPlanModal(true)}
             style={{
               background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               color: 'white',
@@ -546,7 +555,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             </ul>
 
             <button
-              onClick={() => openModal('register')}
+              onClick={() => handleSelectPlan('basico')}
               style={{
                 width: '100%',
                 padding: '14px',
@@ -644,7 +653,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             </ul>
 
             <button
-              onClick={() => openModal('register')}
+              onClick={() => handleSelectPlan('pro')}
               style={{
                 width: '100%',
                 padding: '14px',
@@ -727,7 +736,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             </ul>
 
             <button
-              onClick={() => openModal('register')}
+              onClick={() => handleSelectPlan('enterprise')}
               style={{
                 width: '100%',
                 padding: '14px',
@@ -797,7 +806,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
           Junte-se a centenas de empresas que já automatizaram suas vendas via WhatsApp
         </p>
         <button
-          onClick={() => openModal('register')}
+          onClick={() => setShowPlanModal(true)}
           style={{
             background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
             color: 'white',
@@ -1314,7 +1323,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
               <button
                 onClick={() => {
                   setShowInfoModal(false);
-                  openModal('register');
+                  setShowPlanModal(true);
                 }}
                 style={{
                   background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
@@ -1342,6 +1351,271 @@ const SimpleLanding = ({ onLoginSuccess }) => {
               <p style={{ marginTop: '16px', fontSize: '0.875rem', color: '#9ca3af' }}>
                 Sem necessidade de cartão de crédito
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Seleção de Plano */}
+      {showPlanModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            padding: '20px',
+            overflowY: 'auto'
+          }}
+          onClick={() => setShowPlanModal(false)}
+        >
+          <div
+            style={{
+              backgroundColor: '#1a1f36',
+              borderRadius: '24px',
+              padding: '48px',
+              maxWidth: '1100px',
+              width: '100%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              border: '1px solid rgba(16, 185, 129, 0.2)',
+              position: 'relative',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Botão Fechar */}
+            <button
+              onClick={() => setShowPlanModal(false)}
+              style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#9ca3af',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '8px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                e.target.style.color = '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#9ca3af';
+              }}
+            >
+              ✕
+            </button>
+
+            {/* Header */}
+            <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+              <h2 style={{
+                fontSize: '2.5rem',
+                fontWeight: '700',
+                marginBottom: '16px',
+                color: '#ffffff'
+              }}>
+                Escolha seu Plano
+              </h2>
+              <p style={{
+                fontSize: '1.125rem',
+                color: '#9ca3af'
+              }}>
+                Selecione o plano ideal para sua empresa
+              </p>
+            </div>
+
+            {/* Cards de Planos */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '24px'
+            }}>
+              {/* Plano Básico */}
+              <div
+                onClick={() => handleSelectPlan('basico')}
+                style={{
+                  backgroundColor: '#0f1419',
+                  padding: '32px',
+                  borderRadius: '16px',
+                  border: '2px solid rgba(16, 185, 129, 0.2)',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.borderColor = '#10b981';
+                  e.currentTarget.style.boxShadow = '0 12px 32px rgba(16, 185, 129, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px', textAlign: 'center' }}>
+                  Básico
+                </h3>
+                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                  <div>
+                    <span style={{ fontSize: '2.5rem', fontWeight: '800', color: '#10b981' }}>R$ 399</span>
+                    <span style={{ fontSize: '1rem', color: '#9ca3af' }}>,90/mês</span>
+                  </div>
+                </div>
+                <ul style={{ listStyle: 'none', padding: 0, marginBottom: '24px' }}>
+                  {['500 conversas/mês', '1 atendente', 'Catálogo básico', 'Suporte email'].map((item, idx) => (
+                    <li key={idx} style={{ padding: '8px 0', color: '#9ca3af', fontSize: '0.9375rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ color: '#10b981' }}>✓</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <div style={{
+                  textAlign: 'center',
+                  padding: '12px',
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                  borderRadius: '8px',
+                  color: '#10b981',
+                  fontSize: '0.875rem',
+                  fontWeight: '600'
+                }}>
+                  Clique para selecionar
+                </div>
+              </div>
+
+              {/* Plano Pro */}
+              <div
+                onClick={() => handleSelectPlan('pro')}
+                style={{
+                  backgroundColor: '#0f1419',
+                  padding: '32px',
+                  borderRadius: '16px',
+                  border: '3px solid #10b981',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  position: 'relative',
+                  boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.boxShadow = '0 16px 40px rgba(16, 185, 129, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.3)';
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '-12px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  backgroundColor: '#10b981',
+                  color: '#ffffff',
+                  padding: '4px 16px',
+                  borderRadius: '12px',
+                  fontSize: '0.75rem',
+                  fontWeight: '700'
+                }}>
+                  POPULAR
+                </div>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px', textAlign: 'center' }}>
+                  Pro
+                </h3>
+                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                  <div>
+                    <span style={{ fontSize: '2.5rem', fontWeight: '800', color: '#10b981' }}>R$ 1.099</span>
+                    <span style={{ fontSize: '1rem', color: '#9ca3af' }}>,90/mês</span>
+                  </div>
+                </div>
+                <ul style={{ listStyle: 'none', padding: 0, marginBottom: '24px' }}>
+                  {['Conversas ilimitadas', '5 atendentes', 'IA avançada', 'Pagamentos', 'Suporte prioritário'].map((item, idx) => (
+                    <li key={idx} style={{ padding: '8px 0', color: '#ffffff', fontSize: '0.9375rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ color: '#10b981' }}>✓</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <div style={{
+                  textAlign: 'center',
+                  padding: '12px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  fontSize: '0.875rem',
+                  fontWeight: '600'
+                }}>
+                  Clique para selecionar
+                </div>
+              </div>
+
+              {/* Plano Enterprise */}
+              <div
+                onClick={() => handleSelectPlan('enterprise')}
+                style={{
+                  backgroundColor: '#0f1419',
+                  padding: '32px',
+                  borderRadius: '16px',
+                  border: '2px solid rgba(16, 185, 129, 0.2)',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.borderColor = '#10b981';
+                  e.currentTarget.style.boxShadow = '0 12px 32px rgba(16, 185, 129, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px', textAlign: 'center' }}>
+                  Enterprise
+                </h3>
+                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                  <div>
+                    <span style={{ fontSize: '2.5rem', fontWeight: '800', color: '#10b981' }}>R$ 1.999</span>
+                    <span style={{ fontSize: '1rem', color: '#9ca3af' }}>,90/mês</span>
+                  </div>
+                </div>
+                <ul style={{ listStyle: 'none', padding: 0, marginBottom: '24px' }}>
+                  {['Tudo ilimitado', 'API dedicada', 'Customizações', 'Gerente de conta', 'Suporte 24/7'].map((item, idx) => (
+                    <li key={idx} style={{ padding: '8px 0', color: '#9ca3af', fontSize: '0.9375rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ color: '#10b981' }}>✓</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <div style={{
+                  textAlign: 'center',
+                  padding: '12px',
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                  borderRadius: '8px',
+                  color: '#10b981',
+                  fontSize: '0.875rem',
+                  fontWeight: '600'
+                }}>
+                  Clique para selecionar
+                </div>
+              </div>
             </div>
           </div>
         </div>
