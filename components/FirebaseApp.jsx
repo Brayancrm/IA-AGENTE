@@ -1249,11 +1249,11 @@ const DashboardWithFirebase = ({
         <div className="mb-8">
           <div className="flex justify-between items-start mb-2">
             <div>
-              <h2 className="text-4xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+              <h2 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
                 <span className="text-5xl">📦</span>
                 Catálogo de Produtos
               </h2>
-              <p className="text-base text-gray-600">
+              <p className="text-base text-gray-400">
                 Gerencie seus produtos e serviços em um só lugar
               </p>
             </div>

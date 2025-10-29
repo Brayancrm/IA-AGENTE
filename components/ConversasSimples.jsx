@@ -294,11 +294,16 @@ export default function ConversasSimples({ userId, backendUrl }) {
   }
 
   return (
-    <div style={{ padding: '24px', height: 'calc(100vh - 48px)' }}>
+    <div style={{ padding: '40px', maxWidth: '1400px', margin: '0 auto' }}>
       {/* Header */}
-      <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
-        💬 Conversas WhatsApp ({conversas.length})
-      </h2>
+      <div style={{ marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+          💬 Conversas WhatsApp ({conversas.length})
+        </h2>
+        <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
+          Acompanhe todas as conversas do WhatsApp em tempo real
+        </p>
+      </div>
 
       <div style={{ 
         display: 'flex', 
