@@ -172,6 +172,19 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             max-width: 100% !important;
             gap: 20px !important;
           }
+          
+          .modal-plan-grid {
+            grid-template-columns: 1fr !important;
+            gap: 20px !important;
+            max-width: 100% !important;
+          }
+          
+          .modal-plan-container {
+            max-width: 95vw !important;
+            max-height: 85vh !important;
+            overflow-y: auto !important;
+            padding: 24px !important;
+          }
         }
       `}</style>
       
@@ -1601,6 +1614,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
           onClick={() => setShowPlanModal(false)}
         >
           <div
+            className="modal-plan-container"
             style={{
               backgroundColor: '#1a1f36',
               borderRadius: '24px',
@@ -1666,11 +1680,14 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             </div>
 
             {/* Cards de Planos */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '20px'
-            }}>
+            <div 
+              className="modal-plan-grid"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '20px'
+              }}
+            >
               {/* Teste Gratuito */}
               <div
                 onClick={() => handleSelectPlan('teste-gratuito')}
