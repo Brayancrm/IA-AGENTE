@@ -2985,23 +2985,23 @@ const DashboardWithFirebase = ({
           <div style={{ padding: '40px', maxWidth: '1100px', margin: '0 auto' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#111827', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <span style={{ fontSize: '2.5rem' }}>📱</span>
                 Conexão WhatsApp
               </h2>
-              <p style={{ fontSize: '1rem', color: '#6b7280' }}>
+              <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
                 Conecte seu WhatsApp para ativar o assistente automático
               </p>
             </div>
             
             {/* Card de Status */}
             <div style={{ 
-              backgroundColor: 'white', 
+              backgroundColor: '#1a1f36', 
               borderRadius: '20px', 
               padding: '32px', 
               marginBottom: '24px', 
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)', 
-              border: '2px solid ' + (currentWhatsappStatus === 'connected' ? '#10b981' : currentWhatsappStatus === 'qrcode' ? '#f59e0b' : '#e5e7eb')
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)', 
+              border: '2px solid ' + (currentWhatsappStatus === 'connected' ? '#10b981' : currentWhatsappStatus === 'qrcode' ? '#10b981' : 'rgba(255, 255, 255, 0.1)')
             }}>
               <div style={{ 
                 display: 'inline-block',
@@ -3344,28 +3344,28 @@ const DashboardWithFirebase = ({
           <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#111827', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <span style={{ fontSize: '2.5rem' }}>🤖</span>
                 Configuração do Assistente
               </h2>
-              <p style={{ fontSize: '1rem', color: '#6b7280' }}>
+              <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
                 Configure a inteligência artificial e o fluxo de atendimento
               </p>
             </div>
 
             {/* Configuração de IA */}
             <div style={{ 
-              backgroundColor: 'white', 
+              backgroundColor: '#1a1f36', 
               borderRadius: '20px', 
               padding: '32px', 
               marginBottom: '24px', 
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)', 
-              border: '2px solid #e5e7eb' 
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)', 
+              border: '1px solid rgba(16, 185, 129, 0.2)' 
             }}>
               <h3 style={{ 
                 fontSize: '1.5rem', 
                 fontWeight: '700', 
-                color: '#111827', 
+                color: '#ffffff', 
                 marginBottom: '8px',
                 display: 'flex',
                 alignItems: 'center',
@@ -3374,7 +3374,7 @@ const DashboardWithFirebase = ({
                 <span style={{ fontSize: '1.75rem' }}>🧠</span>
                 Inteligência Artificial
               </h3>
-              <p style={{ fontSize: '0.9375rem', color: '#6b7280', marginBottom: '24px' }}>
+              <p style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '24px' }}>
                 Configure o modelo e comportamento da IA
               </p>
               
