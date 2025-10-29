@@ -117,13 +117,24 @@ async function createSession(userId) {
     const sessionSnapshot = await sessionRef.once('value');
     const sessionData = sessionSnapshot.val();
     
+    let restoreSessionToken = null;
     if (sessionData && sessionData.sessionToken) {
       console.log('🔄 Tentando restaurar sessão existente do Firebase...');
+      console.log(`   Token encontrado: ${sessionData.sessionToken.length} caracteres`);
+      
+      // 🔥 CRÍTICO: Parse do token JSON string de volta para object
+      try {
+        restoreSessionToken = JSON.parse(sessionData.sessionToken);
+        console.log('✅ Token parseado com sucesso para restauração');
+      } catch (parseError) {
+        console.warn('⚠️ Erro ao fazer parse do token, será criada nova sessão:', parseError.message);
+        restoreSessionToken = null;
+      }
     } else {
       console.log('🆕 Criando nova sessão WhatsApp...');
     }
     
-    const client = await wppconnect.create({
+    const clientOptions = {
       session: `user_${userId}`,
       // 🔥 NOVO: Habilitar persistência de sessão
       tokenStore: 'file',
@@ -232,7 +243,16 @@ async function createSession(userId) {
           '--mute-audio'
         ]
       }
-    });
+    };
+    
+    // 🔥 CRÍTICO: Adicionar token de restauração se existir
+    if (restoreSessionToken) {
+      console.log('🔑 Adicionando token de restauração nas opções do client...');
+      clientOptions.sessionToken = restoreSessionToken;
+    }
+    
+    // Criar client WPPConnect
+    const client = await wppconnect.create(clientOptions);
 
     // Configurar listeners de mensagens
     client.onMessage(async (message) => {
@@ -2875,7 +2895,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online',
     service: 'WhatsApp IA Backend',
-    version: '1.0.10-fix-token-object', // 🔥 CORREÇÃO CRÍTICA: Converte token object para string
+    version: '1.0.11-fix-token-restore', // 🔥 CORREÇÃO: Usa token para restaurar sessão
     activeSessions: activeClients.size,
     timestamp: new Date().toISOString()
   });
