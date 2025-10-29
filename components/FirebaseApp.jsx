@@ -1244,25 +1244,35 @@ const DashboardWithFirebase = ({
     const categories = [...new Set(catalogItems.map(i => i.category).filter(Boolean))];
 
     return (
-      <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <h2 className="text-3xl font-bold text-gray-800">Catálogo (Itens)</h2>
-          <div className="flex space-x-3">
-            <button
-              onClick={() => setShowImportModal(true)}
-              className="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl font-medium hover:bg-gray-200 transition-colors flex items-center space-x-2"
-            >
-              <Upload className="w-4 h-4" />
-              <span>Importar</span>
-            </button>
-            <button
-              onClick={() => openCatalogModal()}
-              className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors flex items-center space-x-2"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Novo Item</span>
-            </button>
+      <div className="p-6 lg:p-10 space-y-6 max-w-[1400px] mx-auto">
+        {/* Header Modernizado */}
+        <div className="mb-8">
+          <div className="flex justify-between items-start mb-2">
+            <div>
+              <h2 className="text-4xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+                <span className="text-5xl">📦</span>
+                Catálogo de Produtos
+              </h2>
+              <p className="text-base text-gray-600">
+                Gerencie seus produtos e serviços em um só lugar
+              </p>
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700 px-5 py-2.5 rounded-xl font-semibold hover:from-gray-200 hover:to-gray-300 transition-all shadow-sm hover:shadow-md transform hover:-translate-y-0.5 flex items-center space-x-2"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Importar</span>
+              </button>
+              <button
+                onClick={() => openCatalogModal()}
+                className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center space-x-2"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Novo Item</span>
+              </button>
+            </div>
           </div>
         </div>
 
