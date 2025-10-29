@@ -496,10 +496,11 @@ const SimpleLanding = ({ onLoginSuccess }) => {
 
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '32px',
-          maxWidth: '1400px',
-          margin: '0 auto'
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: '24px',
+          maxWidth: '1600px',
+          margin: '0 auto',
+          padding: '0 20px'
         }}>
           {/* Teste Gratuito */}
           <div style={{
