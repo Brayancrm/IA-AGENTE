@@ -93,6 +93,24 @@ async function createSession(userId) {
         console.warn('⚠️ Erro ao fechar sessão anterior (continuando):', closeError.message);
         activeClients.delete(userId);
       }
+      // 🔥 Aguardar 2 segundos para garantir que o processo foi encerrado
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    
+    // 🔥 CRÍTICO: Limpar arquivos de lock do Chromium antes de iniciar
+    const fs = require('fs');
+    const path = require('path');
+    const profileDir = `/tokens/chrome_profile_${userId}`;
+    const lockFile = path.join(profileDir, 'SingletonLock');
+    
+    try {
+      if (fs.existsSync(lockFile)) {
+        console.log('🧹 Removendo arquivo de lock do Chromium...');
+        fs.unlinkSync(lockFile);
+        console.log('✅ Lock removido com sucesso');
+      }
+    } catch (lockError) {
+      console.warn('⚠️ Erro ao remover lock (continuando):', lockError.message);
     }
     
     // 🔥 NOVO: Verificar se existe sessão salva no Firebase para restaurar
