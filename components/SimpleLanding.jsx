@@ -1415,14 +1415,24 @@ const SimpleLanding = ({ onLoginSuccess }) => {
 
             {/* Conteúdo do Modal */}
             <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-              <div style={{ fontSize: '4rem', marginBottom: '16px' }}>💬</div>
+              <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+                <img 
+                  src="/logo.png" 
+                  alt="dadosIA Logo" 
+                  style={{ 
+                    width: '100px', 
+                    height: '100px',
+                    objectFit: 'contain'
+                  }} 
+                />
+              </div>
               <h2 style={{
                 fontSize: '2.5rem',
                 fontWeight: '700',
                 marginBottom: '16px',
                 color: '#ffffff'
               }}>
-                WhatsApp Sales Agent
+                dadosIA
               </h2>
               <p style={{
                 fontSize: '1.125rem',
