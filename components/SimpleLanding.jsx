@@ -126,8 +126,8 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             src="/logo.png" 
             alt="dadosIA Logo" 
             style={{ 
-              width: '48px', 
-              height: '48px',
+              width: '96px', 
+              height: '96px',
               objectFit: 'contain'
             }} 
           />
@@ -172,8 +172,8 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             src="/logo.png" 
             alt="dadosIA Logo" 
             style={{ 
-              width: '120px', 
-              height: '120px',
+              width: '240px', 
+              height: '240px',
               objectFit: 'contain'
             }} 
           />
@@ -1020,14 +1020,19 @@ const SimpleLanding = ({ onLoginSuccess }) => {
 
             <div style={{ textAlign: 'center', marginBottom: '40px' }}>
               <div style={{ 
-                fontSize: '4rem', 
                 marginBottom: '16px',
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text'
+                display: 'flex',
+                justifyContent: 'center'
               }}>
-                💬
+                <img 
+                  src="/logo.png" 
+                  alt="dadosIA Logo" 
+                  style={{ 
+                    width: '120px', 
+                    height: '120px',
+                    objectFit: 'contain'
+                  }} 
+                />
               </div>
               <h2 style={{
                 fontSize: '2rem',

@@ -3925,13 +3925,18 @@ const DashboardWithFirebase = ({
               zIndex: 1000
             }}>
           {/* Logo */}
-          <div style={{ marginBottom: '40px', textAlign: 'center' }}>
+          <div style={{ 
+            marginBottom: '40px', 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center' 
+          }}>
             <img 
               src="/logo.png" 
               alt="dadosIA Logo" 
               style={{ 
-                width: '80px', 
-                height: '80px',
+                width: '240px', 
+                height: '240px',
                 objectFit: 'contain'
               }} 
             />
