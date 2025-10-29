@@ -2860,7 +2860,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online',
     service: 'WhatsApp IA Backend',
-    version: '1.0.8-fix-logs', // 🔥 CORREÇÃO: Removida linha enganosa do log auto-restore
+    version: '1.0.9-fix-crashes', // 🔥 CORREÇÃO: Validação melhorada + prevenção de crashes
     activeSessions: activeClients.size,
     timestamp: new Date().toISOString()
   });
@@ -3826,13 +3826,28 @@ app.listen(PORT, '0.0.0.0', async () => {
         console.log(`   - UserID: ${userId}`);
         console.log(`     Status: ${data.status}`);
         console.log(`     Tem token: ${!!data.sessionToken}`);
+        console.log(`     Tipo do token: ${typeof data.sessionToken}`);
+        console.log(`     Tamanho do token: ${data.sessionToken ? (typeof data.sessionToken === 'string' ? data.sessionToken.length : 'não é string') : 0}`);
       });
       
       const connectedSessions = allSessions
         .filter(([userId, data]) => {
-          // 🔥 CRÍTICO: Restaurar QUALQUER sessão que tenha token válido
-          // Não importa o status (pode ser 'error' devido a crash anterior)
-          return data.sessionToken && data.sessionToken.length > 0;
+          // 🔥 CRÍTICO: Validação melhorada do sessionToken
+          const hasValidToken = data.sessionToken 
+            && typeof data.sessionToken === 'string' 
+            && data.sessionToken.trim().length > 0;
+          
+          if (!hasValidToken && data.sessionToken) {
+            console.log(`⚠️ [AUTO-RESTORE] Token inválido para ${userId} - Limpando...`);
+            // Limpar token inválido do Firebase
+            db.ref(`whatsapp_sessions/${userId}`).update({
+              sessionToken: null,
+              status: 'disconnected',
+              lastActivity: new Date().toISOString()
+            }).catch(err => console.error('Erro ao limpar token:', err.message));
+          }
+          
+          return hasValidToken;
         });
       
       console.log(`✅✅✅ [AUTO-RESTORE] Sessões COM TOKEN (novo filtro): ${connectedSessions.length} ✅✅✅`);
@@ -3871,8 +3886,19 @@ app.listen(PORT, '0.0.0.0', async () => {
 });
 
 // Tratamento de erros não capturados
-process.on('unhandledRejection', (error) => {
-  console.error('❌ Erro não tratado:', error);
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ [ERRO CRÍTICO] Unhandled Rejection:', reason);
+  console.error('   Promise:', promise);
+  console.error('   Stack:', reason?.stack);
+  // NÃO CRASHAR - apenas logar
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('❌ [ERRO CRÍTICO] Uncaught Exception:', error);
+  console.error('   Message:', error.message);
+  console.error('   Stack:', error.stack);
+  // NÃO CRASHAR - apenas logar
+  // Em produção, idealmente deveríamos reiniciar o processo de forma controlada
 });
 
 process.on('SIGINT', async () => {

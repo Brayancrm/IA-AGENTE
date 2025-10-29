@@ -183,7 +183,7 @@ const FirebaseApp = () => {
 
     console.log('🔄 [WhatsApp Listener] INICIANDO monitoramento em tempo real');
     console.log('📍 [WhatsApp Listener] Path:', `whatsapp_sessions/${user.uid}`);
-    
+
     const sessionRef = ref(database, `whatsapp_sessions/${user.uid}`);
     
     const unsubscribe = onValue(sessionRef, (snapshot) => {
