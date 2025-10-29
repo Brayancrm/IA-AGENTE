@@ -76,6 +76,9 @@ const FirebaseApp = () => {
   
   // CRM temporariamente desativado - será reconstruído depois
   
+  // Estado do menu mobile
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
   // URL do backend
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
 
@@ -3906,28 +3909,108 @@ const DashboardWithFirebase = ({
   ];
 
       return (
-        <div style={{ minHeight: '100vh', backgroundColor: '#0f1419', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
+        <>
+          <style jsx>{`
+            /* Estilos responsivos para mobile */
+            @media (max-width: 768px) {
+              .mobile-menu-btn {
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+              }
+              
+              .sidebar {
+                transform: translateX(${isMobileMenuOpen ? '0' : '-100%'}) !important;
+              }
+              
+              .mobile-overlay {
+                display: block !important;
+              }
+              
+              .main-content {
+                margin-left: 0 !important;
+                padding: 80px 16px 16px !important;
+              }
+            }
+            
+            @media (min-width: 769px) {
+              .mobile-menu-btn {
+                display: none !important;
+              }
+              
+              .mobile-overlay {
+                display: none !important;
+              }
+            }
+          `}</style>
+          
+          <div style={{ minHeight: '100vh', backgroundColor: '#0f1419', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
+            {/* Botão Menu Hambúrguer (Mobile) */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              style={{
+                position: 'fixed',
+                top: '20px',
+                left: '20px',
+                zIndex: 2000,
+                backgroundColor: '#10b981',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '12px',
+                cursor: 'pointer',
+                display: 'none',
+                '@media (max-width: 768px)': {
+                  display: 'flex'
+                }
+              }}
+              className="mobile-menu-btn"
+            >
+              <span style={{ color: 'white', fontSize: '24px' }}>☰</span>
+            </button>
+
+            {/* Overlay para fechar menu mobile */}
+            {isMobileMenuOpen && (
+              <div
+                onClick={() => setIsMobileMenuOpen(false)}
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  zIndex: 1500,
+                  display: 'none'
+                }}
+                className="mobile-overlay"
+              />
+            )}
+
             {/* Sidebar Modernizada - FIXA E CONGELADA */}
-            <div style={{ 
-              position: 'fixed',
-              left: 0,
-              top: 0,
-              width: '280px',
-              minWidth: '280px',
-              maxWidth: '280px',
-              height: '100vh',
-              backgroundColor: '#1a1f36', 
-              color: 'white', 
-              padding: '32px 24px',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: '2px 0 20px rgba(0,0,0,0.3)',
-              borderRight: '1px solid rgba(16, 185, 129, 0.1)',
-              overflowY: 'auto',
-              zIndex: 1000,
-              transform: 'scale(1)',
-              transformOrigin: 'top left'
-            }}>
+            <div 
+              style={{ 
+                position: 'fixed',
+                left: 0,
+                top: 0,
+                width: '280px',
+                minWidth: '280px',
+                maxWidth: '280px',
+                height: '100vh',
+                backgroundColor: '#1a1f36', 
+                color: 'white', 
+                padding: '32px 24px',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: '2px 0 20px rgba(0,0,0,0.3)',
+                borderRight: '1px solid rgba(16, 185, 129, 0.1)',
+                overflowY: 'auto',
+                zIndex: 1600,
+                transform: 'scale(1)',
+                transformOrigin: 'top left',
+                transition: 'transform 0.3s ease'
+              }}
+              className="sidebar"
+            >
           {/* Logo */}
           <div style={{ 
             marginBottom: '40px', 
@@ -3972,7 +4055,10 @@ const DashboardWithFirebase = ({
             {menuItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => setCurrentPage(item.id)}
+                onClick={() => {
+                  setCurrentPage(item.id);
+                  setIsMobileMenuOpen(false);
+                }}
                 style={{
                   width: '100%',
                   textAlign: 'left',
@@ -4064,14 +4150,19 @@ const DashboardWithFirebase = ({
         </div>
 
             {/* Main Content - COM MARGEM PARA A SIDEBAR FIXA */}
-            <div style={{ 
-              marginLeft: '280px',
-              minHeight: '100vh',
-              backgroundColor: '#0f1419',
-              overflowY: 'auto'
-            }}>
+            <div 
+              className="main-content"
+              style={{ 
+                marginLeft: '280px',
+                minHeight: '100vh',
+                backgroundColor: '#0f1419',
+                overflowY: 'auto'
+              }}
+            >
               {renderContent()}
             </div>
+          </div>
+        </>
 
             {/* Modal do Catálogo */}
             {showCatalogModal && (
