@@ -1938,29 +1938,29 @@ const DashboardWithFirebase = ({
           <div style={{ padding: '40px', maxWidth: '1400px', margin: '0 auto' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#111827', marginBottom: '8px' }}>
+              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
                 Dashboard
               </h2>
-              <p style={{ fontSize: '1rem', color: '#6b7280' }}>
+              <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
                 Visão geral do seu sistema de vendas com IA
               </p>
             </div>
 
             {/* Toggle Assistente */}
             <div style={{ 
-              backgroundColor: 'white', 
+              backgroundColor: '#1a1f36', 
               borderRadius: '16px', 
               padding: '24px', 
               marginBottom: '24px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-              border: '1px solid #e5e7eb'
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              border: '1px solid rgba(16, 185, 129, 0.2)'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#111827', marginBottom: '4px' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#ffffff', marginBottom: '4px' }}>
                     Assistente de IA
                   </h3>
-                  <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                  <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
                     {isActive ? '🟢 Ativo e respondendo mensagens' : '🔴 Desativado'}
                   </p>
                 </div>
@@ -2013,67 +2013,85 @@ const DashboardWithFirebase = ({
               marginBottom: '32px'
             }}>
               <div style={{ 
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                backgroundColor: '#1a1f36',
                 borderRadius: '16px', 
                 padding: '24px',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
-                color: 'white',
-                transition: 'transform 0.2s ease',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                border: companyProfile.companyName ? '2px solid #10b981' : '2px solid rgba(255,255,255,0.1)',
+                transition: 'all 0.2s ease',
                 cursor: 'pointer'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.borderColor = '#10b981';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.borderColor = companyProfile.companyName ? '#10b981' : 'rgba(255,255,255,0.1)';
+              }}
               >
-                <div style={{ fontSize: '2.5rem', marginBottom: '12px', opacity: 0.9 }}>🏢</div>
-                <h4 style={{ fontWeight: '600', marginBottom: '8px', fontSize: '1rem' }}>Configuração da Empresa</h4>
-                <p style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '4px' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🏢</div>
+                <h4 style={{ fontWeight: '600', marginBottom: '8px', fontSize: '1rem', color: '#ffffff' }}>Configuração da Empresa</h4>
+                <p style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '4px', color: companyProfile.companyName ? '#10b981' : '#9ca3af' }}>
                   {companyProfile.companyName ? '✓ Completa' : 'Pendente'}
                 </p>
-                <p style={{ fontSize: '0.875rem', opacity: 0.9 }}>
+                <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
                   {companyProfile.companyName || 'Configure os dados da sua empresa'}
                 </p>
               </div>
 
               <div style={{ 
-                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                backgroundColor: '#1a1f36',
                 borderRadius: '16px', 
                 padding: '24px',
-                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)',
-                color: 'white',
-                transition: 'transform 0.2s ease',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                border: integrationsConfig.openaiApiKey ? '2px solid #10b981' : '2px solid rgba(255,255,255,0.1)',
+                transition: 'all 0.2s ease',
                 cursor: 'pointer'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.borderColor = '#10b981';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.borderColor = integrationsConfig.openaiApiKey ? '#10b981' : 'rgba(255,255,255,0.1)';
+              }}
               >
-                <div style={{ fontSize: '2.5rem', marginBottom: '12px', opacity: 0.9 }}>⚙️</div>
-                <h4 style={{ fontWeight: '600', marginBottom: '8px', fontSize: '1rem' }}>Integrações</h4>
-                <p style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '4px' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>⚙️</div>
+                <h4 style={{ fontWeight: '600', marginBottom: '8px', fontSize: '1rem', color: '#ffffff' }}>Integrações</h4>
+                <p style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '4px', color: integrationsConfig.openaiApiKey ? '#10b981' : '#9ca3af' }}>
                   {integrationsConfig.openaiApiKey ? '✓ Configurado' : 'Pendente'}
                 </p>
-                <p style={{ fontSize: '0.875rem', opacity: 0.9 }}>
+                <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
                   {integrationsConfig.openaiApiKey ? 'API Key configurada' : 'Configure sua API Key'}
                 </p>
               </div>
 
               <div style={{ 
-                background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                backgroundColor: '#1a1f36',
                 borderRadius: '16px', 
                 padding: '24px',
-                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)',
-                color: 'white',
-                transition: 'transform 0.2s ease',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                border: catalogItems.length > 0 ? '2px solid #10b981' : '2px solid rgba(255,255,255,0.1)',
+                transition: 'all 0.2s ease',
                 cursor: 'pointer'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.borderColor = '#10b981';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.borderColor = catalogItems.length > 0 ? '#10b981' : 'rgba(255,255,255,0.1)';
+              }}
               >
-                <div style={{ fontSize: '2.5rem', marginBottom: '12px', opacity: 0.9 }}>📦</div>
-                <h4 style={{ fontWeight: '600', marginBottom: '8px', fontSize: '1rem' }}>Catálogo</h4>
-                <p style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '4px' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>📦</div>
+                <h4 style={{ fontWeight: '600', marginBottom: '8px', fontSize: '1rem', color: '#ffffff' }}>Catálogo</h4>
+                <p style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '4px', color: catalogItems.length > 0 ? '#10b981' : '#9ca3af' }}>
                   {catalogItems.length} itens
                 </p>
-                <p style={{ fontSize: '0.875rem', opacity: 0.9 }}>
+                <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
                   {catalogItems.filter(i => i.type === 'product').length} produtos · {catalogItems.filter(i => i.type === 'service').length} serviços
                 </p>
               </div>
@@ -2081,38 +2099,44 @@ const DashboardWithFirebase = ({
 
             {/* Card de Boas-Vindas */}
             <div style={{ 
-              backgroundColor: 'white', 
+              backgroundColor: '#1a1f36', 
               borderRadius: '20px', 
               padding: '32px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-              border: '1px solid #e5e7eb'
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              border: '1px solid rgba(16, 185, 129, 0.2)'
             }}>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#111827', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px' }}>
                 🚀 Começe Agora
               </h3>
-              <p style={{ color: '#6b7280', marginBottom: '24px', lineHeight: '1.6' }}>
+              <p style={{ color: '#9ca3af', marginBottom: '24px', lineHeight: '1.6' }}>
                 Configure seu assistente de vendas com IA em poucos passos. Complete as configurações abaixo para começar a atender seus clientes automaticamente pelo WhatsApp.
               </p>
               <div style={{ display: 'grid', gap: '16px' }}>
                 <div style={{ 
                   padding: '20px', 
-                  backgroundColor: companyProfile.companyName ? '#f0fdf4' : '#fef3c7', 
+                  backgroundColor: companyProfile.companyName ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.05)', 
                   borderRadius: '12px',
-                  border: `2px solid ${companyProfile.companyName ? '#86efac' : '#fde047'}`,
+                  border: `2px solid ${companyProfile.companyName ? '#10b981' : 'rgba(255, 255, 255, 0.1)'}`,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease'
                 }}
                 onClick={() => setCurrentPage('company')}
-                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(8px)'}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateX(8px)';
+                  e.currentTarget.style.borderColor = '#10b981';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateX(0)';
+                  e.currentTarget.style.borderColor = companyProfile.companyName ? '#10b981' : 'rgba(255, 255, 255, 0.1)';
+                }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <div style={{ fontSize: '2rem' }}>{companyProfile.companyName ? '✅' : '1️⃣'}</div>
                     <div style={{ flex: 1 }}>
-                      <h4 style={{ fontWeight: '600', color: '#111827', marginBottom: '4px' }}>
+                      <h4 style={{ fontWeight: '600', color: '#ffffff', marginBottom: '4px' }}>
                         Dados da Empresa
                       </h4>
-                      <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                      <p style={{ fontSize: '0.875rem', color: companyProfile.companyName ? '#10b981' : '#9ca3af' }}>
                         {companyProfile.companyName ? 'Configurado ✓' : 'Clique para configurar'}
                       </p>
                     </div>
@@ -2121,23 +2145,29 @@ const DashboardWithFirebase = ({
 
                 <div style={{ 
                   padding: '20px', 
-                  backgroundColor: integrationsConfig.openaiApiKey ? '#f0fdf4' : '#fef3c7', 
+                  backgroundColor: integrationsConfig.openaiApiKey ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.05)', 
                   borderRadius: '12px',
-                  border: `2px solid ${integrationsConfig.openaiApiKey ? '#86efac' : '#fde047'}`,
+                  border: `2px solid ${integrationsConfig.openaiApiKey ? '#10b981' : 'rgba(255, 255, 255, 0.1)'}`,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease'
                 }}
                 onClick={() => setCurrentPage('integrations')}
-                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(8px)'}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateX(8px)';
+                  e.currentTarget.style.borderColor = '#10b981';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateX(0)';
+                  e.currentTarget.style.borderColor = integrationsConfig.openaiApiKey ? '#10b981' : 'rgba(255, 255, 255, 0.1)';
+                }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <div style={{ fontSize: '2rem' }}>{integrationsConfig.openaiApiKey ? '✅' : '2️⃣'}</div>
                     <div style={{ flex: 1 }}>
-                      <h4 style={{ fontWeight: '600', color: '#111827', marginBottom: '4px' }}>
+                      <h4 style={{ fontWeight: '600', color: '#ffffff', marginBottom: '4px' }}>
                         Integração com IA
                       </h4>
-                      <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                      <p style={{ fontSize: '0.875rem', color: integrationsConfig.openaiApiKey ? '#10b981' : '#9ca3af' }}>
                         {integrationsConfig.openaiApiKey ? 'API Key configurada ✓' : 'Configure sua API Key'}
                       </p>
                     </div>
@@ -2146,23 +2176,29 @@ const DashboardWithFirebase = ({
 
                 <div style={{ 
                   padding: '20px', 
-                  backgroundColor: assistantSettings.systemPrompt ? '#f0fdf4' : '#fef3c7', 
+                  backgroundColor: assistantSettings.systemPrompt ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.05)', 
                   borderRadius: '12px',
-                  border: `2px solid ${assistantSettings.systemPrompt ? '#86efac' : '#fde047'}`,
+                  border: `2px solid ${assistantSettings.systemPrompt ? '#10b981' : 'rgba(255, 255, 255, 0.1)'}`,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease'
                 }}
                 onClick={() => setCurrentPage('assistant')}
-                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(8px)'}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateX(8px)';
+                  e.currentTarget.style.borderColor = '#10b981';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateX(0)';
+                  e.currentTarget.style.borderColor = assistantSettings.systemPrompt ? '#10b981' : 'rgba(255, 255, 255, 0.1)';
+                }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <div style={{ fontSize: '2rem' }}>{assistantSettings.systemPrompt ? '✅' : '3️⃣'}</div>
                     <div style={{ flex: 1 }}>
-                      <h4 style={{ fontWeight: '600', color: '#111827', marginBottom: '4px' }}>
+                      <h4 style={{ fontWeight: '600', color: '#ffffff', marginBottom: '4px' }}>
                         Configuração do Assistente
                       </h4>
-                      <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                      <p style={{ fontSize: '0.875rem', color: assistantSettings.systemPrompt ? '#10b981' : '#9ca3af' }}>
                         {assistantSettings.systemPrompt ? 'Prompt configurado ✓' : 'Defina o comportamento da IA'}
                       </p>
                     </div>
@@ -3846,19 +3882,20 @@ const DashboardWithFirebase = ({
     ...(user?.isMaster ? [{ id: 'users', label: 'Gerenciar Usuários', icon: '👤' }] : [])
   ];
 
-  return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#fafafa', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
-        {/* Sidebar Modernizada */}
-        <div style={{ 
-          width: '280px', 
-          backgroundColor: '#1a1f36', 
-          color: 'white', 
-          padding: '32px 24px',
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: '2px 0 12px rgba(0,0,0,0.08)'
-        }}>
+      return (
+        <div style={{ minHeight: '100vh', backgroundColor: '#0f1419', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
+          <div style={{ display: 'flex', minHeight: '100vh' }}>
+            {/* Sidebar Modernizada */}
+            <div style={{ 
+              width: '280px', 
+              backgroundColor: '#1a1f36', 
+              color: 'white', 
+              padding: '32px 24px',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '2px 0 20px rgba(0,0,0,0.3)',
+              borderRight: '1px solid rgba(16, 185, 129, 0.1)'
+            }}>
           {/* Logo/Título */}
           <div style={{ marginBottom: '40px' }}>
             <h1 style={{ 
@@ -3990,14 +4027,14 @@ const DashboardWithFirebase = ({
           </div>
         </div>
 
-        {/* Main Content */}
-        <div style={{ 
-          flex: 1, 
-          backgroundColor: '#fafafa',
-          overflowY: 'auto'
-        }}>
-          {renderContent()}
-        </div>
+            {/* Main Content */}
+            <div style={{ 
+              flex: 1, 
+              backgroundColor: '#0f1419',
+              overflowY: 'auto'
+            }}>
+              {renderContent()}
+            </div>
       </div>
 
       {/* Modal do Catálogo */}
