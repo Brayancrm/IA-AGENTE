@@ -2884,7 +2884,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online',
     service: 'WhatsApp IA Backend',
-    version: '1.0.13-manual-connect', // ⚠️ Auto-restore desabilitado - conexão manual
+    version: '1.0.14-clean-sessions', // 🧹 Limpa sessões antigas no deploy
     activeSessions: activeClients.size,
     timestamp: new Date().toISOString()
   });
@@ -3828,17 +3828,47 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log(`   GET  /api/conversations/:userId    - Listar conversas`);
   console.log('');
   
-  // ⚠️ AUTO-RESTORE DESABILITADO (v1.0.13)
-  // Motivo: WPPConnect sempre abre novo browser ao criar sessão,
-  // o que desconecta a sessão anterior e pede QR Code novamente.
-  // Solução: Usuário reconecta manualmente quando necessário.
+  // 🔥 LIMPEZA DE SESSÕES ANTIGAS NO STARTUP (v1.0.14)
+  // Desconecta todas as sessões antigas para forçar reconexão limpa
   console.log('');
   console.log('='.repeat(50));
-  console.log('ℹ️  [AUTO-RESTORE] DESABILITADO');
+  console.log('🧹 [CLEANUP] Limpando sessões antigas...');
   console.log('='.repeat(50));
-  console.log('📱 WhatsApp será conectado quando usuário clicar em "Conectar"');
-  console.log('🔄 Após deploy, usuário precisa reconectar manualmente');
-  console.log('✅ Isso evita erros de autenticação no startup');
+  
+  try {
+    // Buscar todas as sessões no Firebase
+    const sessionsSnapshot = await db.ref('whatsapp_sessions').once('value');
+    const sessions = sessionsSnapshot.val();
+    
+    if (sessions) {
+      const sessionCount = Object.keys(sessions).length;
+      console.log(`📊 Encontradas ${sessionCount} sessão(ões) no Firebase`);
+      
+      // Desconectar todas
+      for (const [userId, sessionData] of Object.entries(sessions)) {
+        console.log(`🔄 Desconectando sessão antiga: ${userId}`);
+        
+        await db.ref(`whatsapp_sessions/${userId}`).update({
+          status: 'disconnected',
+          qrCode: null,
+          sessionToken: null,
+          lastActivity: new Date().toISOString(),
+          disconnectedAt: new Date().toISOString(),
+          disconnectReason: 'deploy_cleanup'
+        });
+      }
+      
+      console.log(`✅ ${sessionCount} sessão(ões) desconectada(s) com sucesso`);
+    } else {
+      console.log('ℹ️  Nenhuma sessão encontrada no Firebase');
+    }
+    
+    console.log('🔄 Usuário deve clicar em "Conectar" para gerar novo QR Code');
+    console.log('✅ Isso garante conexão limpa e funcional');
+  } catch (error) {
+    console.error('❌ Erro ao limpar sessões:', error.message);
+  }
+  
   console.log('='.repeat(50));
   console.log('');
 });
