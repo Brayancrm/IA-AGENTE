@@ -2165,14 +2165,37 @@ const DashboardWithFirebase = ({
 
       case 'company':
         return (
-          <div style={{ padding: '24px' }}>
-            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
-              Cadastro da Empresa
-            </h2>
-            <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
-              <form onSubmit={handleCompanySubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ padding: '40px', maxWidth: '900px', margin: '0 auto' }}>
+            {/* Header */}
+            <div style={{ marginBottom: '32px' }}>
+              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#111827', marginBottom: '8px' }}>
+                Cadastro da Empresa
+              </h2>
+              <p style={{ fontSize: '1rem', color: '#6b7280' }}>
+                Configure os dados da sua empresa para personalizar o atendimento
+              </p>
+            </div>
+
+            {/* Formulário */}
+            <div style={{ 
+              backgroundColor: 'white', 
+              borderRadius: '20px', 
+              padding: '40px', 
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)', 
+              border: '1px solid #e5e7eb' 
+            }}>
+              <form onSubmit={handleCompanySubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                  <label style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: '600', 
+                    marginBottom: '10px', 
+                    color: '#111827',
+                    fontSize: '0.9375rem'
+                  }}>
+                    <span style={{ fontSize: '1.25rem' }}>🏢</span>
                     Nome da Empresa
                   </label>
                   <input
@@ -2181,16 +2204,39 @@ const DashboardWithFirebase = ({
                     onChange={(e) => setCompanyForm(prev => ({ ...prev, companyName: e.target.value }))}
                     style={{
                       width: '100%',
-                      padding: '12px',
-                      borderRadius: '8px',
-                      border: '1px solid #d1d5db',
-                      fontSize: '1rem'
+                      padding: '14px 16px',
+                      borderRadius: '12px',
+                      border: '2px solid #e5e7eb',
+                      fontSize: '1rem',
+                      transition: 'all 0.2s ease',
+                      outline: 'none'
                     }}
                     placeholder="Digite o nome da sua empresa"
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#10b981';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#e5e7eb';
+                      e.target.style.boxShadow = 'none';
+                    }}
                   />
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '6px' }}>
+                    Nome que será exibido nas mensagens automáticas
+                  </p>
                 </div>
+
                 <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                  <label style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: '600', 
+                    marginBottom: '10px', 
+                    color: '#111827',
+                    fontSize: '0.9375rem'
+                  }}>
+                    <span style={{ fontSize: '1.25rem' }}>📄</span>
                     CNPJ
                   </label>
                   <input
@@ -2199,16 +2245,39 @@ const DashboardWithFirebase = ({
                     onChange={(e) => setCompanyForm(prev => ({ ...prev, cnpj: e.target.value }))}
                     style={{
                       width: '100%',
-                      padding: '12px',
-                      borderRadius: '8px',
-                      border: '1px solid #d1d5db',
-                      fontSize: '1rem'
+                      padding: '14px 16px',
+                      borderRadius: '12px',
+                      border: '2px solid #e5e7eb',
+                      fontSize: '1rem',
+                      transition: 'all 0.2s ease',
+                      outline: 'none'
                     }}
                     placeholder="00.000.000/0000-00"
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#10b981';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#e5e7eb';
+                      e.target.style.boxShadow = 'none';
+                    }}
                   />
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '6px' }}>
+                    Opcional - usado para emissão de notas fiscais
+                  </p>
                 </div>
+
                 <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                  <label style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: '600', 
+                    marginBottom: '10px', 
+                    color: '#111827',
+                    fontSize: '0.9375rem'
+                  }}>
+                    <span style={{ fontSize: '1.25rem' }}>📱</span>
                     Número do WhatsApp
                   </label>
                   <input
@@ -2217,29 +2286,63 @@ const DashboardWithFirebase = ({
                     onChange={(e) => setCompanyForm(prev => ({ ...prev, whatsappNumber: e.target.value }))}
                     style={{
                       width: '100%',
-                      padding: '12px',
-                      borderRadius: '8px',
-                      border: '1px solid #d1d5db',
-                      fontSize: '1rem'
+                      padding: '14px 16px',
+                      borderRadius: '12px',
+                      border: '2px solid #e5e7eb',
+                      fontSize: '1rem',
+                      transition: 'all 0.2s ease',
+                      outline: 'none'
                     }}
                     placeholder="+55 11 99999-9999"
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#10b981';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#e5e7eb';
+                      e.target.style.boxShadow = 'none';
+                    }}
                   />
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '6px' }}>
+                    Número que receberá as mensagens dos clientes
+                  </p>
                 </div>
-                <button
-                  type="submit"
-                  style={{
-                    backgroundColor: '#4f46e5',
-                    color: 'white',
-                    padding: '12px 24px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    alignSelf: 'flex-start'
-                  }}
-                >
-                  Salvar Perfil
-                </button>
+
+                <div style={{ 
+                  marginTop: '8px',
+                  paddingTop: '24px',
+                  borderTop: '1px solid #e5e7eb'
+                }}>
+                  <button
+                    type="submit"
+                    style={{
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      color: 'white',
+                      padding: '14px 32px',
+                      borderRadius: '12px',
+                      border: 'none',
+                      fontWeight: '600',
+                      fontSize: '1rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = 'translateY(-2px)';
+                      e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+                    }}
+                  >
+                    <span style={{ fontSize: '1.25rem' }}>✓</span>
+                    Salvar Dados da Empresa
+                  </button>
+                </div>
               </form>
             </div>
           </div>
