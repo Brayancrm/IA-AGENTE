@@ -83,85 +83,58 @@ const SimpleLanding = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleDemoLogin = () => {
-    // Para teste rápido - simular login como master
-    onLoginSuccess();
-  };
-
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #1e3a8a 0%, #7c3aed 50%, #ec4899 100%)',
+      backgroundColor: '#0f1419',
       color: 'white',
-      fontFamily: 'Arial, sans-serif',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center'
+      justifyContent: 'center',
+      padding: '20px'
     }}>
       <div style={{
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        backdropFilter: 'blur(10px)',
-        borderRadius: '20px',
-        padding: '40px',
-        maxWidth: '500px',
-        width: '90%',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+        backgroundColor: '#1a1f36',
+        borderRadius: '24px',
+        padding: '48px',
+        maxWidth: '480px',
+        width: '100%',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        border: '1px solid rgba(16, 185, 129, 0.2)'
       }}>
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <div style={{ 
+            fontSize: '4rem', 
+            marginBottom: '16px',
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>
+            💬
+          </div>
           <h1 style={{
             fontSize: '2.5rem',
-            fontWeight: 'bold',
-            marginBottom: '16px',
-            textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
+            fontWeight: '700',
+            marginBottom: '12px',
+            color: '#ffffff'
           }}>
             WhatsApp Sales Agent
           </h1>
           <p style={{
-            fontSize: '1.125rem',
-            color: '#d1d5db',
+            fontSize: '1rem',
+            color: '#9ca3af',
             lineHeight: '1.6'
           }}>
             Sistema completo de gestão de vendas via WhatsApp
           </p>
         </div>
 
-        {/* Botão de Demo */}
-        <div style={{ marginBottom: '32px' }}>
-          <button
-            onClick={handleDemoLogin}
-            style={{
-              width: '100%',
-              backgroundColor: 'white',
-              color: '#1e3a8a',
-              padding: '16px',
-              borderRadius: '12px',
-              fontWeight: 'bold',
-              fontSize: '1.125rem',
-              border: 'none',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
-            }}
-          >
-            🚀 Acessar Demo (Master)
-          </button>
-        </div>
-
-        {/* Divisor */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          margin: '32px 0',
-          color: '#d1d5db'
-        }}>
-          <div style={{ flex: 1, height: '1px', backgroundColor: '#d1d5db' }}></div>
-          <span style={{ margin: '0 16px', fontSize: '0.875rem' }}>OU</span>
-          <div style={{ flex: 1, height: '1px', backgroundColor: '#d1d5db' }}></div>
-        </div>
-
         {/* Formulário */}
         <form onSubmit={handleSubmit}>
           {mode === 'register' && (
-            <div style={{ marginBottom: '16px' }}>
+            <div style={{ marginBottom: '20px' }}>
               <input
                 type="text"
                 placeholder="Nome completo"
@@ -170,19 +143,23 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                 required
                 style={{
                   width: '100%',
-                  padding: '16px',
+                  padding: '14px 16px',
                   borderRadius: '12px',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  color: 'white',
+                  border: '2px solid rgba(255,255,255,0.1)',
+                  backgroundColor: '#0f1419',
+                  color: '#ffffff',
                   fontSize: '1rem',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                  transition: 'border-color 0.2s ease'
                 }}
+                onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
               />
             </div>
           )}
 
-          <div style={{ marginBottom: '16px' }}>
+          <div style={{ marginBottom: '20px' }}>
             <input
               type="email"
               placeholder="Email"
@@ -191,18 +168,22 @@ const SimpleLanding = ({ onLoginSuccess }) => {
               required
               style={{
                 width: '100%',
-                padding: '16px',
+                padding: '14px 16px',
                 borderRadius: '12px',
-                border: '1px solid rgba(255,255,255,0.3)',
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                color: 'white',
+                border: '2px solid rgba(255,255,255,0.1)',
+                backgroundColor: '#0f1419',
+                color: '#ffffff',
                 fontSize: '1rem',
-                boxSizing: 'border-box'
+                boxSizing: 'border-box',
+                outline: 'none',
+                transition: 'border-color 0.2s ease'
               }}
+              onFocus={(e) => e.target.style.borderColor = '#10b981'}
+              onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
             />
           </div>
 
-          <div style={{ marginBottom: '16px' }}>
+          <div style={{ marginBottom: '20px' }}>
             <input
               type="password"
               placeholder="Senha"
@@ -211,19 +192,23 @@ const SimpleLanding = ({ onLoginSuccess }) => {
               required
               style={{
                 width: '100%',
-                padding: '16px',
+                padding: '14px 16px',
                 borderRadius: '12px',
-                border: '1px solid rgba(255,255,255,0.3)',
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                color: 'white',
+                border: '2px solid rgba(255,255,255,0.1)',
+                backgroundColor: '#0f1419',
+                color: '#ffffff',
                 fontSize: '1rem',
-                boxSizing: 'border-box'
+                boxSizing: 'border-box',
+                outline: 'none',
+                transition: 'border-color 0.2s ease'
               }}
+              onFocus={(e) => e.target.style.borderColor = '#10b981'}
+              onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
             />
           </div>
 
           {mode === 'register' && (
-            <div style={{ marginBottom: '16px' }}>
+            <div style={{ marginBottom: '20px' }}>
               <input
                 type="text"
                 placeholder="Nome da empresa"
@@ -231,14 +216,18 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                 onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
                 style={{
                   width: '100%',
-                  padding: '16px',
+                  padding: '14px 16px',
                   borderRadius: '12px',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  color: 'white',
+                  border: '2px solid rgba(255,255,255,0.1)',
+                  backgroundColor: '#0f1419',
+                  color: '#ffffff',
                   fontSize: '1rem',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                  transition: 'border-color 0.2s ease'
                 }}
+                onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
               />
             </div>
           )}
@@ -261,38 +250,53 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             disabled={loading}
             style={{
               width: '100%',
-              backgroundColor: '#4f46e5',
+              background: loading ? '#6b7280' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               color: 'white',
               padding: '16px',
               borderRadius: '12px',
-              fontWeight: 'bold',
+              fontWeight: '700',
               fontSize: '1.125rem',
               border: 'none',
               cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.7 : 1,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+              boxShadow: loading ? 'none' : '0 4px 16px rgba(16, 185, 129, 0.4)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.5)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 16px rgba(16, 185, 129, 0.4)';
+              }
             }}
           >
-            {loading ? 'Carregando...' : (mode === 'login' ? 'Entrar' : 'Criar Conta')}
+            {loading ? 'Carregando...' : (mode === 'login' ? '🚀 Entrar' : '✨ Criar Conta')}
           </button>
         </form>
 
         {/* Toggle entre Login/Register */}
-        <div style={{ textAlign: 'center', marginTop: '24px' }}>
+        <div style={{ textAlign: 'center', marginTop: '28px' }}>
           <button
             onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
             style={{
               backgroundColor: 'transparent',
-              color: '#d1d5db',
+              color: '#9ca3af',
               border: 'none',
               cursor: 'pointer',
-              fontSize: '0.875rem',
-              textDecoration: 'underline'
+              fontSize: '0.9375rem',
+              textDecoration: 'none',
+              transition: 'color 0.2s ease'
             }}
+            onMouseEnter={(e) => e.target.style.color = '#10b981'}
+            onMouseLeave={(e) => e.target.style.color = '#9ca3af'}
           >
             {mode === 'login' 
-              ? 'Não tem conta? Criar conta' 
-              : 'Já tem conta? Fazer login'
+              ? 'Não tem conta? Criar conta →' 
+              : '← Já tem conta? Fazer login'
             }
           </button>
         </div>
