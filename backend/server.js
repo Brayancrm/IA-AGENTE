@@ -3786,7 +3786,7 @@ IMPORTANTE:
 
 const PORT = process.env.PORT || 3001;
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log('');
   console.log('='.repeat(50));
   console.log(`✅ Servidor WPPConnect + IA rodando!`);
@@ -3803,6 +3803,38 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   POST /api/messages/send            - Enviar mensagem`);
   console.log(`   GET  /api/conversations/:userId    - Listar conversas`);
   console.log('');
+  
+  // 🔥 CRÍTICO: Auto-restaurar sessões do WhatsApp após reinício
+  console.log('🔄 Verificando sessões ativas para restaurar...');
+  try {
+    const sessionsSnapshot = await db.ref('whatsapp_sessions').once('value');
+    const sessions = sessionsSnapshot.val();
+    
+    if (sessions) {
+      const connectedSessions = Object.entries(sessions)
+        .filter(([userId, data]) => data.status === 'connected' && data.sessionToken);
+      
+      if (connectedSessions.length > 0) {
+        console.log(`📱 Encontradas ${connectedSessions.length} sessão(ões) para restaurar`);
+        
+        for (const [userId, sessionData] of connectedSessions) {
+          console.log(`🔄 Restaurando sessão para: ${userId}`);
+          try {
+            await createSession(userId);
+            console.log(`✅ Sessão restaurada com sucesso para: ${userId}`);
+          } catch (error) {
+            console.error(`❌ Erro ao restaurar sessão para ${userId}:`, error.message);
+          }
+        }
+      } else {
+        console.log('ℹ️ Nenhuma sessão ativa encontrada para restaurar');
+      }
+    } else {
+      console.log('ℹ️ Nenhuma sessão registrada no Firebase');
+    }
+  } catch (error) {
+    console.error('❌ Erro ao verificar sessões para restaurar:', error.message);
+  }
 });
 
 // Tratamento de erros não capturados
