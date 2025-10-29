@@ -2884,7 +2884,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online',
     service: 'WhatsApp IA Backend',
-    version: '1.0.12-fix-persistence', // 🔥 CORREÇÃO: Não recria sessão ao reiniciar
+    version: '1.0.13-manual-connect', // ⚠️ Auto-restore desabilitado - conexão manual
     activeSessions: activeClients.size,
     timestamp: new Date().toISOString()
   });
@@ -3828,83 +3828,17 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log(`   GET  /api/conversations/:userId    - Listar conversas`);
   console.log('');
   
-  // 🔥 CRÍTICO: Auto-restaurar sessões do WhatsApp após reinício
+  // ⚠️ AUTO-RESTORE DESABILITADO (v1.0.13)
+  // Motivo: WPPConnect sempre abre novo browser ao criar sessão,
+  // o que desconecta a sessão anterior e pede QR Code novamente.
+  // Solução: Usuário reconecta manualmente quando necessário.
   console.log('');
   console.log('='.repeat(50));
-  console.log('🔄 [AUTO-RESTORE] INICIANDO verificação de sessões...');
+  console.log('ℹ️  [AUTO-RESTORE] DESABILITADO');
   console.log('='.repeat(50));
-  
-  try {
-    console.log('📡 [AUTO-RESTORE] Buscando sessões no Firebase...');
-    const sessionsSnapshot = await db.ref('whatsapp_sessions').once('value');
-    const sessions = sessionsSnapshot.val();
-    
-    console.log('📊 [AUTO-RESTORE] Dados recebidos:', sessions ? 'SIM' : 'NÃO');
-    
-    if (sessions) {
-      console.log(`📋 [AUTO-RESTORE] Total de sessões no Firebase: ${Object.keys(sessions).length}`);
-      
-      const allSessions = Object.entries(sessions);
-      console.log('🔍 [AUTO-RESTORE] Detalhes de cada sessão:');
-      allSessions.forEach(([userId, data]) => {
-        console.log(`   - UserID: ${userId}`);
-        console.log(`     Status: ${data.status}`);
-        console.log(`     Tem token: ${!!data.sessionToken}`);
-        console.log(`     Tipo do token: ${typeof data.sessionToken}`);
-        console.log(`     Tamanho do token: ${data.sessionToken ? (typeof data.sessionToken === 'string' ? data.sessionToken.length : 'não é string') : 0}`);
-      });
-      
-      const connectedSessions = allSessions
-        .filter(([userId, data]) => {
-          // 🔥 CRÍTICO: Validação melhorada do sessionToken
-          const hasValidToken = data.sessionToken 
-            && typeof data.sessionToken === 'string' 
-            && data.sessionToken.trim().length > 0;
-          
-          if (!hasValidToken && data.sessionToken) {
-            console.log(`⚠️ [AUTO-RESTORE] Token inválido para ${userId} - Limpando...`);
-            // Limpar token inválido do Firebase
-            db.ref(`whatsapp_sessions/${userId}`).update({
-              sessionToken: null,
-              status: 'disconnected',
-              lastActivity: new Date().toISOString()
-            }).catch(err => console.error('Erro ao limpar token:', err.message));
-          }
-          
-          return hasValidToken;
-        });
-      
-      console.log(`✅✅✅ [AUTO-RESTORE] Sessões COM TOKEN (novo filtro): ${connectedSessions.length} ✅✅✅`);
-      
-      if (connectedSessions.length > 0) {
-        console.log(`📱 [AUTO-RESTORE] Encontradas ${connectedSessions.length} sessão(ões) para restaurar`);
-        
-        for (const [userId, sessionData] of connectedSessions) {
-          console.log(`🔄 [AUTO-RESTORE] Restaurando sessão para: ${userId}`);
-          try {
-            await createSession(userId);
-            console.log(`✅ [AUTO-RESTORE] Sessão restaurada com sucesso para: ${userId}`);
-          } catch (error) {
-            console.error(`❌ [AUTO-RESTORE] Erro ao restaurar sessão para ${userId}:`, error.message);
-            console.error(`   Stack:`, error.stack);
-          }
-        }
-        console.log('🎉 [AUTO-RESTORE] Processo de restauração CONCLUÍDO!');
-      } else {
-        console.log('ℹ️ [AUTO-RESTORE] Nenhuma sessão encontrada para restaurar');
-        console.log('   Motivo: Nenhuma sessão possui sessionToken válido');
-        console.log('   Filtro aplicado: Busca apenas por sessionToken (ignora status)');
-      }
-    } else {
-      console.log('ℹ️ [AUTO-RESTORE] Nenhuma sessão registrada no Firebase');
-    }
-  } catch (error) {
-    console.error('❌ [AUTO-RESTORE] ERRO CRÍTICO ao verificar sessões:', error.message);
-    console.error('   Stack:', error.stack);
-  }
-  
-  console.log('='.repeat(50));
-  console.log('✅ [AUTO-RESTORE] Verificação finalizada');
+  console.log('📱 WhatsApp será conectado quando usuário clicar em "Conectar"');
+  console.log('🔄 Após deploy, usuário precisa reconectar manualmente');
+  console.log('✅ Isso evita erros de autenticação no startup');
   console.log('='.repeat(50));
   console.log('');
 });
