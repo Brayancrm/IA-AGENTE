@@ -4901,7 +4901,6 @@ const DashboardWithFirebase = ({
           </div>
         </div>
       )}
-    </div>
     </>
   );
 };
