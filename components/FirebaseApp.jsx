@@ -4064,10 +4064,9 @@ const DashboardWithFirebase = ({
             }}>
               {renderContent()}
             </div>
-        </div>
 
-      {/* Modal do Catálogo */}
-      {showCatalogModal && (
+            {/* Modal do Catálogo */}
+            {showCatalogModal && (
         <div style={{
           position: 'fixed',
           top: 0,
