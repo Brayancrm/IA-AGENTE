@@ -1687,27 +1687,42 @@ const DashboardWithFirebase = ({
     };
     
     return (
-      <div style={{ padding: '24px', backgroundColor: '#f9fafb', minHeight: '100vh' }}>
+      <div style={{ padding: '40px', maxWidth: '1400px', margin: '0 auto' }}>
         {/* Header */}
         <div style={{ marginBottom: '32px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937' }}>
-              📅 Agendamentos
-            </h2>
+            <div>
+              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+                📅 Agendamentos
+              </h2>
+              <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
+                Gerencie todos os agendamentos e compromissos
+              </p>
+            </div>
             <button
               onClick={handleOpenModal}
               style={{
-                backgroundColor: '#6366f1',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                 color: 'white',
-                padding: '12px 24px',
-                borderRadius: '8px',
+                padding: '14px 28px',
+                borderRadius: '12px',
                 border: 'none',
                 cursor: 'pointer',
                 fontSize: '1rem',
-                fontWeight: '500',
+                fontWeight: '600',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px'
+                gap: '8px',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
               }}
             >
               <span style={{ fontSize: '1.2rem' }}>+</span> Novo Agendamento
@@ -1716,36 +1731,36 @@ const DashboardWithFirebase = ({
 
           {/* Estatísticas */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-            <div style={{ backgroundColor: 'white', padding: '16px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Total</div>
-              <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#1f2937' }}>{stats.total}</div>
+            <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Total</div>
+              <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#ffffff' }}>{stats.total}</div>
             </div>
-            <div style={{ backgroundColor: 'white', padding: '16px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Pendentes</div>
+            <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Pendentes</div>
               <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#eab308' }}>{stats.pendente}</div>
             </div>
-            <div style={{ backgroundColor: 'white', padding: '16px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Confirmados</div>
-              <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#3b82f6' }}>{stats.confirmado}</div>
+            <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Confirmados</div>
+              <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#10b981' }}>{stats.confirmado}</div>
             </div>
-            <div style={{ backgroundColor: 'white', padding: '16px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Em Andamento</div>
-              <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#8b5cf6' }}>{stats.em_andamento}</div>
+            <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Em Andamento</div>
+              <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#10b981' }}>{stats.em_andamento}</div>
             </div>
-            <div style={{ backgroundColor: 'white', padding: '16px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Concluídos</div>
+            <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Concluídos</div>
               <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#10b981' }}>{stats.concluido}</div>
             </div>
-            <div style={{ backgroundColor: 'white', padding: '16px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Cancelados</div>
+            <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Cancelados</div>
               <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#ef4444' }}>{stats.cancelado}</div>
             </div>
           </div>
 
           {/* Filtros */}
-          <div style={{ backgroundColor: 'white', padding: '16px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
             <div style={{ flex: '1', minWidth: '200px' }}>
-              <label style={{ display: 'block', fontSize: '0.875rem', color: '#6b7280', marginBottom: '4px' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', color: '#ffffff', marginBottom: '8px', fontWeight: '600' }}>
                 Status
               </label>
               <select
@@ -1753,10 +1768,13 @@ const DashboardWithFirebase = ({
                 onChange={(e) => setAgendamentoFilter(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '8px',
-                  borderRadius: '6px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '0.875rem'
+                  padding: '10px',
+                  borderRadius: '10px',
+                  border: '2px solid rgba(255, 255, 255, 0.1)',
+                  fontSize: '0.875rem',
+                  backgroundColor: '#0f1419',
+                  color: '#ffffff',
+                  outline: 'none'
                 }}
               >
                 <option value="todos">Todos os Status</option>
@@ -1768,7 +1786,7 @@ const DashboardWithFirebase = ({
               </select>
             </div>
             <div style={{ flex: '1', minWidth: '200px' }}>
-              <label style={{ display: 'block', fontSize: '0.875rem', color: '#6b7280', marginBottom: '4px' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', color: '#ffffff', marginBottom: '8px', fontWeight: '600' }}>
                 Tipo
               </label>
               <select
@@ -1776,10 +1794,13 @@ const DashboardWithFirebase = ({
                 onChange={(e) => setAgendamentoTypeFilter(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '8px',
-                  borderRadius: '6px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '0.875rem'
+                  padding: '10px',
+                  borderRadius: '10px',
+                  border: '2px solid rgba(255, 255, 255, 0.1)',
+                  fontSize: '0.875rem',
+                  backgroundColor: '#0f1419',
+                  color: '#ffffff',
+                  outline: 'none'
                 }}
               >
                 <option value="todos">Todos os Tipos</option>
