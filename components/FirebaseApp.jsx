@@ -3920,7 +3920,11 @@ const DashboardWithFirebase = ({
               }
               
               .sidebar {
-                transform: translateX(${isMobileMenuOpen ? '0' : '-100%'}) !important;
+                left: 0 !important;
+              }
+              
+              .sidebar.hidden {
+                left: -280px !important;
               }
               
               .mobile-overlay {
@@ -4007,9 +4011,9 @@ const DashboardWithFirebase = ({
                 zIndex: 1600,
                 transform: 'scale(1)',
                 transformOrigin: 'top left',
-                transition: 'transform 0.3s ease'
+                transition: 'left 0.3s ease'
               }}
-              className="sidebar"
+              className={`sidebar ${!isMobileMenuOpen ? 'hidden' : ''}`}
             >
           {/* Logo */}
           <div style={{ 
