@@ -498,9 +498,105 @@ const SimpleLanding = ({ onLoginSuccess }) => {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
           gap: '32px',
-          maxWidth: '1000px',
+          maxWidth: '1400px',
           margin: '0 auto'
         }}>
+          {/* Teste Gratuito */}
+          <div style={{
+            backgroundColor: '#1a1f36',
+            padding: '40px',
+            borderRadius: '20px',
+            border: '3px solid #10b981',
+            position: 'relative',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-8px)';
+            e.currentTarget.style.boxShadow = '0 16px 40px rgba(16, 185, 129, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.3)';
+          }}>
+            {/* Badge GRÁTIS */}
+            <div style={{
+              position: 'absolute',
+              top: '-12px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: '#10b981',
+              color: '#ffffff',
+              padding: '6px 20px',
+              borderRadius: '20px',
+              fontSize: '0.75rem',
+              fontWeight: '700',
+              letterSpacing: '0.5px'
+            }}>
+              GRÁTIS
+            </div>
+
+            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+              <h3 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px' }}>
+                Teste Gratuito
+              </h3>
+              <div style={{ marginBottom: '8px' }}>
+                <span style={{ fontSize: '3rem', fontWeight: '800', color: '#10b981' }}>24h</span>
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Acesso total sem compromisso</div>
+            </div>
+            
+            <ul style={{ listStyle: 'none', padding: 0, marginBottom: '32px' }}>
+              {[
+                'Acesso completo a todos recursos',
+                'Teste todas as funcionalidades',
+                'Sem cartão de crédito',
+                'Sem compromisso',
+                'Suporte técnico incluído',
+                'Upgrade fácil após teste'
+              ].map((feature, idx) => (
+                <li key={idx} style={{ 
+                  padding: '12px 0', 
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  borderBottom: idx < 5 ? '1px solid rgba(255,255,255,0.05)' : 'none'
+                }}>
+                  <span style={{ color: '#10b981', fontSize: '1.25rem' }}>✓</span>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+
+            <button
+              onClick={() => handleSelectPlan('teste-gratuito')}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                border: 'none',
+                color: '#ffffff',
+                fontSize: '1rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(16, 185, 129, 0.4)',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 16px rgba(16, 185, 129, 0.4)';
+              }}
+            >
+              🚀 Começar Teste Grátis
+            </button>
+          </div>
+
           {/* Plano Básico */}
           <div style={{
             backgroundColor: '#1a1f36',
@@ -1447,6 +1543,74 @@ const SimpleLanding = ({ onLoginSuccess }) => {
               gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
               gap: '24px'
             }}>
+              {/* Teste Gratuito */}
+              <div
+                onClick={() => handleSelectPlan('teste-gratuito')}
+                style={{
+                  backgroundColor: '#0f1419',
+                  padding: '32px',
+                  borderRadius: '16px',
+                  border: '3px solid #10b981',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  position: 'relative',
+                  boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.boxShadow = '0 16px 40px rgba(16, 185, 129, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.3)';
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '-12px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  backgroundColor: '#10b981',
+                  color: '#ffffff',
+                  padding: '4px 16px',
+                  borderRadius: '12px',
+                  fontSize: '0.75rem',
+                  fontWeight: '700'
+                }}>
+                  GRÁTIS
+                </div>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px', textAlign: 'center' }}>
+                  Teste Gratuito
+                </h3>
+                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                  <div>
+                    <span style={{ fontSize: '2.5rem', fontWeight: '800', color: '#10b981' }}>24 horas</span>
+                  </div>
+                  <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '8px' }}>
+                    Acesso total sem compromisso
+                  </div>
+                </div>
+                <ul style={{ listStyle: 'none', padding: 0, marginBottom: '24px' }}>
+                  {['Acesso completo', 'Todos os recursos', 'Sem cartão de crédito', 'Sem compromisso', 'Suporte incluído'].map((item, idx) => (
+                    <li key={idx} style={{ padding: '8px 0', color: '#ffffff', fontSize: '0.9375rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ color: '#10b981' }}>✓</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <div style={{
+                  textAlign: 'center',
+                  padding: '12px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  fontSize: '0.875rem',
+                  fontWeight: '600'
+                }}>
+                  🚀 Começar Teste Grátis
+                </div>
+              </div>
+
               {/* Plano Básico */}
               <div
                 onClick={() => handleSelectPlan('basico')}
