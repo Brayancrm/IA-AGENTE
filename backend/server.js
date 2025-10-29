@@ -2842,7 +2842,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online',
     service: 'WhatsApp IA Backend',
-    version: '1.0.1', // Teste de persistência de sessão
+    version: '1.0.2', // Teste FINAL - persistência pós-deploy
     activeSessions: activeClients.size,
     timestamp: new Date().toISOString()
   });
