@@ -3154,19 +3154,55 @@ const DashboardWithFirebase = ({
   ];
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
-      <div style={{ display: 'flex' }}>
-        {/* Sidebar */}
-        <div style={{ width: '256px', backgroundColor: '#1e3a8a', color: 'white', padding: '24px' }}>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '24px' }}>
-            WhatsApp Sales Agent
-          </h1>
+    <div style={{ minHeight: '100vh', backgroundColor: '#fafafa', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        {/* Sidebar Modernizada */}
+        <div style={{ 
+          width: '280px', 
+          backgroundColor: '#1a1f36', 
+          color: 'white', 
+          padding: '32px 24px',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '2px 0 12px rgba(0,0,0,0.08)'
+        }}>
+          {/* Logo/Título */}
+          <div style={{ marginBottom: '40px' }}>
+            <h1 style={{ 
+              fontSize: '1.5rem', 
+              fontWeight: '700', 
+              marginBottom: '4px',
+              background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
+              WhatsApp Sales Agent
+            </h1>
+            <p style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+              Sistema de Vendas com IA
+            </p>
+          </div>
+
+          {/* Badge Master */}
           {user?.isMaster && (
-            <div style={{ backgroundColor: '#fbbf24', color: '#92400e', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '16px', textAlign: 'center' }}>
+            <div style={{ 
+              backgroundColor: '#fbbf24', 
+              color: '#78350f', 
+              padding: '8px 12px', 
+              borderRadius: '8px', 
+              fontSize: '0.75rem', 
+              fontWeight: '700', 
+              marginBottom: '24px', 
+              textAlign: 'center',
+              boxShadow: '0 2px 8px rgba(251, 191, 36, 0.3)'
+            }}>
               👑 USUÁRIO MASTER
             </div>
           )}
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+
+          {/* Navegação */}
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
             {menuItems.map((item) => (
               <button
                 key={item.id}
@@ -3174,38 +3210,86 @@ const DashboardWithFirebase = ({
                 style={{
                   width: '100%',
                   textAlign: 'left',
-                  padding: '12px 16px',
-                  borderRadius: '8px',
+                  padding: '14px 16px',
+                  borderRadius: '12px',
                   border: 'none',
-                  backgroundColor: currentPage === item.id ? '#3730a3' : 'transparent',
-                  color: 'white',
+                  backgroundColor: currentPage === item.id ? '#10b981' : 'transparent',
+                  color: currentPage === item.id ? 'white' : '#d1d5db',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
-                  fontSize: '0.875rem'
+                  gap: '12px',
+                  fontSize: '0.9375rem',
+                  fontWeight: currentPage === item.id ? '600' : '500',
+                  transition: 'all 0.2s ease',
+                  transform: currentPage === item.id ? 'translateX(4px)' : 'translateX(0)',
+                  boxShadow: currentPage === item.id ? '0 4px 12px rgba(16, 185, 129, 0.25)' : 'none'
+                }}
+                onMouseEnter={(e) => {
+                  if (currentPage !== item.id) {
+                    e.target.style.backgroundColor = '#2a3142';
+                    e.target.style.color = 'white';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (currentPage !== item.id) {
+                    e.target.style.backgroundColor = 'transparent';
+                    e.target.style.color = '#d1d5db';
+                  }
                 }}
               >
-                <span>{item.icon}</span>
-                {item.label}
+                <span style={{ fontSize: '1.25rem' }}>{item.icon}</span>
+                <span>{item.label}</span>
               </button>
             ))}
           </nav>
-          <div style={{ marginTop: 'auto', paddingTop: '24px', borderTop: '1px solid #3730a3' }}>
-            <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '8px' }}>
-              Logado como: {user?.email}
+
+          {/* Footer da Sidebar */}
+          <div style={{ 
+            marginTop: '24px', 
+            paddingTop: '24px', 
+            borderTop: '1px solid #2a3142' 
+          }}>
+            <p style={{ 
+              fontSize: '0.8125rem', 
+              color: '#6b7280', 
+              marginBottom: '12px',
+              fontWeight: '500'
+            }}>
+              Logado como:
+            </p>
+            <p style={{ 
+              fontSize: '0.875rem', 
+              color: '#d1d5db',
+              marginBottom: '16px',
+              fontWeight: '600'
+            }}>
+              {user?.email}
             </p>
             <button
               onClick={handleLogout}
               style={{
                 width: '100%',
-                backgroundColor: '#dc2626',
+                backgroundColor: '#ef4444',
                 color: 'white',
-                padding: '8px 16px',
-                borderRadius: '6px',
+                padding: '12px 16px',
+                borderRadius: '10px',
                 border: 'none',
                 cursor: 'pointer',
-                fontSize: '0.875rem'
+                fontSize: '0.9375rem',
+                fontWeight: '600',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#dc2626';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = '#ef4444';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 2px 8px rgba(239, 68, 68, 0.3)';
               }}
             >
               Sair
@@ -3214,7 +3298,11 @@ const DashboardWithFirebase = ({
         </div>
 
         {/* Main Content */}
-        <div style={{ flex: 1 }}>
+        <div style={{ 
+          flex: 1, 
+          backgroundColor: '#fafafa',
+          overflowY: 'auto'
+        }}>
           {renderContent()}
         </div>
       </div>
