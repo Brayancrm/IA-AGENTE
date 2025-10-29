@@ -2860,7 +2860,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online',
     service: 'WhatsApp IA Backend',
-    version: '1.0.7', // 🔥 DEPLOY FORÇADO - Aplicar correção de filtro de sessões COM TOKEN!
+    version: '1.0.8-fix-logs', // 🔥 CORREÇÃO: Removida linha enganosa do log auto-restore
     activeSessions: activeClients.size,
     timestamp: new Date().toISOString()
   });
@@ -3852,8 +3852,9 @@ app.listen(PORT, '0.0.0.0', async () => {
         }
         console.log('🎉 [AUTO-RESTORE] Processo de restauração CONCLUÍDO!');
       } else {
-        console.log('ℹ️ [AUTO-RESTORE] Nenhuma sessão ativa encontrada para restaurar');
-        console.log('   Motivo: Nenhuma sessão com status="connected" E sessionToken presente');
+        console.log('ℹ️ [AUTO-RESTORE] Nenhuma sessão encontrada para restaurar');
+        console.log('   Motivo: Nenhuma sessão possui sessionToken válido');
+        console.log('   Filtro aplicado: Busca apenas por sessionToken (ignora status)');
       }
     } else {
       console.log('ℹ️ [AUTO-RESTORE] Nenhuma sessão registrada no Firebase');
