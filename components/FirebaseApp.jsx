@@ -76,8 +76,8 @@ const FirebaseApp = () => {
   
   // CRM temporariamente desativado - será reconstruído depois
   
-  // Estado do menu mobile
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // Estado do menu mobile  
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(true);
   
   // URL do backend
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
@@ -3920,11 +3920,11 @@ const DashboardWithFirebase = ({
               }
               
               .sidebar {
-                left: 0 !important;
+                transform: translateX(-100%) !important;
               }
               
-              .sidebar.hidden {
-                left: -280px !important;
+              .sidebar.open {
+                transform: translateX(0) !important;
               }
               
               .mobile-overlay {
@@ -3944,6 +3944,10 @@ const DashboardWithFirebase = ({
               
               .mobile-overlay {
                 display: none !important;
+              }
+              
+              .sidebar {
+                transform: translateX(0) !important;
               }
             }
           `}</style>
@@ -4009,11 +4013,10 @@ const DashboardWithFirebase = ({
                 borderRight: '1px solid rgba(16, 185, 129, 0.1)',
                 overflowY: 'auto',
                 zIndex: 1600,
-                transform: 'scale(1)',
                 transformOrigin: 'top left',
-                transition: 'left 0.3s ease'
+                transition: 'transform 0.3s ease'
               }}
-              className={`sidebar ${!isMobileMenuOpen ? 'hidden' : ''}`}
+              className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}
             >
           {/* Logo */}
           <div style={{ 
