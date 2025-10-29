@@ -1478,7 +1478,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
               backgroundColor: '#1a1f36',
               borderRadius: '24px',
               padding: '48px',
-              maxWidth: '1100px',
+              maxWidth: '1600px',
               width: '100%',
               boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
               border: '1px solid rgba(16, 185, 129, 0.2)',
@@ -1541,8 +1541,8 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             {/* Cards de Planos */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '24px'
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '20px'
             }}>
               {/* Teste Gratuito */}
               <div
