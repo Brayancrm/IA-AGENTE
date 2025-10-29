@@ -67,28 +67,62 @@ const AgendamentoModal = ({
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.5)',
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      backdropFilter: 'blur(4px)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 1000
+      zIndex: 1000,
+      animation: 'fadeIn 0.2s ease'
     }}>
       <div style={{
         backgroundColor: 'white',
-        borderRadius: '16px',
-        padding: '32px',
+        borderRadius: '24px',
+        padding: '40px',
         width: '90%',
-        maxWidth: '600px',
+        maxWidth: '650px',
         maxHeight: '90vh',
-        overflow: 'auto'
+        overflow: 'auto',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        border: '1px solid #e5e7eb',
+        animation: 'slideUp 0.3s ease'
       }}>
-        <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '24px', color: '#1f2937' }}>
-          {editingAgendamento ? '✏️ Editar Agendamento' : '📅 Novo Agendamento'}
-        </h3>
+        <div style={{ 
+          marginBottom: '32px',
+          paddingBottom: '24px',
+          borderBottom: '2px solid #f3f4f6'
+        }}>
+          <h3 style={{ 
+            fontSize: '1.875rem', 
+            fontWeight: '700', 
+            color: '#111827',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            marginBottom: '8px'
+          }}>
+            <span style={{ fontSize: '2.25rem' }}>
+              {editingAgendamento ? '✏️' : '📅'}
+            </span>
+            {editingAgendamento ? 'Editar Agendamento' : 'Novo Agendamento'}
+          </h3>
+          <p style={{ fontSize: '0.9375rem', color: '#6b7280' }}>
+            {editingAgendamento ? 'Atualize os dados do agendamento' : 'Preencha os dados para criar um novo agendamento'}
+          </p>
+        </div>
         
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div>
-            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+            <label style={{ 
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontWeight: '600', 
+              marginBottom: '10px', 
+              color: '#111827',
+              fontSize: '0.9375rem'
+            }}>
+              <span style={{ fontSize: '1.125rem' }}>📝</span>
               Título *
             </label>
             <input
@@ -99,10 +133,20 @@ const AgendamentoModal = ({
               placeholder="Ex: Retirada de produto"
               style={{
                 width: '100%',
-                padding: '10px',
-                border: '1px solid #d1d5db',
-                borderRadius: '8px',
-                fontSize: '0.875rem'
+                padding: '12px 14px',
+                border: '2px solid #e5e7eb',
+                borderRadius: '12px',
+                fontSize: '1rem',
+                outline: 'none',
+                transition: 'all 0.2s ease'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#6366f1';
+                e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#e5e7eb';
+                e.target.style.boxShadow = 'none';
               }}
             />
           </div>
@@ -275,20 +319,44 @@ const AgendamentoModal = ({
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+          <div style={{ 
+            display: 'flex', 
+            gap: '12px', 
+            marginTop: '16px',
+            paddingTop: '24px',
+            borderTop: '2px solid #f3f4f6'
+          }}>
             <button
               type="submit"
               style={{
                 flex: 1,
-                backgroundColor: '#6366f1',
+                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
                 color: 'white',
-                padding: '12px',
-                borderRadius: '8px',
+                padding: '14px 24px',
+                borderRadius: '12px',
                 border: 'none',
                 cursor: 'pointer',
-                fontWeight: '500'
+                fontWeight: '600',
+                fontSize: '1rem',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 16px rgba(99, 102, 241, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 20px rgba(99, 102, 241, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 16px rgba(99, 102, 241, 0.3)';
               }}
             >
+              <span style={{ fontSize: '1.25rem' }}>
+                {editingAgendamento ? '✓' : '📅'}
+              </span>
               {editingAgendamento ? 'Atualizar' : 'Criar'} Agendamento
             </button>
             <button
@@ -296,15 +364,30 @@ const AgendamentoModal = ({
               onClick={onClose}
               style={{
                 flex: 1,
-                backgroundColor: '#e5e7eb',
+                background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
                 color: '#374151',
-                padding: '12px',
-                borderRadius: '8px',
-                border: 'none',
+                padding: '14px 24px',
+                borderRadius: '12px',
+                border: '2px solid #d1d5db',
                 cursor: 'pointer',
-                fontWeight: '500'
+                fontWeight: '600',
+                fontSize: '1rem',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = 'linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%)';
+                e.target.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)';
+                e.target.style.transform = 'translateY(0)';
               }}
             >
+              <span style={{ fontSize: '1.25rem' }}>✕</span>
               Cancelar
             </button>
           </div>
