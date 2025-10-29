@@ -194,8 +194,8 @@ async function createSession(userId) {
       puppeteerOptions: {
         headless: true,
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || '/nix/store/chromium/bin/chromium',
-        // 🔥 CRÍTICO: UserDataDir único por usuário para evitar conflitos de perfil
-        userDataDir: `/tokens/chrome_profile_${userId}`,
+        // 🔥 SOLUÇÃO RADICAL: UserDataDir único POR TENTATIVA para evitar QUALQUER conflito
+        userDataDir: `/tmp/wpp_${userId}_${Date.now()}`,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
