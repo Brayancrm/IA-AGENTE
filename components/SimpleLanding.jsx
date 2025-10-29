@@ -365,41 +365,99 @@ const SimpleLanding = ({ onLoginSuccess }) => {
         </div>
       </section>
 
-      {/* Stats Section */}
+      {/* Payment Methods Section */}
       <section style={{
         padding: '80px 40px',
         backgroundColor: '#1a1f36',
         borderTop: '1px solid rgba(16, 185, 129, 0.2)',
         borderBottom: '1px solid rgba(16, 185, 129, 0.2)'
       }}>
-        <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '40px',
-          textAlign: 'center'
-        }}>
-          {[
-            { number: '10k+', label: 'Mensagens/dia' },
-            { number: '500+', label: 'Empresas' },
-            { number: '95%', label: 'Satisfação' },
-            { number: '24/7', label: 'Atendimento' }
-          ].map((stat, index) => (
-            <div key={index}>
-              <div style={{
-                fontSize: '3rem',
-                fontWeight: '800',
-                color: '#10b981',
-                marginBottom: '8px'
+        <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
+          <h3 style={{
+            fontSize: '1.5rem',
+            fontWeight: '700',
+            color: '#ffffff',
+            marginBottom: '16px'
+          }}>
+            Formas de Pagamento Aceitas
+          </h3>
+          <p style={{
+            fontSize: '1rem',
+            color: '#9ca3af',
+            marginBottom: '48px'
+          }}>
+            Escolha a forma que preferir para pagar
+          </p>
+          
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '32px',
+            maxWidth: '900px',
+            margin: '0 auto'
+          }}>
+            {[
+              { icon: '💳', name: 'Cartão de Crédito', desc: 'Parcelamento em até 12x' },
+              { icon: '🔷', name: 'PIX', desc: 'Aprovação instantânea' },
+              { icon: '📄', name: 'Boleto', desc: 'Vencimento em 3 dias' },
+              { icon: '₿', name: 'Criptomoeda', desc: 'Bitcoin e outras' }
+            ].map((payment, index) => (
+              <div key={index} style={{
+                backgroundColor: '#0f1419',
+                padding: '32px 24px',
+                borderRadius: '16px',
+                border: '2px solid rgba(16, 185, 129, 0.2)',
+                transition: 'all 0.3s ease',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px)';
+                e.currentTarget.style.borderColor = '#10b981';
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+                e.currentTarget.style.boxShadow = 'none';
               }}>
-                {stat.number}
+                <div style={{
+                  fontSize: '3.5rem',
+                  marginBottom: '16px',
+                  filter: 'grayscale(0%)'
+                }}>
+                  {payment.icon}
+                </div>
+                <div style={{
+                  fontSize: '1.25rem',
+                  fontWeight: '700',
+                  color: '#ffffff',
+                  marginBottom: '8px'
+                }}>
+                  {payment.name}
+                </div>
+                <div style={{
+                  fontSize: '0.875rem',
+                  color: '#9ca3af'
+                }}>
+                  {payment.desc}
+                </div>
               </div>
-              <div style={{ fontSize: '1.125rem', color: '#9ca3af' }}>
-                {stat.label}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          {/* Badge de Segurança */}
+          <div style={{
+            marginTop: '48px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px',
+            fontSize: '0.9375rem',
+            color: '#9ca3af'
+          }}>
+            <span style={{ fontSize: '1.5rem' }}>🔒</span>
+            <span>Pagamentos 100% seguros e criptografados</span>
+          </div>
         </div>
       </section>
 
