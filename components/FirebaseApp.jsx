@@ -2438,26 +2438,27 @@ const DashboardWithFirebase = ({
 
       case 'crm':
           return (
-          <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>
+          <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto' }}>
+            <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
               🎯 CRM - Gestão de Clientes
               </h2>
-            <p style={{ color: '#6b7280', marginBottom: '32px' }}>
+            <p style={{ color: '#9ca3af', marginBottom: '32px' }}>
               Sistema de gerenciamento de relacionamento com clientes
             </p>
             
                               <div style={{ 
-              backgroundColor: 'white', 
-              borderRadius: '16px', 
-              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+              backgroundColor: '#1a1f36', 
+              borderRadius: '20px', 
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              border: '1px solid rgba(255,255,255,0.1)',
               padding: '64px',
               textAlign: 'center'
             }}>
               <div style={{ fontSize: '80px', marginBottom: '24px' }}>🚧</div>
-              <h3 style={{ fontSize: '28px', fontWeight: 'bold', color: '#1f2937', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '28px', fontWeight: 'bold', color: '#ffffff', marginBottom: '16px' }}>
                 CRM Temporariamente Desativado
                                 </h3>
-              <p style={{ color: '#6b7280', fontSize: '18px', lineHeight: '1.6', maxWidth: '600px', margin: '0 auto' }}>
+              <p style={{ color: '#9ca3af', fontSize: '18px', lineHeight: '1.6', maxWidth: '600px', margin: '0 auto' }}>
                 O módulo CRM está sendo reconstruído para melhor performance e estabilidade.<br />
                 Em breve você terá acesso a:
               </p>
