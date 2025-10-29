@@ -122,7 +122,15 @@ const SimpleLanding = ({ onLoginSuccess }) => {
         zIndex: 1000
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '2rem' }}>💬</span>
+          <img 
+            src="/logo.png" 
+            alt="dadosIA Logo" 
+            style={{ 
+              width: '48px', 
+              height: '48px',
+              objectFit: 'contain'
+            }} 
+          />
           <span style={{ fontSize: '1.25rem', fontWeight: '700', color: '#ffffff' }}>
             WhatsApp Sales Agent
           </span>
@@ -162,7 +170,17 @@ const SimpleLanding = ({ onLoginSuccess }) => {
         margin: '0 auto',
         padding: '140px 40px 80px'
       }}>
-        <div style={{ fontSize: '5rem', marginBottom: '24px' }}>💬</div>
+        <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}>
+          <img 
+            src="/logo.png" 
+            alt="dadosIA Logo" 
+            style={{ 
+              width: '120px', 
+              height: '120px',
+              objectFit: 'contain'
+            }} 
+          />
+        </div>
         <h1 style={{
           fontSize: '3.5rem',
           fontWeight: '800',
