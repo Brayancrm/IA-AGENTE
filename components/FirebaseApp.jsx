@@ -2431,18 +2431,35 @@ const DashboardWithFirebase = ({
 
       case 'integrations':
         return (
-          <div style={{ padding: '24px' }}>
-            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
-              Integrações
-            </h2>
-            <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
-              <form onSubmit={handleIntegrationsSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '16px', color: '#1f2937' }}>
-                    🤖 OpenAI API
+          <div style={{ padding: '40px', maxWidth: '1000px', margin: '0 auto' }}>
+            {/* Header */}
+            <div style={{ marginBottom: '32px' }}>
+              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#111827', marginBottom: '8px' }}>
+                Integrações
+              </h2>
+              <p style={{ fontSize: '1rem', color: '#6b7280' }}>
+                Configure as integrações com serviços externos
+              </p>
+            </div>
+
+            <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '40px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', border: '1px solid #e5e7eb' }}>
+              <form onSubmit={handleIntegrationsSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                {/* OpenAI API */}
+                <div style={{ 
+                  padding: '24px', 
+                  background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', 
+                  borderRadius: '16px',
+                  border: '2px solid #86efac'
+                }}>
+                  <h3 style={{ fontSize: '1.375rem', fontWeight: '700', marginBottom: '8px', color: '#065f46', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.75rem' }}>🤖</span>
+                    OpenAI API
                   </h3>
+                  <p style={{ fontSize: '0.9375rem', color: '#047857', marginBottom: '20px' }}>
+                    Integração com GPT para respostas inteligentes
+                  </p>
                   <div>
-                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                    <label style={{ display: 'block', fontWeight: '600', marginBottom: '10px', color: '#065f46', fontSize: '0.9375rem' }}>
                       API Key
                     </label>
                     <input
@@ -2451,22 +2468,46 @@ const DashboardWithFirebase = ({
                       onChange={(e) => setIntegrationsForm(prev => ({ ...prev, openaiApiKey: e.target.value }))}
                       style={{
                         width: '100%',
-                        padding: '12px',
-                        borderRadius: '8px',
-                        border: '1px solid #d1d5db',
-                        fontSize: '1rem'
+                        padding: '14px 16px',
+                        borderRadius: '12px',
+                        border: '2px solid #bbf7d0',
+                        fontSize: '1rem',
+                        transition: 'all 0.2s ease',
+                        outline: 'none',
+                        backgroundColor: 'white'
                       }}
                       placeholder="sk-..."
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#10b981';
+                        e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#bbf7d0';
+                        e.target.style.boxShadow = 'none';
+                      }}
                     />
+                    <p style={{ fontSize: '0.875rem', color: '#047857', marginTop: '8px' }}>
+                      💡 Obtenha sua chave em: https://platform.openai.com/api-keys
+                    </p>
                   </div>
                 </div>
 
-                <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '16px', color: '#1f2937' }}>
-                    💳 Asaas
+                {/* Asaas */}
+                <div style={{ 
+                  padding: '24px', 
+                  background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', 
+                  borderRadius: '16px',
+                  border: '2px solid #93c5fd'
+                }}>
+                  <h3 style={{ fontSize: '1.375rem', fontWeight: '700', marginBottom: '8px', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.75rem' }}>💳</span>
+                    Asaas (Pagamentos)
                   </h3>
+                  <p style={{ fontSize: '0.9375rem', color: '#1d4ed8', marginBottom: '20px' }}>
+                    Gateway de pagamento e cobranças automáticas
+                  </p>
                   <div>
-                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                    <label style={{ display: 'block', fontWeight: '600', marginBottom: '10px', color: '#1e40af', fontSize: '0.9375rem' }}>
                       API Key
                     </label>
                     <input
@@ -2475,57 +2516,95 @@ const DashboardWithFirebase = ({
                       onChange={(e) => setIntegrationsForm(prev => ({ ...prev, asaasApiKey: e.target.value }))}
                       style={{
                         width: '100%',
-                        padding: '12px',
-                        borderRadius: '8px',
-                        border: '1px solid #d1d5db',
-                        fontSize: '1rem'
+                        padding: '14px 16px',
+                        borderRadius: '12px',
+                        border: '2px solid #bfdbfe',
+                        fontSize: '1rem',
+                        transition: 'all 0.2s ease',
+                        outline: 'none',
+                        backgroundColor: 'white'
                       }}
-                      placeholder="asaas_api_key"
+                      placeholder="$aact_..."
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#3b82f6';
+                        e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#bfdbfe';
+                        e.target.style.boxShadow = 'none';
+                      }}
                     />
                   </div>
-                  <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f3f4f6', borderRadius: '8px' }}>
-                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
-                      Webhook URL
+                  <div style={{ marginTop: '20px', padding: '16px', backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: '12px', border: '1px dashed #93c5fd' }}>
+                    <label style={{ display: 'block', fontWeight: '600', marginBottom: '10px', color: '#1e40af', fontSize: '0.875rem' }}>
+                      📎 Webhook URL
                     </label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '10px' }}>
                       <input
                         type="text"
                         value={`https://your-api.com/webhook/${user?.uid}`}
                         readOnly
                         style={{
                           flex: 1,
-                          padding: '12px',
-                          borderRadius: '8px',
-                          border: '1px solid #d1d5db',
+                          padding: '12px 14px',
+                          borderRadius: '10px',
+                          border: '1px solid #bfdbfe',
                           fontSize: '0.875rem',
-                          backgroundColor: '#f9fafb'
+                          backgroundColor: 'white',
+                          color: '#64748b',
+                          fontFamily: 'monospace'
                         }}
                       />
                       <button
                         type="button"
                         onClick={() => {
                           navigator.clipboard.writeText(`https://your-api.com/webhook/${user?.uid}`);
-                          alert('URL copiada para a área de transferência!');
+                          alert('✅ URL copiada para a área de transferência!');
                         }}
                         style={{
-                          backgroundColor: '#6b7280',
+                          background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                           color: 'white',
-                          padding: '12px 16px',
-                          borderRadius: '8px',
+                          padding: '12px 20px',
+                          borderRadius: '10px',
                           border: 'none',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          fontSize: '0.875rem',
+                          transition: 'all 0.2s ease',
+                          boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.transform = 'translateY(-2px)';
+                          e.target.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.transform = 'translateY(0)';
+                          e.target.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
                         }}
                       >
-                        Copiar
+                        📋 Copiar
                       </button>
                     </div>
+                    <p style={{ fontSize: '0.8125rem', color: '#1d4ed8', marginTop: '8px' }}>
+                      💡 Configure este webhook no painel do Asaas
+                    </p>
                   </div>
                 </div>
 
-                <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '16px', color: '#1f2937' }}>
-                    📄 Configuração de Nota Fiscal
+                {/* Nota Fiscal */}
+                <div style={{ 
+                  padding: '24px', 
+                  background: 'linear-gradient(135deg, #fefce8 0%, #fef9c3 100%)', 
+                  borderRadius: '16px',
+                  border: '2px solid #fde047'
+                }}>
+                  <h3 style={{ fontSize: '1.375rem', fontWeight: '700', marginBottom: '8px', color: '#854d0e', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.75rem' }}>📄</span>
+                    Configuração de Nota Fiscal
                   </h3>
+                  <p style={{ fontSize: '0.9375rem', color: '#a16207', marginBottom: '20px' }}>
+                    Emissão automática de NFS-e após confirmação de pagamento
+                  </p>
                   
                   {/* Toggle Emissão Automática */}
                   <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', padding: '16px', marginBottom: '24px' }}>
@@ -2806,21 +2885,44 @@ const DashboardWithFirebase = ({
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  style={{
-                    backgroundColor: '#4f46e5',
-                    color: 'white',
-                    padding: '12px 24px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    alignSelf: 'flex-start'
-                  }}
-                >
-                  Salvar Configurações
-                </button>
+                {/* Botão Salvar */}
+                <div style={{ 
+                  marginTop: '16px',
+                  paddingTop: '32px',
+                  borderTop: '2px solid #e5e7eb',
+                  display: 'flex',
+                  justifyContent: 'flex-end'
+                }}>
+                  <button
+                    type="submit"
+                    style={{
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      color: 'white',
+                      padding: '16px 40px',
+                      borderRadius: '12px',
+                      border: 'none',
+                      fontWeight: '600',
+                      fontSize: '1.0625rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = 'translateY(-2px)';
+                      e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = '0 4px 16px rgba(16, 185, 129, 0.3)';
+                    }}
+                  >
+                    <span style={{ fontSize: '1.5rem' }}>✓</span>
+                    Salvar Todas as Integrações
+                  </button>
+                </div>
               </form>
             </div>
           </div>
@@ -2833,63 +2935,116 @@ const DashboardWithFirebase = ({
         const currentIsConnecting = isConnecting || false;
         
         return (
-          <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '24px' }}>
-              📱 Conexão WhatsApp
-            </h2>
+          <div style={{ padding: '40px', maxWidth: '1100px', margin: '0 auto' }}>
+            {/* Header */}
+            <div style={{ marginBottom: '32px' }}>
+              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#111827', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '2.5rem' }}>📱</span>
+                Conexão WhatsApp
+              </h2>
+              <p style={{ fontSize: '1rem', color: '#6b7280' }}>
+                Conecte seu WhatsApp para ativar o assistente automático
+              </p>
+            </div>
             
-            {/* Status de Conexão WhatsApp */}
-            <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '24px', marginBottom: '24px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '16px' }}>
-                📱 Conexão WhatsApp
-              </h3>
-              
-              <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '16px' }}>
+            {/* Card de Status */}
+            <div style={{ 
+              backgroundColor: 'white', 
+              borderRadius: '20px', 
+              padding: '32px', 
+              marginBottom: '24px', 
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)', 
+              border: '2px solid ' + (currentWhatsappStatus === 'connected' ? '#10b981' : currentWhatsappStatus === 'qrcode' ? '#f59e0b' : '#e5e7eb')
+            }}>
+              <div style={{ 
+                display: 'inline-block',
+                padding: '12px 24px',
+                borderRadius: '12px',
+                marginBottom: '24px',
+                background: currentWhatsappStatus === 'connected' 
+                  ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' 
+                  : currentWhatsappStatus === 'qrcode' 
+                  ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' 
+                  : 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+                border: '2px solid ' + (currentWhatsappStatus === 'connected' ? '#10b981' : currentWhatsappStatus === 'qrcode' ? '#f59e0b' : '#ef4444')
+              }}>
                 <div style={{
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  backgroundColor: currentWhatsappStatus === 'connected' ? '#dcfce7' : currentWhatsappStatus === 'qrcode' ? '#fef3c7' : '#fee2e2',
-                  color: currentWhatsappStatus === 'connected' ? '#166534' : currentWhatsappStatus === 'qrcode' ? '#92400e' : '#dc2626',
-                  fontWeight: 'bold',
-                  fontSize: '0.875rem'
+                  color: currentWhatsappStatus === 'connected' ? '#065f46' : currentWhatsappStatus === 'qrcode' ? '#92400e' : '#991b1b',
+                  fontWeight: '700',
+                  fontSize: '1.125rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px'
                 }}>
-                  ● Status: {
-                    currentWhatsappStatus === 'connected' ? 'Conectado' :
+                  <span style={{ 
+                    fontSize: '1.5rem',
+                    animation: currentWhatsappStatus === 'connecting' ? 'pulse 1.5s infinite' : 'none'
+                  }}>
+                    {currentWhatsappStatus === 'connected' ? '✅' : currentWhatsappStatus === 'qrcode' ? '⏳' : currentWhatsappStatus === 'connecting' ? '🔄' : '❌'}
+                  </span>
+                  {
+                    currentWhatsappStatus === 'connected' ? 'WhatsApp Conectado' :
                     currentWhatsappStatus === 'qrcode' ? 'Aguardando QR Code' :
                     currentWhatsappStatus === 'connecting' ? 'Conectando...' :
-                    'Desconectado'
+                    'WhatsApp Desconectado'
                   }
                 </div>
               </div>
               
               {/* QR Code Display */}
               {currentQRCode && currentWhatsappStatus === 'qrcode' && (
-                <div style={{ padding: '24px', backgroundColor: '#f9fafb', borderRadius: '12px', marginBottom: '16px', textAlign: 'center' }}>
-                  <h4 style={{ fontSize: '1rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '16px' }}>
-                    📱 Escaneie o QR Code com seu WhatsApp
+                <div style={{ 
+                  padding: '32px', 
+                  background: 'linear-gradient(135deg, #fafafa 0%, #f3f4f6 100%)', 
+                  borderRadius: '16px', 
+                  marginBottom: '24px', 
+                  textAlign: 'center',
+                  border: '2px dashed #d1d5db'
+                }}>
+                  <h4 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#111827', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '2rem' }}>📱</span>
+                    Escaneie o QR Code
                   </h4>
-                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', backgroundColor: 'white', padding: '20px' }}>
-                    <img 
-                      src={currentQRCode} 
-                      alt="QR Code WhatsApp" 
-                      style={{ 
-                        width: '400px',
-                        height: '400px',
-                        objectFit: 'contain',
-                        imageRendering: 'pixelated',
-                        border: '2px solid #e5e7eb', 
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                        backgroundColor: 'white'
-                      }} 
-                    />
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    marginBottom: '24px'
+                  }}>
+                    <div style={{ 
+                      padding: '24px', 
+                      backgroundColor: 'white', 
+                      borderRadius: '16px',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+                      border: '3px solid #10b981'
+                    }}>
+                      <img 
+                        src={currentQRCode} 
+                        alt="QR Code WhatsApp" 
+                        style={{ 
+                          width: '300px',
+                          height: '300px',
+                          objectFit: 'contain',
+                          imageRendering: 'pixelated'
+                        }} 
+                      />
+                    </div>
                   </div>
-                  <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '12px' }}>
-                    1. Abra o WhatsApp no celular<br />
-                    2. Vá em Configurações → Aparelhos conectados<br />
-                    3. Toque em "Conectar aparelho"<br />
-                    4. Escaneie este QR Code
-                  </p>
+                  <div style={{ 
+                    textAlign: 'left', 
+                    backgroundColor: 'white', 
+                    padding: '20px', 
+                    borderRadius: '12px', 
+                    marginBottom: '20px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                  }}>
+                    <p style={{ fontSize: '0.9375rem', color: '#374151', lineHeight: '1.8', margin: 0 }}>
+                      <strong style={{ color: '#111827' }}>📋 Passo a passo:</strong><br />
+                      1️⃣ Abra o <strong>WhatsApp</strong> no celular<br />
+                      2️⃣ Vá em <strong>Configurações</strong> → <strong>Aparelhos conectados</strong><br />
+                      3️⃣ Toque em <strong>"Conectar aparelho"</strong><br />
+                      4️⃣ Escaneie este QR Code com a câmera
+                    </p>
+                  </div>
                   <button
                     onClick={() => {
                       const link = document.createElement('a');
@@ -2898,35 +3053,63 @@ const DashboardWithFirebase = ({
                       link.click();
                     }}
                     style={{
-                      backgroundColor: '#10b981',
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                       color: 'white',
-                      padding: '8px 16px',
-                      borderRadius: '6px',
+                      padding: '12px 24px',
+                      borderRadius: '10px',
                       border: 'none',
-                      fontSize: '0.875rem',
+                      fontSize: '0.9375rem',
                       cursor: 'pointer',
-                      fontWeight: 'bold'
+                      fontWeight: '600',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = 'translateY(-2px)';
+                      e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
                     }}
                   >
-                    📥 Baixar QR Code
+                    <span style={{ fontSize: '1.25rem' }}>📥</span>
+                    Baixar QR Code
                   </button>
                 </div>
               )}
               
               {/* Success Message */}
               {currentWhatsappStatus === 'connected' && (
-                <div style={{ padding: '16px', backgroundColor: '#dcfce7', borderRadius: '8px', marginBottom: '16px' }}>
-                  <p style={{ fontSize: '0.875rem', color: '#166534', margin: 0 }}>
-                    ✅ <strong>WhatsApp Conectado!</strong> Seu assistente está online e pronto para atender mensagens automaticamente.
+                <div style={{ 
+                  padding: '20px', 
+                  background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)', 
+                  borderRadius: '12px', 
+                  marginBottom: '20px',
+                  border: '2px solid #10b981'
+                }}>
+                  <p style={{ fontSize: '1rem', color: '#065f46', margin: 0, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.5rem' }}>✅</span>
+                    <span><strong>WhatsApp Conectado!</strong> Seu assistente está online e pronto para atender mensagens automaticamente.</span>
                   </p>
                 </div>
               )}
               
               {/* Info Message */}
               {currentWhatsappStatus === 'disconnected' && (
-                <div style={{ padding: '16px', backgroundColor: '#fef3c7', borderRadius: '8px', marginBottom: '16px' }}>
-                  <p style={{ fontSize: '0.875rem', color: '#92400e', margin: 0 }}>
-                    💡 <strong>Dica:</strong> Certifique-se de que o servidor backend está rodando antes de conectar.
+                <div style={{ 
+                  padding: '20px', 
+                  background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', 
+                  borderRadius: '12px', 
+                  marginBottom: '20px',
+                  border: '2px solid #f59e0b'
+                }}>
+                  <p style={{ fontSize: '1rem', color: '#92400e', margin: 0, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.5rem' }}>💡</span>
+                    <span><strong>Dica:</strong> Certifique-se de que o servidor backend está rodando antes de conectar.</span>
                   </p>
                 </div>
               )}
@@ -2937,16 +3120,37 @@ const DashboardWithFirebase = ({
                     onClick={connectWhatsApp}
                     disabled={currentIsConnecting}
                     style={{
-                      backgroundColor: currentIsConnecting ? '#9ca3af' : '#10b981',
+                      background: currentIsConnecting 
+                        ? 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)' 
+                        : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                       color: 'white',
-                      padding: '12px 24px',
-                      borderRadius: '8px',
+                      padding: '14px 32px',
+                      borderRadius: '12px',
                       border: 'none',
-                      fontWeight: 'bold',
-                      cursor: currentIsConnecting ? 'not-allowed' : 'pointer'
+                      fontWeight: '600',
+                      fontSize: '1rem',
+                      cursor: currentIsConnecting ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s ease',
+                      boxShadow: currentIsConnecting ? 'none' : '0 4px 16px rgba(16, 185, 129, 0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!currentIsConnecting) {
+                        e.target.style.transform = 'translateY(-2px)';
+                        e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.4)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!currentIsConnecting) {
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 4px 16px rgba(16, 185, 129, 0.3)';
+                      }
                     }}
                   >
-                    {currentIsConnecting ? '⏳ Conectando...' : '🔌 Conectar WhatsApp'}
+                    <span style={{ fontSize: '1.25rem' }}>{currentIsConnecting ? '⏳' : '🔌'}</span>
+                    {currentIsConnecting ? 'Conectando...' : 'Conectar WhatsApp'}
                   </button>
                 ) : currentWhatsappStatus === 'qrcode' ? (
                   <>
@@ -2954,59 +3158,130 @@ const DashboardWithFirebase = ({
                       onClick={regenerateQRCode}
                       disabled={currentIsConnecting}
                       style={{
-                        backgroundColor: currentIsConnecting ? '#9ca3af' : '#f59e0b',
+                        background: currentIsConnecting 
+                          ? 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)' 
+                          : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                         color: 'white',
-                        padding: '12px 24px',
-                        borderRadius: '8px',
+                        padding: '14px 28px',
+                        borderRadius: '12px',
                         border: 'none',
-                        fontWeight: 'bold',
-                        cursor: currentIsConnecting ? 'not-allowed' : 'pointer'
+                        fontWeight: '600',
+                        fontSize: '1rem',
+                        cursor: currentIsConnecting ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: currentIsConnecting ? 'none' : '0 4px 16px rgba(245, 158, 11, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!currentIsConnecting) {
+                          e.target.style.transform = 'translateY(-2px)';
+                          e.target.style.boxShadow = '0 6px 20px rgba(245, 158, 11, 0.4)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!currentIsConnecting) {
+                          e.target.style.transform = 'translateY(0)';
+                          e.target.style.boxShadow = '0 4px 16px rgba(245, 158, 11, 0.3)';
+                        }
                       }}
                     >
-                      {currentIsConnecting ? '⏳ Gerando...' : '🔄 Gerar Novo QR Code'}
+                      <span style={{ fontSize: '1.25rem' }}>{currentIsConnecting ? '⏳' : '🔄'}</span>
+                      {currentIsConnecting ? 'Gerando...' : 'Gerar Novo QR Code'}
                     </button>
                     <button
                       onClick={disconnectWhatsApp}
                       disabled={currentIsConnecting}
                       style={{
-                        backgroundColor: currentIsConnecting ? '#9ca3af' : '#ef4444',
+                        background: currentIsConnecting 
+                          ? 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)' 
+                          : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                         color: 'white',
-                        padding: '12px 24px',
-                        borderRadius: '8px',
+                        padding: '14px 28px',
+                        borderRadius: '12px',
                         border: 'none',
-                        fontWeight: 'bold',
-                        cursor: currentIsConnecting ? 'not-allowed' : 'pointer'
+                        fontWeight: '600',
+                        fontSize: '1rem',
+                        cursor: currentIsConnecting ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: currentIsConnecting ? 'none' : '0 4px 16px rgba(239, 68, 68, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!currentIsConnecting) {
+                          e.target.style.transform = 'translateY(-2px)';
+                          e.target.style.boxShadow = '0 6px 20px rgba(239, 68, 68, 0.4)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!currentIsConnecting) {
+                          e.target.style.transform = 'translateY(0)';
+                          e.target.style.boxShadow = '0 4px 16px rgba(239, 68, 68, 0.3)';
+                        }
                       }}
                     >
-                      ❌ Cancelar
+                      <span style={{ fontSize: '1.25rem' }}>❌</span>
+                      Cancelar
                     </button>
                   </>
                 ) : (
                   <button
                     onClick={disconnectWhatsApp}
                     style={{
-                      backgroundColor: '#ef4444',
+                      background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                       color: 'white',
-                      padding: '12px 24px',
-                      borderRadius: '8px',
+                      padding: '14px 32px',
+                      borderRadius: '12px',
                       border: 'none',
-                      fontWeight: 'bold',
-                      cursor: 'pointer'
+                      fontWeight: '600',
+                      fontSize: '1rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 4px 16px rgba(239, 68, 68, 0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = 'translateY(-2px)';
+                      e.target.style.boxShadow = '0 6px 20px rgba(239, 68, 68, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = '0 4px 16px rgba(239, 68, 68, 0.3)';
                     }}
                   >
-                    🔌 Desconectar WhatsApp
+                    <span style={{ fontSize: '1.25rem' }}>🔌</span>
+                    Desconectar WhatsApp
                   </button>
                 )}
                 <button
                   onClick={() => window.open('/WPPCONNECT_SETUP.md', '_blank')}
                   style={{
-                    backgroundColor: '#6b7280',
+                    background: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
                     color: 'white',
-                    padding: '12px 24px',
-                    borderRadius: '8px',
+                    padding: '14px 28px',
+                    borderRadius: '12px',
                     border: 'none',
-                    fontWeight: 'bold',
-                    cursor: 'pointer'
+                    fontWeight: '600',
+                    fontSize: '1rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 4px 16px rgba(107, 114, 128, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 6px 20px rgba(107, 114, 128, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 4px 16px rgba(107, 114, 128, 0.3)';
                   }}
                 >
                   📖 Ver Documentação
