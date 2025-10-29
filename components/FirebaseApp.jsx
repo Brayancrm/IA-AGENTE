@@ -3907,12 +3907,14 @@ const DashboardWithFirebase = ({
 
       return (
         <div style={{ minHeight: '100vh', backgroundColor: '#0f1419', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
-            {/* Sidebar Modernizada - FIXA */}
+            {/* Sidebar Modernizada - FIXA E CONGELADA */}
             <div style={{ 
               position: 'fixed',
               left: 0,
               top: 0,
               width: '280px',
+              minWidth: '280px',
+              maxWidth: '280px',
               height: '100vh',
               backgroundColor: '#1a1f36', 
               color: 'white', 
@@ -3922,7 +3924,9 @@ const DashboardWithFirebase = ({
               boxShadow: '2px 0 20px rgba(0,0,0,0.3)',
               borderRight: '1px solid rgba(16, 185, 129, 0.1)',
               overflowY: 'auto',
-              zIndex: 1000
+              zIndex: 1000,
+              transform: 'scale(1)',
+              transformOrigin: 'top left'
             }}>
           {/* Logo */}
           <div style={{ 
@@ -3935,8 +3939,12 @@ const DashboardWithFirebase = ({
               src="/logo.png" 
               alt="dadosIA Logo" 
               style={{ 
-                width: '240px', 
+                width: '240px',
+                minWidth: '240px',
+                maxWidth: '240px',
                 height: '240px',
+                minHeight: '240px',
+                maxHeight: '240px',
                 objectFit: 'contain'
               }} 
             />
@@ -3949,7 +3957,7 @@ const DashboardWithFirebase = ({
               color: '#78350f', 
               padding: '8px 12px', 
               borderRadius: '8px', 
-              fontSize: '0.75rem', 
+              fontSize: '12px', 
               fontWeight: '700', 
               marginBottom: '24px', 
               textAlign: 'center',
@@ -3977,7 +3985,7 @@ const DashboardWithFirebase = ({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
-                  fontSize: '0.9375rem',
+                  fontSize: '15px',
                   fontWeight: currentPage === item.id ? '600' : '500',
                   transition: 'all 0.2s ease',
                   transform: currentPage === item.id ? 'translateX(4px)' : 'translateX(0)',
@@ -3996,7 +4004,7 @@ const DashboardWithFirebase = ({
                   }
                 }}
               >
-                <span style={{ fontSize: '1.25rem' }}>{item.icon}</span>
+                <span style={{ fontSize: '20px' }}>{item.icon}</span>
                 <span>{item.label}</span>
               </button>
             ))}
@@ -4009,7 +4017,7 @@ const DashboardWithFirebase = ({
             borderTop: '1px solid #2a3142' 
           }}>
             <p style={{ 
-              fontSize: '0.8125rem', 
+              fontSize: '13px', 
               color: '#6b7280', 
               marginBottom: '12px',
               fontWeight: '500'
@@ -4017,7 +4025,7 @@ const DashboardWithFirebase = ({
               Logado como:
             </p>
             <p style={{ 
-              fontSize: '0.875rem', 
+              fontSize: '14px', 
               color: '#d1d5db',
               marginBottom: '16px',
               fontWeight: '600'
@@ -4034,7 +4042,7 @@ const DashboardWithFirebase = ({
                 borderRadius: '10px',
                 border: 'none',
                 cursor: 'pointer',
-                fontSize: '0.9375rem',
+                fontSize: '15px',
                 fontWeight: '600',
                 transition: 'all 0.2s ease',
                 boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)'
