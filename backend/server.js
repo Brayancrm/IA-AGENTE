@@ -2860,7 +2860,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online',
     service: 'WhatsApp IA Backend',
-    version: '1.0.6', // 🎉 TESTE FINAL - Sessão conectada, verificar persistência!
+    version: '1.0.7', // 🔥 DEPLOY FORÇADO - Aplicar correção de filtro de sessões COM TOKEN!
     activeSessions: activeClients.size,
     timestamp: new Date().toISOString()
   });
@@ -3835,7 +3835,7 @@ app.listen(PORT, '0.0.0.0', async () => {
           return data.sessionToken && data.sessionToken.length > 0;
         });
       
-      console.log(`✅ [AUTO-RESTORE] Sessões conectadas com token: ${connectedSessions.length}`);
+      console.log(`✅✅✅ [AUTO-RESTORE] Sessões COM TOKEN (novo filtro): ${connectedSessions.length} ✅✅✅`);
       
       if (connectedSessions.length > 0) {
         console.log(`📱 [AUTO-RESTORE] Encontradas ${connectedSessions.length} sessão(ões) para restaurar`);
