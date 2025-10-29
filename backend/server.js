@@ -3829,7 +3829,11 @@ app.listen(PORT, '0.0.0.0', async () => {
       });
       
       const connectedSessions = allSessions
-        .filter(([userId, data]) => data.status === 'connected' && data.sessionToken);
+        .filter(([userId, data]) => {
+          // 🔥 CRÍTICO: Restaurar QUALQUER sessão que tenha token válido
+          // Não importa o status (pode ser 'error' devido a crash anterior)
+          return data.sessionToken && data.sessionToken.length > 0;
+        });
       
       console.log(`✅ [AUTO-RESTORE] Sessões conectadas com token: ${connectedSessions.length}`);
       
