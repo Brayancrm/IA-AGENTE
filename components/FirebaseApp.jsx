@@ -2480,32 +2480,32 @@ const DashboardWithFirebase = ({
           <div style={{ padding: '40px', maxWidth: '1000px', margin: '0 auto' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#111827', marginBottom: '8px' }}>
+              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
                 Integrações
               </h2>
-              <p style={{ fontSize: '1rem', color: '#6b7280' }}>
+              <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
                 Configure as integrações com serviços externos
               </p>
             </div>
 
-            <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '40px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', border: '1px solid #e5e7eb' }}>
+            <div style={{ backgroundColor: '#1a1f36', borderRadius: '20px', padding: '40px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
               <form onSubmit={handleIntegrationsSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                 {/* OpenAI API */}
                 <div style={{ 
                   padding: '24px', 
-                  background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', 
+                  backgroundColor: 'rgba(16, 185, 129, 0.05)', 
                   borderRadius: '16px',
-                  border: '2px solid #86efac'
+                  border: '2px solid rgba(16, 185, 129, 0.3)'
                 }}>
-                  <h3 style={{ fontSize: '1.375rem', fontWeight: '700', marginBottom: '8px', color: '#065f46', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <h3 style={{ fontSize: '1.375rem', fontWeight: '700', marginBottom: '8px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ fontSize: '1.75rem' }}>🤖</span>
                     OpenAI API
                   </h3>
-                  <p style={{ fontSize: '0.9375rem', color: '#047857', marginBottom: '20px' }}>
+                  <p style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '20px' }}>
                     Integração com GPT para respostas inteligentes
                   </p>
                   <div>
-                    <label style={{ display: 'block', fontWeight: '600', marginBottom: '10px', color: '#065f46', fontSize: '0.9375rem' }}>
+                    <label style={{ display: 'block', fontWeight: '600', marginBottom: '10px', color: '#ffffff', fontSize: '0.9375rem' }}>
                       API Key
                     </label>
                     <input
@@ -2516,11 +2516,12 @@ const DashboardWithFirebase = ({
                         width: '100%',
                         padding: '14px 16px',
                         borderRadius: '12px',
-                        border: '2px solid #bbf7d0',
+                        border: '2px solid rgba(255, 255, 255, 0.1)',
                         fontSize: '1rem',
                         transition: 'all 0.2s ease',
                         outline: 'none',
-                        backgroundColor: 'white'
+                        backgroundColor: '#0f1419',
+                        color: '#ffffff'
                       }}
                       placeholder="sk-..."
                       onFocus={(e) => {
@@ -2528,11 +2529,11 @@ const DashboardWithFirebase = ({
                         e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
                       }}
                       onBlur={(e) => {
-                        e.target.style.borderColor = '#bbf7d0';
+                        e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                         e.target.style.boxShadow = 'none';
                       }}
                     />
-                    <p style={{ fontSize: '0.875rem', color: '#047857', marginTop: '8px' }}>
+                    <p style={{ fontSize: '0.875rem', color: '#10b981', marginTop: '8px' }}>
                       💡 Obtenha sua chave em: https://platform.openai.com/api-keys
                     </p>
                   </div>
@@ -2541,15 +2542,15 @@ const DashboardWithFirebase = ({
                 {/* Asaas */}
                 <div style={{ 
                   padding: '24px', 
-                  background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', 
+                  backgroundColor: 'rgba(16, 185, 129, 0.05)', 
                   borderRadius: '16px',
-                  border: '2px solid #93c5fd'
+                  border: '2px solid rgba(16, 185, 129, 0.3)'
                 }}>
-                  <h3 style={{ fontSize: '1.375rem', fontWeight: '700', marginBottom: '8px', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <h3 style={{ fontSize: '1.375rem', fontWeight: '700', marginBottom: '8px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ fontSize: '1.75rem' }}>💳</span>
                     Asaas (Pagamentos)
                   </h3>
-                  <p style={{ fontSize: '0.9375rem', color: '#1d4ed8', marginBottom: '20px' }}>
+                  <p style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '20px' }}>
                     Gateway de pagamento e cobranças automáticas
                   </p>
                   <div>
@@ -2640,15 +2641,15 @@ const DashboardWithFirebase = ({
                 {/* Nota Fiscal */}
                 <div style={{ 
                   padding: '24px', 
-                  background: 'linear-gradient(135deg, #fefce8 0%, #fef9c3 100%)', 
+                  backgroundColor: 'rgba(16, 185, 129, 0.05)', 
                   borderRadius: '16px',
-                  border: '2px solid #fde047'
+                  border: '2px solid rgba(16, 185, 129, 0.3)'
                 }}>
-                  <h3 style={{ fontSize: '1.375rem', fontWeight: '700', marginBottom: '8px', color: '#854d0e', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <h3 style={{ fontSize: '1.375rem', fontWeight: '700', marginBottom: '8px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ fontSize: '1.75rem' }}>📄</span>
                     Configuração de Nota Fiscal
                   </h3>
-                  <p style={{ fontSize: '0.9375rem', color: '#a16207', marginBottom: '20px' }}>
+                  <p style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '20px' }}>
                     Emissão automática de NFS-e após confirmação de pagamento
                   </p>
                   
