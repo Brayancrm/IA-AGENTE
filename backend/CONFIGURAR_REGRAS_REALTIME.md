@@ -31,6 +31,7 @@ As regras garantem que cada usuário só pode acessar seus próprios dados:
     "invoices": { ... },
     "products": { ... },
     "collectionContext": { ... },
+    "sales": { ... },
     "users": { ... }
   }
 }
@@ -49,6 +50,7 @@ As regras garantem que cada usuário só pode acessar seus próprios dados:
 | `invoices/{userId}/{orderId}` | Notas fiscais emitidas |
 | `products/{userId}/{productId}` | Produtos cadastrados |
 | `collectionContext/{userId}/{contactNumber}` | Contexto de coleta de dados |
+| `sales/{userId}/{saleId}` | Vendas realizadas |
 | `users/data/{userId}` | Configurações do usuário |
 | `users/registered` | Usuários registrados (master pode ler) |
 
@@ -63,6 +65,7 @@ Após publicar as regras, o sistema deve funcionar normalmente:
 - ✅ Clientes fazem pedidos
 - ✅ Links de pagamento são gerados
 - ✅ Notas fiscais são emitidas
+- ✅ CRM carrega vendas e produtos
 
 ---
 
