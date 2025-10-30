@@ -44,12 +44,44 @@ const CRMDashboard = ({ user, database, showToast }) => {
   const [editingCliente, setEditingCliente] = useState(null);
   const [selectedCliente, setSelectedCliente] = useState(null);
   
+  // Estados para Pipeline
+  const [draggedCliente, setDraggedCliente] = useState(null);
+  const [pipelineStages, setPipelineStages] = useState({
+    lead: [],
+    qualificado: [],
+    proposta: [],
+    negociacao: [],
+    fechado: [],
+    perdido: []
+  });
+  
   // Carregar dados do CRM
   useEffect(() => {
     if (user?.uid && database) {
       loadCRMData();
     }
   }, [user, database]);
+  
+  // Organizar clientes por estágio do pipeline
+  useEffect(() => {
+    const stages = {
+      lead: [],
+      qualificado: [],
+      proposta: [],
+      negociacao: [],
+      fechado: [],
+      perdido: []
+    };
+    
+    clientes.forEach(cliente => {
+      const stage = cliente.pipelineStage || 'lead';
+      if (stages[stage]) {
+        stages[stage].push(cliente);
+      }
+    });
+    
+    setPipelineStages(stages);
+  }, [clientes]);
   
   const loadCRMData = async () => {
     setLoading(true);
@@ -85,7 +117,8 @@ const CRMDashboard = ({ user, database, showToast }) => {
               email: cliente.email || '',
               cpfCnpj: cliente.cpfCnpj || '',
               updatedAt: cliente.updatedAt || new Date().toISOString(),
-              status: 'lead' // lead, cliente, inativo
+              status: cliente.status || 'lead', // lead, cliente, inativo
+              pipelineStage: cliente.pipelineStage || 'lead' // Estágio no funil
             });
           });
         }
@@ -176,6 +209,61 @@ const CRMDashboard = ({ user, database, showToast }) => {
   };
   
   const metricas = calcularMetricas();
+  
+  // Funções do Pipeline
+  const handleDragStart = (cliente) => {
+    setDraggedCliente(cliente);
+  };
+  
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+  
+  const handleDrop = async (targetStage) => {
+    if (!draggedCliente) return;
+    
+    try {
+      const { ref, update } = await import('firebase/database');
+      const clienteRef = ref(database, `customerData/${user.uid}/${draggedCliente.phone}`);
+      
+      await update(clienteRef, {
+        pipelineStage: targetStage,
+        updatedAt: new Date().toISOString()
+      });
+      
+      showToast(`Cliente movido para ${getStageLabel(targetStage)}`, 'success');
+      loadCRMData();
+    } catch (error) {
+      console.error('Erro ao mover cliente:', error);
+      showToast('Erro ao mover cliente', 'error');
+    }
+    
+    setDraggedCliente(null);
+  };
+  
+  const getStageLabel = (stage) => {
+    const labels = {
+      lead: 'Lead',
+      qualificado: 'Qualificado',
+      proposta: 'Proposta',
+      negociacao: 'Negociação',
+      fechado: 'Fechado',
+      perdido: 'Perdido'
+    };
+    return labels[stage] || stage;
+  };
+  
+  const getStageColor = (stage) => {
+    const colors = {
+      lead: { bg: 'rgba(156, 163, 175, 0.1)', border: 'rgba(156, 163, 175, 0.3)', text: '#9ca3af' },
+      qualificado: { bg: 'rgba(59, 130, 246, 0.1)', border: 'rgba(59, 130, 246, 0.3)', text: '#3b82f6' },
+      proposta: { bg: 'rgba(245, 158, 11, 0.1)', border: 'rgba(245, 158, 11, 0.3)', text: '#f59e0b' },
+      negociacao: { bg: 'rgba(139, 92, 246, 0.1)', border: 'rgba(139, 92, 246, 0.3)', text: '#8b5cf6' },
+      fechado: { bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)', text: '#10b981' },
+      perdido: { bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.3)', text: '#ef4444' }
+    };
+    return colors[stage] || colors.lead;
+  };
   
   // Filtrar clientes
   const clientesFiltrados = clientes.filter(cliente => {
@@ -1003,37 +1091,628 @@ const CRMDashboard = ({ user, database, showToast }) => {
       {activeTab === 'visao-geral' && <VisaoGeral />}
       {activeTab === 'clientes' && <ClientesTab />}
       {activeTab === 'pipeline' && (
-        <div style={{
-          textAlign: 'center',
-          padding: '64px',
-          backgroundColor: '#1a1f36',
-          borderRadius: '16px',
-          border: '1px solid rgba(16, 185, 129, 0.2)'
-        }}>
-          <Target size={64} style={{ margin: '0 auto 24px', color: '#10b981', opacity: 0.5 }} />
-          <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '12px' }}>
-            Pipeline em Desenvolvimento
-          </h3>
-          <p style={{ color: '#9ca3af' }}>
-            Funcionalidade de funil de vendas será adicionada em breve
-          </p>
+        <div style={{ padding: '0' }}>
+          {/* Header do Pipeline */}
+          <div style={{ marginBottom: '32px' }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Target size={24} color="#10b981" />
+              Pipeline de Vendas
+            </h2>
+            <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
+              Arraste os cards para mover clientes entre os estágios do funil
+            </p>
+          </div>
+          
+          {/* Estágios do Pipeline */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '20px',
+            overflowX: 'auto',
+            paddingBottom: '20px'
+          }}>
+            {Object.keys(pipelineStages).map(stageKey => {
+              const stageClients = pipelineStages[stageKey];
+              const stageColor = getStageColor(stageKey);
+              const stageLabel = getStageLabel(stageKey);
+              
+              return (
+                <div
+                  key={stageKey}
+                  onDragOver={handleDragOver}
+                  onDrop={() => handleDrop(stageKey)}
+                  style={{
+                    backgroundColor: '#1a1f36',
+                    borderRadius: '16px',
+                    border: `2px solid ${stageColor.border}`,
+                    minHeight: '400px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  {/* Cabeçalho do Estágio */}
+                  <div style={{
+                    padding: '20px',
+                    borderBottom: `2px solid ${stageColor.border}`,
+                    backgroundColor: stageColor.bg
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h3 style={{ 
+                        fontSize: '1rem', 
+                        fontWeight: '700', 
+                        color: stageColor.text,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                      }}>
+                        {stageLabel}
+                      </h3>
+                      <span style={{
+                        backgroundColor: stageColor.bg,
+                        color: stageColor.text,
+                        padding: '4px 12px',
+                        borderRadius: '20px',
+                        fontSize: '0.75rem',
+                        fontWeight: '700',
+                        border: `1px solid ${stageColor.border}`
+                      }}>
+                        {stageClients.length}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Cards dos Clientes */}
+                  <div style={{ 
+                    padding: '16px', 
+                    flex: 1, 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '12px',
+                    overflowY: 'auto',
+                    maxHeight: '600px'
+                  }}>
+                    {stageClients.length === 0 ? (
+                      <div style={{ 
+                        textAlign: 'center', 
+                        padding: '40px 20px', 
+                        color: '#6b7280',
+                        fontSize: '0.875rem'
+                      }}>
+                        Arraste clientes aqui
+                      </div>
+                    ) : (
+                      stageClients.map(cliente => (
+                        <div
+                          key={cliente.id}
+                          draggable
+                          onDragStart={() => handleDragStart(cliente)}
+                          style={{
+                            backgroundColor: '#0f1419',
+                            padding: '16px',
+                            borderRadius: '12px',
+                            border: `1px solid ${stageColor.border}`,
+                            cursor: 'grab',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = `0 4px 12px ${stageColor.border}`;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                        >
+                          {/* Avatar + Nome */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                            <div style={{
+                              width: '40px',
+                              height: '40px',
+                              borderRadius: '50%',
+                              background: `linear-gradient(135deg, ${stageColor.text} 0%, ${stageColor.border} 100%)`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '1rem',
+                              fontWeight: '700',
+                              color: '#ffffff',
+                              flexShrink: 0
+                            }}>
+                              {cliente.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ 
+                                fontSize: '0.875rem', 
+                                fontWeight: '600', 
+                                color: '#ffffff',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}>
+                                {cliente.name}
+                              </div>
+                              <div style={{ 
+                                fontSize: '0.75rem', 
+                                color: '#9ca3af',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}>
+                                {cliente.phone.replace('@c.us', '')}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Info adicional */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {cliente.email && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#9ca3af' }}>
+                                <Mail size={12} />
+                                <span style={{ 
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis'
+                                }}>
+                                  {cliente.email}
+                                </span>
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#9ca3af' }}>
+                              <Clock size={12} />
+                              {new Date(cliente.updatedAt).toLocaleDateString('pt-BR')}
+                            </div>
+                          </div>
+                          
+                          {/* Botão ver detalhes */}
+                          <button
+                            onClick={() => setSelectedCliente(cliente)}
+                            style={{
+                              marginTop: '12px',
+                              width: '100%',
+                              padding: '8px',
+                              backgroundColor: stageColor.bg,
+                              border: `1px solid ${stageColor.border}`,
+                              borderRadius: '8px',
+                              color: stageColor.text,
+                              fontSize: '0.75rem',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = stageColor.border;
+                              e.currentTarget.style.color = '#ffffff';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = stageColor.bg;
+                              e.currentTarget.style.color = stageColor.text;
+                            }}
+                          >
+                            <Eye size={14} />
+                            Ver detalhes
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
       {activeTab === 'relatorios' && (
-        <div style={{
-          textAlign: 'center',
-          padding: '64px',
-          backgroundColor: '#1a1f36',
-          borderRadius: '16px',
-          border: '1px solid rgba(16, 185, 129, 0.2)'
-        }}>
-          <BarChart3 size={64} style={{ margin: '0 auto 24px', color: '#10b981', opacity: 0.5 }} />
-          <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '12px' }}>
-            Relatórios em Desenvolvimento
-          </h3>
-          <p style={{ color: '#9ca3af' }}>
-            Análises avançadas e gráficos serão adicionados em breve
-          </p>
+        <div style={{ padding: '0' }}>
+          {/* Header dos Relatórios */}
+          <div style={{ marginBottom: '32px' }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <BarChart3 size={24} color="#10b981" />
+              Relatórios e Análises
+            </h2>
+            <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
+              Acompanhe o desempenho e resultados do seu negócio
+            </p>
+          </div>
+          
+          {/* Cards de Métricas Principais */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: '20px',
+            marginBottom: '32px'
+          }}>
+            {/* Taxa de Conversão */}
+            <div style={{
+              backgroundColor: '#1a1f36',
+              padding: '24px',
+              borderRadius: '16px',
+              border: '1px solid rgba(16, 185, 129, 0.2)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Target size={24} color="#fff" />
+                </div>
+                <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af' }}>
+                  Taxa de Conversão
+                </div>
+              </div>
+              <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#10b981', marginBottom: '8px' }}>
+                {metricas.taxaConversao.toFixed(1)}%
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                {metricas.totalPedidos} vendas de {metricas.totalClientes} clientes
+              </div>
+            </div>
+            
+            {/* Clientes por Estágio */}
+            <div style={{
+              backgroundColor: '#1a1f36',
+              padding: '24px',
+              borderRadius: '16px',
+              border: '1px solid rgba(59, 130, 246, 0.2)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Users size={24} color="#fff" />
+                </div>
+                <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af' }}>
+                  Clientes Ativos
+                </div>
+              </div>
+              <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#3b82f6', marginBottom: '8px' }}>
+                {pipelineStages.lead.length + pipelineStages.qualificado.length + pipelineStages.proposta.length + pipelineStages.negociacao.length}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                No funil de vendas
+              </div>
+            </div>
+            
+            {/* Vendas Fechadas */}
+            <div style={{
+              backgroundColor: '#1a1f36',
+              padding: '24px',
+              borderRadius: '16px',
+              border: '1px solid rgba(16, 185, 129, 0.2)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <CheckCircle size={24} color="#fff" />
+                </div>
+                <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af' }}>
+                  Vendas Fechadas
+                </div>
+              </div>
+              <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#10b981', marginBottom: '8px' }}>
+                {pipelineStages.fechado.length}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                Total de conversões
+              </div>
+            </div>
+            
+            {/* Oportunidades Perdidas */}
+            <div style={{
+              backgroundColor: '#1a1f36',
+              padding: '24px',
+              borderRadius: '16px',
+              border: '1px solid rgba(239, 68, 68, 0.2)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <XCircle size={24} color="#fff" />
+                </div>
+                <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af' }}>
+                  Oportunidades Perdidas
+                </div>
+              </div>
+              <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#ef4444', marginBottom: '8px' }}>
+                {pipelineStages.perdido.length}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                Não converteram
+              </div>
+            </div>
+          </div>
+          
+          {/* Gráfico de Funil */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+            gap: '24px',
+            marginBottom: '32px'
+          }}>
+            {/* Funil de Conversão */}
+            <div style={{
+              backgroundColor: '#1a1f36',
+              padding: '24px',
+              borderRadius: '16px',
+              border: '1px solid rgba(16, 185, 129, 0.2)'
+            }}>
+              <h3 style={{ fontSize: '1.125rem', fontWeight: '700', color: '#ffffff', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Activity size={20} color="#10b981" />
+                Funil de Conversão
+              </h3>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Lead */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af' }}>Lead</span>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '700', color: '#ffffff' }}>{pipelineStages.lead.length}</span>
+                  </div>
+                  <div style={{ 
+                    width: '100%', 
+                    height: '12px', 
+                    backgroundColor: '#0f1419', 
+                    borderRadius: '6px',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      width: `${(pipelineStages.lead.length / metricas.totalClientes * 100) || 0}%`,
+                      height: '100%',
+                      background: 'linear-gradient(90deg, #9ca3af 0%, #6b7280 100%)',
+                      transition: 'width 0.3s ease'
+                    }} />
+                  </div>
+                </div>
+                
+                {/* Qualificado */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#3b82f6' }}>Qualificado</span>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '700', color: '#ffffff' }}>{pipelineStages.qualificado.length}</span>
+                  </div>
+                  <div style={{ 
+                    width: '100%', 
+                    height: '12px', 
+                    backgroundColor: '#0f1419', 
+                    borderRadius: '6px',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      width: `${(pipelineStages.qualificado.length / metricas.totalClientes * 100) || 0}%`,
+                      height: '100%',
+                      background: 'linear-gradient(90deg, #3b82f6 0%, #2563eb 100%)',
+                      transition: 'width 0.3s ease'
+                    }} />
+                  </div>
+                </div>
+                
+                {/* Proposta */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#f59e0b' }}>Proposta</span>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '700', color: '#ffffff' }}>{pipelineStages.proposta.length}</span>
+                  </div>
+                  <div style={{ 
+                    width: '100%', 
+                    height: '12px', 
+                    backgroundColor: '#0f1419', 
+                    borderRadius: '6px',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      width: `${(pipelineStages.proposta.length / metricas.totalClientes * 100) || 0}%`,
+                      height: '100%',
+                      background: 'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)',
+                      transition: 'width 0.3s ease'
+                    }} />
+                  </div>
+                </div>
+                
+                {/* Negociação */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#8b5cf6' }}>Negociação</span>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '700', color: '#ffffff' }}>{pipelineStages.negociacao.length}</span>
+                  </div>
+                  <div style={{ 
+                    width: '100%', 
+                    height: '12px', 
+                    backgroundColor: '#0f1419', 
+                    borderRadius: '6px',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      width: `${(pipelineStages.negociacao.length / metricas.totalClientes * 100) || 0}%`,
+                      height: '100%',
+                      background: 'linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%)',
+                      transition: 'width 0.3s ease'
+                    }} />
+                  </div>
+                </div>
+                
+                {/* Fechado */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#10b981' }}>Fechado ✓</span>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '700', color: '#10b981' }}>{pipelineStages.fechado.length}</span>
+                  </div>
+                  <div style={{ 
+                    width: '100%', 
+                    height: '12px', 
+                    backgroundColor: '#0f1419', 
+                    borderRadius: '6px',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      width: `${(pipelineStages.fechado.length / metricas.totalClientes * 100) || 0}%`,
+                      height: '100%',
+                      background: 'linear-gradient(90deg, #10b981 0%, #059669 100%)',
+                      transition: 'width 0.3s ease'
+                    }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Distribuição por Estágio */}
+            <div style={{
+              backgroundColor: '#1a1f36',
+              padding: '24px',
+              borderRadius: '16px',
+              border: '1px solid rgba(16, 185, 129, 0.2)'
+            }}>
+              <h3 style={{ fontSize: '1.125rem', fontWeight: '700', color: '#ffffff', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <PieChart size={20} color="#10b981" />
+                Distribuição de Clientes
+              </h3>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {[
+                  { key: 'lead', label: 'Lead', color: '#9ca3af' },
+                  { key: 'qualificado', label: 'Qualificado', color: '#3b82f6' },
+                  { key: 'proposta', label: 'Proposta', color: '#f59e0b' },
+                  { key: 'negociacao', label: 'Negociação', color: '#8b5cf6' },
+                  { key: 'fechado', label: 'Fechado', color: '#10b981' },
+                  { key: 'perdido', label: 'Perdido', color: '#ef4444' }
+                ].map(stage => {
+                  const count = pipelineStages[stage.key].length;
+                  const percentage = metricas.totalClientes > 0 ? (count / metricas.totalClientes * 100) : 0;
+                  
+                  return (
+                    <div key={stage.key} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '16px',
+                        height: '16px',
+                        borderRadius: '4px',
+                        backgroundColor: stage.color,
+                        flexShrink: 0
+                      }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '0.875rem', color: '#ffffff', fontWeight: '600' }}>{stage.label}</span>
+                          <span style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{count} ({percentage.toFixed(0)}%)</span>
+                        </div>
+                        <div style={{
+                          width: '100%',
+                          height: '4px',
+                          backgroundColor: '#0f1419',
+                          borderRadius: '2px',
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{
+                            width: `${percentage}%`,
+                            height: '100%',
+                            backgroundColor: stage.color,
+                            transition: 'width 0.3s ease'
+                          }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          
+          {/* Top Clientes */}
+          <div style={{
+            backgroundColor: '#1a1f36',
+            padding: '24px',
+            borderRadius: '16px',
+            border: '1px solid rgba(16, 185, 129, 0.2)'
+          }}>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: '700', color: '#ffffff', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <TrendingUp size={20} color="#10b981" />
+              Top 10 Clientes Recentes
+            </h3>
+            
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                    <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>Cliente</th>
+                    <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>Contato</th>
+                    <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>Estágio</th>
+                    <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>Atualizado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clientes.slice(0, 10).map(cliente => (
+                    <tr key={cliente.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <td style={{ padding: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.875rem',
+                            fontWeight: '700',
+                            color: '#ffffff'
+                          }}>
+                            {cliente.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#ffffff' }}>{cliente.name}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px' }}>
+                        <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{cliente.phone.replace('@c.us', '')}</div>
+                        {cliente.email && <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{cliente.email}</div>}
+                      </td>
+                      <td style={{ padding: '16px' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '4px 12px',
+                          borderRadius: '20px',
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          backgroundColor: getStageColor(cliente.pipelineStage).bg,
+                          color: getStageColor(cliente.pipelineStage).text,
+                          border: `1px solid ${getStageColor(cliente.pipelineStage).border}`
+                        }}>
+                          {getStageLabel(cliente.pipelineStage)}
+                        </span>
+                      </td>
+                      <td style={{ padding: '16px', fontSize: '0.875rem', color: '#9ca3af' }}>
+                        {new Date(cliente.updatedAt).toLocaleDateString('pt-BR')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
       
