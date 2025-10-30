@@ -2441,67 +2441,6 @@ const DashboardWithFirebase = ({
       }
 
       case 'crm':
-          return (
-          <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto' }}>
-            <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
-              🎯 CRM - Gestão de Clientes
-              </h2>
-            <p style={{ color: '#9ca3af', marginBottom: '32px' }}>
-              Sistema de gerenciamento de relacionamento com clientes
-            </p>
-            
-                              <div style={{ 
-              backgroundColor: '#1a1f36', 
-              borderRadius: '20px', 
-              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              padding: '64px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '80px', marginBottom: '24px' }}>🚧</div>
-              <h3 style={{ fontSize: '28px', fontWeight: 'bold', color: '#ffffff', marginBottom: '16px' }}>
-                CRM Temporariamente Desativado
-                                </h3>
-              <p style={{ color: '#9ca3af', fontSize: '18px', lineHeight: '1.6', maxWidth: '600px', margin: '0 auto' }}>
-                O módulo CRM está sendo reconstruído para melhor performance e estabilidade.<br />
-                Em breve você terá acesso a:
-              </p>
-              
-                            <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-                gap: '20px', 
-                marginTop: '40px',
-                maxWidth: '800px',
-                margin: '40px auto 0'
-              }}>
-                <div style={{ padding: '20px', backgroundColor: '#f0f9ff', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>👥</div>
-                  <h4 style={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>Lista de Clientes</h4>
-                  <p style={{ fontSize: '14px', color: '#6b7280' }}>Visualize todos os seus clientes</p>
-                                </div>
-                
-                <div style={{ padding: '20px', backgroundColor: '#f0fdf4', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>💬</div>
-                  <h4 style={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>Conversas</h4>
-                  <p style={{ fontSize: '14px', color: '#6b7280' }}>Histórico completo de mensagens</p>
-                            </div>
-
-                <div style={{ padding: '20px', backgroundColor: '#fef3c7', borderRadius: '12px' }}>
-                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>🛒</div>
-                  <h4 style={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}>Pedidos</h4>
-                  <p style={{ fontSize: '14px', color: '#6b7280' }}>Gerencie todas as vendas</p>
-                                        </div>
-                                    </div>
-              
-              <p style={{ marginTop: '40px', color: '#9ca3af', fontSize: '14px' }}>
-                Enquanto isso, continue usando o Dashboard, Catálogo e WhatsApp normalmente! ✨
-                        </p>
-                      </div>
-                                    </div>
-        );
-
-      case 'crm':
         return (
           <CRMDashboard 
             user={user} 
