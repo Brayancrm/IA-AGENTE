@@ -226,28 +226,29 @@ const CRMDashboard = ({ user, database, showToast }) => {
   const loadProdutos = async () => {
     try {
       const { ref, onValue, off } = await import('firebase/database');
-      const produtosRef = ref(database, `products/${user.uid}`);
+      // Busca itens do catálogo existente
+      const catalogRef = ref(database, `users/data/${user.uid}/catalog_items`);
       
       return Promise.race([
         new Promise((resolve) => {
-          const unsubscribe = onValue(produtosRef, (snapshot) => {
+          const unsubscribe = onValue(catalogRef, (snapshot) => {
             try {
               const produtosList = [];
               if (snapshot.exists()) {
                 const data = snapshot.val();
                 Object.keys(data).forEach(produtoId => {
-                  const produto = data[produtoId];
+                  const item = data[produtoId];
                   produtosList.push({
                     id: produtoId,
-                    name: produto.name || '',
-                    description: produto.description || '',
-                    price: produto.price || 0,
-                    category: produto.category || 'Geral',
-                    stock: produto.stock || 0,
-                    sku: produto.sku || '',
-                    status: produto.status || 'active',
-                    createdAt: produto.createdAt || new Date().toISOString(),
-                    updatedAt: produto.updatedAt || new Date().toISOString()
+                    name: item.name || item.title || '',
+                    description: item.description || '',
+                    price: parseFloat(item.price) || 0,
+                    category: item.category || 'Geral',
+                    stock: item.stock || 999, // Estoque padrão para itens de serviço
+                    sku: item.sku || produtoId,
+                    status: 'active',
+                    createdAt: item.createdAt || new Date().toISOString(),
+                    updatedAt: item.updatedAt || new Date().toISOString()
                   });
                 });
               }
@@ -3034,13 +3035,15 @@ const CRMDashboard = ({ user, database, showToast }) => {
                     };
                     
                     if (editingProduto) {
-                      const produtoRef = ref(database, `products/${user.uid}/${editingProduto.id}`);
-                      await update(produtoRef, produtoData);
+                      // Atualiza no catálogo existente
+                      const catalogItemRef = ref(database, `users/data/${user.uid}/catalog_items/${editingProduto.id}`);
+                      await update(catalogItemRef, produtoData);
                       showToast('Produto atualizado!', 'success');
                     } else {
-                      const produtosRef = ref(database, `products/${user.uid}`);
-                      const newProdutoRef = push(produtosRef);
-                      await set(newProdutoRef, {
+                      // Adiciona ao catálogo existente
+                      const catalogRef = ref(database, `users/data/${user.uid}/catalog_items`);
+                      const newItemRef = push(catalogRef);
+                      await set(newItemRef, {
                         ...produtoData,
                         createdAt: new Date().toISOString()
                       });
@@ -3049,7 +3052,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
                     
                     setShowProdutoModal(false);
                     setEditingProduto(null);
-                    loadCRMData();
+                    loadProdutos(); // Recarrega apenas produtos
                   } catch (error) {
                     console.error('Erro ao salvar produto:', error);
                     showToast('Erro ao salvar produto', 'error');
@@ -3517,12 +3520,12 @@ const CRMDashboard = ({ user, database, showToast }) => {
                         updatedAt: new Date().toISOString()
                       });
                       
-                      // Atualizar estoque dos produtos
+                      // Atualizar estoque dos produtos no catálogo
                       for (const item of carrinhoVenda) {
                         const produto = produtos.find(p => p.id === item.produtoId);
                         if (produto) {
-                          const produtoRef = ref(database, `products/${user.uid}/${item.produtoId}`);
-                          await update(produtoRef, {
+                          const catalogItemRef = ref(database, `users/data/${user.uid}/catalog_items/${item.produtoId}`);
+                          await update(catalogItemRef, {
                             stock: produto.stock - item.quantidade,
                             updatedAt: new Date().toISOString()
                           });
