@@ -1415,25 +1415,17 @@ const SimpleLanding = ({ onLoginSuccess }) => {
 
             {/* Conteúdo do Modal */}
             <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-              <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+              <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}>
                 <img 
                   src="/logo.png" 
                   alt="dadosIA Logo" 
                   style={{ 
-                    width: '100px', 
-                    height: '100px',
+                    width: '300px', 
+                    height: '300px',
                     objectFit: 'contain'
                   }} 
                 />
               </div>
-              <h2 style={{
-                fontSize: '2.5rem',
-                fontWeight: '700',
-                marginBottom: '16px',
-                color: '#ffffff'
-              }}>
-                dadosIA
-              </h2>
               <p style={{
                 fontSize: '1.125rem',
                 color: '#10b981',
@@ -1459,7 +1451,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                 lineHeight: '1.8',
                 marginBottom: '20px'
               }}>
-                O <strong style={{ color: '#10b981' }}>WhatsApp Sales Agent</strong> é uma plataforma completa de automação de vendas via WhatsApp que integra inteligência artificial, gestão de conversas, catálogo de produtos e muito mais em um único sistema.
+                O <strong style={{ color: '#10b981' }}>dadosIA</strong> é uma plataforma completa de automação de vendas via WhatsApp que integra inteligência artificial, gestão de conversas, catálogo de produtos e muito mais em um único sistema.
               </p>
               <p style={{
                 fontSize: '1rem',
