@@ -563,7 +563,10 @@ const CRMDashboard = ({ user, database, showToast }) => {
         
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
-            onClick={() => setShowClienteModal(true)}
+            onClick={() => {
+              setEditingCliente(null);
+              setShowClienteModal(true);
+            }}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -576,10 +579,17 @@ const CRMDashboard = ({ user, database, showToast }) => {
               fontSize: '0.875rem',
               fontWeight: '600',
               cursor: 'pointer',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.2s ease',
+              boxShadow: 'none'
             }}
-            onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
-            onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
           >
             <Plus size={18} />
             Novo Cliente
@@ -601,12 +611,33 @@ const CRMDashboard = ({ user, database, showToast }) => {
               transition: 'all 0.2s ease'
             }}
             onMouseEnter={(e) => {
-              e.target.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
-              e.target.style.borderColor = '#10b981';
+              e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+              e.currentTarget.style.borderColor = '#10b981';
             }}
             onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'transparent';
-              e.target.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+            }}
+            onClick={() => {
+              // Exportar lista de clientes para CSV
+              const csv = [
+                ['Nome', 'Telefone', 'Email', 'CPF/CNPJ', 'Status', 'Última Atualização'].join(','),
+                ...filteredClientes.map(c => [
+                  c.name,
+                  c.phone.replace('@c.us', ''),
+                  c.email || '',
+                  c.cpfCnpj || '',
+                  c.status,
+                  new Date(c.updatedAt).toLocaleDateString('pt-BR')
+                ].join(','))
+              ].join('\n');
+              
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              const link = document.createElement('a');
+              link.href = URL.createObjectURL(blob);
+              link.download = `clientes_${new Date().toISOString().split('T')[0]}.csv`;
+              link.click();
+              showToast('Lista de clientes exportada!', 'success');
             }}
           >
             <Download size={18} />
@@ -804,12 +835,12 @@ const CRMDashboard = ({ user, database, showToast }) => {
                           justifyContent: 'center'
                         }}
                         onMouseEnter={(e) => {
-                          e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
-                          e.target.style.transform = 'scale(1.1)';
+                          e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
+                          e.currentTarget.style.transform = 'scale(1.1)';
                         }}
                         onMouseLeave={(e) => {
-                          e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
-                          e.target.style.transform = 'scale(1)';
+                          e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+                          e.currentTarget.style.transform = 'scale(1)';
                         }}
                         title="Editar"
                       >
@@ -833,12 +864,12 @@ const CRMDashboard = ({ user, database, showToast }) => {
                           justifyContent: 'center'
                         }}
                         onMouseEnter={(e) => {
-                          e.target.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
-                          e.target.style.transform = 'scale(1.1)';
+                          e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
+                          e.currentTarget.style.transform = 'scale(1.1)';
                         }}
                         onMouseLeave={(e) => {
-                          e.target.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
-                          e.target.style.transform = 'scale(1)';
+                          e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                          e.currentTarget.style.transform = 'scale(1)';
                         }}
                         title="Ver detalhes"
                       >
@@ -1003,6 +1034,554 @@ const CRMDashboard = ({ user, database, showToast }) => {
           <p style={{ color: '#9ca3af' }}>
             Análises avançadas e gráficos serão adicionados em breve
           </p>
+        </div>
+      )}
+      
+      {/* Modal de Editar/Novo Cliente */}
+      {showClienteModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}
+        onClick={() => {
+          setShowClienteModal(false);
+          setEditingCliente(null);
+        }}>
+          <div style={{
+            backgroundColor: '#1a1f36',
+            borderRadius: '20px',
+            padding: '32px',
+            maxWidth: '500px',
+            width: '100%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            position: 'relative'
+          }}
+          onClick={(e) => e.stopPropagation()}>
+            {/* Fechar */}
+            <button
+              onClick={() => {
+                setShowClienteModal(false);
+                setEditingCliente(null);
+              }}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#9ca3af',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '8px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.color = '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#9ca3af';
+              }}>
+              ✕
+            </button>
+            
+            <h3 style={{
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              color: '#ffffff',
+              marginBottom: '24px'
+            }}>
+              {editingCliente ? 'Editar Cliente' : 'Novo Cliente'}
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                  Nome Completo *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: João Silva"
+                  defaultValue={editingCliente?.name || ''}
+                  id="cliente-nome"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#0f1419',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '0.875rem',
+                    outline: 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'}
+                />
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                  Telefone *
+                </label>
+                <input
+                  type="tel"
+                  placeholder="Ex: 5511999999999"
+                  defaultValue={editingCliente?.phone?.replace('@c.us', '') || ''}
+                  id="cliente-telefone"
+                  disabled={!!editingCliente}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: editingCliente ? '#0a0e14' : '#0f1419',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    color: editingCliente ? '#6b7280' : '#ffffff',
+                    fontSize: '0.875rem',
+                    outline: 'none',
+                    transition: 'all 0.2s ease',
+                    cursor: editingCliente ? 'not-allowed' : 'text'
+                  }}
+                  onFocus={(e) => !editingCliente && (e.target.style.borderColor = '#10b981')}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'}
+                />
+                {editingCliente && (
+                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>
+                    O telefone não pode ser alterado
+                  </div>
+                )}
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                  Email
+                </label>
+                <input
+                  type="email"
+                  placeholder="Ex: joao@email.com"
+                  defaultValue={editingCliente?.email || ''}
+                  id="cliente-email"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#0f1419',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '0.875rem',
+                    outline: 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'}
+                />
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                  CPF/CNPJ
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: 12345678900"
+                  defaultValue={editingCliente?.cpfCnpj || ''}
+                  id="cliente-cpfcnpj"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#0f1419',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '0.875rem',
+                    outline: 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'}
+                />
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                  Status
+                </label>
+                <select
+                  defaultValue={editingCliente?.status || 'lead'}
+                  id="cliente-status"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#0f1419',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '0.875rem',
+                    outline: 'none',
+                    transition: 'all 0.2s ease',
+                    cursor: 'pointer'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'}>
+                  <option value="lead">Lead</option>
+                  <option value="cliente">Cliente</option>
+                  <option value="inativo">Inativo</option>
+                </select>
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+              <button
+                onClick={() => {
+                  setShowClienteModal(false);
+                  setEditingCliente(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  backgroundColor: 'transparent',
+                  border: '2px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}>
+                Cancelar
+              </button>
+              
+              <button
+                onClick={async () => {
+                  const nome = document.getElementById('cliente-nome').value;
+                  const telefone = document.getElementById('cliente-telefone').value;
+                  const email = document.getElementById('cliente-email').value;
+                  const cpfCnpj = document.getElementById('cliente-cpfcnpj').value;
+                  const status = document.getElementById('cliente-status').value;
+                  
+                  if (!nome || !telefone) {
+                    showToast('Nome e telefone são obrigatórios', 'error');
+                    return;
+                  }
+                  
+                  try {
+                    const { ref, set, update } = await import('firebase/database');
+                    const phoneKey = telefone.includes('@c.us') ? telefone : `${telefone}@c.us`;
+                    const clienteRef = ref(database, `customerData/${user.uid}/${phoneKey}`);
+                    
+                    const clienteData = {
+                      name: nome,
+                      email: email || '',
+                      cpfCnpj: cpfCnpj || '',
+                      status: status,
+                      phone: phoneKey,
+                      updatedAt: new Date().toISOString()
+                    };
+                    
+                    if (editingCliente) {
+                      await update(clienteRef, clienteData);
+                      showToast('Cliente atualizado com sucesso!', 'success');
+                    } else {
+                      await set(clienteRef, {
+                        ...clienteData,
+                        createdAt: new Date().toISOString()
+                      });
+                      showToast('Cliente adicionado com sucesso!', 'success');
+                    }
+                    
+                    setShowClienteModal(false);
+                    setEditingCliente(null);
+                    loadCRMData();
+                  } catch (error) {
+                    console.error('Erro ao salvar cliente:', error);
+                    showToast('Erro ao salvar cliente', 'error');
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}>
+                {editingCliente ? 'Atualizar' : 'Adicionar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Modal de Detalhes do Cliente */}
+      {selectedCliente && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}
+        onClick={() => setSelectedCliente(null)}>
+          <div style={{
+            backgroundColor: '#1a1f36',
+            borderRadius: '20px',
+            padding: '32px',
+            maxWidth: '600px',
+            width: '100%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            position: 'relative'
+          }}
+          onClick={(e) => e.stopPropagation()}>
+            {/* Fechar */}
+            <button
+              onClick={() => setSelectedCliente(null)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#9ca3af',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '8px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.color = '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#9ca3af';
+              }}>
+              ✕
+            </button>
+            
+            {/* Avatar e Nome */}
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{
+                width: '80px',
+                height: '80px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '2rem',
+                fontWeight: '700',
+                color: '#ffffff',
+                marginBottom: '16px',
+                boxShadow: '0 4px 16px rgba(16, 185, 129, 0.4)'
+              }}>
+                {selectedCliente.name.charAt(0).toUpperCase()}
+              </div>
+              <h3 style={{
+                fontSize: '1.5rem',
+                fontWeight: '700',
+                color: '#ffffff',
+                marginBottom: '8px'
+              }}>
+                {selectedCliente.name}
+              </h3>
+              <div style={{
+                display: 'inline-block',
+                padding: '4px 12px',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                borderRadius: '20px',
+                fontSize: '0.75rem',
+                fontWeight: '600',
+                color: '#10b981',
+                textTransform: 'uppercase'
+              }}>
+                {selectedCliente.status}
+              </div>
+            </div>
+            
+            {/* Informações */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{
+                padding: '16px',
+                backgroundColor: '#0f1419',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.05)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                  <Phone size={16} color="#10b981" />
+                  <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase' }}>
+                    Telefone
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.875rem', color: '#ffffff', fontFamily: 'monospace' }}>
+                  {selectedCliente.phone.replace('@c.us', '')}
+                </div>
+              </div>
+              
+              {selectedCliente.email && (
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#0f1419',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.05)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                    <Mail size={16} color="#10b981" />
+                    <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase' }}>
+                      Email
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.875rem', color: '#ffffff' }}>
+                    {selectedCliente.email}
+                  </div>
+                </div>
+              )}
+              
+              {selectedCliente.cpfCnpj && (
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#0f1419',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.05)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                    <AlertCircle size={16} color="#10b981" />
+                    <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase' }}>
+                      CPF/CNPJ
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.875rem', color: '#ffffff', fontFamily: 'monospace' }}>
+                    {selectedCliente.cpfCnpj}
+                  </div>
+                </div>
+              )}
+              
+              <div style={{
+                padding: '16px',
+                backgroundColor: '#0f1419',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.05)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                  <Calendar size={16} color="#10b981" />
+                  <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase' }}>
+                    Última Atualização
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.875rem', color: '#ffffff' }}>
+                  {new Date(selectedCliente.updatedAt).toLocaleDateString('pt-BR', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </div>
+              </div>
+            </div>
+            
+            {/* Ações */}
+            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+              <button
+                onClick={() => setSelectedCliente(null)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  backgroundColor: 'transparent',
+                  border: '2px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}>
+                Fechar
+              </button>
+              
+              <button
+                onClick={() => {
+                  setEditingCliente(selectedCliente);
+                  setSelectedCliente(null);
+                  setShowClienteModal(true);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}>
+                Editar Cliente
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
