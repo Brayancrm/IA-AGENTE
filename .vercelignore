@@ -1,7 +1,14 @@
+# Ignorar arquivos desnecessários no deploy
+node_modules
+.next
+.git
+.gitignore
+README.md
+*.md
 backend/
-backend/**
-tokens/
-tokens/**
-node_modules/
-.next/
-
+*.log
+.env.local
+.DS_Store
+Thumbs.db
+.vscode
+.idea

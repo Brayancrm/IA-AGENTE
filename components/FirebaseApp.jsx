@@ -13,6 +13,7 @@ import { convertStepsToPrompt } from '../hooks/useFlowBuilder';
 const FlowBuilder = dynamic(() => import('./FlowBuilder'), { ssr: false });
 const AgendamentoModal = dynamic(() => import('./AgendamentoModal'), { ssr: false });
 const ConversasSimples = dynamic(() => import('./ConversasSimples'), { ssr: false });
+const CRMDashboard = dynamic(() => import('./CRMDashboard'), { ssr: false });
 import {
   Package,
   Plus,
@@ -1260,21 +1261,21 @@ const DashboardWithFirebase = ({
                 Gerencie seus produtos e serviços em um só lugar
               </p>
             </div>
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setShowImportModal(true)}
+          <div className="flex space-x-3">
+            <button
+              onClick={() => setShowImportModal(true)}
                 className="bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700 px-5 py-2.5 rounded-xl font-semibold hover:from-gray-200 hover:to-gray-300 transition-all shadow-sm hover:shadow-md transform hover:-translate-y-0.5 flex items-center space-x-2"
-              >
-                <Upload className="w-4 h-4" />
-                <span>Importar</span>
-              </button>
-              <button
-                onClick={() => openCatalogModal()}
+            >
+              <Upload className="w-4 h-4" />
+              <span>Importar</span>
+            </button>
+            <button
+              onClick={() => openCatalogModal()}
                 className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center space-x-2"
-              >
-                <Plus className="w-5 h-5" />
-                <span>Novo Item</span>
-              </button>
+            >
+              <Plus className="w-5 h-5" />
+              <span>Novo Item</span>
+            </button>
             </div>
           </div>
         </div>
@@ -1696,8 +1697,8 @@ const DashboardWithFirebase = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <div>
               <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
-                📅 Agendamentos
-              </h2>
+              📅 Agendamentos
+            </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
                 Gerencie todos os agendamentos e compromissos
               </p>
@@ -1963,8 +1964,8 @@ const DashboardWithFirebase = ({
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
-                Dashboard
-              </h2>
+              Dashboard
+            </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
                 Visão geral do seu sistema de vendas com IA
               </p>
@@ -1983,7 +1984,7 @@ const DashboardWithFirebase = ({
                 <div>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#ffffff', marginBottom: '4px' }}>
                     Assistente de IA
-                  </h3>
+                </h3>
                   <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
                     {isActive ? '🟢 Ativo e respondendo mensagens' : '🔴 Desativado'}
                   </p>
@@ -2061,8 +2062,8 @@ const DashboardWithFirebase = ({
                 </p>
                 <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
                   {companyProfile.companyName || 'Configure os dados da sua empresa'}
-                </p>
-              </div>
+                  </p>
+                </div>
 
               <div style={{ 
                 backgroundColor: '#1a1f36',
@@ -2089,8 +2090,8 @@ const DashboardWithFirebase = ({
                 </p>
                 <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
                   {integrationsConfig.openaiApiKey ? 'API Key configurada' : 'Configure sua API Key'}
-                </p>
-              </div>
+                  </p>
+                </div>
 
               <div style={{ 
                 backgroundColor: '#1a1f36',
@@ -2239,8 +2240,8 @@ const DashboardWithFirebase = ({
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
-                Cadastro da Empresa
-              </h2>
+              Cadastro da Empresa
+            </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
                 Configure os dados da sua empresa para personalizar o atendimento
               </p>
@@ -2383,17 +2384,17 @@ const DashboardWithFirebase = ({
                   paddingTop: '24px',
                   borderTop: '1px solid #e5e7eb'
                 }}>
-                  <button
-                    type="submit"
-                    style={{
+                <button
+                  type="submit"
+                  style={{
                       background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                      color: 'white',
+                    color: 'white',
                       padding: '14px 32px',
                       borderRadius: '12px',
-                      border: 'none',
+                    border: 'none',
                       fontWeight: '600',
                       fontSize: '1rem',
-                      cursor: 'pointer',
+                    cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
                       display: 'flex',
@@ -2411,7 +2412,7 @@ const DashboardWithFirebase = ({
                   >
                     <span style={{ fontSize: '1.25rem' }}>✓</span>
                     Salvar Dados da Empresa
-                  </button>
+                </button>
                 </div>
               </form>
             </div>
@@ -2500,14 +2501,23 @@ const DashboardWithFirebase = ({
                                     </div>
         );
 
+      case 'crm':
+        return (
+          <CRMDashboard 
+            user={user} 
+            database={database} 
+            showToast={showToast}
+          />
+        );
+
       case 'integrations':
         return (
           <div style={{ padding: '40px', maxWidth: '1000px', margin: '0 auto' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
-                Integrações
-              </h2>
+              Integrações
+            </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
                 Configure as integrações com serviços externos
               </p>
@@ -2965,17 +2975,17 @@ const DashboardWithFirebase = ({
                   display: 'flex',
                   justifyContent: 'flex-end'
                 }}>
-                  <button
-                    type="submit"
-                    style={{
+                <button
+                  type="submit"
+                  style={{
                       background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                      color: 'white',
+                    color: 'white',
                       padding: '16px 40px',
                       borderRadius: '12px',
-                      border: 'none',
+                    border: 'none',
                       fontWeight: '600',
                       fontSize: '1.0625rem',
-                      cursor: 'pointer',
+                    cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)',
                       display: 'flex',
@@ -2993,7 +3003,7 @@ const DashboardWithFirebase = ({
                   >
                     <span style={{ fontSize: '1.5rem' }}>✓</span>
                     Salvar Todas as Integrações
-                  </button>
+                </button>
                 </div>
               </form>
             </div>
@@ -3013,14 +3023,14 @@ const DashboardWithFirebase = ({
               <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <span style={{ fontSize: '2.5rem' }}>📱</span>
                 Conexão WhatsApp
-              </h2>
+            </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
                 Conecte seu WhatsApp para ativar o assistente automático
               </p>
             </div>
             
             {/* Card de Status */}
-            <div style={{ 
+                <div style={{
               backgroundColor: '#1a1f36', 
               borderRadius: '20px', 
               padding: '32px', 
@@ -3089,17 +3099,17 @@ const DashboardWithFirebase = ({
                       boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
                       border: '3px solid #10b981'
                     }}>
-                      <img 
-                        src={currentQRCode} 
-                        alt="QR Code WhatsApp" 
-                        style={{ 
+                    <img 
+                      src={currentQRCode} 
+                      alt="QR Code WhatsApp" 
+                      style={{ 
                           width: '300px',
                           height: '300px',
-                          objectFit: 'contain',
+                        objectFit: 'contain',
                           imageRendering: 'pixelated'
-                        }} 
-                      />
-                    </div>
+                      }} 
+                    />
+                  </div>
                   </div>
                   <div style={{ 
                     textAlign: 'left', 
@@ -3372,7 +3382,7 @@ const DashboardWithFirebase = ({
               <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <span style={{ fontSize: '2.5rem' }}>🤖</span>
                 Configuração do Assistente
-              </h2>
+            </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
                 Configure a inteligência artificial e o fluxo de atendimento
               </p>
@@ -3698,17 +3708,17 @@ const DashboardWithFirebase = ({
                   display: 'flex',
                   justifyContent: 'flex-end'
                 }}>
-                  <button
-                    type="submit"
-                    style={{
+                <button
+                  type="submit"
+                  style={{
                       background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-                      color: 'white',
+                    color: 'white',
                       padding: '16px 40px',
                       borderRadius: '12px',
-                      border: 'none',
+                    border: 'none',
                       fontWeight: '600',
                       fontSize: '1.0625rem',
-                      cursor: 'pointer',
+                    cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       boxShadow: '0 4px 16px rgba(139, 92, 246, 0.3)',
                       display: 'flex',
@@ -3726,7 +3736,7 @@ const DashboardWithFirebase = ({
                   >
                     <span style={{ fontSize: '1.5rem' }}>💾</span>
                     Salvar Configurações do Assistente
-                  </button>
+                </button>
                 </div>
               </form>
             </div>
@@ -3908,7 +3918,7 @@ const DashboardWithFirebase = ({
     ...(user?.isMaster ? [{ id: 'users', label: 'Gerenciar Usuários', icon: '👤' }] : [])
   ];
 
-      return (
+  return (
         <div style={{ minHeight: '100vh', backgroundColor: '#0f1419', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
 
             {/* Sidebar Modernizada - FIXA E CONGELADA */}
@@ -4079,11 +4089,11 @@ const DashboardWithFirebase = ({
                 overflowY: 'auto'
               }}
             >
-              {renderContent()}
-            </div>
+          {renderContent()}
+      </div>
 
-            {/* Modal do Catálogo */}
-            {showCatalogModal && (
+      {/* Modal do Catálogo */}
+      {showCatalogModal && (
         <div style={{
           position: 'fixed',
           top: 0,

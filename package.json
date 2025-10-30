@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "pre-deploy": "node scripts/pre-deploy-check.js",
+    "deploy": "npm run pre-deploy && vercel --prod"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
