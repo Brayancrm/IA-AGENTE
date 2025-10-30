@@ -200,67 +200,87 @@ const CRMDashboard = ({ user, database, showToast }) => {
   };
   
   const loadProdutos = async () => {
-    const { ref, onValue } = await import('firebase/database');
-    const produtosRef = ref(database, `products/${user.uid}`);
-    
-    return new Promise((resolve) => {
-      onValue(produtosRef, (snapshot) => {
-        const produtosList = [];
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          Object.keys(data).forEach(produtoId => {
-            const produto = data[produtoId];
-            produtosList.push({
-              id: produtoId,
-              name: produto.name || '',
-              description: produto.description || '',
-              price: produto.price || 0,
-              category: produto.category || 'Geral',
-              stock: produto.stock || 0,
-              sku: produto.sku || '',
-              status: produto.status || 'active',
-              createdAt: produto.createdAt || new Date().toISOString(),
-              updatedAt: produto.updatedAt || new Date().toISOString()
+    try {
+      const { ref, onValue } = await import('firebase/database');
+      const produtosRef = ref(database, `products/${user.uid}`);
+      
+      return new Promise((resolve) => {
+        onValue(produtosRef, (snapshot) => {
+          const produtosList = [];
+          if (snapshot.exists()) {
+            const data = snapshot.val();
+            Object.keys(data).forEach(produtoId => {
+              const produto = data[produtoId];
+              produtosList.push({
+                id: produtoId,
+                name: produto.name || '',
+                description: produto.description || '',
+                price: produto.price || 0,
+                category: produto.category || 'Geral',
+                stock: produto.stock || 0,
+                sku: produto.sku || '',
+                status: produto.status || 'active',
+                createdAt: produto.createdAt || new Date().toISOString(),
+                updatedAt: produto.updatedAt || new Date().toISOString()
+              });
             });
-          });
-        }
-        setProdutos(produtosList.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
-        resolve();
-      }, { onlyOnce: true });
-    });
+          }
+          setProdutos(produtosList.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
+          resolve();
+        }, { onlyOnce: true }, (error) => {
+          console.error('Erro ao carregar produtos:', error);
+          setProdutos([]);
+          resolve();
+        });
+      });
+    } catch (error) {
+      console.error('Erro ao inicializar produtos:', error);
+      setProdutos([]);
+      return Promise.resolve();
+    }
   };
   
   const loadVendas = async () => {
-    const { ref, onValue } = await import('firebase/database');
-    const vendasRef = ref(database, `sales/${user.uid}`);
-    
-    return new Promise((resolve) => {
-      onValue(vendasRef, (snapshot) => {
-        const vendasList = [];
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          Object.keys(data).forEach(vendaId => {
-            const venda = data[vendaId];
-            vendasList.push({
-              id: vendaId,
-              clientId: venda.clientId || '',
-              clientName: venda.clientName || '',
-              items: venda.items || [],
-              subtotal: venda.subtotal || 0,
-              discount: venda.discount || 0,
-              total: venda.total || 0,
-              paymentMethod: venda.paymentMethod || '',
-              status: venda.status || 'pending',
-              notes: venda.notes || '',
-              createdAt: venda.createdAt || new Date().toISOString(),
-              updatedAt: venda.updatedAt || new Date().toISOString()
+    try {
+      const { ref, onValue } = await import('firebase/database');
+      const vendasRef = ref(database, `sales/${user.uid}`);
+      
+      return new Promise((resolve) => {
+        onValue(vendasRef, (snapshot) => {
+          const vendasList = [];
+          if (snapshot.exists()) {
+            const data = snapshot.val();
+            Object.keys(data).forEach(vendaId => {
+              const venda = data[vendaId];
+              vendasList.push({
+                id: vendaId,
+                clientId: venda.clientId || '',
+                clientName: venda.clientName || '',
+                items: venda.items || [],
+                subtotal: venda.subtotal || 0,
+                discount: venda.discount || 0,
+                total: venda.total || 0,
+                paymentMethod: venda.paymentMethod || '',
+                status: venda.status || 'pending',
+                notes: venda.notes || '',
+                createdAt: venda.createdAt || new Date().toISOString(),
+                updatedAt: venda.updatedAt || new Date().toISOString()
+              });
             });
-          });
-        }
-        setVendas(vendasList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
-        resolve();
-      }, { onlyOnce: true });
-    });
+          }
+          setVendas(vendasList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+          resolve();
+        }, { onlyOnce: true }, (error) => {
+          console.error('Erro ao carregar vendas:', error);
+          setVendas([]);
+          resolve();
+        });
+      });
+    } catch (error) {
+      console.error('Erro ao inicializar vendas:', error);
+      setVendas([]);
+      return Promise.resolve();
+    }
   };
   
   // Calcular métricas
