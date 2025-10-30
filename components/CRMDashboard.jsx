@@ -226,14 +226,14 @@ const CRMDashboard = ({ user, database, showToast }) => {
   const loadProdutos = async () => {
     try {
       const { ref, onValue } = await import('firebase/database');
-      // Busca itens do catálogo existente
-      const catalogRef = ref(database, `users/data/${user.uid}/catalog_items`);
+      // Busca itens do caminho products/{userId} onde estão os produtos sincronizados
+      const productsRef = ref(database, `products/${user.uid}`);
       
       return Promise.race([
         new Promise((resolve) => {
           let unsubscribe = null;
           
-          unsubscribe = onValue(catalogRef, (snapshot) => {
+          unsubscribe = onValue(productsRef, (snapshot) => {
             try {
               const produtosList = [];
               if (snapshot.exists()) {
@@ -246,11 +246,11 @@ const CRMDashboard = ({ user, database, showToast }) => {
                     description: item.description || '',
                     price: parseFloat(item.price) || 0,
                     category: item.category || 'Geral',
-                    stock: item.stock || item.stockQuantity || 999, // Estoque padrão para itens de serviço
-                    stockQuantity: item.stockQuantity || item.stock || 999,
-                    type: item.type || 'product', // Adicionar campo type
+                    stock: item.stock || 999,
+                    stockQuantity: item.stock || 999,
+                    type: item.type || 'product', // Campo type para distinguir produto/serviço
                     sku: item.sku || produtoId,
-                    status: 'active',
+                    status: item.active !== false ? 'active' : 'inactive',
                     createdAt: item.createdAt || new Date().toISOString(),
                     updatedAt: item.updatedAt || new Date().toISOString()
                   });
