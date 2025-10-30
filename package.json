@@ -10,7 +10,9 @@
     "pre-deploy": "node scripts/pre-deploy-check.js",
     "deploy": "npm run pre-deploy && vercel --prod",
     "deploy:auto": "node scripts/deploy.js",
-    "deploy:quick": "git add -A && git commit -m \"Quick deploy\" && git push origin main"
+    "deploy:quick": "git add -A && git commit -m \"Quick deploy\" && git push origin main",
+    "deploy:force": "vercel --prod --force",
+    "deploy:vercel": "vercel --prod"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
