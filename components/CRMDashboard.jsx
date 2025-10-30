@@ -225,13 +225,15 @@ const CRMDashboard = ({ user, database, showToast }) => {
   
   const loadProdutos = async () => {
     try {
-      const { ref, onValue, off } = await import('firebase/database');
+      const { ref, onValue } = await import('firebase/database');
       // Busca itens do catálogo existente
       const catalogRef = ref(database, `users/data/${user.uid}/catalog_items`);
       
       return Promise.race([
         new Promise((resolve) => {
-          const unsubscribe = onValue(catalogRef, (snapshot) => {
+          let unsubscribe = null;
+          
+          unsubscribe = onValue(catalogRef, (snapshot) => {
             try {
               const produtosList = [];
               if (snapshot.exists()) {
@@ -253,15 +255,19 @@ const CRMDashboard = ({ user, database, showToast }) => {
                 });
               }
               setProdutos(produtosList.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
-              unsubscribe();
+              if (unsubscribe) unsubscribe();
               resolve();
             } catch (err) {
               console.error('Erro ao processar produtos:', err);
               setProdutos([]);
-              unsubscribe();
+              if (unsubscribe) unsubscribe();
               resolve();
             }
-          }, { onlyOnce: true });
+          }, (error) => {
+            console.error('Erro ao carregar produtos:', error);
+            setProdutos([]);
+            resolve();
+          });
         }),
         new Promise((resolve) => {
           setTimeout(() => {
@@ -280,12 +286,14 @@ const CRMDashboard = ({ user, database, showToast }) => {
   
   const loadVendas = async () => {
     try {
-      const { ref, onValue, off } = await import('firebase/database');
+      const { ref, onValue } = await import('firebase/database');
       const vendasRef = ref(database, `sales/${user.uid}`);
       
       return Promise.race([
         new Promise((resolve) => {
-          const unsubscribe = onValue(vendasRef, (snapshot) => {
+          let unsubscribe = null;
+          
+          unsubscribe = onValue(vendasRef, (snapshot) => {
             try {
               const vendasList = [];
               if (snapshot.exists()) {
@@ -309,15 +317,19 @@ const CRMDashboard = ({ user, database, showToast }) => {
                 });
               }
               setVendas(vendasList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
-              unsubscribe();
+              if (unsubscribe) unsubscribe();
               resolve();
             } catch (err) {
               console.error('Erro ao processar vendas:', err);
               setVendas([]);
-              unsubscribe();
+              if (unsubscribe) unsubscribe();
               resolve();
             }
-          }, { onlyOnce: true });
+          }, (error) => {
+            console.error('Erro ao carregar vendas:', error);
+            setVendas([]);
+            resolve();
+          });
         }),
         new Promise((resolve) => {
           setTimeout(() => {
