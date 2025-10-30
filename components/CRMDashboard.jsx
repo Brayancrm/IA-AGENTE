@@ -1224,7 +1224,6 @@ const CRMDashboard = ({ user, database, showToast }) => {
         {[
           { id: 'visao-geral', label: 'Visão Geral', icon: Activity },
           { id: 'clientes', label: 'Clientes', icon: Users },
-          { id: 'produtos', label: 'Produtos', icon: Package },
           { id: 'vendas', label: 'Vendas', icon: ShoppingCart },
           { id: 'pipeline', label: 'Pipeline', icon: Target },
           { id: 'relatorios', label: 'Relatórios', icon: BarChart3 }

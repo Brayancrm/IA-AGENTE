@@ -1,65 +1,65 @@
-    {
-      "rules": {
-        "whatsapp_sessions": {
-          "$userId": {
-            ".read": "auth != null && auth.uid == $userId",
-            ".write": "auth != null && auth.uid == $userId"
-          }
-        },
-        "conversations": {
-          "$userId": {
-            ".read": "auth != null && auth.uid == $userId",
-            ".write": "auth != null && auth.uid == $userId"
-          }
-        },
-        "customerData": {
-          "$userId": {
-            ".read": "auth != null && auth.uid == $userId",
-            ".write": "auth != null && auth.uid == $userId"
-          }
-        },
-        "orders": {
-          "$userId": {
-            ".read": "auth != null && auth.uid == $userId",
-            ".write": "auth != null && auth.uid == $userId"
-          }
-        },
-        "invoices": {
-          "$userId": {
-            ".read": "auth != null && auth.uid == $userId",
-            ".write": "auth != null && auth.uid == $userId"
-          }
-        },
-        "products": {
-          "$userId": {
-            ".read": "auth != null && auth.uid == $userId",
-            ".write": "auth != null && auth.uid == $userId"
-          }
-        },
-        "collectionContext": {
-          "$userId": {
-            ".read": "auth != null && auth.uid == $userId",
-            ".write": "auth != null && auth.uid == $userId"
-          }
-        },
-        "sales": {
-          "$userId": {
-            ".read": "auth != null && auth.uid == $userId",
-            ".write": "auth != null && auth.uid == $userId"
-          }
-        },
-        "users": {
-          "data": {
-            "$userId": {
-              ".read": "auth != null && auth.uid == $userId",
-              ".write": "auth != null && auth.uid == $userId"
-            }
-          },
-          "registered": {
-            ".read": "auth != null",
-            ".write": "auth != null"
-          }
+{
+  "rules": {
+    "whatsapp_sessions": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId"
+      }
+    },
+    "conversations": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId"
+      }
+    },
+    "customerData": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId"
+      }
+    },
+    "orders": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId"
+      }
+    },
+    "invoices": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId"
+      }
+    },
+    "products": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId"
+      }
+    },
+    "collectionContext": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId"
+      }
+    },
+    "sales": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId"
+      }
+    },
+    "users": {
+      "data": {
+        "$userId": {
+          ".read": "auth != null && auth.uid == $userId",
+          ".write": "auth != null && auth.uid == $userId"
         }
+      },
+      "registered": {
+        ".read": "auth != null",
+        ".write": "auth != null"
       }
     }
+  }
+}
 
