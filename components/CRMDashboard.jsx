@@ -246,7 +246,9 @@ const CRMDashboard = ({ user, database, showToast }) => {
                     description: item.description || '',
                     price: parseFloat(item.price) || 0,
                     category: item.category || 'Geral',
-                    stock: item.stock || 999, // Estoque padrão para itens de serviço
+                    stock: item.stock || item.stockQuantity || 999, // Estoque padrão para itens de serviço
+                    stockQuantity: item.stockQuantity || item.stock || 999,
+                    type: item.type || 'product', // Adicionar campo type
                     sku: item.sku || produtoId,
                     status: 'active',
                     createdAt: item.createdAt || new Date().toISOString(),
@@ -3156,10 +3158,10 @@ const CRMDashboard = ({ user, database, showToast }) => {
                 </select>
               </div>
               
-              {/* Adicionar Produtos/Serviços */}
+              {/* Adicionar Produtos */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
-                  Adicionar Produto ou Serviço
+                  Adicionar Produto
                 </label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <select
@@ -3173,11 +3175,11 @@ const CRMDashboard = ({ user, database, showToast }) => {
                       color: '#ffffff',
                       fontSize: '0.875rem'
                     }}>
-                    <option value="">Selecione um produto ou serviço</option>
-                    {produtos.length === 0 ? (
-                      <option value="" disabled>Nenhum item cadastrado no catálogo</option>
+                    <option value="">Selecione um produto</option>
+                    {produtos.filter(p => p.type === 'product' || !p.type).length === 0 ? (
+                      <option value="" disabled>Nenhum produto cadastrado no catálogo</option>
                     ) : (
-                      produtos.map(produto => (
+                      produtos.filter(p => p.type === 'product' || !p.type).map(produto => (
                         <option key={produto.id} value={produto.id}>
                           {produto.name} - R$ {produto.price.toFixed(2)}
                         </option>
@@ -3189,7 +3191,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
                       const select = document.getElementById('produto-select-venda');
                       const produtoId = select.value;
                       if (!produtoId) {
-                        showToast('Selecione um produto ou serviço', 'error');
+                        showToast('Selecione um produto', 'error');
                         return;
                       }
                       
@@ -3218,11 +3220,87 @@ const CRMDashboard = ({ user, database, showToast }) => {
                         }]);
                       }
                       select.value = '';
-                      showToast('Item adicionado ao carrinho', 'success');
+                      showToast('Produto adicionado ao carrinho', 'success');
                     }}
                     style={{
                       padding: '12px 24px',
                       background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      fontSize: '0.875rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}>
+                    ➕ Adicionar
+                  </button>
+                </div>
+              </div>
+              
+              {/* Adicionar Serviços */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                  Adicionar Serviço
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <select
+                    id="servico-select-venda"
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      backgroundColor: '#0f1419',
+                      border: '2px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      fontSize: '0.875rem'
+                    }}>
+                    <option value="">Selecione um serviço</option>
+                    {produtos.filter(p => p.type === 'service').length === 0 ? (
+                      <option value="" disabled>Nenhum serviço cadastrado no catálogo</option>
+                    ) : (
+                      produtos.filter(p => p.type === 'service').map(servico => (
+                        <option key={servico.id} value={servico.id}>
+                          {servico.name} - R$ {servico.price.toFixed(2)}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <button
+                    onClick={() => {
+                      const select = document.getElementById('servico-select-venda');
+                      const servicoId = select.value;
+                      if (!servicoId) {
+                        showToast('Selecione um serviço', 'error');
+                        return;
+                      }
+                      
+                      const servico = produtos.find(p => p.id === servicoId);
+                      if (!servico) return;
+                      
+                      // Verifica se já está no carrinho
+                      const itemExistente = carrinhoVenda.find(item => item.produtoId === servicoId);
+                      if (itemExistente) {
+                        setCarrinhoVenda(carrinhoVenda.map(item =>
+                          item.produtoId === servicoId
+                            ? { ...item, quantidade: item.quantidade + 1 }
+                            : item
+                        ));
+                      } else {
+                        setCarrinhoVenda([...carrinhoVenda, {
+                          produtoId: servico.id,
+                          name: servico.name,
+                          price: servico.price,
+                          quantidade: 1,
+                          maxStock: servico.stock || 999
+                        }]);
+                      }
+                      select.value = '';
+                      showToast('Serviço adicionado ao carrinho', 'success');
+                    }}
+                    style={{
+                      padding: '12px 24px',
+                      background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)',
                       border: 'none',
                       borderRadius: '8px',
                       color: '#ffffff',
