@@ -3156,10 +3156,10 @@ const CRMDashboard = ({ user, database, showToast }) => {
                 </select>
               </div>
               
-              {/* Adicionar Produtos */}
+              {/* Adicionar Produtos/Serviços */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
-                  Adicionar Produto
+                  Adicionar Produto ou Serviço
                 </label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <select
@@ -3173,19 +3173,23 @@ const CRMDashboard = ({ user, database, showToast }) => {
                       color: '#ffffff',
                       fontSize: '0.875rem'
                     }}>
-                    <option value="">Selecione um produto</option>
-                    {produtos.filter(p => p.status === 'active' && p.stock > 0).map(produto => (
-                      <option key={produto.id} value={produto.id}>
-                        {produto.name} - R$ {produto.price.toFixed(2)} (Estoque: {produto.stock})
-                      </option>
-                    ))}
+                    <option value="">Selecione um produto ou serviço</option>
+                    {produtos.length === 0 ? (
+                      <option value="" disabled>Nenhum item cadastrado no catálogo</option>
+                    ) : (
+                      produtos.map(produto => (
+                        <option key={produto.id} value={produto.id}>
+                          {produto.name} - R$ {produto.price.toFixed(2)}
+                        </option>
+                      ))
+                    )}
                   </select>
                   <button
                     onClick={() => {
                       const select = document.getElementById('produto-select-venda');
                       const produtoId = select.value;
                       if (!produtoId) {
-                        showToast('Selecione um produto', 'error');
+                        showToast('Selecione um produto ou serviço', 'error');
                         return;
                       }
                       
@@ -3195,7 +3199,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
                       // Verifica se já está no carrinho
                       const itemExistente = carrinhoVenda.find(item => item.produtoId === produtoId);
                       if (itemExistente) {
-                        if (itemExistente.quantidade >= produto.stock) {
+                        if (produto.stock > 0 && itemExistente.quantidade >= produto.stock) {
                           showToast('Estoque insuficiente', 'error');
                           return;
                         }
@@ -3214,7 +3218,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
                         }]);
                       }
                       select.value = '';
-                      showToast('Produto adicionado', 'success');
+                      showToast('Item adicionado ao carrinho', 'success');
                     }}
                     style={{
                       padding: '12px 24px',
