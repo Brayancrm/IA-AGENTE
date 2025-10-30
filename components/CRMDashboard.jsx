@@ -102,19 +102,43 @@ const CRMDashboard = ({ user, database, showToast }) => {
   }, [clientes]);
   
   const loadCRMData = async () => {
+    console.log('[CRM] Iniciando carregamento...');
     setLoading(true);
     try {
+      // Carrega dados essenciais primeiro
+      console.log('[CRM] Carregando clientes, pedidos e conversas...');
       await Promise.all([
         loadClientes(),
         loadPedidos(),
-        loadConversas(),
-        loadProdutos(),
-        loadVendas()
+        loadConversas()
       ]);
+      console.log('[CRM] Dados essenciais carregados!');
+      
+      // Tenta carregar produtos e vendas, mas não trava se der erro
+      console.log('[CRM] Carregando produtos...');
+      try {
+        await loadProdutos();
+        console.log('[CRM] Produtos carregados!');
+      } catch (err) {
+        console.log('[CRM] Produtos ainda não configurados:', err);
+        setProdutos([]);
+      }
+      
+      console.log('[CRM] Carregando vendas...');
+      try {
+        await loadVendas();
+        console.log('[CRM] Vendas carregadas!');
+      } catch (err) {
+        console.log('[CRM] Vendas ainda não configuradas:', err);
+        setVendas([]);
+      }
+      
+      console.log('[CRM] Carregamento completo!');
     } catch (error) {
-      console.error('Erro ao carregar dados do CRM:', error);
+      console.error('[CRM] ERRO ao carregar dados:', error);
       showToast('Erro ao carregar dados do CRM', 'error');
     } finally {
+      console.log('[CRM] Finalizando loading...');
       setLoading(false);
     }
   };
@@ -204,34 +228,36 @@ const CRMDashboard = ({ user, database, showToast }) => {
       const { ref, onValue } = await import('firebase/database');
       const produtosRef = ref(database, `products/${user.uid}`);
       
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         onValue(produtosRef, (snapshot) => {
-          const produtosList = [];
-          if (snapshot.exists()) {
-            const data = snapshot.val();
-            Object.keys(data).forEach(produtoId => {
-              const produto = data[produtoId];
-              produtosList.push({
-                id: produtoId,
-                name: produto.name || '',
-                description: produto.description || '',
-                price: produto.price || 0,
-                category: produto.category || 'Geral',
-                stock: produto.stock || 0,
-                sku: produto.sku || '',
-                status: produto.status || 'active',
-                createdAt: produto.createdAt || new Date().toISOString(),
-                updatedAt: produto.updatedAt || new Date().toISOString()
+          try {
+            const produtosList = [];
+            if (snapshot.exists()) {
+              const data = snapshot.val();
+              Object.keys(data).forEach(produtoId => {
+                const produto = data[produtoId];
+                produtosList.push({
+                  id: produtoId,
+                  name: produto.name || '',
+                  description: produto.description || '',
+                  price: produto.price || 0,
+                  category: produto.category || 'Geral',
+                  stock: produto.stock || 0,
+                  sku: produto.sku || '',
+                  status: produto.status || 'active',
+                  createdAt: produto.createdAt || new Date().toISOString(),
+                  updatedAt: produto.updatedAt || new Date().toISOString()
+                });
               });
-            });
+            }
+            setProdutos(produtosList.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
+            resolve();
+          } catch (err) {
+            console.error('Erro ao processar produtos:', err);
+            setProdutos([]);
+            resolve();
           }
-          setProdutos(produtosList.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
-          resolve();
-        }, { onlyOnce: true }, (error) => {
-          console.error('Erro ao carregar produtos:', error);
-          setProdutos([]);
-          resolve();
-        });
+        }, { onlyOnce: true });
       });
     } catch (error) {
       console.error('Erro ao inicializar produtos:', error);
@@ -245,36 +271,38 @@ const CRMDashboard = ({ user, database, showToast }) => {
       const { ref, onValue } = await import('firebase/database');
       const vendasRef = ref(database, `sales/${user.uid}`);
       
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         onValue(vendasRef, (snapshot) => {
-          const vendasList = [];
-          if (snapshot.exists()) {
-            const data = snapshot.val();
-            Object.keys(data).forEach(vendaId => {
-              const venda = data[vendaId];
-              vendasList.push({
-                id: vendaId,
-                clientId: venda.clientId || '',
-                clientName: venda.clientName || '',
-                items: venda.items || [],
-                subtotal: venda.subtotal || 0,
-                discount: venda.discount || 0,
-                total: venda.total || 0,
-                paymentMethod: venda.paymentMethod || '',
-                status: venda.status || 'pending',
-                notes: venda.notes || '',
-                createdAt: venda.createdAt || new Date().toISOString(),
-                updatedAt: venda.updatedAt || new Date().toISOString()
+          try {
+            const vendasList = [];
+            if (snapshot.exists()) {
+              const data = snapshot.val();
+              Object.keys(data).forEach(vendaId => {
+                const venda = data[vendaId];
+                vendasList.push({
+                  id: vendaId,
+                  clientId: venda.clientId || '',
+                  clientName: venda.clientName || '',
+                  items: venda.items || [],
+                  subtotal: venda.subtotal || 0,
+                  discount: venda.discount || 0,
+                  total: venda.total || 0,
+                  paymentMethod: venda.paymentMethod || '',
+                  status: venda.status || 'pending',
+                  notes: venda.notes || '',
+                  createdAt: venda.createdAt || new Date().toISOString(),
+                  updatedAt: venda.updatedAt || new Date().toISOString()
+                });
               });
-            });
+            }
+            setVendas(vendasList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+            resolve();
+          } catch (err) {
+            console.error('Erro ao processar vendas:', err);
+            setVendas([]);
+            resolve();
           }
-          setVendas(vendasList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
-          resolve();
-        }, { onlyOnce: true }, (error) => {
-          console.error('Erro ao carregar vendas:', error);
-          setVendas([]);
-          resolve();
-        });
+        }, { onlyOnce: true });
       });
     } catch (error) {
       console.error('Erro ao inicializar vendas:', error);
