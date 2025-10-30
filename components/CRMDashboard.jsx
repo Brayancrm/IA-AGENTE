@@ -2475,11 +2475,13 @@ const CRMDashboard = ({ user, database, showToast }) => {
             backgroundColor: '#1a1f36',
             borderRadius: '20px',
             padding: '32px',
-            maxWidth: '600px',
+            maxWidth: '700px',
             width: '100%',
             boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
             border: '1px solid rgba(16, 185, 129, 0.2)',
-            position: 'relative'
+            position: 'relative',
+            maxHeight: '90vh',
+            overflowY: 'auto'
           }}
           onClick={(e) => e.stopPropagation()}>
             {/* Fechar */}
@@ -2633,6 +2635,125 @@ const CRMDashboard = ({ user, database, showToast }) => {
                 </div>
               </div>
             </div>
+            
+            {/* Histórico de Compras */}
+            {(() => {
+              const vendasCliente = vendas.filter(v => v.clientId === selectedCliente.id);
+              const totalGasto = vendasCliente.reduce((sum, v) => sum + v.total, 0);
+              
+              return (
+                <div style={{ marginTop: '24px' }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '12px'
+                  }}>
+                    <h4 style={{
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <ShoppingCart size={18} color="#10b981" />
+                      Histórico de Compras
+                    </h4>
+                    <div style={{
+                      padding: '4px 12px',
+                      backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                      borderRadius: '20px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      color: '#10b981'
+                    }}>
+                      {vendasCliente.length} {vendasCliente.length === 1 ? 'venda' : 'vendas'}
+                    </div>
+                  </div>
+                  
+                  {vendasCliente.length > 0 ? (
+                    <div>
+                      {/* Total Gasto */}
+                      <div style={{
+                        padding: '12px 16px',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderRadius: '8px',
+                        marginBottom: '12px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <span style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Total gasto:</span>
+                        <span style={{ fontSize: '1.125rem', fontWeight: '700', color: '#10b981' }}>
+                          R$ {totalGasto.toFixed(2)}
+                        </span>
+                      </div>
+                      
+                      {/* Lista de Vendas */}
+                      <div style={{
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px'
+                      }}>
+                        {vendasCliente.map(venda => (
+                          <div key={venda.id} style={{
+                            padding: '12px',
+                            backgroundColor: '#0f1419',
+                            borderRadius: '8px',
+                            border: '1px solid rgba(255, 255, 255, 0.05)'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+                                {new Date(venda.createdAt).toLocaleDateString('pt-BR', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric'
+                                })}
+                              </span>
+                              <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#10b981' }}>
+                                R$ {venda.total.toFixed(2)}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '4px' }}>
+                              {venda.items.length} {venda.items.length === 1 ? 'item' : 'itens'}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                              {venda.items.map((item, idx) => (
+                                <div key={idx}>• {item.name} (x{item.quantidade})</div>
+                              ))}
+                            </div>
+                            {venda.paymentMethod && (
+                              <div style={{
+                                marginTop: '8px',
+                                fontSize: '0.75rem',
+                                color: '#9ca3af',
+                                textTransform: 'capitalize'
+                              }}>
+                                💳 {venda.paymentMethod.replace('_', ' ')}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{
+                      padding: '24px',
+                      backgroundColor: '#0f1419',
+                      borderRadius: '8px',
+                      textAlign: 'center',
+                      color: '#6b7280',
+                      fontSize: '0.875rem'
+                    }}>
+                      Nenhuma compra realizada ainda
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             
             {/* Ações */}
             <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
@@ -2952,7 +3073,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
         </div>
       )}
       
-      {/* Modal de Nova Venda - SIMPLIFICADO por enquanto */}
+      {/* Modal de Nova Venda - COMPLETO */}
       {showVendaModal && (
         <div style={{
           position: 'fixed',
@@ -2977,7 +3098,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
             backgroundColor: '#1a1f36',
             borderRadius: '20px',
             padding: '32px',
-            maxWidth: '800px',
+            maxWidth: '900px',
             width: '100%',
             boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
             border: '1px solid rgba(16, 185, 129, 0.2)',
@@ -2994,33 +3115,452 @@ const CRMDashboard = ({ user, database, showToast }) => {
               🛒 Nova Venda
             </h3>
             
-            <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>
-              <ShoppingCart size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-              <div style={{ fontSize: '1rem', marginBottom: '8px' }}>Sistema de carrinho em desenvolvimento</div>
-              <div style={{ fontSize: '0.875rem' }}>
-                Por enquanto, vendas são registradas automaticamente via WhatsApp
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              {/* Seleção de Cliente */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                  Cliente *
+                </label>
+                <select
+                  value={clienteVenda || ''}
+                  onChange={(e) => setClienteVenda(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#0f1419',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '0.875rem'
+                  }}>
+                  <option value="">Selecione um cliente</option>
+                  {clientes.map(cliente => (
+                    <option key={cliente.id} value={cliente.id}>
+                      {cliente.name} {cliente.phone ? `(${cliente.phone})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Adicionar Produtos */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                  Adicionar Produto
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <select
+                    id="produto-select-venda"
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      backgroundColor: '#0f1419',
+                      border: '2px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      fontSize: '0.875rem'
+                    }}>
+                    <option value="">Selecione um produto</option>
+                    {produtos.filter(p => p.status === 'active' && p.stock > 0).map(produto => (
+                      <option key={produto.id} value={produto.id}>
+                        {produto.name} - R$ {produto.price.toFixed(2)} (Estoque: {produto.stock})
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => {
+                      const select = document.getElementById('produto-select-venda');
+                      const produtoId = select.value;
+                      if (!produtoId) {
+                        showToast('Selecione um produto', 'error');
+                        return;
+                      }
+                      
+                      const produto = produtos.find(p => p.id === produtoId);
+                      if (!produto) return;
+                      
+                      // Verifica se já está no carrinho
+                      const itemExistente = carrinhoVenda.find(item => item.produtoId === produtoId);
+                      if (itemExistente) {
+                        if (itemExistente.quantidade >= produto.stock) {
+                          showToast('Estoque insuficiente', 'error');
+                          return;
+                        }
+                        setCarrinhoVenda(carrinhoVenda.map(item =>
+                          item.produtoId === produtoId
+                            ? { ...item, quantidade: item.quantidade + 1 }
+                            : item
+                        ));
+                      } else {
+                        setCarrinhoVenda([...carrinhoVenda, {
+                          produtoId: produto.id,
+                          name: produto.name,
+                          price: produto.price,
+                          quantidade: 1,
+                          maxStock: produto.stock
+                        }]);
+                      }
+                      select.value = '';
+                      showToast('Produto adicionado', 'success');
+                    }}
+                    style={{
+                      padding: '12px 24px',
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      fontSize: '0.875rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}>
+                    ➕ Adicionar
+                  </button>
+                </div>
+              </div>
+              
+              {/* Carrinho */}
+              {carrinhoVenda.length > 0 && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                    Carrinho ({carrinhoVenda.length} {carrinhoVenda.length === 1 ? 'item' : 'itens'})
+                  </label>
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '8px',
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    padding: '12px',
+                    backgroundColor: '#0f1419',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255, 255, 255, 0.05)'
+                  }}>
+                    {carrinhoVenda.map((item, index) => (
+                      <div key={index} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '12px',
+                        backgroundColor: '#1a1f36',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255, 255, 255, 0.05)'
+                      }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '4px' }}>
+                            {item.name}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+                            R$ {item.price.toFixed(2)} x {item.quantidade} = R$ {(item.price * item.quantidade).toFixed(2)}
+                          </div>
+                        </div>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <button
+                            onClick={() => {
+                              setCarrinhoVenda(carrinhoVenda.map((i, idx) =>
+                                idx === index && i.quantidade > 1
+                                  ? { ...i, quantidade: i.quantidade - 1 }
+                                  : i
+                              ));
+                            }}
+                            disabled={item.quantidade <= 1}
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              backgroundColor: item.quantidade <= 1 ? '#374151' : '#0f1419',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              borderRadius: '6px',
+                              color: '#ffffff',
+                              fontSize: '1rem',
+                              cursor: item.quantidade <= 1 ? 'not-allowed' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                            <Minus size={16} />
+                          </button>
+                          
+                          <span style={{ 
+                            fontSize: '0.875rem', 
+                            fontWeight: '600', 
+                            color: '#ffffff',
+                            minWidth: '30px',
+                            textAlign: 'center'
+                          }}>
+                            {item.quantidade}
+                          </span>
+                          
+                          <button
+                            onClick={() => {
+                              if (item.quantidade >= item.maxStock) {
+                                showToast('Estoque insuficiente', 'error');
+                                return;
+                              }
+                              setCarrinhoVenda(carrinhoVenda.map((i, idx) =>
+                                idx === index
+                                  ? { ...i, quantidade: i.quantidade + 1 }
+                                  : i
+                              ));
+                            }}
+                            disabled={item.quantidade >= item.maxStock}
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              backgroundColor: item.quantidade >= item.maxStock ? '#374151' : '#10b981',
+                              border: 'none',
+                              borderRadius: '6px',
+                              color: '#ffffff',
+                              fontSize: '1rem',
+                              cursor: item.quantidade >= item.maxStock ? 'not-allowed' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                            ➕
+                          </button>
+                          
+                          <button
+                            onClick={() => {
+                              setCarrinhoVenda(carrinhoVenda.filter((_, idx) => idx !== index));
+                            }}
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              backgroundColor: '#ef4444',
+                              border: 'none',
+                              borderRadius: '6px',
+                              color: '#ffffff',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Desconto e Forma de Pagamento */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                    Desconto (R$)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    defaultValue="0"
+                    id="venda-desconto"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#0f1419',
+                      border: '2px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      fontSize: '0.875rem'
+                    }}
+                  />
+                </div>
+                
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                    Forma de Pagamento *
+                  </label>
+                  <select
+                    id="venda-pagamento"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#0f1419',
+                      border: '2px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      fontSize: '0.875rem'
+                    }}>
+                    <option value="pix">PIX</option>
+                    <option value="credit">Cartão de Crédito</option>
+                    <option value="debit">Cartão de Débito</option>
+                    <option value="cash">Dinheiro</option>
+                    <option value="bank_slip">Boleto</option>
+                  </select>
+                </div>
+              </div>
+              
+              {/* Observações */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                  Observações
+                </label>
+                <textarea
+                  placeholder="Observações sobre a venda..."
+                  id="venda-observacoes"
+                  rows="2"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#0f1419',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '0.875rem',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+              
+              {/* Total */}
+              {carrinhoVenda.length > 0 && (
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#0f1419',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(16, 185, 129, 0.3)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Subtotal:</span>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#ffffff' }}>
+                      R$ {carrinhoVenda.reduce((sum, item) => sum + (item.price * item.quantidade), 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Desconto:</span>
+                    <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#ef4444' }}>
+                      - R$ {(parseFloat(document.getElementById('venda-desconto')?.value || 0)).toFixed(2)}
+                    </span>
+                  </div>
+                  <div style={{ 
+                    borderTop: '1px solid rgba(255, 255, 255, 0.1)', 
+                    paddingTop: '8px', 
+                    marginTop: '8px',
+                    display: 'flex', 
+                    justifyContent: 'space-between' 
+                  }}>
+                    <span style={{ fontSize: '1.125rem', fontWeight: '700', color: '#10b981' }}>Total:</span>
+                    <span style={{ fontSize: '1.125rem', fontWeight: '700', color: '#10b981' }}>
+                      R$ {Math.max(0, carrinhoVenda.reduce((sum, item) => sum + (item.price * item.quantidade), 0) - parseFloat(document.getElementById('venda-desconto')?.value || 0)).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {/* Botões */}
+              <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                <button
+                  onClick={() => {
+                    setShowVendaModal(false);
+                    setCarrinhoVenda([]);
+                    setClienteVenda(null);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    backgroundColor: 'transparent',
+                    border: '2px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}>
+                  Cancelar
+                </button>
+                
+                <button
+                  onClick={async () => {
+                    // Validações
+                    if (!clienteVenda) {
+                      showToast('Selecione um cliente', 'error');
+                      return;
+                    }
+                    if (carrinhoVenda.length === 0) {
+                      showToast('Adicione pelo menos um produto', 'error');
+                      return;
+                    }
+                    
+                    const desconto = parseFloat(document.getElementById('venda-desconto').value || 0);
+                    const subtotal = carrinhoVenda.reduce((sum, item) => sum + (item.price * item.quantidade), 0);
+                    const total = Math.max(0, subtotal - desconto);
+                    const pagamento = document.getElementById('venda-pagamento').value;
+                    const observacoes = document.getElementById('venda-observacoes').value;
+                    
+                    try {
+                      const { ref, push, set, update } = await import('firebase/database');
+                      
+                      // Salvar venda
+                      const vendasRef = ref(database, `sales/${user.uid}`);
+                      const novaVendaRef = push(vendasRef);
+                      const cliente = clientes.find(c => c.id === clienteVenda);
+                      
+                      await set(novaVendaRef, {
+                        clientId: clienteVenda,
+                        clientName: cliente?.name || '',
+                        items: carrinhoVenda.map(item => ({
+                          produtoId: item.produtoId,
+                          name: item.name,
+                          price: item.price,
+                          quantidade: item.quantidade,
+                          subtotal: item.price * item.quantidade
+                        })),
+                        subtotal: subtotal,
+                        discount: desconto,
+                        total: total,
+                        paymentMethod: pagamento,
+                        status: 'completed',
+                        notes: observacoes,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                      });
+                      
+                      // Atualizar estoque dos produtos
+                      for (const item of carrinhoVenda) {
+                        const produto = produtos.find(p => p.id === item.produtoId);
+                        if (produto) {
+                          const produtoRef = ref(database, `products/${user.uid}/${item.produtoId}`);
+                          await update(produtoRef, {
+                            stock: produto.stock - item.quantidade,
+                            updatedAt: new Date().toISOString()
+                          });
+                        }
+                      }
+                      
+                      showToast('Venda registrada com sucesso!', 'success');
+                      setShowVendaModal(false);
+                      setCarrinhoVenda([]);
+                      setClienteVenda(null);
+                      
+                      // Recarregar dados
+                      loadVendas();
+                      loadProdutos();
+                    } catch (error) {
+                      console.error('Erro ao salvar venda:', error);
+                      showToast('Erro ao salvar venda', 'error');
+                    }
+                  }}
+                  disabled={!clienteVenda || carrinhoVenda.length === 0}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    background: (!clienteVenda || carrinhoVenda.length === 0) 
+                      ? '#374151' 
+                      : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '0.875rem',
+                    fontWeight: '600',
+                    cursor: (!clienteVenda || carrinhoVenda.length === 0) ? 'not-allowed' : 'pointer',
+                    opacity: (!clienteVenda || carrinhoVenda.length === 0) ? 0.5 : 1
+                  }}>
+                  💾 Finalizar Venda
+                </button>
               </div>
             </div>
-            
-            <button
-              onClick={() => {
-                setShowVendaModal(false);
-                setCarrinhoVenda([]);
-                setClienteVenda(null);
-              }}
-              style={{
-                width: '100%',
-                padding: '12px',
-                backgroundColor: 'transparent',
-                border: '2px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '8px',
-                color: '#ffffff',
-                fontSize: '0.875rem',
-                fontWeight: '600',
-                cursor: 'pointer'
-              }}>
-              Fechar
-            </button>
           </div>
         </div>
       )}
