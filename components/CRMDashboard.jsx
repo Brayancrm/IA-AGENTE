@@ -24,7 +24,11 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Package,
+  ShoppingCart,
+  Minus,
+  X
 } from 'lucide-react';
 
 const CRMDashboard = ({ user, database, showToast }) => {
@@ -54,6 +58,20 @@ const CRMDashboard = ({ user, database, showToast }) => {
     fechado: [],
     perdido: []
   });
+  
+  // Estados para Produtos
+  const [produtos, setProdutos] = useState([]);
+  const [showProdutoModal, setShowProdutoModal] = useState(false);
+  const [editingProduto, setEditingProduto] = useState(null);
+  const [searchProduto, setSearchProduto] = useState('');
+  
+  // Estados para Vendas
+  const [vendas, setVendas] = useState([]);
+  const [showVendaModal, setShowVendaModal] = useState(false);
+  const [editingVenda, setEditingVenda] = useState(null);
+  const [carrinhoVenda, setCarrinhoVenda] = useState([]);
+  const [clienteVenda, setClienteVenda] = useState(null);
+  const [searchVenda, setSearchVenda] = useState('');
   
   // Carregar dados do CRM
   useEffect(() => {
@@ -89,7 +107,9 @@ const CRMDashboard = ({ user, database, showToast }) => {
       await Promise.all([
         loadClientes(),
         loadPedidos(),
-        loadConversas()
+        loadConversas(),
+        loadProdutos(),
+        loadVendas()
       ]);
     } catch (error) {
       console.error('Erro ao carregar dados do CRM:', error);
@@ -179,11 +199,80 @@ const CRMDashboard = ({ user, database, showToast }) => {
     });
   };
   
+  const loadProdutos = async () => {
+    const { ref, onValue } = await import('firebase/database');
+    const produtosRef = ref(database, `products/${user.uid}`);
+    
+    return new Promise((resolve) => {
+      onValue(produtosRef, (snapshot) => {
+        const produtosList = [];
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          Object.keys(data).forEach(produtoId => {
+            const produto = data[produtoId];
+            produtosList.push({
+              id: produtoId,
+              name: produto.name || '',
+              description: produto.description || '',
+              price: produto.price || 0,
+              category: produto.category || 'Geral',
+              stock: produto.stock || 0,
+              sku: produto.sku || '',
+              status: produto.status || 'active',
+              createdAt: produto.createdAt || new Date().toISOString(),
+              updatedAt: produto.updatedAt || new Date().toISOString()
+            });
+          });
+        }
+        setProdutos(produtosList.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
+        resolve();
+      }, { onlyOnce: true });
+    });
+  };
+  
+  const loadVendas = async () => {
+    const { ref, onValue } = await import('firebase/database');
+    const vendasRef = ref(database, `sales/${user.uid}`);
+    
+    return new Promise((resolve) => {
+      onValue(vendasRef, (snapshot) => {
+        const vendasList = [];
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          Object.keys(data).forEach(vendaId => {
+            const venda = data[vendaId];
+            vendasList.push({
+              id: vendaId,
+              clientId: venda.clientId || '',
+              clientName: venda.clientName || '',
+              items: venda.items || [],
+              subtotal: venda.subtotal || 0,
+              discount: venda.discount || 0,
+              total: venda.total || 0,
+              paymentMethod: venda.paymentMethod || '',
+              status: venda.status || 'pending',
+              notes: venda.notes || '',
+              createdAt: venda.createdAt || new Date().toISOString(),
+              updatedAt: venda.updatedAt || new Date().toISOString()
+            });
+          });
+        }
+        setVendas(vendasList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+        resolve();
+      }, { onlyOnce: true });
+    });
+  };
+  
   // Calcular métricas
   const calcularMetricas = () => {
     const totalClientes = clientes.length;
-    const totalPedidos = pedidos.length;
-    const totalFaturamento = pedidos.reduce((sum, p) => sum + (p.total || 0), 0);
+    
+    // Usar vendas do CRM (prioritário) ou pedidos do WhatsApp como fallback
+    const totalVendas = vendas.length;
+    const totalPedidos = totalVendas || pedidos.length;
+    const totalFaturamento = vendas.length > 0 
+      ? vendas.reduce((sum, v) => sum + (v.total || 0), 0)
+      : pedidos.reduce((sum, p) => sum + (p.total || 0), 0);
     const ticketMedio = totalPedidos > 0 ? totalFaturamento / totalPedidos : 0;
     
     // Novos clientes (últimos 7 dias)
@@ -191,11 +280,16 @@ const CRMDashboard = ({ user, database, showToast }) => {
     seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
     const novosClientes = clientes.filter(c => new Date(c.updatedAt) >= seteDiasAtras).length;
     
-    // Pedidos pendentes
-    const pedidosPendentes = pedidos.filter(p => p.status === 'PENDING').length;
+    // Vendas pendentes
+    const vendasPendentes = vendas.filter(v => v.status === 'pending').length;
+    const pedidosPendentes = vendasPendentes || pedidos.filter(p => p.status === 'PENDING').length;
     
     // Taxa de conversão
     const taxaConversao = totalClientes > 0 ? (totalPedidos / totalClientes * 100) : 0;
+    
+    // Produtos
+    const totalProdutos = produtos.length;
+    const produtosAtivos = produtos.filter(p => p.status === 'active').length;
     
     return {
       totalClientes,
@@ -204,7 +298,10 @@ const CRMDashboard = ({ user, database, showToast }) => {
       pedidosPendentes,
       totalFaturamento,
       ticketMedio,
-      taxaConversao
+      taxaConversao,
+      totalProdutos,
+      produtosAtivos,
+      totalVendas
     };
   };
   
@@ -1044,6 +1141,8 @@ const CRMDashboard = ({ user, database, showToast }) => {
         {[
           { id: 'visao-geral', label: 'Visão Geral', icon: Activity },
           { id: 'clientes', label: 'Clientes', icon: Users },
+          { id: 'produtos', label: 'Produtos', icon: Package },
+          { id: 'vendas', label: 'Vendas', icon: ShoppingCart },
           { id: 'pipeline', label: 'Pipeline', icon: Target },
           { id: 'relatorios', label: 'Relatórios', icon: BarChart3 }
         ].map(tab => {
@@ -1090,6 +1189,265 @@ const CRMDashboard = ({ user, database, showToast }) => {
       {/* Conteúdo das Tabs */}
       {activeTab === 'visao-geral' && <VisaoGeral />}
       {activeTab === 'clientes' && <ClientesTab />}
+      
+      {/* Tab PRODUTOS */}
+      {activeTab === 'produtos' && (
+        <div style={{ padding: '0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+                🛍️ Produtos e Serviços
+              </h2>
+              <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
+                Gerencie seu catálogo de produtos e serviços
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setEditingProduto(null);
+                setShowProdutoModal(true);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 24px',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                color: '#ffffff',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}>
+              <Plus size={18} />
+              Novo Produto
+            </button>
+          </div>
+          
+          {/* Lista de Produtos */}
+          <div style={{
+            backgroundColor: '#1a1f36',
+            borderRadius: '16px',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            overflow: 'hidden'
+          }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid rgba(255, 255, 255, 0.1)', backgroundColor: '#0f1419' }}>
+                    <th style={{ padding: '16px', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>Produto</th>
+                    <th style={{ padding: '16px', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>Categoria</th>
+                    <th style={{ padding: '16px', textAlign: 'right', fontSize: '0.75rem', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>Preço</th>
+                    <th style={{ padding: '16px', textAlign: 'center', fontSize: '0.75rem', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>Estoque</th>
+                    <th style={{ padding: '16px', textAlign: 'center', fontSize: '0.75rem', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>Status</th>
+                    <th style={{ padding: '16px', textAlign: 'center', fontSize: '0.75rem', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {produtos.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" style={{ padding: '64px', textAlign: 'center', color: '#6b7280' }}>
+                        <Package size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
+                        <div style={{ fontSize: '1rem', marginBottom: '8px' }}>Nenhum produto cadastrado</div>
+                        <div style={{ fontSize: '0.875rem' }}>Clique em "Novo Produto" para começar</div>
+                      </td>
+                    </tr>
+                  ) : (
+                    produtos.filter(p => searchProduto === '' || p.name.toLowerCase().includes(searchProduto.toLowerCase()) || p.category.toLowerCase().includes(searchProduto.toLowerCase())).map(produto => (
+                      <tr key={produto.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                        <td style={{ padding: '16px' }}>
+                          <div style={{ fontWeight: '600', color: '#ffffff', marginBottom: '4px' }}>{produto.name}</div>
+                          {produto.description && <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{produto.description}</div>}
+                        </td>
+                        <td style={{ padding: '16px', color: '#9ca3af' }}>{produto.category}</td>
+                        <td style={{ padding: '16px', textAlign: 'right', fontWeight: '600', color: '#10b981' }}>
+                          R$ {produto.price.toFixed(2)}
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <span style={{
+                            padding: '4px 12px',
+                            borderRadius: '20px',
+                            fontSize: '0.75rem',
+                            fontWeight: '600',
+                            backgroundColor: produto.stock > 10 ? 'rgba(16, 185, 129, 0.1)' : produto.stock > 0 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            color: produto.stock > 10 ? '#10b981' : produto.stock > 0 ? '#f59e0b' : '#ef4444'
+                          }}>
+                            {produto.stock}
+                          </span>
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <span style={{
+                            padding: '4px 12px',
+                            borderRadius: '20px',
+                            fontSize: '0.75rem',
+                            fontWeight: '600',
+                            backgroundColor: produto.status === 'active' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(156, 163, 175, 0.1)',
+                            color: produto.status === 'active' ? '#10b981' : '#9ca3af'
+                          }}>
+                            {produto.status === 'active' ? 'Ativo' : 'Inativo'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '16px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                            <button
+                              onClick={() => {
+                                setEditingProduto(produto);
+                                setShowProdutoModal(true);
+                              }}
+                              style={{
+                                padding: '8px',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                border: '1px solid rgba(59, 130, 246, 0.3)',
+                                borderRadius: '8px',
+                                color: '#3b82f6',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
+                                e.currentTarget.style.transform = 'scale(1.1)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+                                e.currentTarget.style.transform = 'scale(1)';
+                              }}>
+                              <Edit size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Tab VENDAS */}
+      {activeTab === 'vendas' && (
+        <div style={{ padding: '0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+                🛒 Vendas e Pedidos
+              </h2>
+              <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
+                Gerencie todas as suas vendas
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setCarrinhoVenda([]);
+                setClienteVenda(null);
+                setShowVendaModal(true);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 24px',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                color: '#ffffff',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}>
+              <Plus size={18} />
+              Nova Venda
+            </button>
+          </div>
+          
+          {/* Lista de Vendas */}
+          <div style={{
+            backgroundColor: '#1a1f36',
+            borderRadius: '16px',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            overflow: 'hidden'
+          }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid rgba(255, 255, 255, 0.1)', backgroundColor: '#0f1419' }}>
+                    <th style={{ padding: '16px', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>Cliente</th>
+                    <th style={{ padding: '16px', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>Itens</th>
+                    <th style={{ padding: '16px', textAlign: 'right', fontSize: '0.75rem', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>Total</th>
+                    <th style={{ padding: '16px', textAlign: 'center', fontSize: '0.75rem', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>Pagamento</th>
+                    <th style={{ padding: '16px', textAlign: 'center', fontSize: '0.75rem', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>Status</th>
+                    <th style={{ padding: '16px', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' }}>Data</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vendas.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" style={{ padding: '64px', textAlign: 'center', color: '#6b7280' }}>
+                        <ShoppingCart size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
+                        <div style={{ fontSize: '1rem', marginBottom: '8px' }}>Nenhuma venda realizada</div>
+                        <div style={{ fontSize: '0.875rem' }}>Clique em "Nova Venda" para registrar</div>
+                      </td>
+                    </tr>
+                  ) : (
+                    vendas.map(venda => (
+                      <tr key={venda.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                        <td style={{ padding: '16px' }}>
+                          <div style={{ fontWeight: '600', color: '#ffffff' }}>{venda.clientName}</div>
+                        </td>
+                        <td style={{ padding: '16px', color: '#9ca3af' }}>
+                          {venda.items.length} {venda.items.length === 1 ? 'item' : 'itens'}
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'right', fontWeight: '600', color: '#10b981' }}>
+                          R$ {venda.total.toFixed(2)}
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center', fontSize: '0.875rem', color: '#9ca3af' }}>
+                          {venda.paymentMethod}
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <span style={{
+                            padding: '4px 12px',
+                            borderRadius: '20px',
+                            fontSize: '0.75rem',
+                            fontWeight: '600',
+                            backgroundColor: venda.status === 'paid' ? 'rgba(16, 185, 129, 0.1)' : venda.status === 'pending' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            color: venda.status === 'paid' ? '#10b981' : venda.status === 'pending' ? '#f59e0b' : '#ef4444'
+                          }}>
+                            {venda.status === 'paid' ? 'Pago' : venda.status === 'pending' ? 'Pendente' : venda.status === 'cancelled' ? 'Cancelado' : venda.status}
+                          </span>
+                        </td>
+                        <td style={{ padding: '16px', fontSize: '0.875rem', color: '#9ca3af' }}>
+                          {new Date(venda.createdAt).toLocaleDateString('pt-BR')}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {activeTab === 'pipeline' && (
         <div style={{ padding: '0' }}>
           {/* Header do Pipeline */}
@@ -2260,6 +2618,339 @@ const CRMDashboard = ({ user, database, showToast }) => {
                 Editar Cliente
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Modal de Produto */}
+      {showProdutoModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}
+        onClick={() => {
+          setShowProdutoModal(false);
+          setEditingProduto(null);
+        }}>
+          <div style={{
+            backgroundColor: '#1a1f36',
+            borderRadius: '20px',
+            padding: '32px',
+            maxWidth: '500px',
+            width: '100%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}
+          onClick={(e) => e.stopPropagation()}>
+            <h3 style={{
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              color: '#ffffff',
+              marginBottom: '24px'
+            }}>
+              {editingProduto ? '✏️ Editar Produto' : '➕ Novo Produto'}
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                  Nome do Produto *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Camiseta Básica"
+                  defaultValue={editingProduto?.name || ''}
+                  id="produto-nome"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#0f1419',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '0.875rem'
+                  }}
+                />
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                  Descrição
+                </label>
+                <textarea
+                  placeholder="Descrição do produto..."
+                  defaultValue={editingProduto?.description || ''}
+                  id="produto-descricao"
+                  rows="3"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#0f1419',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '0.875rem',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                    Preço (R$) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    defaultValue={editingProduto?.price || ''}
+                    id="produto-preco"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#0f1419',
+                      border: '2px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      fontSize: '0.875rem'
+                    }}
+                  />
+                </div>
+                
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                    Estoque
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    defaultValue={editingProduto?.stock || 0}
+                    id="produto-estoque"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#0f1419',
+                      border: '2px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      fontSize: '0.875rem'
+                    }}
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                  Categoria
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Roupas, Eletrônicos..."
+                  defaultValue={editingProduto?.category || ''}
+                  id="produto-categoria"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#0f1419',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '0.875rem'
+                  }}
+                />
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af', marginBottom: '8px' }}>
+                  Status
+                </label>
+                <select
+                  defaultValue={editingProduto?.status || 'active'}
+                  id="produto-status"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: '#0f1419',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '0.875rem'
+                  }}>
+                  <option value="active">Ativo</option>
+                  <option value="inactive">Inativo</option>
+                </select>
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+              <button
+                onClick={() => {
+                  setShowProdutoModal(false);
+                  setEditingProduto(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  backgroundColor: 'transparent',
+                  border: '2px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}>
+                Cancelar
+              </button>
+              
+              <button
+                onClick={async () => {
+                  const nome = document.getElementById('produto-nome').value;
+                  const descricao = document.getElementById('produto-descricao').value;
+                  const preco = parseFloat(document.getElementById('produto-preco').value);
+                  const estoque = parseInt(document.getElementById('produto-estoque').value) || 0;
+                  const categoria = document.getElementById('produto-categoria').value || 'Geral';
+                  const status = document.getElementById('produto-status').value;
+                  
+                  if (!nome || !preco) {
+                    showToast('Nome e preço são obrigatórios', 'error');
+                    return;
+                  }
+                  
+                  try {
+                    const { ref, push, set, update } = await import('firebase/database');
+                    
+                    const produtoData = {
+                      name: nome,
+                      description: descricao,
+                      price: preco,
+                      stock: estoque,
+                      category: categoria,
+                      status: status,
+                      updatedAt: new Date().toISOString()
+                    };
+                    
+                    if (editingProduto) {
+                      const produtoRef = ref(database, `products/${user.uid}/${editingProduto.id}`);
+                      await update(produtoRef, produtoData);
+                      showToast('Produto atualizado!', 'success');
+                    } else {
+                      const produtosRef = ref(database, `products/${user.uid}`);
+                      const newProdutoRef = push(produtosRef);
+                      await set(newProdutoRef, {
+                        ...produtoData,
+                        createdAt: new Date().toISOString()
+                      });
+                      showToast('Produto cadastrado!', 'success');
+                    }
+                    
+                    setShowProdutoModal(false);
+                    setEditingProduto(null);
+                    loadCRMData();
+                  } catch (error) {
+                    console.error('Erro ao salvar produto:', error);
+                    showToast('Erro ao salvar produto', 'error');
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}>
+                {editingProduto ? 'Atualizar' : 'Adicionar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Modal de Nova Venda - SIMPLIFICADO por enquanto */}
+      {showVendaModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}
+        onClick={() => {
+          setShowVendaModal(false);
+          setCarrinhoVenda([]);
+          setClienteVenda(null);
+        }}>
+          <div style={{
+            backgroundColor: '#1a1f36',
+            borderRadius: '20px',
+            padding: '32px',
+            maxWidth: '800px',
+            width: '100%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}
+          onClick={(e) => e.stopPropagation()}>
+            <h3 style={{
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              color: '#ffffff',
+              marginBottom: '24px'
+            }}>
+              🛒 Nova Venda
+            </h3>
+            
+            <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>
+              <ShoppingCart size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
+              <div style={{ fontSize: '1rem', marginBottom: '8px' }}>Sistema de carrinho em desenvolvimento</div>
+              <div style={{ fontSize: '0.875rem' }}>
+                Por enquanto, vendas são registradas automaticamente via WhatsApp
+              </div>
+            </div>
+            
+            <button
+              onClick={() => {
+                setShowVendaModal(false);
+                setCarrinhoVenda([]);
+                setClienteVenda(null);
+              }}
+              style={{
+                width: '100%',
+                padding: '12px',
+                backgroundColor: 'transparent',
+                border: '2px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '8px',
+                color: '#ffffff',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}>
+              Fechar
+            </button>
           </div>
         </div>
       )}
