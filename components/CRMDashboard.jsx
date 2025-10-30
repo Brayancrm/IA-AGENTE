@@ -225,40 +225,51 @@ const CRMDashboard = ({ user, database, showToast }) => {
   
   const loadProdutos = async () => {
     try {
-      const { ref, onValue } = await import('firebase/database');
+      const { ref, onValue, off } = await import('firebase/database');
       const produtosRef = ref(database, `products/${user.uid}`);
       
-      return new Promise((resolve, reject) => {
-        onValue(produtosRef, (snapshot) => {
-          try {
-            const produtosList = [];
-            if (snapshot.exists()) {
-              const data = snapshot.val();
-              Object.keys(data).forEach(produtoId => {
-                const produto = data[produtoId];
-                produtosList.push({
-                  id: produtoId,
-                  name: produto.name || '',
-                  description: produto.description || '',
-                  price: produto.price || 0,
-                  category: produto.category || 'Geral',
-                  stock: produto.stock || 0,
-                  sku: produto.sku || '',
-                  status: produto.status || 'active',
-                  createdAt: produto.createdAt || new Date().toISOString(),
-                  updatedAt: produto.updatedAt || new Date().toISOString()
+      return Promise.race([
+        new Promise((resolve) => {
+          const unsubscribe = onValue(produtosRef, (snapshot) => {
+            try {
+              const produtosList = [];
+              if (snapshot.exists()) {
+                const data = snapshot.val();
+                Object.keys(data).forEach(produtoId => {
+                  const produto = data[produtoId];
+                  produtosList.push({
+                    id: produtoId,
+                    name: produto.name || '',
+                    description: produto.description || '',
+                    price: produto.price || 0,
+                    category: produto.category || 'Geral',
+                    stock: produto.stock || 0,
+                    sku: produto.sku || '',
+                    status: produto.status || 'active',
+                    createdAt: produto.createdAt || new Date().toISOString(),
+                    updatedAt: produto.updatedAt || new Date().toISOString()
+                  });
                 });
-              });
+              }
+              setProdutos(produtosList.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
+              unsubscribe();
+              resolve();
+            } catch (err) {
+              console.error('Erro ao processar produtos:', err);
+              setProdutos([]);
+              unsubscribe();
+              resolve();
             }
-            setProdutos(produtosList.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
-            resolve();
-          } catch (err) {
-            console.error('Erro ao processar produtos:', err);
+          }, { onlyOnce: true });
+        }),
+        new Promise((resolve) => {
+          setTimeout(() => {
+            console.log('[CRM] Timeout produtos - sem dados');
             setProdutos([]);
             resolve();
-          }
-        }, { onlyOnce: true });
-      });
+          }, 5000);
+        })
+      ]);
     } catch (error) {
       console.error('Erro ao inicializar produtos:', error);
       setProdutos([]);
@@ -268,42 +279,53 @@ const CRMDashboard = ({ user, database, showToast }) => {
   
   const loadVendas = async () => {
     try {
-      const { ref, onValue } = await import('firebase/database');
+      const { ref, onValue, off } = await import('firebase/database');
       const vendasRef = ref(database, `sales/${user.uid}`);
       
-      return new Promise((resolve, reject) => {
-        onValue(vendasRef, (snapshot) => {
-          try {
-            const vendasList = [];
-            if (snapshot.exists()) {
-              const data = snapshot.val();
-              Object.keys(data).forEach(vendaId => {
-                const venda = data[vendaId];
-                vendasList.push({
-                  id: vendaId,
-                  clientId: venda.clientId || '',
-                  clientName: venda.clientName || '',
-                  items: venda.items || [],
-                  subtotal: venda.subtotal || 0,
-                  discount: venda.discount || 0,
-                  total: venda.total || 0,
-                  paymentMethod: venda.paymentMethod || '',
-                  status: venda.status || 'pending',
-                  notes: venda.notes || '',
-                  createdAt: venda.createdAt || new Date().toISOString(),
-                  updatedAt: venda.updatedAt || new Date().toISOString()
+      return Promise.race([
+        new Promise((resolve) => {
+          const unsubscribe = onValue(vendasRef, (snapshot) => {
+            try {
+              const vendasList = [];
+              if (snapshot.exists()) {
+                const data = snapshot.val();
+                Object.keys(data).forEach(vendaId => {
+                  const venda = data[vendaId];
+                  vendasList.push({
+                    id: vendaId,
+                    clientId: venda.clientId || '',
+                    clientName: venda.clientName || '',
+                    items: venda.items || [],
+                    subtotal: venda.subtotal || 0,
+                    discount: venda.discount || 0,
+                    total: venda.total || 0,
+                    paymentMethod: venda.paymentMethod || '',
+                    status: venda.status || 'pending',
+                    notes: venda.notes || '',
+                    createdAt: venda.createdAt || new Date().toISOString(),
+                    updatedAt: venda.updatedAt || new Date().toISOString()
+                  });
                 });
-              });
+              }
+              setVendas(vendasList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+              unsubscribe();
+              resolve();
+            } catch (err) {
+              console.error('Erro ao processar vendas:', err);
+              setVendas([]);
+              unsubscribe();
+              resolve();
             }
-            setVendas(vendasList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
-            resolve();
-          } catch (err) {
-            console.error('Erro ao processar vendas:', err);
+          }, { onlyOnce: true });
+        }),
+        new Promise((resolve) => {
+          setTimeout(() => {
+            console.log('[CRM] Timeout vendas - sem dados');
             setVendas([]);
             resolve();
-          }
-        }, { onlyOnce: true });
-      });
+          }, 5000);
+        })
+      ]);
     } catch (error) {
       console.error('Erro ao inicializar vendas:', error);
       setVendas([]);
