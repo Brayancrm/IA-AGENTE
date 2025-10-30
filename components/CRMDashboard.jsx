@@ -230,9 +230,9 @@ const CRMDashboard = ({ user, database, showToast }) => {
       const productsRef = ref(database, `products/${user.uid}`);
       
       return new Promise((resolve) => {
-        let unsubscribe = null;
+        let resolved = false;
         
-        unsubscribe = onValue(productsRef, (snapshot) => {
+        const unsubscribe = onValue(productsRef, (snapshot) => {
           try {
             const produtosList = [];
             if (snapshot.exists()) {
@@ -257,25 +257,32 @@ const CRMDashboard = ({ user, database, showToast }) => {
             }
             console.log('[CRM] Produtos carregados:', produtosList.length);
             setProdutos(produtosList.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)));
-            if (unsubscribe) unsubscribe();
-            resolve();
+            
+            if (!resolved) {
+              resolved = true;
+              unsubscribe();
+              resolve();
+            }
           } catch (err) {
             console.error('Erro ao processar produtos:', err);
             setProdutos([]);
-            if (unsubscribe) unsubscribe();
-            resolve();
+            if (!resolved) {
+              resolved = true;
+              unsubscribe();
+              resolve();
+            }
           }
         }, { onlyOnce: true });
         
-        // Timeout apenas para cancelar se não responder em 10 segundos
+        // Timeout de segurança apenas para evitar promise infinito
         setTimeout(() => {
-          if (unsubscribe) {
-            console.log('[CRM] Timeout produtos - cancelando');
+          if (!resolved) {
+            console.log('[CRM] Timeout produtos - continuando sem dados');
+            resolved = true;
             unsubscribe();
-            setProdutos([]);
             resolve();
           }
-        }, 10000);
+        }, 15000);
       });
     } catch (error) {
       console.error('Erro ao inicializar produtos:', error);
@@ -290,9 +297,9 @@ const CRMDashboard = ({ user, database, showToast }) => {
       const vendasRef = ref(database, `sales/${user.uid}`);
       
       return new Promise((resolve) => {
-        let unsubscribe = null;
+        let resolved = false;
         
-        unsubscribe = onValue(vendasRef, (snapshot) => {
+        const unsubscribe = onValue(vendasRef, (snapshot) => {
           try {
             const vendasList = [];
             if (snapshot.exists()) {
@@ -317,25 +324,32 @@ const CRMDashboard = ({ user, database, showToast }) => {
             }
             console.log('[CRM] Vendas carregadas:', vendasList.length);
             setVendas(vendasList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
-            if (unsubscribe) unsubscribe();
-            resolve();
+            
+            if (!resolved) {
+              resolved = true;
+              unsubscribe();
+              resolve();
+            }
           } catch (err) {
             console.error('Erro ao processar vendas:', err);
             setVendas([]);
-            if (unsubscribe) unsubscribe();
-            resolve();
+            if (!resolved) {
+              resolved = true;
+              unsubscribe();
+              resolve();
+            }
           }
         }, { onlyOnce: true });
         
-        // Timeout apenas para cancelar se não responder em 10 segundos
+        // Timeout de segurança apenas para evitar promise infinito
         setTimeout(() => {
-          if (unsubscribe) {
-            console.log('[CRM] Timeout vendas - cancelando');
+          if (!resolved) {
+            console.log('[CRM] Timeout vendas - continuando sem dados');
+            resolved = true;
             unsubscribe();
-            setVendas([]);
             resolve();
           }
-        }, 10000);
+        }, 15000);
       });
     } catch (error) {
       console.error('Erro ao inicializar vendas:', error);
