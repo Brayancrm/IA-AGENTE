@@ -155,6 +155,7 @@ export function convertStepsToPrompt(steps) {
     agent_profile: 'Apresente-se com seu nome e função.', // Não aparece no prompt porque já foi processado acima
     greeting: 'Cumprimente o cliente de forma amigável.',
     ask_info: 'Pergunte as informações necessárias ao cliente.',
+    collect_data: 'Colete dados personalizados do cliente conforme configurado.',
     show_catalog: 'Apresente os produtos/serviços disponíveis.',
     process_order: 'Processe o pedido do cliente, confirmando itens e quantidades.',
     request_payment: 'Solicite o pagamento e forneça instruções.',
@@ -185,6 +186,22 @@ export function convertStepsToPrompt(steps) {
     
     if (step.condition) {
       prompt += `**Condição:** ${step.condition}\n\n`;
+    }
+    
+    // Se for coleta de dados customizados, adicionar as perguntas
+    if (step.type === 'collect_data' && step.customQuestions && step.customQuestions.length > 0) {
+      prompt += `**PERGUNTAS PERSONALIZADAS PARA COLETAR:**\n`;
+      step.customQuestions.forEach((q, idx) => {
+        prompt += `${idx + 1}. Faça esta pergunta EXATAMENTE como escrito: "${q.question}"`;
+        if (q.type !== 'text') {
+          prompt += ` (Tipo esperado: ${q.type})`;
+        }
+        if (q.required) {
+          prompt += ` [OBRIGATÓRIO]`;
+        }
+        prompt += `\n`;
+      });
+      prompt += `\n⚠️ IMPORTANTE: As respostas a essas perguntas serão salvas automaticamente no CRM do cliente. \n\n`;
     }
     
     prompt += '---\n\n';

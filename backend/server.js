@@ -1499,6 +1499,47 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
       return;
     }
     
+    // Detectar perguntas customizadas configuradas no Flow Builder
+    const assistantSettingsSnapshot = await db.ref(`users/data/${userId}/assistant_settings`).once('value');
+    const assistantSettings = assistantSettingsSnapshot.val() || {};
+    const flowSteps = assistantSettings.flowSteps || [];
+    
+    if (flowSteps && flowSteps.length > 0) {
+      // Procurar por steps de collect_data
+      for (const step of flowSteps) {
+        if (step.type === 'collect_data' && step.customQuestions && step.customQuestions.length > 0) {
+          // Verificar cada pergunta customizada
+          for (const question of step.customQuestions) {
+            if (question.question && question.field) {
+              // Normalizar pergunta para fazer match
+              const questionText = question.question.toLowerCase();
+              // Remover aspas, interrogações e pontuação
+              const normalizedQuestion = questionText.replace(/[?"".!]/g, '').trim();
+              // Dividir em palavras principais
+              const keyWords = normalizedQuestion.split(/\s+/).filter(w => w.length > 3);
+              
+              // Verificar se a pergunta do agente contém palavras-chave da pergunta configurada
+              const matchCount = keyWords.filter(word => lowerText.includes(word)).length;
+              const matchRatio = matchCount / Math.max(keyWords.length, 1);
+              
+              // Se pelo menos 60% das palavras-chave estão presentes, consideramos match
+              if (matchRatio >= 0.6) {
+                await contextRef.set({
+                  waitingFor: 'custom_field',
+                  customField: question.field, // nome do campo
+                  customType: question.type, // tipo para validação
+                  askedAt: new Date().toISOString()
+                });
+                console.log(`🎯 Pergunta customizada detectada: "${question.question}"`);
+                console.log(`   Campo: ${question.field}, Tipo: ${question.type}`);
+                return;
+              }
+            }
+          }
+        }
+      }
+    }
+    
   } catch (error) {
     console.error('❌ Erro ao detectar pergunta do agente:', error);
   }
@@ -1775,6 +1816,70 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
           dataUpdated = true;
           console.log('✅ Email detectado e salvo:', customerData.email);
           await contextRef.remove();
+        }
+      }
+      
+      // Cliente está respondendo a uma pergunta customizada
+      else if (context.waitingFor === 'custom_field' && context.customField) {
+        const fieldName = context.customField;
+        const fieldType = context.customType || 'text';
+        let isValid = false;
+        let value = null;
+        
+        console.log(`📝 Processando resposta customizada: campo="${fieldName}", tipo="${fieldType}"`);
+        
+        // Validar conforme o tipo
+        if (fieldType === 'number') {
+          const numberMatch = messageText.match(/\d+/);
+          if (numberMatch) {
+            value = parseInt(numberMatch[0]);
+            isValid = true;
+          }
+        } else if (fieldType === 'email') {
+          const emailRegex = /[\w\.-]+@[\w\.-]+\.\w+/;
+          const emailMatch = messageText.match(emailRegex);
+          if (emailMatch) {
+            value = emailMatch[0].toLowerCase().trim();
+            isValid = true;
+          }
+        } else if (fieldType === 'phone') {
+          const numbersOnly = messageText.replace(/[^0-9]/g, '');
+          if (numbersOnly.length >= 10 && numbersOnly.length <= 15) {
+            value = numbersOnly;
+            isValid = true;
+          }
+        } else if (fieldType === 'date') {
+          // Aceitar formato de data comum
+          const datePatterns = [
+            /\d{2}\/\d{2}\/\d{4}/, // DD/MM/YYYY
+            /\d{4}-\d{2}-\d{2}/,   // YYYY-MM-DD
+            /\d{2}\.\d{2}\.\d{4}/  // DD.MM.YYYY
+          ];
+          const hasDate = datePatterns.some(pattern => pattern.test(messageText));
+          if (hasDate || messageText.trim().length >= 5) {
+            value = messageText.trim();
+            isValid = true;
+          }
+        } else {
+          // tipo 'text' - aceitar qualquer texto não vazio
+          if (messageText.trim().length > 0) {
+            value = messageText.trim();
+            isValid = true;
+          }
+        }
+        
+        if (isValid && value !== null) {
+          // Garantir que customData existe
+          if (!customerData.customData) {
+            customerData.customData = {};
+          }
+          
+          customerData.customData[fieldName] = value;
+          dataUpdated = true;
+          console.log(`✅ Campo customizado salvo: ${fieldName} = "${value}"`);
+          await contextRef.remove();
+        } else {
+          console.log(`⚠️ Resposta inválida para campo ${fieldName} (tipo ${fieldType})`);
         }
       }
     }

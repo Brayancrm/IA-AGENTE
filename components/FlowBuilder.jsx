@@ -24,6 +24,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
     { value: 'agent_profile', label: '🤖 Perfil do Agente', icon: '🤖' },
     { value: 'greeting', label: '👋 Cumprimentar', icon: '👋' },
     { value: 'ask_info', label: '❓ Perguntar Informação', icon: '❓' },
+    { value: 'collect_data', label: '📋 Coleta de Dados (CRM)', icon: '📋' },
     { value: 'show_catalog', label: '📦 Mostrar Produtos/Serviços', icon: '📦' },
     { value: 'process_order', label: '🛒 Processar Pedido', icon: '🛒' },
     { value: 'request_payment', label: '💳 Solicitar Pagamento', icon: '💳' },
@@ -145,6 +146,22 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
       if (step.condition) {
         prompt += `⚠️ Condição: ${step.condition}\n`;
       }
+      
+      // Se for coleta de dados customizados, adicionar as perguntas
+      if (step.type === 'collect_data' && step.customQuestions && step.customQuestions.length > 0) {
+        prompt += `\n📋 PERGUNTAS PERSONALIZADAS PARA COLETAR:\n`;
+        step.customQuestions.forEach((q, idx) => {
+          prompt += `${idx + 1}. ${q.question}`;
+          if (q.type !== 'text') {
+            prompt += ` (Tipo: ${q.type})`;
+          }
+          if (q.required) {
+            prompt += ` [OBRIGATÓRIO]`;
+          }
+          prompt += `\n`;
+        });
+      }
+      
       prompt += '\n';
     });
 
@@ -573,6 +590,14 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                               </div>
                             )}
 
+                            {/* Editor de Perguntas Customizadas (só para collect_data) */}
+                            {editingStep.type === 'collect_data' && (
+                              <CustomQuestionsEditor
+                                questions={editingStep.customQuestions || []}
+                                onChange={(questions) => setEditingStep({ ...editingStep, customQuestions: questions })}
+                              />
+                            )}
+
                             {/* Botões */}
                             <div className="flex gap-2 justify-end pt-4 border-t">
                               <button
@@ -657,6 +682,25 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                                   )}
                                 </div>
                               )}
+
+                              {/* Mostrar perguntas customizadas se houver */}
+                              {step.type === 'collect_data' && step.customQuestions && step.customQuestions.length > 0 && (
+                                <div className="mt-3 text-sm">
+                                  <div className="font-semibold text-purple-700 mb-2">
+                                    📋 {step.customQuestions.length} Pergunta(s) Configurada(s):
+                                  </div>
+                                  <div className="space-y-1">
+                                    {step.customQuestions.map((q, idx) => (
+                                      <div key={q.id} className="text-gray-600 pl-4 border-l-2 border-purple-200">
+                                        {idx + 1}. {q.question || 'Pergunta sem texto'} 
+                                        <span className="text-xs text-gray-500 ml-2">
+                                          ({q.field || 'sem campo'})
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
 
                             {/* Actions */}
@@ -737,6 +781,154 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
         onClose={() => setShowAIModal(false)}
         onGenerate={applyAITemplate}
       />
+    </div>
+  );
+}
+
+/**
+ * Editor de Perguntas Customizadas para Coleta de Dados
+ */
+function CustomQuestionsEditor({ questions, onChange }) {
+  const addQuestion = () => {
+    const newQuestions = [...(questions || []), {
+      id: Date.now(),
+      field: '', // nome do campo no CRM (ex: 'idade', 'ocupacao', 'empresa')
+      question: '', // texto da pergunta
+      type: 'text', // text, number, email, phone, date
+      required: false
+    }];
+    onChange(newQuestions);
+  };
+
+  const removeQuestion = (id) => {
+    const newQuestions = (questions || []).filter(q => q.id !== id);
+    onChange(newQuestions);
+  };
+
+  const updateQuestion = (id, field, value) => {
+    const newQuestions = (questions || []).map(q => 
+      q.id === id ? { ...q, [field]: value } : q
+    );
+    onChange(newQuestions);
+  };
+
+  return (
+    <div className="border-t pt-4 mt-4">
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="font-semibold text-gray-800">
+          📋 Perguntas Personalizadas
+        </h4>
+        <button
+          type="button"
+          onClick={addQuestion}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+        >
+          <Plus size={16} />
+          Adicionar Pergunta
+        </button>
+      </div>
+
+      {(questions && questions.length > 0) ? (
+        <div className="space-y-3">
+          {questions.map((q, idx) => (
+            <div key={q.id} className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+              <div className="flex items-start justify-between mb-3">
+                <span className="text-sm font-medium text-gray-700">
+                  Pergunta {idx + 1}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeQuestion(q.id)}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {/* Campo ID (nome no banco) */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Nome do Campo (sem espaços)*
+                  </label>
+                  <input
+                    type="text"
+                    value={q.field}
+                    onChange={(e) => updateQuestion(q.id, 'field', e.target.value.replace(/\s/g, '_').toLowerCase())}
+                    placeholder="Ex: idade, ocupacao, empresa"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Este será o nome do campo salvo no CRM
+                  </p>
+                </div>
+
+                {/* Texto da Pergunta */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Texto da Pergunta*
+                  </label>
+                  <input
+                    type="text"
+                    value={q.question}
+                    onChange={(e) => updateQuestion(q.id, 'question', e.target.value)}
+                    placeholder="Ex: Qual a sua idade?"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Tipo de Resposta */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Tipo de Resposta
+                  </label>
+                  <select
+                    value={q.type}
+                    onChange={(e) => updateQuestion(q.id, 'type', e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="text">📝 Texto Livre</option>
+                    <option value="number">🔢 Número</option>
+                    <option value="email">📧 Email</option>
+                    <option value="phone">📱 Telefone</option>
+                    <option value="date">📅 Data</option>
+                  </select>
+                </div>
+
+                {/* Obrigatório */}
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={q.required}
+                    onChange={(e) => updateQuestion(q.id, 'required', e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-xs text-gray-600">Obrigatório</span>
+                </label>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-6 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg">
+          <p className="text-sm text-gray-500 mb-3">
+            Nenhuma pergunta configurada
+          </p>
+          <button
+            type="button"
+            onClick={addQuestion}
+            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+          >
+            Clique para adicionar a primeira pergunta
+          </button>
+        </div>
+      )}
+
+      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <p className="text-xs text-blue-800">
+          💡 <strong>Dica:</strong> As respostas serão salvas automaticamente no CRM do cliente quando o agente fizer essas perguntas.
+        </p>
+      </div>
     </div>
   );
 }

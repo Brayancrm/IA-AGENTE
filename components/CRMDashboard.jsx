@@ -159,7 +159,8 @@ const CRMDashboard = ({ user, database, showToast }) => {
               cpfCnpj: cliente.cpfCnpj || '',
               updatedAt: cliente.updatedAt || new Date().toISOString(),
               status: cliente.status || 'lead', // lead, cliente, inativo
-              pipelineStage: cliente.pipelineStage || 'lead' // Estágio no funil
+              pipelineStage: cliente.pipelineStage || 'lead', // Estágio no funil
+              customData: cliente.customData || {} // Dados customizados coletados
             });
           });
         }
@@ -1085,6 +1086,18 @@ const CRMDashboard = ({ user, database, showToast }) => {
                     <div style={{ fontSize: '0.875rem', color: '#ffffff', fontFamily: 'monospace' }}>
                       {cliente.cpfCnpj || '-'}
                     </div>
+                    {/* Mostrar dados customizados se existirem */}
+                    {cliente.customData && Object.keys(cliente.customData).length > 0 && (
+                      <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#9ca3af', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {Object.entries(cliente.customData).map(([key, value]) => (
+                          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '0.7rem' }}>📋</span>
+                            <span style={{ fontWeight: '500' }}>{key}:</span>
+                            <span>{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   <td style={{ padding: '16px' }}>
                     <div style={{ fontSize: '0.875rem', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '6px' }}>
