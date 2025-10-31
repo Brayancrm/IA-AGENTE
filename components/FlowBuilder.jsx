@@ -31,6 +31,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
     { value: 'send_confirmation', label: '✅ Enviar Confirmação', icon: '✅' },
     { value: 'ask_invoice', label: '📄 Perguntar sobre Nota Fiscal', icon: '📄' },
     { value: 'collect_address', label: '📍 Coletar Endereço', icon: '📍' },
+    { value: 'create_appointment', label: '📅 Criar Agendamento', icon: '📅' },
     { value: 'free_text', label: '📝 Texto Livre', icon: '📝' },
     { value: 'custom', label: '⚙️ Ação Personalizada', icon: '⚙️' },
   ];
@@ -160,6 +161,15 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
           }
           prompt += `\n`;
         });
+      }
+      
+      // Se for criação de agendamento, adicionar as configurações
+      if (step.type === 'create_appointment' && step.appointmentEnabled) {
+        prompt += `\n📅 SISTEMA DE AGENDAMENTOS HABILITADO:\n`;
+        if (step.appointmentTypes && step.appointmentTypes.length > 0) {
+          prompt += `Tipos permitidos: ${step.appointmentTypes.join(', ')}\n`;
+        }
+        prompt += `O agente poderá criar agendamentos durante a conversa que aparecerão na seção Agendamentos.\n`;
       }
       
       prompt += '\n';
@@ -598,6 +608,82 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                               />
                             )}
 
+                            {/* Configurações de Agendamento (só para create_appointment) */}
+                            {editingStep.type === 'create_appointment' && (
+                              <div className="border-t pt-4 mt-4">
+                                <div className="flex items-center justify-between mb-4">
+                                  <h4 className="font-semibold text-gray-800">
+                                    📅 Configurações de Agendamento
+                                  </h4>
+                                </div>
+
+                                <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                                  <label className="flex items-start gap-3 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={editingStep.appointmentEnabled || false}
+                                      onChange={(e) => setEditingStep({ 
+                                        ...editingStep, 
+                                        appointmentEnabled: e.target.checked,
+                                        appointmentTypes: e.target.checked ? (editingStep.appointmentTypes || []) : []
+                                      })}
+                                      className="mt-1"
+                                    />
+                                    <div className="flex-1">
+                                      <div className="font-bold text-gray-900">
+                                        📅 Habilitar Sistema de Agendamentos
+                                      </div>
+                                      <div className="text-sm text-gray-600">
+                                        O agente poderá criar agendamentos durante a conversa
+                                      </div>
+                                    </div>
+                                  </label>
+
+                                  {editingStep.appointmentEnabled && (
+                                    <div className="mt-4">
+                                      <label className="block font-semibold text-sm text-gray-700 mb-3">
+                                        Tipos de Agendamento Permitidos:
+                                      </label>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        {[
+                                          { value: 'retirada', label: '📦 Retirada' },
+                                          { value: 'servico', label: '🔧 Serviço' },
+                                          { value: 'visita', label: '🏢 Visita' },
+                                          { value: 'entrega', label: '🚚 Entrega' },
+                                          { value: 'ligacao', label: '📞 Ligação' },
+                                          { value: 'consulta', label: '🩺 Consulta' },
+                                          { value: 'reuniao', label: '👥 Reunião' }
+                                        ].map((type) => (
+                                          <label
+                                            key={type.value}
+                                            className="flex items-center gap-2 p-2 bg-white border rounded hover:bg-gray-50 cursor-pointer"
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={editingStep.appointmentTypes?.includes(type.value) || false}
+                                              onChange={(e) => {
+                                                const currentTypes = editingStep.appointmentTypes || [];
+                                                const newTypes = e.target.checked
+                                                  ? [...currentTypes, type.value]
+                                                  : currentTypes.filter(t => t !== type.value);
+                                                setEditingStep({ ...editingStep, appointmentTypes: newTypes });
+                                              }}
+                                            />
+                                            <span className="text-sm">{type.label}</span>
+                                          </label>
+                                        ))}
+                                      </div>
+                                      <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                                        <p className="text-xs text-yellow-800">
+                                          💡 <strong>Dica:</strong> Agendamentos criados durante a conversa aparecerão automaticamente na seção Agendamentos.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
                             {/* Botões */}
                             <div className="flex gap-2 justify-end pt-4 border-t">
                               <button
@@ -699,6 +785,31 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                                       </div>
                                     ))}
                                   </div>
+                                </div>
+                              )}
+
+                              {/* Mostrar configurações de agendamento se houver */}
+                              {step.type === 'create_appointment' && step.appointmentEnabled && (
+                                <div className="mt-3 text-sm">
+                                  <div className="font-semibold text-blue-700 mb-2">
+                                    📅 Sistema de Agendamentos Habilitado
+                                  </div>
+                                  {step.appointmentTypes && step.appointmentTypes.length > 0 && (
+                                    <div className="text-gray-600">
+                                      Tipos permitidos: {step.appointmentTypes.map(t => {
+                                        const labels = {
+                                          'retirada': '📦 Retirada',
+                                          'servico': '🔧 Serviço',
+                                          'visita': '🏢 Visita',
+                                          'entrega': '🚚 Entrega',
+                                          'ligacao': '📞 Ligação',
+                                          'consulta': '🩺 Consulta',
+                                          'reuniao': '👥 Reunião'
+                                        };
+                                        return labels[t] || t;
+                                      }).join(', ')}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>

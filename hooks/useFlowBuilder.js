@@ -162,6 +162,7 @@ export function convertStepsToPrompt(steps) {
     send_confirmation: 'Envie uma mensagem de confirmação com os detalhes.',
     ask_invoice: 'Pergunte se o cliente deseja nota fiscal.',
     collect_address: 'Colete o endereço completo do cliente.',
+    create_appointment: 'Crie agendamentos com o cliente conforme configurado.',
     custom: 'Execute a ação personalizada conforme descrito.',
   };
 
@@ -202,6 +203,15 @@ export function convertStepsToPrompt(steps) {
         prompt += `\n`;
       });
       prompt += `\n⚠️ IMPORTANTE: As respostas a essas perguntas serão salvas automaticamente no CRM do cliente. \n\n`;
+    }
+    
+    // Se for criação de agendamento, adicionar as configurações
+    if (step.type === 'create_appointment' && step.appointmentEnabled) {
+      prompt += `**SISTEMA DE AGENDAMENTOS:**\n`;
+      if (step.appointmentTypes && step.appointmentTypes.length > 0) {
+        prompt += `Você pode criar agendamentos dos seguintes tipos: ${step.appointmentTypes.join(', ')}\n`;
+      }
+      prompt += `Ao criar um agendamento, informe data, horário, tipo e descrição. O agendamento será salvo automaticamente.\n\n`;
     }
     
     prompt += '---\n\n';
