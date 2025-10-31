@@ -60,26 +60,25 @@ export default function ConversasSimples({ userId, backendUrl }) {
   useEffect(() => {
     if (!database || !userId) return;
 
-    console.log('🔍 Monitorando status do WhatsApp...');
-    const statusRef = ref(database, `sessions/${userId}/status`);
+    console.log('🔍 [Conversas] Monitorando status do WhatsApp...');
+    const sessionRef = ref(database, `whatsapp_sessions/${userId}`);
 
-    const unsubscribe = onValue(statusRef, (snapshot) => {
-      const status = snapshot.val();
-      console.log('📱 Status WhatsApp:', status);
-      
-      if (status === 'connected') {
-        setWhatsappStatus('connected');
-      } else if (status === 'disconnected') {
-        setWhatsappStatus('disconnected');
+    const unsubscribe = onValue(sessionRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const session = snapshot.val();
+        const newStatus = session.status || 'disconnected';
+        console.log('📱 [Conversas] Status WhatsApp:', newStatus);
+        setWhatsappStatus(newStatus);
       } else {
-        setWhatsappStatus('checking');
+        console.log('⚠️ [Conversas] Nenhum dado encontrado no Firebase');
+        setWhatsappStatus('disconnected');
       }
     }, (error) => {
-      console.error('❌ Erro ao monitorar status:', error);
+      console.error('❌ [Conversas] Erro ao monitorar status:', error);
       setWhatsappStatus('disconnected');
     });
 
-    return () => off(statusRef);
+    return () => off(sessionRef);
   }, [database, userId]);
 
   // Buscar conversas do backend
