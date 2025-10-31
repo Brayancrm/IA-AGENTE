@@ -452,7 +452,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                                             ...editingStep.catalogSettings,
                                             includeProducts: e.target.checked,
                                             selectedProducts: e.target.checked 
-                                              ? catalogItems.filter(i => i.type === 'product').map(i => i.id)
+                                              ? catalogItems.filter(i => i && i.type === 'product').map(i => i.id)
                                               : []
                                           }
                                         });
@@ -466,9 +466,9 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                                       <div className="text-sm text-gray-600">
                                         A IA poderá oferecê-los aos clientes
                                       </div>
-                                      {catalogItems.filter(i => i.type === 'product').length > 0 && (
+                                      {catalogItems.filter(i => i && i.type === 'product').length > 0 && (
                                         <div className="text-xs text-green-700 mt-1">
-                                          ✓ {catalogItems.filter(i => i.type === 'product').length} produto(s) disponível(is)
+                                          ✓ {catalogItems.filter(i => i && i.type === 'product').length} produto(s) disponível(is)
                                         </div>
                                       )}
                                     </div>
@@ -477,7 +477,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                                   {/* Lista de Produtos com Checkboxes Individuais */}
                                   {editingStep.catalogSettings?.includeProducts && (
                                     <div className="mt-3 ml-6 space-y-2 max-h-60 overflow-y-auto">
-                                      {catalogItems.filter(i => i.type === 'product').map(product => (
+                                      {catalogItems.filter(i => i && i.type === 'product').map(product => (
                                         <label key={product.id} className="flex items-center gap-2 p-2 bg-white border rounded hover:bg-gray-50 cursor-pointer">
                                           <input
                                             type="checkbox"
@@ -518,7 +518,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                                             ...editingStep.catalogSettings,
                                             includeServices: e.target.checked,
                                             selectedServices: e.target.checked 
-                                              ? catalogItems.filter(i => i.type === 'service').map(i => i.id)
+                                              ? catalogItems.filter(i => i && i.type === 'service').map(i => i.id)
                                               : []
                                           }
                                         });
@@ -532,9 +532,9 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                                       <div className="text-sm text-gray-600">
                                         A IA poderá oferecê-los aos clientes
                                       </div>
-                                      {catalogItems.filter(i => i.type === 'service').length > 0 && (
+                                      {catalogItems.filter(i => i && i.type === 'service').length > 0 && (
                                         <div className="text-xs text-blue-700 mt-1">
-                                          ✓ {catalogItems.filter(i => i.type === 'service').length} serviço(s) disponível(is)
+                                          ✓ {catalogItems.filter(i => i && i.type === 'service').length} serviço(s) disponível(is)
                                         </div>
                                       )}
                                     </div>
@@ -543,7 +543,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                                   {/* Lista de Serviços com Checkboxes Individuais */}
                                   {editingStep.catalogSettings?.includeServices && (
                                     <div className="mt-3 ml-6 space-y-2 max-h-60 overflow-y-auto">
-                                      {catalogItems.filter(i => i.type === 'service').map(service => (
+                                      {catalogItems.filter(i => i && i.type === 'service').map(service => (
                                         <label key={service.id} className="flex items-center gap-2 p-2 bg-white border rounded hover:bg-gray-50 cursor-pointer">
                                           <input
                                             type="checkbox"

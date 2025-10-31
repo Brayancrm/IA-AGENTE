@@ -304,7 +304,11 @@ const FirebaseApp = () => {
       if (snapshot.exists()) {
         const data = snapshot.val();
         Object.keys(data).forEach((key) => {
-          items.push({ id: key, ...data[key] });
+          const item = data[key];
+          // Validar: ignorar itens null ou sem name (resquícios de deleção)
+          if (item && item.name) {
+            items.push({ id: key, ...item });
+          }
         });
         // Ordenar por data de criação (mais recente primeiro)
         items.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
@@ -1224,18 +1228,23 @@ const DashboardWithFirebase = ({
   
   // Função para renderizar o catálogo avançado
   const renderCatalog = () => {
-    // Calcular estatísticas
+    // Calcular estatísticas (ignorando itens inválidos)
+    const validItems = catalogItems.filter(i => i && i.name);
     const stats = {
-      total: catalogItems.length,
-      products: catalogItems.filter(i => i.type === 'product').length,
-      services: catalogItems.filter(i => i.type === 'service').length,
-      totalValue: catalogItems.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * (parseInt(item.stockQuantity) || 0), 0),
-      lowStock: catalogItems.filter(i => i.type === 'product' && (parseInt(i.stockQuantity) || 0) < (i.minStock || 5)).length,
-      featured: catalogItems.filter(i => i.featured).length
+      total: validItems.length,
+      products: validItems.filter(i => i.type === 'product').length,
+      services: validItems.filter(i => i.type === 'service').length,
+      totalValue: validItems.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * (parseInt(item.stockQuantity) || 0), 0),
+      lowStock: validItems.filter(i => i.type === 'product' && (parseInt(i.stockQuantity) || 0) < (i.minStock || 5)).length,
+      featured: validItems.filter(i => i.featured).length
     };
 
-    // Filtrar itens
+    // Filtrar itens (ignorando itens inválidos)
     const filteredItems = catalogItems.filter(item => {
+      // Validação: verificar se item e name existem
+      if (!item || !item.name) {
+        return false;
+      }
       const matchesSearch = item.name.toLowerCase().includes(catalogSearch.toLowerCase()) ||
                            (item.description || '').toLowerCase().includes(catalogSearch.toLowerCase()) ||
                            (item.sku || '').toLowerCase().includes(catalogSearch.toLowerCase());
@@ -1244,8 +1253,8 @@ const DashboardWithFirebase = ({
       return matchesSearch && matchesFilter && matchesCategory;
     });
 
-    // Obter categorias únicas
-    const categories = [...new Set(catalogItems.map(i => i.category).filter(Boolean))];
+    // Obter categorias únicas (apenas de itens válidos)
+    const categories = [...new Set(validItems.map(i => i.category).filter(Boolean))];
 
     return (
       <div className="p-6 lg:p-10 space-y-6 max-w-[1400px] mx-auto">
@@ -2117,7 +2126,7 @@ const DashboardWithFirebase = ({
                   {catalogItems.length} itens
                 </p>
                 <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
-                  {catalogItems.filter(i => i.type === 'product').length} produtos · {catalogItems.filter(i => i.type === 'service').length} serviços
+                  {catalogItems.filter(i => i && i.type === 'product').length} produtos · {catalogItems.filter(i => i && i.type === 'service').length} serviços
                 </p>
               </div>
             </div>
