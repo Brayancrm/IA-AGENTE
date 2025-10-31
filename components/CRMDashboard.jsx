@@ -457,9 +457,9 @@ const CRMDashboard = ({ user, database, showToast }) => {
   // Filtrar clientes
   const clientesFiltrados = clientes.filter(cliente => {
     const matchSearch = searchQuery === '' || 
-      cliente.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      cliente.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      cliente.phone.includes(searchQuery);
+      (cliente.name && cliente.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (cliente.email && cliente.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (cliente.phone && cliente.phone.includes(searchQuery));
     
     const matchStatus = statusFilter === 'todos' || cliente.status === statusFilter;
     
