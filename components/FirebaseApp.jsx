@@ -3135,7 +3135,7 @@ const DashboardWithFirebase = ({
                 }}>
                   <p style={{ fontSize: '1rem', color: '#92400e', margin: 0, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ fontSize: '1.5rem' }}>💡</span>
-                    <span><strong>Dica:</strong> Certifique-se de que o servidor backend está rodando antes de conectar.</span>
+                    <span><strong>Instrução:</strong> Clique em "Conectar" e aguarde alguns minutos até o QR code ser gerado.</span>
                   </p>
                 </div>
               )}
