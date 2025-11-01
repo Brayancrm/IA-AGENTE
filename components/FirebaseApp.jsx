@@ -2024,25 +2024,30 @@ const DashboardWithFirebase = ({
     const daysInMonth = lastDayOfMonth.getDate();
     const startingDayOfWeek = firstDayOfMonth.getDay(); // 0 = Domingo, 6 = Sábado
 
-    // Agrupar agendamentos por data
+    // Agrupar agendamentos por data (suporta ambos os formatos: YYYY-MM-DD e DD/MM/YYYY)
     const agendamentosPorData = {};
     agendamentos.forEach(agend => {
-      const dataKey = agend.data; // formato DD/MM/YYYY
+      const dataOriginal = agend.data;
+      
+      // Converter para formato padrão se estiver em formato diferente
+      let dataKey;
+      if (dataOriginal.includes('-')) {
+        // Formato YYYY-MM-DD, converter para DD/MM/YYYY
+        const [year, month, day] = dataOriginal.split('-');
+        dataKey = `${day}/${month}/${year}`;
+      } else {
+        // Já está em DD/MM/YYYY
+        dataKey = dataOriginal;
+      }
+      
       if (!agendamentosPorData[dataKey]) {
         agendamentosPorData[dataKey] = [];
       }
       agendamentosPorData[dataKey].push(agend);
     });
 
-    // Converter data do formato DD/MM/YYYY para Date para comparação
-    const parseDate = (dateStr) => {
-      const [day, month, year] = dateStr.split('/');
-      return new Date(year, month - 1, day);
-    };
-
     // Verificar se uma data tem agendamentos
     const temAgendamentosNoDia = (day) => {
-      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
       const dateStr = `${String(day).padStart(2, '0')}/${String(currentMonth.getMonth() + 1).padStart(2, '0')}/${currentMonth.getFullYear()}`;
       return agendamentosPorData[dateStr] && agendamentosPorData[dateStr].length > 0;
     };
@@ -2112,8 +2117,8 @@ const DashboardWithFirebase = ({
           </button>
         </div>
 
-        {/* Grid do Calendário */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px' }}>
+          {/* Grid do Calendário */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', overflow: 'hidden' }}>
           {/* Cabeçalhos dos dias da semana */}
           {diasDaSemana.map(day => (
             <div key={day} style={{
@@ -2121,7 +2126,9 @@ const DashboardWithFirebase = ({
               textAlign: 'center',
               fontWeight: '600',
               color: '#9ca3af',
-              fontSize: '0.875rem'
+              fontSize: '0.875rem',
+              backgroundColor: '#0f1419',
+              border: '1px solid rgba(255,255,255,0.1)'
             }}>
               {day}
             </div>
@@ -2129,7 +2136,7 @@ const DashboardWithFirebase = ({
 
           {/* Dias vazios no início */}
           {Array.from({ length: startingDayOfWeek }).map((_, index) => (
-            <div key={`empty-${index}`} style={{ padding: '12px' }} />
+            <div key={`empty-${index}`} style={{ padding: '12px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: '#0f1419' }} />
           ))}
 
           {/* Dias do mês */}
@@ -2153,10 +2160,9 @@ const DashboardWithFirebase = ({
                 style={{
                   padding: '12px',
                   textAlign: 'center',
-                  borderRadius: '8px',
-                  cursor: temAgendamentos ? 'pointer' : 'default',
-                  backgroundColor: isToday ? 'rgba(16, 185, 129, 0.2)' : temAgendamentos ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                  border: isToday ? '2px solid #10b981' : temAgendamentos ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid transparent',
+                  cursor: 'pointer',
+                  backgroundColor: '#0f1419',
+                  border: isToday ? '2px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
                   color: '#ffffff',
                   fontWeight: isToday ? '700' : '500',
                   transition: 'all 0.2s ease',
@@ -2169,16 +2175,12 @@ const DashboardWithFirebase = ({
                   gap: '4px'
                 }}
                 onMouseEnter={(e) => {
-                  if (temAgendamentos) {
-                    e.target.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
-                    e.target.style.transform = 'scale(1.05)';
-                  }
+                  e.target.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
+                  e.target.style.transform = 'scale(1.02)';
                 }}
                 onMouseLeave={(e) => {
-                  if (temAgendamentos) {
-                    e.target.style.backgroundColor = isToday ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)';
-                    e.target.style.transform = 'scale(1)';
-                  }
+                  e.target.style.backgroundColor = '#0f1419';
+                  e.target.style.transform = 'scale(1)';
                 }}
               >
                 <span style={{ fontSize: '1rem' }}>{day}</span>
