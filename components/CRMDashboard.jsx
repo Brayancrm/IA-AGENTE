@@ -481,8 +481,30 @@ const CRMDashboard = ({ user, database, showToast }) => {
         return;
       }
       
-      // Parse do CSV (considerando vírgula como separador)
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      // Parse do CSV mais robusto (considerando vírgula como separador)
+      const parseCSVLine = (line) => {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            result.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        
+        result.push(current.trim());
+        return result;
+      };
+      
+      const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase());
       
       // Verificar colunas obrigatórias
       const nomeIndex = headers.indexOf('nome');
@@ -502,7 +524,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
       
       // Processar cada linha
       for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim());
+        const values = parseCSVLine(lines[i]);
         
         const nome = values[nomeIndex];
         const telefone = values[telefoneIndex];
