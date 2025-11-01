@@ -308,34 +308,36 @@ export default function ConversasSimples({ userId, backendUrl }) {
         display: 'flex', 
         gap: '16px', 
         height: 'calc(100% - 80px)', 
-        backgroundColor: 'white', 
+        backgroundColor: '#1a1f36', 
         borderRadius: '16px', 
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)', 
+        boxShadow: '0 4px 6px rgba(0,0,0,0.3)', 
+        border: '1px solid rgba(255,255,255,0.1)',
         overflow: 'hidden' 
       }}>
         {/* Lista de Conversas - Esquerda */}
         <div style={{ 
           width: '350px', 
-          borderRight: '1px solid #e5e7eb', 
+          borderRight: '1px solid rgba(255,255,255,0.1)', 
           display: 'flex', 
           flexDirection: 'column' 
         }}>
           {/* Header da lista */}
           <div style={{ 
             padding: '16px', 
-            borderBottom: '1px solid #e5e7eb', 
-            backgroundColor: '#f9fafb' 
+            borderBottom: '1px solid rgba(255,255,255,0.1)', 
+            backgroundColor: '#0f1419' 
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937' }}>Conversas</span>
+                <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#ffffff' }}>Conversas</span>
                 <span style={{ 
                   backgroundColor: '#10b981', 
                   color: 'white', 
                   fontSize: '0.75rem', 
                   fontWeight: 'bold', 
                   padding: '2px 8px', 
-                  borderRadius: '12px'
+                  borderRadius: '12px',
+                  border: '1px solid #059669'
                 }}>
                   {conversas.length}
                 </span>
@@ -348,19 +350,19 @@ export default function ConversasSimples({ userId, backendUrl }) {
                 gap: '6px',
                 padding: '4px 10px',
                 borderRadius: '12px',
-                backgroundColor: whatsappStatus === 'connected' ? '#dcfce7' : whatsappStatus === 'disconnected' ? '#fee2e2' : '#f3f4f6',
-                border: `1px solid ${whatsappStatus === 'connected' ? '#86efac' : whatsappStatus === 'disconnected' ? '#fca5a5' : '#d1d5db'}`
+                backgroundColor: whatsappStatus === 'connected' ? 'rgba(16, 185, 129, 0.1)' : whatsappStatus === 'disconnected' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(156, 163, 175, 0.1)',
+                border: `1px solid ${whatsappStatus === 'connected' ? 'rgba(16, 185, 129, 0.3)' : whatsappStatus === 'disconnected' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(156, 163, 175, 0.3)'}`
               }}>
                 <div style={{
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
-                  backgroundColor: whatsappStatus === 'connected' ? '#22c55e' : whatsappStatus === 'disconnected' ? '#ef4444' : '#9ca3af'
+                  backgroundColor: whatsappStatus === 'connected' ? '#10b981' : whatsappStatus === 'disconnected' ? '#ef4444' : '#9ca3af'
                 }}></div>
                 <span style={{ 
                   fontSize: '0.75rem', 
                   fontWeight: '600',
-                  color: whatsappStatus === 'connected' ? '#16a34a' : whatsappStatus === 'disconnected' ? '#dc2626' : '#6b7280'
+                  color: '#ffffff'
                 }}>
                   {whatsappStatus === 'connected' ? 'Conectado' : whatsappStatus === 'disconnected' ? 'Desconectado' : 'Verificando...'}
                 </span>
@@ -371,7 +373,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
           {/* Lista */}
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {conversas.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
+              <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af' }}>
                 <div style={{ fontSize: '2rem', marginBottom: '8px' }}>💬</div>
                 Nenhuma conversa ainda
               </div>
@@ -387,29 +389,29 @@ export default function ConversasSimples({ userId, backendUrl }) {
                     onClick={() => setConversaSelecionada(conv.contactNumber)}
                     style={{
                       padding: '16px',
-                      borderBottom: '1px solid #e5e7eb',
+                      borderBottom: '1px solid rgba(255,255,255,0.1)',
                       cursor: 'pointer',
-                      backgroundColor: selecionada ? '#eff6ff' : 'white',
+                      backgroundColor: selecionada ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
                       transition: 'background-color 0.2s'
                     }}
                     onMouseEnter={(e) => {
-                      if (!selecionada) e.currentTarget.style.backgroundColor = '#f9fafb';
+                      if (!selecionada) e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.05)';
                     }}
                     onMouseLeave={(e) => {
-                      if (!selecionada) e.currentTarget.style.backgroundColor = 'white';
+                      if (!selecionada) e.currentTarget.style.backgroundColor = 'transparent';
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <div style={{ fontWeight: '600', color: '#1f2937' }}>
+                      <div style={{ fontWeight: '600', color: '#ffffff' }}>
                         📱 {telefone}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
                         {tempo}
                       </div>
                     </div>
                     <div style={{ 
                       fontSize: '0.875rem', 
-                      color: '#6b7280',
+                      color: '#9ca3af',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap'
@@ -418,7 +420,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
                     </div>
                     <div style={{ 
                       fontSize: '0.75rem', 
-                      color: '#9ca3af',
+                      color: '#6b7280',
                       marginTop: '4px'
                     }}>
                       💬 {conv.messageCount || 0} mensagens
@@ -434,7 +436,8 @@ export default function ConversasSimples({ userId, backendUrl }) {
         <div style={{ 
           flex: 1, 
           display: 'flex', 
-          flexDirection: 'column'
+          flexDirection: 'column',
+          backgroundColor: '#0f1419'
         }}>
           {!conversaSelecionada ? (
             <div style={{
@@ -443,10 +446,10 @@ export default function ConversasSimples({ userId, backendUrl }) {
               alignItems: 'center',
               justifyContent: 'center',
               height: '100%',
-              color: '#6b7280'
+              color: '#9ca3af'
             }}>
               <div style={{ fontSize: '4rem', marginBottom: '16px' }}>💬</div>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '8px' }}>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
                 Nenhuma conversa selecionada
               </h3>
               <p>Clique em uma conversa para ver as mensagens</p>
@@ -456,8 +459,8 @@ export default function ConversasSimples({ userId, backendUrl }) {
               {/* Header da conversa */}
               <div style={{ 
                 padding: '16px', 
-                borderBottom: '1px solid #e5e7eb', 
-                backgroundColor: '#f9fafb',
+                borderBottom: '1px solid rgba(255,255,255,0.1)', 
+                backgroundColor: '#1a1f36',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px'
@@ -477,10 +480,10 @@ export default function ConversasSimples({ userId, backendUrl }) {
                   {formatarTelefone(conversaSelecionada).substring(0, 2).toUpperCase()}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 'bold', color: '#1f2937' }}>
+                  <div style={{ fontWeight: 'bold', color: '#ffffff' }}>
                     {formatarTelefone(conversaSelecionada)}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
                     {mensagens.length} mensagens
                   </div>
                 </div>
@@ -491,18 +494,18 @@ export default function ConversasSimples({ userId, backendUrl }) {
                 flex: 1, 
                 padding: '24px', 
                 overflowY: 'auto',
-                backgroundColor: '#f9fafb',
-                backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,.02) 10px, rgba(0,0,0,.02) 20px)'
+                backgroundColor: '#0f1419',
+                backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,.02) 10px, rgba(255,255,255,.02) 20px)'
               }}>
                 {carregandoMensagens ? (
-                  <div style={{ textAlign: 'center', padding: '48px', color: '#6b7280' }}>
+                  <div style={{ textAlign: 'center', padding: '48px', color: '#9ca3af' }}>
                     <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
                     <p>Carregando mensagens...</p>
                   </div>
                 ) : mensagens.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '48px', color: '#6b7280' }}>
+                  <div style={{ textAlign: 'center', padding: '48px', color: '#9ca3af' }}>
                     <div style={{ fontSize: '3rem', marginBottom: '16px' }}>💬</div>
-                    <div style={{ fontSize: '1.125rem', fontWeight: '500', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '1.125rem', fontWeight: '500', marginBottom: '8px', color: '#ffffff' }}>
                       Nenhuma mensagem ainda
                     </div>
                     <div style={{ fontSize: '0.875rem' }}>
@@ -526,17 +529,18 @@ export default function ConversasSimples({ userId, backendUrl }) {
                       >
                         <div style={{ maxWidth: '70%' }}>
                           <div style={{ 
-                            backgroundColor: isFromMe ? '#dcf8c6' : 'white', 
+                            backgroundColor: isFromMe ? 'rgba(16, 185, 129, 0.2)' : '#1a1f36', 
                             padding: '12px 16px', 
                             borderRadius: '12px',
                             borderTopLeftRadius: isFromMe ? '12px' : '4px',
                             borderTopRightRadius: isFromMe ? '4px' : '12px',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                            border: isFromMe ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255,255,255,0.1)',
                             wordBreak: 'break-word'
                           }}>
                             <p style={{ 
                               margin: 0, 
-                              color: '#1f2937', 
+                              color: '#ffffff', 
                               fontSize: '0.9rem', 
                               whiteSpace: 'pre-wrap' 
                             }}>
@@ -545,7 +549,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
                             {msg.aiGenerated && (
                               <span style={{ 
                                 fontSize: '0.7rem', 
-                                color: '#8b5cf6', 
+                                color: '#10b981', 
                                 marginTop: '4px', 
                                 display: 'block',
                                 fontWeight: 'bold'
@@ -555,7 +559,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
                             )}
                             <span style={{ 
                               fontSize: '0.7rem', 
-                              color: isFromMe ? '#6b7280' : '#9ca3af', 
+                              color: '#9ca3af', 
                               marginTop: '4px', 
                               display: 'block', 
                               textAlign: 'right' 
@@ -573,8 +577,8 @@ export default function ConversasSimples({ userId, backendUrl }) {
               {/* Input de mensagem */}
               <div style={{ 
                 padding: '16px', 
-                borderTop: '1px solid #e5e7eb', 
-                backgroundColor: 'white',
+                borderTop: '1px solid rgba(255,255,255,0.1)', 
+                backgroundColor: '#1a1f36',
                 display: 'flex',
                 gap: '12px',
                 alignItems: 'center'
@@ -593,22 +597,24 @@ export default function ConversasSimples({ userId, backendUrl }) {
                   style={{
                     flex: 1,
                     padding: '12px 16px',
-                    border: '1px solid #e5e7eb',
+                    border: '1px solid #374151',
                     borderRadius: '24px',
                     fontSize: '0.9rem',
                     outline: 'none',
-                    transition: 'border-color 0.2s'
+                    transition: 'border-color 0.2s',
+                    backgroundColor: '#0f1419',
+                    color: '#ffffff'
                   }}
                   onFocus={(e) => e.target.style.borderColor = '#10b981'}
-                  onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                  onBlur={(e) => e.target.style.borderColor = '#374151'}
                 />
                 <button 
                   onClick={enviarMensagem}
                   disabled={!mensagemInput.trim() || enviandoMensagem}
                   style={{
                     padding: '10px 20px',
-                    backgroundColor: mensagemInput.trim() && !enviandoMensagem ? '#10b981' : '#d1d5db',
-                    border: 'none',
+                    backgroundColor: mensagemInput.trim() && !enviandoMensagem ? '#10b981' : '#374151',
+                    border: mensagemInput.trim() && !enviandoMensagem ? '1px solid #059669' : '1px solid #4b5563',
                     borderRadius: '24px',
                     cursor: mensagemInput.trim() && !enviandoMensagem ? 'pointer' : 'not-allowed',
                     color: 'white',
