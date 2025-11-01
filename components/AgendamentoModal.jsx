@@ -76,26 +76,26 @@ const AgendamentoModal = ({
       animation: 'fadeIn 0.2s ease'
     }}>
       <div style={{
-        backgroundColor: 'white',
+        backgroundColor: '#1a1f36',
         borderRadius: '24px',
         padding: '40px',
         width: '90%',
         maxWidth: '650px',
         maxHeight: '90vh',
         overflow: 'auto',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-        border: '1px solid #e5e7eb',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+        border: '1px solid rgba(16, 185, 129, 0.3)',
         animation: 'slideUp 0.3s ease'
       }}>
         <div style={{ 
           marginBottom: '32px',
           paddingBottom: '24px',
-          borderBottom: '2px solid #f3f4f6'
+          borderBottom: '2px solid rgba(16, 185, 129, 0.2)'
         }}>
           <h3 style={{ 
             fontSize: '1.875rem', 
             fontWeight: '700', 
-            color: '#111827',
+            color: '#ffffff',
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
@@ -106,7 +106,7 @@ const AgendamentoModal = ({
             </span>
             {editingAgendamento ? 'Editar Agendamento' : 'Novo Agendamento'}
           </h3>
-          <p style={{ fontSize: '0.9375rem', color: '#6b7280' }}>
+          <p style={{ fontSize: '0.9375rem', color: '#9ca3af' }}>
             {editingAgendamento ? 'Atualize os dados do agendamento' : 'Preencha os dados para criar um novo agendamento'}
           </p>
         </div>
@@ -119,7 +119,7 @@ const AgendamentoModal = ({
               gap: '8px',
               fontWeight: '600', 
               marginBottom: '10px', 
-              color: '#111827',
+              color: '#ffffff',
               fontSize: '0.9375rem'
             }}>
               <span style={{ fontSize: '1.125rem' }}>📝</span>
@@ -134,25 +134,27 @@ const AgendamentoModal = ({
               style={{
                 width: '100%',
                 padding: '12px 14px',
-                border: '2px solid #e5e7eb',
+                border: '2px solid #374151',
                 borderRadius: '12px',
                 fontSize: '1rem',
                 outline: 'none',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                backgroundColor: '#0f1419',
+                color: '#ffffff'
               }}
               onFocus={(e) => {
-                e.target.style.borderColor = '#6366f1';
-                e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                e.target.style.borderColor = '#10b981';
+                e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
               }}
               onBlur={(e) => {
-                e.target.style.borderColor = '#e5e7eb';
+                e.target.style.borderColor = '#374151';
                 e.target.style.boxShadow = 'none';
               }}
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
               Tipo *
             </label>
             <select
@@ -162,9 +164,11 @@ const AgendamentoModal = ({
               style={{
                 width: '100%',
                 padding: '10px',
-                border: '1px solid #d1d5db',
+                border: '1px solid #374151',
                 borderRadius: '8px',
-                fontSize: '0.875rem'
+                fontSize: '0.875rem',
+                backgroundColor: '#0f1419',
+                color: '#ffffff'
               }}
             >
               <option value="">Selecione</option>
@@ -178,7 +182,7 @@ const AgendamentoModal = ({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
-              <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+              <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
                 Data *
               </label>
               <input
@@ -189,14 +193,16 @@ const AgendamentoModal = ({
                 style={{
                   width: '100%',
                   padding: '10px',
-                  border: '1px solid #d1d5db',
+                  border: '1px solid #374151',
                   borderRadius: '8px',
-                  fontSize: '0.875rem'
+                  fontSize: '0.875rem',
+                  backgroundColor: '#0f1419',
+                  color: '#ffffff'
                 }}
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+              <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
                 Horário *
               </label>
               <input
@@ -207,16 +213,18 @@ const AgendamentoModal = ({
                 style={{
                   width: '100%',
                   padding: '10px',
-                  border: '1px solid #d1d5db',
+                  border: '1px solid #374151',
                   borderRadius: '8px',
-                  fontSize: '0.875rem'
+                  fontSize: '0.875rem',
+                  backgroundColor: '#0f1419',
+                  color: '#ffffff'
                 }}
               />
             </div>
           </div>
 
           <div>
-            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
               Cliente *
             </label>
             <input
@@ -228,15 +236,17 @@ const AgendamentoModal = ({
               style={{
                 width: '100%',
                 padding: '10px',
-                border: '1px solid #d1d5db',
+                border: '1px solid #374151',
                 borderRadius: '8px',
-                fontSize: '0.875rem'
+                fontSize: '0.875rem',
+                backgroundColor: '#0f1419',
+                color: '#ffffff'
               }}
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
               Telefone
             </label>
             <input
@@ -247,15 +257,17 @@ const AgendamentoModal = ({
               style={{
                 width: '100%',
                 padding: '10px',
-                border: '1px solid #d1d5db',
+                border: '1px solid #374151',
                 borderRadius: '8px',
-                fontSize: '0.875rem'
+                fontSize: '0.875rem',
+                backgroundColor: '#0f1419',
+                color: '#ffffff'
               }}
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
               Descrição
             </label>
             <textarea
@@ -266,16 +278,18 @@ const AgendamentoModal = ({
               style={{
                 width: '100%',
                 padding: '10px',
-                border: '1px solid #d1d5db',
+                border: '1px solid #374151',
                 borderRadius: '8px',
                 fontSize: '0.875rem',
-                resize: 'vertical'
+                resize: 'vertical',
+                backgroundColor: '#0f1419',
+                color: '#ffffff'
               }}
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
               Observações
             </label>
             <textarea
@@ -286,17 +300,19 @@ const AgendamentoModal = ({
               style={{
                 width: '100%',
                 padding: '10px',
-                border: '1px solid #d1d5db',
+                border: '1px solid #374151',
                 borderRadius: '8px',
                 fontSize: '0.875rem',
-                resize: 'vertical'
+                resize: 'vertical',
+                backgroundColor: '#0f1419',
+                color: '#ffffff'
               }}
             />
           </div>
 
           {editingAgendamento && (
             <div>
-              <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+              <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
                 Status
               </label>
               <select
@@ -305,9 +321,11 @@ const AgendamentoModal = ({
                 style={{
                   width: '100%',
                   padding: '10px',
-                  border: '1px solid #d1d5db',
+                  border: '1px solid #374151',
                   borderRadius: '8px',
-                  fontSize: '0.875rem'
+                  fontSize: '0.875rem',
+                  backgroundColor: '#0f1419',
+                  color: '#ffffff'
                 }}
               >
                 <option value="pendente">Pendente</option>
@@ -324,22 +342,22 @@ const AgendamentoModal = ({
             gap: '12px', 
             marginTop: '16px',
             paddingTop: '24px',
-            borderTop: '2px solid #f3f4f6'
+            borderTop: '2px solid rgba(16, 185, 129, 0.2)'
           }}>
             <button
               type="submit"
               style={{
                 flex: 1,
-                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                 color: 'white',
                 padding: '14px 24px',
                 borderRadius: '12px',
-                border: 'none',
+                border: '1px solid #059669',
                 cursor: 'pointer',
                 fontWeight: '600',
                 fontSize: '1rem',
                 transition: 'all 0.2s ease',
-                boxShadow: '0 4px 16px rgba(99, 102, 241, 0.3)',
+                boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -347,11 +365,11 @@ const AgendamentoModal = ({
               }}
               onMouseEnter={(e) => {
                 e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 6px 20px rgba(99, 102, 241, 0.4)';
+                e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.4)';
               }}
               onMouseLeave={(e) => {
                 e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 4px 16px rgba(99, 102, 241, 0.3)';
+                e.target.style.boxShadow = '0 4px 16px rgba(16, 185, 129, 0.3)';
               }}
             >
               <span style={{ fontSize: '1.25rem' }}>
@@ -364,11 +382,11 @@ const AgendamentoModal = ({
               onClick={onClose}
               style={{
                 flex: 1,
-                background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-                color: '#374151',
+                background: 'linear-gradient(135deg, #374151 0%, #4b5563 100%)',
+                color: '#ffffff',
                 padding: '14px 24px',
                 borderRadius: '12px',
-                border: '2px solid #d1d5db',
+                border: '1px solid rgba(255,255,255,0.1)',
                 cursor: 'pointer',
                 fontWeight: '600',
                 fontSize: '1rem',
@@ -379,11 +397,11 @@ const AgendamentoModal = ({
                 gap: '8px'
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = 'linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%)';
+                e.target.style.background = 'linear-gradient(135deg, #4b5563 0%, #6b7280 100%)';
                 e.target.style.transform = 'translateY(-2px)';
               }}
               onMouseLeave={(e) => {
-                e.target.style.background = 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)';
+                e.target.style.background = 'linear-gradient(135deg, #374151 0%, #4b5563 100%)';
                 e.target.style.transform = 'translateY(0)';
               }}
             >
@@ -398,4 +416,3 @@ const AgendamentoModal = ({
 };
 
 export default AgendamentoModal;
-
