@@ -4181,7 +4181,7 @@ const DashboardWithFirebase = ({
             >
           {/* Logo */}
           <div style={{ 
-            marginBottom: '40px', 
+            marginBottom: '20px', 
             display: 'flex', 
             justifyContent: 'center', 
             alignItems: 'center' 
@@ -4210,7 +4210,7 @@ const DashboardWithFirebase = ({
               borderRadius: '8px', 
               fontSize: '12px', 
               fontWeight: '700', 
-              marginBottom: '24px', 
+              marginBottom: '16px', 
               textAlign: 'center',
               boxShadow: '0 2px 8px rgba(251, 191, 36, 0.3)'
             }}>
