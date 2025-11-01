@@ -12,7 +12,7 @@ import AIGeneratorModal from './AIGeneratorModal';
  * - Reordenar via drag & drop
  * - Gerar prompt automaticamente
  */
-export default function FlowBuilder({ initialSteps = [], catalogItems = [], onChange }) {
+export default function FlowBuilder({ initialSteps = [], catalogItems = [], onChange, onPromptChange }) {
   const [steps, setSteps] = useState(initialSteps);
   const [editingIndex, setEditingIndex] = useState(null);
   const [editingStep, setEditingStep] = useState(null);
@@ -27,6 +27,8 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
   const [showPromptImprover, setShowPromptImprover] = useState(false);
   const [promptImprovements, setPromptImprovements] = useState('');
   const [improvingPrompt, setImprovingPrompt] = useState(false);
+  const [improvedPrompt, setImprovedPrompt] = useState(null);
+  const [showingImproved, setShowingImproved] = useState(false);
 
   // Tipos de ação disponíveis
   const actionTypes = [
@@ -251,9 +253,12 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
 
       const data = await response.json();
       if (data.improvedPrompt) {
-        // Aqui você pode aplicar as melhorias ao prompt
-        alert('Prompt melhorado! Veja o resultado na área de preview.');
-        console.log('Prompt melhorado:', data.improvedPrompt);
+        setImprovedPrompt(data.improvedPrompt);
+        setShowingImproved(true);
+        // Aplicar melhorias ao prompt final
+        if (onPromptChange) {
+          onPromptChange(data.improvedPrompt);
+        }
       } else {
         alert('❌ Erro: ' + (data.error || 'Erro desconhecido'));
       }

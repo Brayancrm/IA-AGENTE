@@ -3508,6 +3508,12 @@ const DashboardWithFirebase = ({
                         systemPrompt: convertStepsToPrompt(newSteps)
                       }));
                     }}
+                    onPromptChange={(improvedPrompt) => {
+                      setAssistantForm(prev => ({
+                        ...prev,
+                        systemPrompt: improvedPrompt
+                      }));
+                    }}
                   />
                 </div>
 
