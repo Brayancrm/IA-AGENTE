@@ -1317,7 +1317,9 @@ const DashboardWithFirebase = ({
           <div className="bg-gradient-to-br from-green-800 to-green-900 rounded-2xl p-6 text-white shadow-lg border border-green-700">
             <div className="flex items-center justify-between mb-2">
               <DollarSign className="w-8 h-8 opacity-80" />
-              <span className="text-3xl font-bold">R$ {(stats.totalValue / 1000).toFixed(1)}k</span>
+              <span className="text-3xl font-bold">
+                {stats.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </span>
             </div>
             <p className="text-green-100">Valor Total</p>
           </div>
