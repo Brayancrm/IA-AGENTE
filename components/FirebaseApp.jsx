@@ -4154,7 +4154,7 @@ const DashboardWithFirebase = ({
   ];
 
   return (
-        <div style={{ minHeight: '100vh', backgroundColor: '#0f1419', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
+        <div style={{ height: '100vh', backgroundColor: '#0f1419', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', display: 'flex', overflow: 'hidden' }}>
 
             {/* Sidebar Modernizada - FIXA E CONGELADA */}
             <div 
@@ -4319,9 +4319,9 @@ const DashboardWithFirebase = ({
               className="main-content"
               style={{ 
                 marginLeft: '280px',
-                minHeight: '100vh',
                 backgroundColor: '#0f1419',
-                overflowY: 'auto'
+                width: 'calc(100% - 280px)',
+                flex: 1
               }}
             >
           {renderContent()}
