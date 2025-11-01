@@ -3909,6 +3909,72 @@ IMPORTANTE:
   }
 });
 
+/**
+ * POST /api/test-prompt
+ * Testar prompt rapidamente com uma mensagem
+ */
+app.post('/api/test-prompt', async (req, res) => {
+  try {
+    const { systemPrompt, userMessage } = req.body;
+
+    console.log('🧪 [Teste Rápido] Recebida solicitação de teste');
+    console.log('   - Prompt length:', systemPrompt?.length || 0);
+    console.log('   - Message length:', userMessage?.length || 0);
+
+    if (!systemPrompt || !userMessage) {
+      return res.status(400).json({
+        error: 'systemPrompt e userMessage são obrigatórios'
+      });
+    }
+
+    // Buscar API Key do ambiente ou usar a padrão
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      return res.status(400).json({
+        error: 'OPENAI_API_KEY não configurada no servidor'
+      });
+    }
+
+    // Chamar OpenAI API
+    const openaiResponse = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: userMessage
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 150
+    }, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const aiResponse = openaiResponse.data.choices[0].message.content;
+
+    console.log('✅ [Teste Rápido] Resposta gerada com sucesso');
+
+    res.json({
+      response: aiResponse
+    });
+
+  } catch (error) {
+    console.error('❌ [Teste Rápido] Erro:', error.message);
+    
+    res.status(500).json({
+      error: error.response?.data?.error?.message || error.message
+    });
+  }
+});
+
 // ============================================
 // INICIAR SERVIDOR
 // ============================================

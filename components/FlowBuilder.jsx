@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Plus, Trash2, GripVertical, Edit2, Save, X, FileText, Sparkles } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Edit2, Save, X, FileText, Sparkles, Play } from 'lucide-react';
 import TemplateModal from './TemplateModal';
 import AIGeneratorModal from './AIGeneratorModal';
 
@@ -18,6 +18,9 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
   const [editingStep, setEditingStep] = useState(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
+  const [showQuickTest, setShowQuickTest] = useState(false);
+  const [testMessage, setTestMessage] = useState('');
+  const [testResponse, setTestResponse] = useState('');
 
   // Tipos de ação disponíveis
   const actionTypes = [
@@ -133,6 +136,44 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
     applyTemplate(template);
   };
 
+  // Testar prompt rapidamente
+  const handleQuickTest = async () => {
+    if (!testMessage.trim()) {
+      alert('Digite uma mensagem para testar!');
+      return;
+    }
+
+    const prompt = generatePrompt();
+    if (!prompt) {
+      alert('Configure pelo menos um passo antes de testar!');
+      return;
+    }
+
+    setTestResponse('⏳ Gerando resposta...');
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://ia-agente-production.up.railway.app'}/api/test-prompt`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          systemPrompt: prompt,
+          userMessage: testMessage
+        })
+      });
+
+      const data = await response.json();
+      if (data.response) {
+        setTestResponse(data.response);
+      } else {
+        setTestResponse('❌ Erro ao gerar resposta: ' + (data.error || 'Erro desconhecido'));
+      }
+    } catch (error) {
+      setTestResponse('❌ Erro ao conectar: ' + error.message);
+    }
+  };
+
   // Gerar prompt a partir dos steps
   const generatePrompt = () => {
     let prompt = '';
@@ -226,6 +267,16 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
             )}
           </div>
           <div className="flex gap-3">
+            {steps.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowQuickTest(true)}
+                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+              >
+                <Play size={20} />
+                Testar
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setShowAIModal(true)}
@@ -929,6 +980,75 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
         onClose={() => setShowAIModal(false)}
         onGenerate={applyAITemplate}
       />
+
+      {/* Quick Test Modal */}
+      {showQuickTest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-800">
+                🧪 Teste Rápido do Agente
+              </h3>
+              <button
+                onClick={() => {
+                  setShowQuickTest(false);
+                  setTestMessage('');
+                  setTestResponse('');
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Input da mensagem */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Digite uma mensagem para testar:
+                </label>
+                <textarea
+                  value={testMessage}
+                  onChange={(e) => setTestMessage(e.target.value)}
+                  placeholder="Ex: Olá, quero comprar um produto"
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Botão testar */}
+              <button
+                onClick={handleQuickTest}
+                className="w-full bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2"
+              >
+                <Play size={20} />
+                Enviar Teste
+              </button>
+
+              {/* Resposta */}
+              {testResponse && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Resposta do Agente:
+                  </label>
+                  <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 min-h-[150px]">
+                    <pre className="whitespace-pre-wrap text-sm text-gray-800">
+                      {testResponse}
+                    </pre>
+                  </div>
+                </div>
+              )}
+
+              {/* Dica */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs text-blue-800">
+                  💡 <strong>Teste Interativo:</strong> Digite diferentes mensagens para ver como o agente responde baseado no fluxo configurado.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
