@@ -4053,6 +4053,103 @@ IMPORTANTE:
   }
 });
 
+/**
+ * POST /api/generate-demo-conversation
+ * Gerar conversa demonstração completa baseada no prompt configurado
+ */
+app.post('/api/generate-demo-conversation', async (req, res) => {
+  try {
+    const { systemPrompt } = req.body;
+
+    console.log('💬 [Demo] Gerando conversa demonstração');
+    console.log('   - Prompt length:', systemPrompt?.length || 0);
+
+    if (!systemPrompt) {
+      return res.status(400).json({
+        error: 'systemPrompt é obrigatório'
+      });
+    }
+
+    // Buscar API Key do ambiente
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      return res.status(400).json({
+        error: 'OPENAI_API_KEY não configurada no servidor'
+      });
+    }
+
+    // Prompt para a IA gerar uma conversa demonstração completa
+    const demoSystemPrompt = `Você é um especialista em criar conversas de demonstração para agentes de IA.
+
+Sua tarefa é gerar uma conversa completa e realista entre um CLIENTE e um AGENTE DE IA, seguindo exatamente as instruções do prompt do agente.
+
+REQUISITOS:
+- Gere uma conversa natural e fluida
+- Demonstre pelo menos 3-5 trocas de mensagens
+- Comece com uma saudação do cliente
+- Mostre diferentes aspectos do agente funcionando (ex: apresentação, atendimento, sugestões, etc)
+- Termine de forma positiva (finalização de pedido, agendamento, ou esclarecimento)
+- Retorne APENAS um JSON no formato:
+{
+  "conversation": [
+    {"sender": "user", "text": "mensagem do cliente"},
+    {"sender": "assistant", "text": "resposta do agente"},
+    ...
+  ]
+}`;
+
+    // Chamar OpenAI API para gerar a conversa
+    const openaiResponse = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: demoSystemPrompt
+        },
+        {
+          role: 'user',
+          content: `PROMPT DO AGENTE:\n\n${systemPrompt}\n\n\nGere uma conversa de demonstração que mostre este agente em ação. Retorne APENAS o JSON.`
+        }
+      ],
+      temperature: 0.8,
+      max_tokens: 1500,
+      response_format: { type: 'json_object' }
+    }, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const responseContent = openaiResponse.data.choices[0].message.content;
+    let demoData;
+    
+    try {
+      demoData = JSON.parse(responseContent);
+    } catch (parseError) {
+      console.error('❌ [Demo] Erro ao fazer parse do JSON:', parseError);
+      return res.status(500).json({
+        error: 'Erro ao processar resposta da IA'
+      });
+    }
+
+    console.log('✅ [Demo] Conversa gerada com sucesso');
+    console.log('   - Mensagens:', demoData.conversation?.length || 0);
+
+    res.json({
+      conversation: demoData.conversation || []
+    });
+
+  } catch (error) {
+    console.error('❌ [Demo] Erro:', error.message);
+    
+    res.status(500).json({
+      error: error.response?.data?.error?.message || error.message
+    });
+  }
+});
+
 // ============================================
 // INICIAR SERVIDOR
 // ============================================

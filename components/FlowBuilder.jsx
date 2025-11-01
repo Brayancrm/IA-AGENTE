@@ -22,6 +22,8 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
   const [testMessage, setTestMessage] = useState('');
   const [testResponse, setTestResponse] = useState('');
   const [showDemoConversation, setShowDemoConversation] = useState(false);
+  const [demoConversation, setDemoConversation] = useState(null);
+  const [generatingDemo, setGeneratingDemo] = useState(false);
   const [showPromptImprover, setShowPromptImprover] = useState(false);
   const [promptImprovements, setPromptImprovements] = useState('');
   const [improvingPrompt, setImprovingPrompt] = useState(false);
@@ -178,6 +180,48 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
     }
   };
 
+  // Gerar conversa demonstração
+  const handleGenerateDemo = async () => {
+    const currentPrompt = generatePrompt();
+    if (!currentPrompt) {
+      alert('Configure pelo menos um passo antes de gerar a demonstração!');
+      return;
+    }
+
+    setGeneratingDemo(true);
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://ia-agente-production.up.railway.app'}/api/generate-demo-conversation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          systemPrompt: currentPrompt
+        })
+      });
+
+      const data = await response.json();
+      if (data.conversation) {
+        setDemoConversation(data.conversation);
+      } else {
+        alert('❌ Erro: ' + (data.error || 'Erro desconhecido'));
+      }
+    } catch (error) {
+      alert('❌ Erro ao conectar: ' + error.message);
+    } finally {
+      setGeneratingDemo(false);
+    }
+  };
+
+  // Abrir modal de demonstração
+  const openDemoConversation = () => {
+    setShowDemoConversation(true);
+    if (!demoConversation) {
+      handleGenerateDemo();
+    }
+  };
+
   // Melhorar prompt com IA
   const handleImprovePrompt = async () => {
     if (!promptImprovements.trim()) {
@@ -325,7 +369,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowDemoConversation(true)}
+                  onClick={openDemoConversation}
                   className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
                 >
                   💬 Demonstração
@@ -1129,42 +1173,56 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
             </div>
 
             <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  💡 <strong>Simulação Completa:</strong> Veja uma conversa exemplo entre o cliente e seu agente configurado
-                </p>
-              </div>
-
-              {/* Conversa exemplo */}
-              <div className="space-y-3">
-                <div className="flex flex-col space-y-2">
-                  <div className="self-end bg-green-500 text-white rounded-lg p-3 max-w-[80%]">
-                    <p className="text-sm">Olá! Gostaria de mais informações sobre os produtos.</p>
-                  </div>
-                  
-                  <div className="self-start bg-gray-200 text-gray-800 rounded-lg p-3 max-w-[80%]">
-                    <p className="text-sm">Olá! Bem-vindo! Fico muito feliz em ajudá-lo. Sou um assistente virtual dedicado a proporcionar a melhor experiência possível. Como posso ajudar hoje?</p>
-                  </div>
-                  
-                  <div className="self-end bg-green-500 text-white rounded-lg p-3 max-w-[80%]">
-                    <p className="text-sm">Quais produtos vocês têm disponíveis?</p>
-                  </div>
-                  
-                  <div className="self-start bg-gray-200 text-gray-800 rounded-lg p-3 max-w-[80%]">
-                    <p className="text-sm">Claro! Aqui estão alguns dos nossos produtos em destaque:</p>
-                    <div className="mt-2 space-y-1">
-                      <p className="text-xs">📦 Produto 1 - R$ 99,90</p>
-                      <p className="text-xs">📦 Produto 2 - R$ 149,90</p>
-                    </div>
+              {generatingDemo ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Gerando conversa demonstração...</p>
                   </div>
                 </div>
-              </div>
+              ) : demoConversation ? (
+                <>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800">
+                      💡 <strong>Conversa Completa:</strong> Simulação baseada no seu fluxo configurado
+                    </p>
+                  </div>
 
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                <p className="text-xs text-amber-800">
-                  ⚠️ Esta é uma conversa de exemplo. O agente real seguirá exatamente o fluxo que você configurou nos passos acima.
-                </p>
-              </div>
+                  {/* Conversa gerada */}
+                  <div className="space-y-3">
+                    <div className="flex flex-col space-y-2">
+                      {demoConversation.map((msg, idx) => (
+                        <div
+                          key={idx}
+                          className={msg.sender === 'user' 
+                            ? 'self-end bg-green-500 text-white rounded-lg p-3 max-w-[80%]'
+                            : 'self-start bg-gray-200 text-gray-800 rounded-lg p-3 max-w-[80%]'}
+                        >
+                          <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+                    <p className="text-sm text-green-800">
+                      ✅ <strong>Gerado com sucesso!</strong>
+                    </p>
+                    <button
+                      onClick={handleGenerateDemo}
+                      className="text-sm text-green-700 hover:text-green-900 underline"
+                    >
+                      🔄 Gerar Novamente
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <p className="text-xs text-amber-800">
+                    ⚠️ Erro ao gerar conversa demonstração
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
