@@ -3975,6 +3975,84 @@ app.post('/api/test-prompt', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/improve-prompt
+ * Melhorar prompt usando IA baseado em feedback do usuário
+ */
+app.post('/api/improve-prompt', async (req, res) => {
+  try {
+    const { currentPrompt, improvements } = req.body;
+
+    console.log('✨ [Melhorador] Recebida solicitação de melhoria');
+    console.log('   - Prompt length:', currentPrompt?.length || 0);
+    console.log('   - Improvements length:', improvements?.length || 0);
+
+    if (!currentPrompt || !improvements) {
+      return res.status(400).json({
+        error: 'currentPrompt e improvements são obrigatórios'
+      });
+    }
+
+    // Buscar API Key do ambiente
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      return res.status(400).json({
+        error: 'OPENAI_API_KEY não configurada no servidor'
+      });
+    }
+
+    // Prompt para a IA melhorar o prompt
+    const improvementSystemPrompt = `Você é um especialista em criar e melhorar prompts para agentes de IA conversacionais.
+
+Sua tarefa é analisar o prompt atual e as melhorias solicitadas pelo usuário, e retornar um prompt aprimorado que integre perfeitamente todas as melhorias desejadas.
+
+IMPORTANTE:
+- Mantenha toda a estrutura e conteúdo original do prompt
+- Adicione as melhorias de forma natural e integrada
+- Não remova nenhuma funcionalidade existente
+- Seja específico e claro nas adições
+- Retorne APENAS o prompt melhorado, sem explicações adicionais`;
+
+    // Chamar OpenAI API
+    const openaiResponse = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: improvementSystemPrompt
+        },
+        {
+          role: 'user',
+          content: `PROMPT ATUAL:\n\n${currentPrompt}\n\n\nMELHORIAS SOLICITADAS PELO USUÁRIO:\n${improvements}\n\n\nPor favor, retorne o prompt melhorado abaixo:`
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 2000
+    }, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const improvedPrompt = openaiResponse.data.choices[0].message.content;
+
+    console.log('✅ [Melhorador] Prompt melhorado com sucesso');
+
+    res.json({
+      improvedPrompt: improvedPrompt
+    });
+
+  } catch (error) {
+    console.error('❌ [Melhorador] Erro:', error.message);
+    
+    res.status(500).json({
+      error: error.response?.data?.error?.message || error.message
+    });
+  }
+});
+
 // ============================================
 // INICIAR SERVIDOR
 // ============================================

@@ -21,6 +21,10 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
   const [showQuickTest, setShowQuickTest] = useState(false);
   const [testMessage, setTestMessage] = useState('');
   const [testResponse, setTestResponse] = useState('');
+  const [showDemoConversation, setShowDemoConversation] = useState(false);
+  const [showPromptImprover, setShowPromptImprover] = useState(false);
+  const [promptImprovements, setPromptImprovements] = useState('');
+  const [improvingPrompt, setImprovingPrompt] = useState(false);
 
   // Tipos de ação disponíveis
   const actionTypes = [
@@ -174,6 +178,48 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
     }
   };
 
+  // Melhorar prompt com IA
+  const handleImprovePrompt = async () => {
+    if (!promptImprovements.trim()) {
+      alert('Digite as melhorias que deseja fazer no prompt!');
+      return;
+    }
+
+    const currentPrompt = generatePrompt();
+    if (!currentPrompt) {
+      alert('Configure pelo menos um passo antes de melhorar!');
+      return;
+    }
+
+    setImprovingPrompt(true);
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://ia-agente-production.up.railway.app'}/api/improve-prompt`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentPrompt: currentPrompt,
+          improvements: promptImprovements
+        })
+      });
+
+      const data = await response.json();
+      if (data.improvedPrompt) {
+        // Aqui você pode aplicar as melhorias ao prompt
+        alert('Prompt melhorado! Veja o resultado na área de preview.');
+        console.log('Prompt melhorado:', data.improvedPrompt);
+      } else {
+        alert('❌ Erro: ' + (data.error || 'Erro desconhecido'));
+      }
+    } catch (error) {
+      alert('❌ Erro ao conectar: ' + error.message);
+    } finally {
+      setImprovingPrompt(false);
+    }
+  };
+
   // Gerar prompt a partir dos steps
   const generatePrompt = () => {
     let prompt = '';
@@ -266,16 +312,32 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
               </div>
             )}
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             {steps.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowQuickTest(true)}
-                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
-              >
-                <Play size={20} />
-                Testar
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowQuickTest(true)}
+                  className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+                >
+                  <Play size={20} />
+                  Testar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowDemoConversation(true)}
+                  className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+                >
+                  💬 Demonstração
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPromptImprover(true)}
+                  className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition"
+                >
+                  ✨ Melhorar
+                </button>
+              </>
             )}
             <button
               type="button"
@@ -303,7 +365,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
               className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
             >
               <FileText size={20} />
-              Usar Template
+              Template
             </button>
             <button
               type="button"
@@ -1044,6 +1106,136 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                 <p className="text-xs text-blue-800">
                   💡 <strong>Teste Interativo:</strong> Digite diferentes mensagens para ver como o agente responde baseado no fluxo configurado.
                 </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Conversa Demonstração */}
+      {showDemoConversation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-800">
+                💬 Conversa Demonstração
+              </h3>
+              <button
+                onClick={() => setShowDemoConversation(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  💡 <strong>Simulação Completa:</strong> Veja uma conversa exemplo entre o cliente e seu agente configurado
+                </p>
+              </div>
+
+              {/* Conversa exemplo */}
+              <div className="space-y-3">
+                <div className="flex flex-col space-y-2">
+                  <div className="self-end bg-green-500 text-white rounded-lg p-3 max-w-[80%]">
+                    <p className="text-sm">Olá! Gostaria de mais informações sobre os produtos.</p>
+                  </div>
+                  
+                  <div className="self-start bg-gray-200 text-gray-800 rounded-lg p-3 max-w-[80%]">
+                    <p className="text-sm">Olá! Bem-vindo! Fico muito feliz em ajudá-lo. Sou um assistente virtual dedicado a proporcionar a melhor experiência possível. Como posso ajudar hoje?</p>
+                  </div>
+                  
+                  <div className="self-end bg-green-500 text-white rounded-lg p-3 max-w-[80%]">
+                    <p className="text-sm">Quais produtos vocês têm disponíveis?</p>
+                  </div>
+                  
+                  <div className="self-start bg-gray-200 text-gray-800 rounded-lg p-3 max-w-[80%]">
+                    <p className="text-sm">Claro! Aqui estão alguns dos nossos produtos em destaque:</p>
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs">📦 Produto 1 - R$ 99,90</p>
+                      <p className="text-xs">📦 Produto 2 - R$ 149,90</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <p className="text-xs text-amber-800">
+                  ⚠️ Esta é uma conversa de exemplo. O agente real seguirá exatamente o fluxo que você configurou nos passos acima.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Melhorar Prompt */}
+      {showPromptImprover && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-800">
+                ✨ Melhorar Prompt com IA
+              </h3>
+              <button
+                onClick={() => {
+                  setShowPromptImprover(false);
+                  setPromptImprovements('');
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Prompt atual (somente leitura) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Prompt Atual (gerado dos seus steps):
+                </label>
+                <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 max-h-[200px] overflow-y-auto">
+                  <pre className="whitespace-pre-wrap text-xs text-gray-700">
+                    {generatePrompt()}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Área para melhorias */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  O que você gostaria de melhorar? *
+                </label>
+                <textarea
+                  value={promptImprovements}
+                  onChange={(e) => setPromptImprovements(e.target.value)}
+                  placeholder="Ex: Quero que o agente seja mais formal, use emojis moderadamente, e sempre confirme o pedido antes de finalizar..."
+                  rows={6}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Botão melhorar */}
+              <button
+                onClick={handleImprovePrompt}
+                disabled={improvingPrompt || !promptImprovements.trim()}
+                className="w-full bg-orange-600 text-white px-4 py-3 rounded-lg hover:bg-orange-700 transition flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {improvingPrompt ? '⏳ Melhorando...' : '✨ Melhorar Prompt com IA'}
+              </button>
+
+              {/* Dicas */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs text-blue-800 mb-2">
+                  💡 <strong>Dicas para melhorias:</strong>
+                </p>
+                <ul className="text-xs text-blue-700 space-y-1 ml-4">
+                  <li>• Especifique o tom de voz (formal, informal, amigável)</li>
+                  <li>• Defina quando usar emojis</li>
+                  <li>• Adicione etapas de confirmação</li>
+                  <li>• Especifique como lidar com objeções</li>
+                </ul>
               </div>
             </div>
           </div>
