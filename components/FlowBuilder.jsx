@@ -178,6 +178,28 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
     return prompt;
   };
 
+  // Estatísticas do fluxo
+  const completedSteps = steps.filter(s => s.title && s.description).length;
+  const hasAgentProfile = steps.some(s => s.type === 'agent_profile');
+  const hasGreeting = steps.some(s => s.type === 'greeting');
+  
+  // Dicas contextuais por tipo de step
+  const getTipsForStepType = (type) => {
+    const tips = {
+      'agent_profile': '💡 Defina a personalidade: nome, tom de voz, estilo de comunicação',
+      'greeting': '💡 Seja caloroso e acolhedor. Apresente o agente e ofereça ajuda',
+      'show_catalog': '💡 Organize produtos por categoria e destaque promoções',
+      'process_order': '💡 Confirme itens, quantidades e valores antes de finalizar',
+      'request_payment': '💡 Ofereça múltiplas opções (PIX, cartão, boleto)',
+      'collect_address': '💡 Solicite dados completos para evitar erros de entrega',
+      'ask_info': '💡 Use perguntas abertas para entender a necessidade do cliente',
+      'collect_data': '💡 Defina as informações que precisam ser coletadas para o CRM',
+      'create_appointment': '💡 Configure os tipos de agendamento permitidos',
+      'send_confirmation': '💡 Envie resumo claro com número de pedido para rastreamento'
+    };
+    return tips[type] || '💡 Seja claro e específico nas instruções para o agente';
+  };
+  
   return (
     <div className="w-full max-w-4xl mx-auto">
       {/* Header */}
@@ -190,6 +212,18 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
             <p className="text-gray-600 mt-1">
               Configure o fluxo de conversa do seu agente em passos
             </p>
+            {steps.length > 0 && (
+              <div className="flex gap-4 mt-2">
+                <span className="text-sm text-gray-600">
+                  ✅ {completedSteps}/{steps.length} passos configurados
+                </span>
+                {!hasAgentProfile && (
+                  <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                    ⚠️ Adicione um perfil do agente
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex gap-3">
             <button
@@ -325,11 +359,9 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                                 rows={editingStep.type === 'free_text' ? 8 : 4}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                               />
-                              {editingStep.type === 'free_text' && (
-                                <p className="text-sm text-amber-600 mt-2">
-                                  💡 Use "Texto Livre" para inserir instruções específicas que não se encaixam nos tipos padrão.
-                                </p>
-                              )}
+                              <p className="text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded mt-2">
+                                {getTipsForStepType(editingStep.type)}
+                              </p>
                             </div>
 
                             {/* Campos específicos para Perfil do Agente */}
@@ -729,6 +761,11 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                                 <h3 className="text-lg font-semibold text-gray-800">
                                   Passo {index + 1}: {step.title}
                                 </h3>
+                                {(!step.title || !step.description) && (
+                                  <span className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
+                                    ⚠️ Incompleto
+                                  </span>
+                                )}
                               </div>
 
                               {step.description && (

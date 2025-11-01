@@ -3614,19 +3614,19 @@ const DashboardWithFirebase = ({
                         📝 Prompt Final Gerado (Edição Opcional)
                       </label>
                       <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                        Gerado automaticamente dos steps acima
+                        {assistantForm.systemPrompt?.length || 0} caracteres
                       </span>
                     </div>
                     <div style={{ 
-                      background: '#fffbeb', 
-                      border: '1px solid #fbbf24', 
+                      background: '#f0f9ff', 
+                      border: '1px solid #3b82f6', 
                       borderRadius: '8px', 
                       padding: '12px',
                       marginBottom: '12px'
                     }}>
-                      <p style={{ fontSize: '0.875rem', color: '#92400e', margin: 0 }}>
-                        💡 <strong>Dica:</strong> Este prompt é gerado automaticamente com base nos steps que você configurou. 
-                        Você pode editá-lo manualmente se precisar fazer ajustes finos ou adicionar instruções específicas.
+                      <p style={{ fontSize: '0.875rem', color: '#1e40af', margin: 0 }}>
+                        💡 <strong>Preview em Tempo Real:</strong> Este prompt é gerado automaticamente dos steps. 
+                        Edite manualmente apenas se precisar ajustes específicos.
                       </p>
                     </div>
                     <textarea
@@ -3645,6 +3645,19 @@ const DashboardWithFirebase = ({
                       }}
                       placeholder="O prompt será gerado automaticamente quando você adicionar steps..."
                     />
+                    {assistantForm.systemPrompt && assistantForm.systemPrompt.length > 4000 && (
+                      <div style={{ 
+                        background: '#fef3c7', 
+                        border: '1px solid #f59e0b', 
+                        borderRadius: '8px', 
+                        padding: '8px',
+                        marginTop: '8px'
+                      }}>
+                        <p style={{ fontSize: '0.875rem', color: '#92400e', margin: 0 }}>
+                          ⚠️ Prompt muito longo ({assistantForm.systemPrompt.length} caracteres). Considere simplificar para melhor performance.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
