@@ -1207,17 +1207,13 @@ const DashboardWithFirebase = ({
   const handleAssistantSubmit = (e) => {
     e.preventDefault();
     
-    // Garantir que o prompt seja gerado dos steps (modo visual sempre ativo)
+    // Salvar exatamente o que está no form (não regenerar prompt dos steps)
+    // Isso permite que prompts melhorados/editados manualmente sejam salvos
     const dataToSave = { 
       ...assistantForm, 
       isActive: isActive,
       flowMode: 'visual' // Sempre modo visual
     };
-    
-    // Se houver steps, gerar o prompt automaticamente
-    if (assistantForm.flowSteps && assistantForm.flowSteps.length > 0) {
-      dataToSave.systemPrompt = convertStepsToPrompt(assistantForm.flowSteps);
-    }
     
     saveAssistantSettings(dataToSave);
   };
