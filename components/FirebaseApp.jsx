@@ -1226,13 +1226,16 @@ const DashboardWithFirebase = ({
   const renderCatalog = () => {
     // Calcular estatísticas (ignorando itens inválidos)
     const validItems = catalogItems.filter(i => i && i.name);
+    // Filtrar apenas produtos para as estatísticas
+    const products = validItems.filter(i => i.type === 'product');
+    
     const stats = {
-      total: validItems.length,
-      products: validItems.filter(i => i.type === 'product').length,
+      total: products.length,
+      products: products.length,
       services: validItems.filter(i => i.type === 'service').length,
-      totalValue: validItems.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * (parseInt(item.stockQuantity) || 0), 0),
-      lowStock: validItems.filter(i => i.type === 'product' && (parseInt(i.stockQuantity) || 0) < (i.minStock || 5)).length,
-      featured: validItems.filter(i => i.featured).length
+      totalValue: products.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * (parseInt(item.stockQuantity) || 0), 0),
+      lowStock: products.filter(i => (parseInt(i.stockQuantity) || 0) < (i.minStock || 5)).length,
+      featured: products.filter(i => i.featured).length
     };
 
     // Filtrar itens (ignorando itens inválidos)
@@ -1292,15 +1295,15 @@ const DashboardWithFirebase = ({
               <Package className="w-8 h-8 opacity-80" />
               <span className="text-3xl font-bold">{stats.products}</span>
             </div>
-            <p className="text-green-100">Produtos</p>
+            <p className="text-green-100">Total Produtos</p>
           </div>
 
           <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-2xl p-6 text-white shadow-lg border border-green-500">
             <div className="flex items-center justify-between mb-2">
-              <ShoppingCart className="w-8 h-8 opacity-80" />
-              <span className="text-3xl font-bold">{stats.services}</span>
+              <Star className="w-8 h-8 opacity-80" />
+              <span className="text-3xl font-bold">{stats.featured}</span>
             </div>
-            <p className="text-green-100">Serviços</p>
+            <p className="text-green-100">Em Destaque</p>
           </div>
 
           <div className="bg-gradient-to-br from-green-700 to-green-800 rounded-2xl p-6 text-white shadow-lg border border-green-600">
@@ -4070,21 +4073,22 @@ const DashboardWithFirebase = ({
           zIndex: 1000
         }}>
           <div style={{
-            backgroundColor: 'white',
+            backgroundColor: '#1a1f36',
             borderRadius: '16px',
             padding: '24px',
             width: '90%',
             maxWidth: '500px',
             maxHeight: '90vh',
-            overflow: 'auto'
+            overflow: 'auto',
+            border: '1px solid rgba(16, 185, 129, 0.3)'
           }}>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '24px', color: '#1f2937' }}>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '24px', color: '#ffffff' }}>
               {editingItem ? 'Editar Item' : 'Adicionar Item'}
             </h3>
             
             <form onSubmit={handleCatalogSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
                   Nome do Item
                 </label>
                 <input
@@ -4095,8 +4099,10 @@ const DashboardWithFirebase = ({
                     width: '100%',
                     padding: '12px',
                     borderRadius: '8px',
-                    border: '1px solid #d1d5db',
-                    fontSize: '1rem'
+                    border: '1px solid #374151',
+                    fontSize: '1rem',
+                    backgroundColor: '#111827',
+                    color: '#ffffff'
                   }}
                   placeholder="Digite o nome do item"
                   required
@@ -4104,7 +4110,7 @@ const DashboardWithFirebase = ({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
                   Descrição
                 </label>
                 <textarea
@@ -4114,39 +4120,41 @@ const DashboardWithFirebase = ({
                     width: '100%',
                     padding: '12px',
                     borderRadius: '8px',
-                    border: '1px solid #d1d5db',
+                    border: '1px solid #374151',
                     fontSize: '1rem',
                     minHeight: '80px',
-                    resize: 'vertical'
+                    resize: 'vertical',
+                    backgroundColor: '#111827',
+                    color: '#ffffff'
                   }}
                   placeholder="Descreva o item"
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
                   Tipo do Item
                 </label>
                 <div style={{ display: 'flex', gap: '16px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ffffff', cursor: 'pointer' }}>
                     <input
                       type="radio"
                       name="type"
                       value="product"
                       checked={catalogForm.type === 'product'}
                       onChange={(e) => setCatalogForm(prev => ({ ...prev, type: e.target.value }))}
-                      style={{ width: '16px', height: '16px' }}
+                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                     />
                     <span>Produto</span>
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ffffff', cursor: 'pointer' }}>
                     <input
                       type="radio"
                       name="type"
                       value="service"
                       checked={catalogForm.type === 'service'}
                       onChange={(e) => setCatalogForm(prev => ({ ...prev, type: e.target.value }))}
-                      style={{ width: '16px', height: '16px' }}
+                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                     />
                     <span>Serviço</span>
                   </label>
@@ -4154,7 +4162,7 @@ const DashboardWithFirebase = ({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
                   Preço (R$)
                 </label>
                 <input
@@ -4167,8 +4175,10 @@ const DashboardWithFirebase = ({
                     width: '100%',
                     padding: '12px',
                     borderRadius: '8px',
-                    border: '1px solid #d1d5db',
-                    fontSize: '1rem'
+                    border: '1px solid #374151',
+                    fontSize: '1rem',
+                    backgroundColor: '#111827',
+                    color: '#ffffff'
                   }}
                   placeholder="0.00"
                   required
@@ -4176,7 +4186,7 @@ const DashboardWithFirebase = ({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
                   {catalogForm.type === 'product' ? 'Qtd. em Estoque' : 'Capacidade/Horas (Simulado)'}
                 </label>
                 <input
@@ -4188,8 +4198,10 @@ const DashboardWithFirebase = ({
                     width: '100%',
                     padding: '12px',
                     borderRadius: '8px',
-                    border: '1px solid #d1d5db',
-                    fontSize: '1rem'
+                    border: '1px solid #374151',
+                    fontSize: '1rem',
+                    backgroundColor: '#111827',
+                    color: '#ffffff'
                   }}
                   placeholder={catalogForm.type === 'product' ? 'Ex: 50' : 'Ex: 40'}
                   required
@@ -4198,7 +4210,7 @@ const DashboardWithFirebase = ({
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
                     SKU / Código
                   </label>
                   <input
@@ -4209,16 +4221,18 @@ const DashboardWithFirebase = ({
                       width: '100%',
                       padding: '12px',
                       borderRadius: '8px',
-                      border: '1px solid #d1d5db',
+                      border: '1px solid #374151',
                       fontSize: '1rem',
-                      fontFamily: 'monospace'
+                      fontFamily: 'monospace',
+                      backgroundColor: '#111827',
+                      color: '#ffffff'
                     }}
                     placeholder="Ex: PROD-001"
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
                     Categoria
                   </label>
                   <input
@@ -4229,8 +4243,10 @@ const DashboardWithFirebase = ({
                       width: '100%',
                       padding: '12px',
                       borderRadius: '8px',
-                      border: '1px solid #d1d5db',
-                      fontSize: '1rem'
+                      border: '1px solid #374151',
+                      fontSize: '1rem',
+                      backgroundColor: '#111827',
+                      color: '#ffffff'
                     }}
                     placeholder="Ex: Eletrônicos"
                   />
@@ -4239,7 +4255,7 @@ const DashboardWithFirebase = ({
 
               {catalogForm.type === 'product' && (
                 <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
                     Estoque Mínimo (para alertas)
                   </label>
                   <input
@@ -4251,8 +4267,10 @@ const DashboardWithFirebase = ({
                       width: '100%',
                       padding: '12px',
                       borderRadius: '8px',
-                      border: '1px solid #d1d5db',
-                      fontSize: '1rem'
+                      border: '1px solid #374151',
+                      fontSize: '1rem',
+                      backgroundColor: '#111827',
+                      color: '#ffffff'
                     }}
                     placeholder="5"
                   />
@@ -4260,7 +4278,7 @@ const DashboardWithFirebase = ({
               )}
 
               <div>
-                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
                   Imagem do Produto
                 </label>
                 
@@ -4269,12 +4287,13 @@ const DashboardWithFirebase = ({
                   <label style={{
                     display: 'inline-block',
                     padding: '10px 16px',
-                    backgroundColor: '#4f46e5',
+                    backgroundColor: '#10b981',
                     color: 'white',
                     borderRadius: '8px',
                     cursor: 'pointer',
                     fontWeight: 'bold',
-                    fontSize: '0.875rem'
+                    fontSize: '0.875rem',
+                    border: '1px solid #059669'
                   }}>
                     📁 Escolher Arquivo do PC
                     <input
@@ -4300,7 +4319,7 @@ const DashboardWithFirebase = ({
                       style={{ display: 'none' }}
                     />
                   </label>
-                  <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '4px' }}>
+                  <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>
                     Envie do seu computador (máx. 2MB)
                   </p>
                 </div>
@@ -4312,9 +4331,9 @@ const DashboardWithFirebase = ({
                   margin: '12px 0',
                   gap: '8px'
                 }}>
-                  <div style={{ flex: 1, height: '1px', backgroundColor: '#d1d5db' }}></div>
-                  <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 'bold' }}>OU</span>
-                  <div style={{ flex: 1, height: '1px', backgroundColor: '#d1d5db' }}></div>
+                  <div style={{ flex: 1, height: '1px', backgroundColor: '#374151' }}></div>
+                  <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 'bold' }}>OU</span>
+                  <div style={{ flex: 1, height: '1px', backgroundColor: '#374151' }}></div>
                 </div>
 
                 {/* URL da imagem */}
@@ -4327,8 +4346,10 @@ const DashboardWithFirebase = ({
                       flex: 1,
                       padding: '12px',
                       borderRadius: '8px',
-                      border: '1px solid #d1d5db',
-                      fontSize: '1rem'
+                      border: '1px solid #374151',
+                      fontSize: '1rem',
+                      backgroundColor: '#111827',
+                      color: '#ffffff'
                     }}
                     placeholder="https://exemplo.com/imagem.jpg"
                   />
@@ -4340,7 +4361,7 @@ const DashboardWithFirebase = ({
                       border: '2px solid #10b981',
                       overflow: 'hidden',
                       flexShrink: 0,
-                      boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                      boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
                     }}>
                       <img 
                         src={catalogForm.image} 
@@ -4351,7 +4372,7 @@ const DashboardWithFirebase = ({
                     </div>
                   )}
                 </div>
-                <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '4px' }}>
+                <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>
                   Cole a URL de uma imagem online (Imgur, Cloudinary, etc)
                 </p>
 
@@ -4363,8 +4384,8 @@ const DashboardWithFirebase = ({
                     style={{
                       marginTop: '8px',
                       padding: '6px 12px',
-                      backgroundColor: '#fee2e2',
-                      color: '#dc2626',
+                      backgroundColor: '#dc2626',
+                      color: 'white',
                       border: 'none',
                       borderRadius: '6px',
                       fontSize: '0.75rem',
@@ -4379,9 +4400,9 @@ const DashboardWithFirebase = ({
 
               <div style={{
                 padding: '12px',
-                backgroundColor: '#fef3c7',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
                 borderRadius: '8px',
-                border: '1px solid #fbbf24'
+                border: '1px solid #10b981'
               }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                   <input
@@ -4390,7 +4411,7 @@ const DashboardWithFirebase = ({
                     onChange={(e) => setCatalogForm(prev => ({ ...prev, featured: e.target.checked }))}
                     style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                   />
-                  <span style={{ fontWeight: 'bold', color: '#374151' }}>⭐ Marcar como Destaque</span>
+                  <span style={{ fontWeight: 'bold', color: '#ffffff' }}>⭐ Marcar como Destaque</span>
                 </label>
               </div>
 
@@ -4399,11 +4420,11 @@ const DashboardWithFirebase = ({
                   type="button"
                   onClick={() => setShowCatalogModal(false)}
                   style={{
-                    backgroundColor: '#6b7280',
+                    backgroundColor: '#374151',
                     color: 'white',
                     padding: '12px 24px',
                     borderRadius: '8px',
-                    border: 'none',
+                    border: '1px solid #4b5563',
                     fontWeight: 'bold',
                     cursor: 'pointer'
                   }}
@@ -4413,11 +4434,11 @@ const DashboardWithFirebase = ({
                 <button
                   type="submit"
                   style={{
-                    backgroundColor: '#4f46e5',
+                    backgroundColor: '#10b981',
                     color: 'white',
                     padding: '12px 24px',
                     borderRadius: '8px',
-                    border: 'none',
+                    border: '1px solid #059669',
                     fontWeight: 'bold',
                     cursor: 'pointer'
                   }}
