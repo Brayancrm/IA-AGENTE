@@ -29,6 +29,8 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
   const [improvingPrompt, setImprovingPrompt] = useState(false);
   const [improvedPrompt, setImprovedPrompt] = useState(null);
   const [showingImproved, setShowingImproved] = useState(false);
+  const [selectedStepsForImprovement, setSelectedStepsForImprovement] = useState([]);
+  const [improvementTexts, setImprovementTexts] = useState({});
 
   // Tipos de ação disponíveis
   const actionTypes = [
@@ -226,8 +228,22 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
 
   // Melhorar prompt com IA
   const handleImprovePrompt = async () => {
-    if (!promptImprovements.trim()) {
-      alert('Digite as melhorias que deseja fazer no prompt!');
+    // Gerar texto de melhorias baseado nos steps selecionados
+    let improvementsText = '';
+    
+    if (selectedStepsForImprovement.length > 0) {
+      improvementsText = 'MELHORIAS POR PASSO:\n\n';
+      selectedStepsForImprovement.forEach(stepId => {
+        const step = steps.find(s => s.id === stepId);
+        const improvement = improvementTexts[stepId];
+        if (step && improvement) {
+          improvementsText += `PASSO "${step.title}": ${improvement}\n\n`;
+        }
+      });
+    } else if (promptImprovements.trim()) {
+      improvementsText = promptImprovements;
+    } else {
+      alert('Selecione pelo menos um passo ou digite melhorias gerais!');
       return;
     }
 
@@ -247,18 +263,22 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
         },
         body: JSON.stringify({
           currentPrompt: currentPrompt,
-          improvements: promptImprovements
+          improvements: improvementsText
         })
       });
 
       const data = await response.json();
       if (data.improvedPrompt) {
-        setImprovedPrompt(data.improvedPrompt);
-        setShowingImproved(true);
         // Aplicar melhorias ao prompt final
         if (onPromptChange) {
           onPromptChange(data.improvedPrompt);
         }
+        alert('✅ Prompt melhorado com sucesso!');
+        // Fechar modal e limpar estados
+        setShowPromptImprover(false);
+        setPromptImprovements('');
+        setSelectedStepsForImprovement([]);
+        setImprovementTexts({});
       } else {
         alert('❌ Erro: ' + (data.error || 'Erro desconhecido'));
       }
@@ -267,6 +287,24 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
     } finally {
       setImprovingPrompt(false);
     }
+  };
+
+  // Toggle step selection for improvement
+  const toggleStepSelection = (stepId) => {
+    if (selectedStepsForImprovement.includes(stepId)) {
+      setSelectedStepsForImprovement(selectedStepsForImprovement.filter(id => id !== stepId));
+      // Remover texto de melhoria desse step
+      const newTexts = { ...improvementTexts };
+      delete newTexts[stepId];
+      setImprovementTexts(newTexts);
+    } else {
+      setSelectedStepsForImprovement([...selectedStepsForImprovement, stepId]);
+    }
+  };
+
+  // Update improvement text for a specific step
+  const updateImprovementText = (stepId, text) => {
+    setImprovementTexts({ ...improvementTexts, [stepId]: text });
   };
 
   // Gerar prompt a partir dos steps
@@ -1245,6 +1283,8 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                 onClick={() => {
                   setShowPromptImprover(false);
                   setPromptImprovements('');
+                  setSelectedStepsForImprovement([]);
+                  setImprovementTexts({});
                 }}
                 className="text-gray-500 hover:text-gray-700"
               >
@@ -1258,23 +1298,72 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Prompt Atual (gerado dos seus steps):
                 </label>
-                <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 max-h-[200px] overflow-y-auto">
+                <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 max-h-[150px] overflow-y-auto">
                   <pre className="whitespace-pre-wrap text-xs text-gray-700">
                     {generatePrompt()}
                   </pre>
                 </div>
               </div>
 
-              {/* Área para melhorias */}
+              {/* Seleção de Steps para melhorar */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Selecione os passos que deseja melhorar: *
+                </label>
+                <div className="max-h-[200px] overflow-y-auto space-y-2 border border-gray-200 rounded-lg p-3">
+                  {steps.map((step, idx) => {
+                    const isSelected = selectedStepsForImprovement.includes(step.id);
+                    const actionType = actionTypes.find(t => t.value === step.type);
+                    return (
+                      <div key={step.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                        <label className="flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-50">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleStepSelection(step.id)}
+                            className="mt-1"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-lg">{actionType?.icon || '📌'}</span>
+                              <span className="font-semibold text-sm text-gray-800">
+                                Passo {idx + 1}: {step.title}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-600 line-clamp-2">
+                              {step.description || '(Sem descrição)'}
+                            </p>
+                          </div>
+                        </label>
+                        
+                        {/* Campo de texto para melhorias específicas desse step */}
+                        {isSelected && (
+                          <div className="px-3 pb-3 bg-gray-50 border-t border-gray-200">
+                            <textarea
+                              value={improvementTexts[step.id] || ''}
+                              onChange={(e) => updateImprovementText(step.id, e.target.value)}
+                              placeholder={`O que melhorar neste passo? (ex: "Use emojis", "Seja mais formal", "Adicione confirmação")`}
+                              rows={2}
+                              className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Ou melhorias gerais */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  O que você gostaria de melhorar? *
+                  Ou melhorias gerais (opcional):
                 </label>
                 <textarea
                   value={promptImprovements}
                   onChange={(e) => setPromptImprovements(e.target.value)}
-                  placeholder="Ex: Quero que o agente seja mais formal, use emojis moderadamente, e sempre confirme o pedido antes de finalizar..."
-                  rows={6}
+                  placeholder="Ex: Quero que o agente seja mais formal, use emojis moderadamente..."
+                  rows={4}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 />
               </div>
@@ -1282,7 +1371,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
               {/* Botão melhorar */}
               <button
                 onClick={handleImprovePrompt}
-                disabled={improvingPrompt || !promptImprovements.trim()}
+                disabled={improvingPrompt || (selectedStepsForImprovement.length === 0 && !promptImprovements.trim())}
                 className="w-full bg-orange-600 text-white px-4 py-3 rounded-lg hover:bg-orange-700 transition flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 {improvingPrompt ? '⏳ Melhorando...' : '✨ Melhorar Prompt com IA'}
