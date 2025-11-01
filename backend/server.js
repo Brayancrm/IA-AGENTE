@@ -4109,12 +4109,11 @@ REQUISITOS:
         },
         {
           role: 'user',
-          content: `PROMPT DO AGENTE:\n\n${systemPrompt}\n\n\nGere uma conversa de demonstração que mostre este agente em ação. Retorne APENAS o JSON.`
+          content: `PROMPT DO AGENTE:\n\n${systemPrompt}\n\n\nGere uma conversa de demonstração que mostre este agente em ação. Retorne APENAS o JSON no formato especificado.`
         }
       ],
       temperature: 0.8,
-      max_tokens: 1500,
-      response_format: { type: 'json_object' }
+      max_tokens: 1500
     }, {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -4126,11 +4125,20 @@ REQUISITOS:
     let demoData;
     
     try {
-      demoData = JSON.parse(responseContent);
+      // Tentar extrair JSON se vier com texto adicional
+      const jsonMatch = responseContent.match(/\{[\s\S]*\}/);
+      const jsonToParse = jsonMatch ? jsonMatch[0] : responseContent;
+      demoData = JSON.parse(jsonToParse);
+      
+      // Validar estrutura
+      if (!demoData.conversation || !Array.isArray(demoData.conversation)) {
+        throw new Error('Estrutura de conversa inválida');
+      }
     } catch (parseError) {
       console.error('❌ [Demo] Erro ao fazer parse do JSON:', parseError);
+      console.error('   - Resposta recebida:', responseContent);
       return res.status(500).json({
-        error: 'Erro ao processar resposta da IA'
+        error: 'Erro ao processar resposta da IA: ' + parseError.message
       });
     }
 
