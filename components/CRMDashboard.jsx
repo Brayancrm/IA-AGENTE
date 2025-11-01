@@ -28,7 +28,9 @@ import {
   Package,
   ShoppingCart,
   Minus,
-  X
+  X,
+  Upload,
+  FileSpreadsheet
 } from 'lucide-react';
 
 const CRMDashboard = ({ user, database, showToast }) => {
@@ -47,6 +49,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
   const [showClienteModal, setShowClienteModal] = useState(false);
   const [editingCliente, setEditingCliente] = useState(null);
   const [selectedCliente, setSelectedCliente] = useState(null);
+  const [showImportModal, setShowImportModal] = useState(false);
   
   // Estados para Pipeline
   const [draggedCliente, setDraggedCliente] = useState(null);
@@ -467,6 +470,84 @@ const CRMDashboard = ({ user, database, showToast }) => {
     return matchSearch && matchStatus;
   });
   
+  // Função para processar o arquivo CSV
+  const handleFileUpload = async (file) => {
+    try {
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        showToast('O arquivo CSV está vazio ou não possui dados válidos', 'error');
+        return;
+      }
+      
+      // Parse do CSV (considerando vírgula como separador)
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      
+      // Verificar colunas obrigatórias
+      const nomeIndex = headers.indexOf('nome');
+      const telefoneIndex = headers.indexOf('telefone');
+      
+      if (nomeIndex === -1 || telefoneIndex === -1) {
+        showToast('Arquivo CSV inválido. Verifique se contém as colunas "Nome" e "Telefone"', 'error');
+        return;
+      }
+      
+      const emailIndex = headers.indexOf('email');
+      const cpfcnpjIndex = headers.indexOf('cpf/cnpj');
+      const statusIndex = headers.indexOf('status');
+      
+      let importedCount = 0;
+      let errorCount = 0;
+      
+      // Processar cada linha
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        
+        const nome = values[nomeIndex];
+        const telefone = values[telefoneIndex];
+        
+        if (!nome || !telefone) {
+          errorCount++;
+          continue;
+        }
+        
+        try {
+          const { ref, set } = await import('firebase/database');
+          const phoneKey = telefone.includes('@c.us') ? telefone : `${telefone}@c.us`;
+          const clienteRef = ref(database, `customerData/${user.uid}/${phoneKey}`);
+          
+          const clienteData = {
+            name: nome,
+            email: emailIndex >= 0 ? values[emailIndex] || '' : '',
+            cpfCnpj: cpfcnpjIndex >= 0 ? values[cpfcnpjIndex] || '' : '',
+            status: statusIndex >= 0 ? values[statusIndex] || 'lead' : 'lead',
+            phone: phoneKey,
+            updatedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString()
+          };
+          
+          await set(clienteRef, clienteData);
+          importedCount++;
+        } catch (error) {
+          console.error('Erro ao importar cliente:', error);
+          errorCount++;
+        }
+      }
+      
+      showToast(
+        `Importação concluída! ${importedCount} cliente(s) importado(s)${errorCount > 0 ? `. ${errorCount} erro(s).` : '.'}`,
+        'success'
+      );
+      
+      setShowImportModal(false);
+      loadCRMData();
+    } catch (error) {
+      console.error('Erro ao processar arquivo CSV:', error);
+      showToast('Erro ao processar o arquivo CSV. Verifique o formato e tente novamente.', 'error');
+    }
+  };
+  
   // Componente: Visão Geral
   const VisaoGeral = () => (
     <div className="crm-visao-geral">
@@ -880,6 +961,35 @@ const CRMDashboard = ({ user, database, showToast }) => {
               gap: '8px',
               padding: '12px 24px',
               backgroundColor: 'transparent',
+              border: '2px solid rgba(59, 130, 246, 0.3)',
+              borderRadius: '12px',
+              color: '#3b82f6',
+              fontSize: '0.875rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+              e.currentTarget.style.borderColor = '#3b82f6';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+            }}
+            onClick={() => setShowImportModal(true)}
+          >
+            <Upload size={18} />
+            Importar
+          </button>
+          
+          <button
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 24px',
+              backgroundColor: 'transparent',
               border: '2px solid rgba(16, 185, 129, 0.3)',
               borderRadius: '12px',
               color: '#10b981',
@@ -900,7 +1010,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
               // Exportar lista de clientes para CSV
               const csv = [
                 ['Nome', 'Telefone', 'Email', 'CPF/CNPJ', 'Status', 'Última Atualização'].join(','),
-                ...filteredClientes.map(c => [
+                ...clientesFiltrados.map(c => [
                   c.name,
                   c.phone.replace('@c.us', ''),
                   c.email || '',
@@ -920,6 +1030,49 @@ const CRMDashboard = ({ user, database, showToast }) => {
           >
             <Download size={18} />
             Exportar
+          </button>
+          
+          <button
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 24px',
+              backgroundColor: 'transparent',
+              border: '2px solid rgba(139, 92, 246, 0.3)',
+              borderRadius: '12px',
+              color: '#8b5cf6',
+              fontSize: '0.875rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(139, 92, 246, 0.1)';
+              e.currentTarget.style.borderColor = '#8b5cf6';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+            }}
+            onClick={() => {
+              // Baixar template CSV
+              const csv = [
+                ['Nome', 'Telefone', 'Email', 'CPF/CNPJ', 'Status'].join(','),
+                ['João Silva', '5511999999999', 'joao@email.com', '12345678900', 'lead'].join(','),
+                ['Maria Santos', '5511888888888', 'maria@email.com', '98765432100', 'cliente'].join(',')
+              ].join('\n');
+              
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              const link = document.createElement('a');
+              link.href = URL.createObjectURL(blob);
+              link.download = `template_importar_clientes.csv`;
+              link.click();
+              showToast('Template baixado!', 'success');
+            }}
+          >
+            <FileSpreadsheet size={18} />
+            Template
           </button>
         </div>
       </div>
@@ -3269,6 +3422,243 @@ const CRMDashboard = ({ user, database, showToast }) => {
                   💾 Finalizar Venda
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Modal de Importar CSV */}
+      {showImportModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}
+        onClick={() => setShowImportModal(false)}>
+          <div style={{
+            backgroundColor: '#1a1f36',
+            borderRadius: '20px',
+            padding: '32px',
+            maxWidth: '600px',
+            width: '100%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(59, 130, 246, 0.2)',
+            position: 'relative'
+          }}
+          onClick={(e) => e.stopPropagation()}>
+            {/* Fechar */}
+            <button
+              onClick={() => setShowImportModal(false)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#9ca3af',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '8px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.color = '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#9ca3af';
+              }}>
+              ✕
+            </button>
+            
+            <h3 style={{
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              color: '#ffffff',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <Upload size={24} color="#3b82f6" />
+              Importar Clientes via CSV
+            </h3>
+            
+            <p style={{
+              fontSize: '0.875rem',
+              color: '#9ca3af',
+              marginBottom: '24px',
+              lineHeight: '1.5'
+            }}>
+              Selecione um arquivo CSV com os dados dos clientes. Certifique-se de que o arquivo siga o formato do template.
+            </p>
+            
+            {/* Instruções */}
+            <div style={{
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              borderRadius: '12px',
+              padding: '16px',
+              marginBottom: '24px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <AlertCircle size={20} color="#3b82f6" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#3b82f6', marginBottom: '8px' }}>
+                    Formato do CSV:
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', lineHeight: '1.6' }}>
+                    <strong>Colunas obrigatórias:</strong> Nome, Telefone<br/>
+                    <strong>Colunas opcionais:</strong> Email, CPF/CNPJ, Status<br/>
+                    <strong>Separador:</strong> Vírgula (,)<br/>
+                    <strong>Encoding:</strong> UTF-8
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Upload */}
+            <div style={{
+              border: '2px dashed rgba(59, 130, 246, 0.3)',
+              borderRadius: '12px',
+              padding: '32px',
+              textAlign: 'center',
+              marginBottom: '24px',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.currentTarget.style.borderColor = '#3b82f6';
+              e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.05)';
+            }}
+            onDragLeave={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+              e.currentTarget.style.backgroundColor = 'transparent';
+              const file = e.dataTransfer.files[0];
+              if (file && file.name.endsWith('.csv')) {
+                handleFileUpload(file);
+              } else {
+                showToast('Por favor, selecione um arquivo CSV válido', 'error');
+              }
+            }}>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    handleFileUpload(file);
+                  }
+                }}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  opacity: 0,
+                  cursor: 'pointer'
+                }}
+              />
+              <Upload size={48} color="#3b82f6" style={{ marginBottom: '16px', opacity: 0.5 }} />
+              <div style={{ fontSize: '1rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
+                Arraste o arquivo aqui ou clique para selecionar
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
+                Formato aceito: .csv
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setShowImportModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  backgroundColor: 'transparent',
+                  border: '2px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}>
+                Cancelar
+              </button>
+              
+              <button
+                onClick={() => {
+                  // Baixar template CSV
+                  const csv = [
+                    ['Nome', 'Telefone', 'Email', 'CPF/CNPJ', 'Status'].join(','),
+                    ['João Silva', '5511999999999', 'joao@email.com', '12345678900', 'lead'].join(','),
+                    ['Maria Santos', '5511888888888', 'maria@email.com', '98765432100', 'cliente'].join(',')
+                  ].join('\n');
+                  
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                  const link = document.createElement('a');
+                  link.href = URL.createObjectURL(blob);
+                  link.download = `template_importar_clientes.csv`;
+                  link.click();
+                  showToast('Template baixado!', 'success');
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  backgroundColor: 'transparent',
+                  border: '2px solid rgba(139, 92, 246, 0.3)',
+                  borderRadius: '8px',
+                  color: '#8b5cf6',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(139, 92, 246, 0.1)';
+                  e.currentTarget.style.borderColor = '#8b5cf6';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+                }}>
+                <FileSpreadsheet size={18} />
+                Baixar Template
+              </button>
             </div>
           </div>
         </div>
