@@ -29,9 +29,7 @@ import {
   Download,
   Tag,
   ShoppingCart,
-  DollarSign,
-  ChevronDown,
-  ChevronRight
+  DollarSign
 } from 'lucide-react';
 
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsappsalesagent';
@@ -76,7 +74,6 @@ const FirebaseApp = () => {
   const [editingAgendamento, setEditingAgendamento] = useState(null);
   const [agendamentoFilter, setAgendamentoFilter] = useState('todos'); // todos, pendente, confirmado, concluido, cancelado
   const [agendamentoTypeFilter, setAgendamentoTypeFilter] = useState('todos'); // todos, retirada, servico, visita, etc
-  const [assistantExpanded, setAssistantExpanded] = useState(true); // Estado para minimizar/maximizar
   
   // CRM temporariamente desativado - será reconstruído depois
   
@@ -1119,10 +1116,6 @@ const DashboardWithFirebase = ({
       flowMode: 'visual', // Sempre visual
       flowSteps: assistantSettings.flowSteps || [] // ✅ Carregar steps salvos
     });
-    // Se tem dados salvos, começa minimizado
-    if (assistantSettings.flowSteps && assistantSettings.flowSteps.length > 0) {
-      setAssistantExpanded(false);
-    }
   }, [assistantSettings]);
 
   // Handlers para catálogo
@@ -3352,48 +3345,24 @@ const DashboardWithFirebase = ({
               boxShadow: '0 4px 12px rgba(0,0,0,0.3)', 
               border: '1px solid rgba(16, 185, 129, 0.2)' 
             }}>
-              <div 
-                onClick={() => setAssistantExpanded(!assistantExpanded)}
-                style={{ 
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  cursor: 'pointer',
-                  marginBottom: assistantExpanded ? '16px' : 0
-                }}
-              >
-                <div>
-                  <h3 style={{ 
-                    fontSize: '1.5rem', 
-                    fontWeight: '700', 
-                    color: '#ffffff', 
-                    marginBottom: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px'
-                  }}>
-                    <span style={{ fontSize: '1.75rem' }}>🧠</span>
-                    Agente Configurado
-                  </h3>
-                  {assistantExpanded && (
-                    <p style={{ fontSize: '0.9375rem', color: '#9ca3af' }}>
-                      Configure o modelo e comportamento da IA
-                    </p>
-                  )}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  {assistantSettings.flowSteps && assistantSettings.flowSteps.length > 0 && (
-                    <span style={{ fontSize: '0.875rem', color: '#10b981' }}>
-                      ✅ {assistantSettings.flowSteps.length} passo(s)
-                    </span>
-                  )}
-                  {assistantExpanded ? <ChevronDown size={24} color="#ffffff" /> : <ChevronRight size={24} color="#ffffff" />}
-                </div>
-              </div>
+              <h3 style={{ 
+                fontSize: '1.5rem', 
+                fontWeight: '700', 
+                color: '#ffffff', 
+                marginBottom: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+              }}>
+                <span style={{ fontSize: '1.75rem' }}>🧠</span>
+                Inteligência Artificial
+              </h3>
+              <p style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '24px' }}>
+                Configure o modelo e comportamento da IA
+              </p>
               
-              {assistantExpanded && (
-                <form onSubmit={handleAssistantSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-                  {/* Campos visíveis apenas para o Master */}
+              <form onSubmit={handleAssistantSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+                {/* Campos visíveis apenas para o Master */}
                 {user.isMaster && (
                   <>
                     <div>
@@ -3731,7 +3700,6 @@ const DashboardWithFirebase = ({
                 </button>
                 </div>
               </form>
-              )}
             </div>
 
             {/* Estatísticas */}
