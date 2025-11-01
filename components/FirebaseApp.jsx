@@ -1263,7 +1263,7 @@ const DashboardWithFirebase = ({
             <div>
               <h2 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
                 <span className="text-5xl">📦</span>
-                Catálogo de Produtos
+                Catálogo
               </h2>
               <p className="text-base text-gray-400">
                 Gerencie seus produtos e serviços em um só lugar
@@ -3876,7 +3876,7 @@ const DashboardWithFirebase = ({
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
     { id: 'company', label: 'Cadastro da Empresa', icon: '🏢' },
-    { id: 'catalog', label: 'Catálogo (Itens)', icon: '📦' },
+    { id: 'catalog', label: 'Catálogo', icon: '📦' },
     { id: 'agendamentos', label: 'Agendamentos', icon: '📅' },
     { id: 'conversas', label: 'Conversas WhatsApp', icon: '💬' },
     { id: 'crm', label: 'CRM', icon: '👥' },
