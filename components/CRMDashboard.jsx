@@ -536,7 +536,8 @@ const CRMDashboard = ({ user, database, showToast }) => {
         
         try {
           const { ref, set } = await import('firebase/database');
-          const phoneKey = telefone.includes('@c.us') ? telefone : `${telefone}@c.us`;
+          // Remover @c.us e caracteres não numéricos para usar como chave no Firebase
+          const phoneKey = telefone.replace(/[@c.us]/g, '').replace(/\D/g, '');
           const clienteRef = ref(database, `customerData/${user.uid}/${phoneKey}`);
           
           const clienteData = {
@@ -2460,7 +2461,8 @@ const CRMDashboard = ({ user, database, showToast }) => {
                   
                   try {
                     const { ref, set, update } = await import('firebase/database');
-                    const phoneKey = telefone.includes('@c.us') ? telefone : `${telefone}@c.us`;
+                    // Remover @c.us e caracteres não numéricos para usar como chave no Firebase
+                    const phoneKey = telefone.replace(/[@c.us]/g, '').replace(/\D/g, '');
                     const clienteRef = ref(database, `customerData/${user.uid}/${phoneKey}`);
                     
                     const clienteData = {
