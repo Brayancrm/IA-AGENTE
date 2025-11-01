@@ -1269,14 +1269,14 @@ const DashboardWithFirebase = ({
           <div className="flex space-x-3">
             <button
               onClick={() => setShowImportModal(true)}
-                className="bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700 px-5 py-2.5 rounded-xl font-semibold hover:from-gray-200 hover:to-gray-300 transition-all shadow-sm hover:shadow-md transform hover:-translate-y-0.5 flex items-center space-x-2"
+                className="bg-gradient-to-br from-gray-800 to-gray-900 text-gray-300 px-5 py-2.5 rounded-xl font-semibold hover:from-gray-700 hover:to-gray-800 transition-all shadow-sm hover:shadow-md transform hover:-translate-y-0.5 flex items-center space-x-2 border border-gray-700"
             >
               <Upload className="w-4 h-4" />
               <span>Importar</span>
             </button>
             <button
               onClick={() => openCatalogModal()}
-                className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center space-x-2"
+                className="bg-gradient-to-br from-green-600 to-green-700 text-white px-6 py-3 rounded-xl font-bold hover:from-green-700 hover:to-green-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center space-x-2 border border-green-500"
             >
               <Plus className="w-5 h-5" />
               <span>Novo Item</span>
@@ -1287,15 +1287,15 @@ const DashboardWithFirebase = ({
 
         {/* Dashboard de Estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
+          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-lg border border-green-400">
             <div className="flex items-center justify-between mb-2">
               <Package className="w-8 h-8 opacity-80" />
               <span className="text-3xl font-bold">{stats.products}</span>
             </div>
-            <p className="text-blue-100">Produtos</p>
+            <p className="text-green-100">Produtos</p>
           </div>
 
-          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-lg">
+          <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-2xl p-6 text-white shadow-lg border border-green-500">
             <div className="flex items-center justify-between mb-2">
               <ShoppingCart className="w-8 h-8 opacity-80" />
               <span className="text-3xl font-bold">{stats.services}</span>
@@ -1303,25 +1303,25 @@ const DashboardWithFirebase = ({
             <p className="text-green-100">Serviços</p>
           </div>
 
-          <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-2xl p-6 text-white shadow-lg">
+          <div className="bg-gradient-to-br from-green-700 to-green-800 rounded-2xl p-6 text-white shadow-lg border border-green-600">
             <div className="flex items-center justify-between mb-2">
               <AlertCircle className="w-8 h-8 opacity-80" />
               <span className="text-3xl font-bold">{stats.lowStock}</span>
             </div>
-            <p className="text-yellow-100">Estoque Baixo</p>
+            <p className="text-green-100">Estoque Baixo</p>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
+          <div className="bg-gradient-to-br from-green-800 to-green-900 rounded-2xl p-6 text-white shadow-lg border border-green-700">
             <div className="flex items-center justify-between mb-2">
               <DollarSign className="w-8 h-8 opacity-80" />
               <span className="text-3xl font-bold">R$ {(stats.totalValue / 1000).toFixed(1)}k</span>
             </div>
-            <p className="text-purple-100">Valor Total</p>
+            <p className="text-green-100">Valor Total</p>
           </div>
         </div>
 
         {/* Barra de Filtros e Busca */}
-        <div className="bg-white rounded-2xl p-4 shadow-lg border">
+        <div className="bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-700">
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Busca */}
             <div className="flex-1 relative">
@@ -1331,7 +1331,7 @@ const DashboardWithFirebase = ({
                 placeholder="Buscar por nome, descrição ou SKU..."
                 value={catalogSearch}
                 onChange={(e) => setCatalogSearch(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full pl-12 pr-4 py-3 bg-gray-900 border border-gray-700 text-white rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 placeholder-gray-500"
               />
             </div>
 
@@ -1339,7 +1339,7 @@ const DashboardWithFirebase = ({
             <select
               value={catalogFilter}
               onChange={(e) => setCatalogFilter(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="px-4 py-3 bg-gray-900 border border-gray-700 text-white rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500"
             >
               <option value="all">Todos os Tipos</option>
               <option value="product">Produtos</option>
@@ -1350,7 +1350,7 @@ const DashboardWithFirebase = ({
             <select
               value={catalogCategory}
               onChange={(e) => setCatalogCategory(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="px-4 py-3 bg-gray-900 border border-gray-700 text-white rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500"
             >
               <option value="all">Todas Categorias</option>
               {categories.map(cat => (
@@ -1359,16 +1359,16 @@ const DashboardWithFirebase = ({
             </select>
 
             {/* Toggle de Visualização */}
-            <div className="flex border border-gray-300 rounded-xl overflow-hidden">
+            <div className="flex border border-gray-700 rounded-xl overflow-hidden">
               <button
                 onClick={() => setCatalogView('grid')}
-                className={`px-4 py-3 ${catalogView === 'grid' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                className={`px-4 py-3 ${catalogView === 'grid' ? 'bg-green-600 text-white' : 'bg-gray-900 text-gray-400 hover:bg-gray-800'}`}
               >
                 <Grid className="w-5 h-5" />
               </button>
               <button
                 onClick={() => setCatalogView('list')}
-                className={`px-4 py-3 ${catalogView === 'list' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                className={`px-4 py-3 ${catalogView === 'list' ? 'bg-green-600 text-white' : 'bg-gray-900 text-gray-400 hover:bg-gray-800'}`}
               >
                 <List className="w-5 h-5" />
               </button>
@@ -1378,9 +1378,9 @@ const DashboardWithFirebase = ({
 
         {/* Lista de Itens */}
         {filteredItems.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-lg border p-12 text-center">
-            <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-600 mb-2">
+          <div className="bg-gray-800 rounded-2xl shadow-lg border border-gray-700 p-12 text-center">
+            <Package className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-300 mb-2">
               {catalogItems.length === 0 ? 'Nenhum item no catálogo' : 'Nenhum item encontrado'}
             </h3>
             <p className="text-gray-500 mb-6">
@@ -1391,7 +1391,7 @@ const DashboardWithFirebase = ({
             {catalogItems.length === 0 && (
               <button
                 onClick={() => openCatalogModal()}
-                className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+                className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 transition-colors"
               >
                 Adicionar Primeiro Item
               </button>
@@ -1400,9 +1400,9 @@ const DashboardWithFirebase = ({
         ) : catalogView === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredItems.map((item) => (
-              <div key={item.id} className="bg-white rounded-2xl shadow-lg border overflow-hidden hover:shadow-xl transition-all duration-300 group">
+              <div key={item.id} className="bg-gray-800 rounded-2xl shadow-lg border border-gray-700 overflow-hidden hover:shadow-xl hover:border-green-600 transition-all duration-300 group">
                 {/* Imagem */}
-                <div className="relative h-48 bg-gradient-to-br from-indigo-100 to-purple-100 overflow-hidden">
+                <div className="relative h-48 bg-gradient-to-br from-green-800 to-green-900 overflow-hidden">
                   {item.image ? (
                     <img 
                       src={item.image} 
@@ -1411,29 +1411,29 @@ const DashboardWithFirebase = ({
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <Package className="w-20 h-20 text-indigo-300" />
+                      <Package className="w-20 h-20 text-green-600 opacity-50" />
                     </div>
                   )}
                   {/* Badge de Destaque */}
                   {item.featured && (
-                    <div className="absolute top-3 right-3 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-1">
+                    <div className="absolute top-3 right-3 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-1 border border-green-400">
                       <Star className="w-3 h-3 fill-current" />
                       <span>Destaque</span>
                     </div>
                   )}
                   {/* Badge de Tipo */}
                   <div className="absolute top-3 left-3">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${
                       item.type === 'product' 
-                        ? 'bg-blue-500 text-white' 
-                        : 'bg-green-500 text-white'
+                        ? 'bg-green-600 border-green-400 text-white' 
+                        : 'bg-green-700 border-green-500 text-white'
                     }`}>
                       {item.type === 'product' ? 'Produto' : 'Serviço'}
                     </span>
                   </div>
                   {/* Alerta de Estoque Baixo */}
                   {item.type === 'product' && parseInt(item.stockQuantity) < (item.minStock || 5) && (
-                    <div className="absolute bottom-3 left-3 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-1">
+                    <div className="absolute bottom-3 left-3 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-1 border border-red-500">
                       <AlertCircle className="w-3 h-3" />
                       <span>Estoque Baixo</span>
                     </div>
@@ -1443,14 +1443,14 @@ const DashboardWithFirebase = ({
                 {/* Conteúdo */}
                 <div className="p-4">
                   <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-bold text-gray-900 text-lg line-clamp-1">{item.name}</h3>
+                    <h3 className="font-bold text-white text-lg line-clamp-1">{item.name}</h3>
                     {item.sku && (
-                      <span className="text-xs text-gray-500 font-mono">{item.sku}</span>
+                      <span className="text-xs text-gray-400 font-mono">{item.sku}</span>
                     )}
                   </div>
                   
                   {item.description && (
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
+                    <p className="text-sm text-gray-400 mb-3 line-clamp-2">{item.description}</p>
                   )}
 
                   {item.category && (
@@ -1462,7 +1462,7 @@ const DashboardWithFirebase = ({
 
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <p className="text-2xl font-bold text-indigo-600">
+                      <p className="text-2xl font-bold text-green-400">
                         R$ {parseFloat(item.price).toFixed(2)}
                       </p>
                     </div>
@@ -1470,8 +1470,8 @@ const DashboardWithFirebase = ({
                       <p className="text-xs text-gray-500">Estoque</p>
                       <p className={`text-sm font-bold ${
                         item.type === 'product' && parseInt(item.stockQuantity) < (item.minStock || 5)
-                          ? 'text-red-600'
-                          : 'text-gray-900'
+                          ? 'text-red-500'
+                          : 'text-white'
                       }`}>
                         {item.stockQuantity}
                       </p>
@@ -1482,14 +1482,14 @@ const DashboardWithFirebase = ({
                   <div className="flex space-x-2">
                     <button
                       onClick={() => openCatalogModal(item)}
-                      className="flex-1 bg-indigo-50 text-indigo-600 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors flex items-center justify-center space-x-2"
+                      className="flex-1 bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center space-x-2 border border-green-600"
                     >
                       <Edit className="w-4 h-4" />
                       <span>Editar</span>
                     </button>
                     <button
                       onClick={() => deleteCatalogItem(item.id)}
-                      className="bg-red-50 text-red-600 px-4 py-2 rounded-lg hover:bg-red-100 transition-colors"
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors border border-red-500"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -1499,77 +1499,77 @@ const DashboardWithFirebase = ({
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-lg border overflow-hidden">
+          <div className="bg-gray-800 rounded-2xl shadow-lg border border-gray-700 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-900">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Produto</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">SKU</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Categoria</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Preço</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Estoque</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Status</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Ações</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Produto</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">SKU</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Categoria</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Preço</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Estoque</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Status</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-700">
                   {filteredItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
+                    <tr key={item.id} className="hover:bg-gray-900">
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
-                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center flex-shrink-0">
+                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-green-800 to-green-900 flex items-center justify-center flex-shrink-0 border border-green-700">
                             {item.image ? (
                               <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" />
                             ) : (
-                              <Package className="w-6 h-6 text-indigo-400" />
+                              <Package className="w-6 h-6 text-green-600 opacity-50" />
                             )}
                           </div>
                           <div>
-                            <div className="font-medium text-gray-900 flex items-center space-x-2">
+                            <div className="font-medium text-white flex items-center space-x-2">
                               <span>{item.name}</span>
-                              {item.featured && <Star className="w-4 h-4 text-yellow-500 fill-current" />}
+                              {item.featured && <Star className="w-4 h-4 text-green-500 fill-current" />}
                             </div>
-                            <div className="text-sm text-gray-500 truncate max-w-xs">{item.description}</div>
+                            <div className="text-sm text-gray-400 truncate max-w-xs">{item.description}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm font-mono text-gray-600">{item.sku || '-'}</span>
+                        <span className="text-sm font-mono text-gray-400">{item.sku || '-'}</span>
                       </td>
                       <td className="px-6 py-4">
                         {item.category ? (
-                          <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-medium bg-gray-700 text-gray-300 border border-gray-600">
                             <Tag className="w-3 h-3" />
                             <span>{item.category}</span>
                           </span>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-gray-600">-</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm font-bold text-gray-900">R$ {parseFloat(item.price).toFixed(2)}</span>
+                        <span className="text-sm font-bold text-green-400">R$ {parseFloat(item.price).toFixed(2)}</span>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`text-sm font-medium ${
                           item.type === 'product' && parseInt(item.stockQuantity) < (item.minStock || 5)
-                            ? 'text-red-600'
-                            : 'text-gray-900'
+                            ? 'text-red-500'
+                            : 'text-white'
                         }`}>
                           {item.stockQuantity}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col space-y-1">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium inline-block w-fit ${
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium inline-block w-fit border ${
                             item.type === 'product' 
-                              ? 'bg-blue-100 text-blue-800' 
-                              : 'bg-green-100 text-green-800'
+                              ? 'bg-green-600 text-white border-green-400' 
+                              : 'bg-green-700 text-white border-green-500'
                           }`}>
                             {item.type === 'product' ? 'Produto' : 'Serviço'}
                           </span>
                           {item.type === 'product' && parseInt(item.stockQuantity) < (item.minStock || 5) && (
-                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 inline-flex items-center space-x-1 w-fit">
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-600 text-white inline-flex items-center space-x-1 w-fit border border-red-500">
                               <AlertCircle className="w-3 h-3" />
                               <span>Baixo</span>
                             </span>
@@ -1580,13 +1580,13 @@ const DashboardWithFirebase = ({
                         <div className="flex space-x-2">
                           <button
                             onClick={() => openCatalogModal(item)}
-                            className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
+                            className="p-2 text-green-600 hover:bg-green-900/30 rounded-lg transition-colors"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => deleteCatalogItem(item.id)}
-                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                            className="p-2 text-red-600 hover:bg-red-900/30 rounded-lg transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
