@@ -495,11 +495,23 @@ export default function ConversasSimples({ userId, backendUrl }) {
                 padding: '24px', 
                 overflowY: 'auto',
                 backgroundColor: '#0f1419',
-                backgroundImage: 'url(/whatsapp-bg.png), repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,.02) 10px, rgba(255,255,255,.02) 20px)',
-                backgroundSize: 'cover, auto',
-                backgroundPosition: 'center, center',
-                backgroundRepeat: 'no-repeat, repeat'
+                position: 'relative'
               }}>
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundImage: 'url(/whatsapp-bg.png)',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  opacity: 0.3,
+                  pointerEvents: 'none',
+                  zIndex: 0
+                }}></div>
+                <div style={{ position: 'relative', zIndex: 1 }}>
                 {carregandoMensagens ? (
                   <div style={{ textAlign: 'center', padding: '48px', color: '#9ca3af' }}>
                     <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
@@ -575,6 +587,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
                     );
                   })
                 )}
+                </div>
               </div>
 
               {/* Input de mensagem */}
