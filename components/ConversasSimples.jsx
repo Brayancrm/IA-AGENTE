@@ -495,7 +495,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
                 padding: '24px', 
                 overflowY: 'auto',
                 backgroundColor: '#0f1419',
-                backgroundImage: 'url(/whatsapp-bg.jpg), repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,.02) 10px, rgba(255,255,255,.02) 20px)',
+                backgroundImage: 'url(/whatsapp-bg.png), repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,.02) 10px, rgba(255,255,255,.02) 20px)',
                 backgroundSize: 'cover, auto',
                 backgroundPosition: 'center, center',
                 backgroundRepeat: 'no-repeat, repeat'
