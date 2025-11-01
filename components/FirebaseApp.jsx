@@ -975,6 +975,12 @@ const FirebaseApp = () => {
         setAgendamentoFilter={setAgendamentoFilter}
         agendamentoTypeFilter={agendamentoTypeFilter}
         setAgendamentoTypeFilter={setAgendamentoTypeFilter}
+        agendamentoViewMode={agendamentoViewMode}
+        setAgendamentoViewMode={setAgendamentoViewMode}
+        selectedCalendarDate={selectedCalendarDate}
+        setSelectedCalendarDate={setSelectedCalendarDate}
+        selectedDateAgendamentos={selectedDateAgendamentos}
+        setSelectedDateAgendamentos={setSelectedDateAgendamentos}
         database={database}
         showToast={showToast}
       />
@@ -1023,6 +1029,12 @@ const DashboardWithFirebase = ({
   setAgendamentoFilter,
   agendamentoTypeFilter = 'todos',
   setAgendamentoTypeFilter,
+  agendamentoViewMode = 'lista',
+  setAgendamentoViewMode,
+  selectedCalendarDate = null,
+  setSelectedCalendarDate,
+  selectedDateAgendamentos = [],
+  setSelectedDateAgendamentos,
   database,
   showToast
 }) => {
