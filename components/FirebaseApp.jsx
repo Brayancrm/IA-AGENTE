@@ -74,6 +74,9 @@ const FirebaseApp = () => {
   const [editingAgendamento, setEditingAgendamento] = useState(null);
   const [agendamentoFilter, setAgendamentoFilter] = useState('todos'); // todos, pendente, confirmado, concluido, cancelado
   const [agendamentoTypeFilter, setAgendamentoTypeFilter] = useState('todos'); // todos, retirada, servico, visita, etc
+  const [agendamentoViewMode, setAgendamentoViewMode] = useState('lista'); // lista ou calendario
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(null); // Data selecionada no calendário
+  const [selectedDateAgendamentos, setSelectedDateAgendamentos] = useState([]); // Agendamentos da data selecionada
   
   // CRM temporariamente desativado - será reconstruído depois
   
@@ -1771,8 +1774,8 @@ const DashboardWithFirebase = ({
             </div>
           </div>
 
-          {/* Filtros */}
-          <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          {/* Filtros e Toggle de Visualização */}
+          <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div style={{ flex: '1', minWidth: '200px' }}>
               <label style={{ display: 'block', fontSize: '0.875rem', color: '#ffffff', marginBottom: '8px', fontWeight: '600' }}>
                 Status
@@ -1825,11 +1828,58 @@ const DashboardWithFirebase = ({
                 <option value="ligacao">📞 Ligação</option>
               </select>
             </div>
+            <div style={{ display: 'flex', gap: '8px', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '10px', overflow: 'hidden' }}>
+              <button
+                onClick={() => setAgendamentoViewMode('lista')}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: agendamentoViewMode === 'lista' ? '#10b981' : '#0f1419',
+                  color: '#ffffff',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                📋 Lista
+              </button>
+              <button
+                onClick={() => setAgendamentoViewMode('calendario')}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: agendamentoViewMode === 'calendario' ? '#10b981' : '#0f1419',
+                  color: '#ffffff',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                📅 Calendário
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Lista de Agendamentos */}
-        {agendamentosFiltrados.length === 0 ? (
+        {/* Visualização: Lista ou Calendário */}
+        {agendamentoViewMode === 'calendario' ? (
+          <AgendamentosCalendar 
+            agendamentos={agendamentosFiltrados}
+            onDayClick={(date, agendamentosDoDia) => {
+              setSelectedCalendarDate(date);
+              setSelectedDateAgendamentos(agendamentosDoDia);
+            }}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            getStatusColor={getStatusColor}
+            getStatusLabel={getStatusLabel}
+            getTipoIcon={getTipoIcon}
+          />
+        ) : (
+          /* Lista de Agendamentos */
+          agendamentosFiltrados.length === 0 ? (
           <div style={{
             backgroundColor: 'white',
             padding: '48px',
@@ -1946,7 +1996,210 @@ const DashboardWithFirebase = ({
               </div>
             ))}
           </div>
+        )
         )}
+      </div>
+    );
+  };
+
+  // Componente de Calendário de Agendamentos
+  const AgendamentosCalendar = ({ agendamentos, onDayClick, onEdit, onDelete, getStatusColor, getStatusLabel, getTipoIcon }) => {
+    const [currentMonth, setCurrentMonth] = useState(new Date());
+
+    // Obter primeiro dia do mês e quantos dias tem
+    const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const lastDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    const daysInMonth = lastDayOfMonth.getDate();
+    const startingDayOfWeek = firstDayOfMonth.getDay(); // 0 = Domingo, 6 = Sábado
+
+    // Agrupar agendamentos por data
+    const agendamentosPorData = {};
+    agendamentos.forEach(agend => {
+      const dataKey = agend.data; // formato DD/MM/YYYY
+      if (!agendamentosPorData[dataKey]) {
+        agendamentosPorData[dataKey] = [];
+      }
+      agendamentosPorData[dataKey].push(agend);
+    });
+
+    // Converter data do formato DD/MM/YYYY para Date para comparação
+    const parseDate = (dateStr) => {
+      const [day, month, year] = dateStr.split('/');
+      return new Date(year, month - 1, day);
+    };
+
+    // Verificar se uma data tem agendamentos
+    const temAgendamentosNoDia = (day) => {
+      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+      const dateStr = `${String(day).padStart(2, '0')}/${String(currentMonth.getMonth() + 1).padStart(2, '0')}/${currentMonth.getFullYear()}`;
+      return agendamentosPorData[dateStr] && agendamentosPorData[dateStr].length > 0;
+    };
+
+    // Obter agendamentos do dia
+    const getAgendamentosDoDia = (day) => {
+      const dateStr = `${String(day).padStart(2, '0')}/${String(currentMonth.getMonth() + 1).padStart(2, '0')}/${currentMonth.getFullYear()}`;
+      return agendamentosPorData[dateStr] || [];
+    };
+
+    // Navegar para mês anterior
+    const previousMonth = () => {
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+    };
+
+    // Navegar para próximo mês
+    const nextMonth = () => {
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+    };
+
+    // Nomes dos dias da semana
+    const diasDaSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+    return (
+      <div style={{
+        backgroundColor: '#1a1f36',
+        padding: '24px',
+        borderRadius: '12px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+        border: '1px solid rgba(255,255,255,0.1)'
+      }}>
+        {/* Cabeçalho do Calendário */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <button
+            onClick={previousMonth}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#0f1419',
+              color: '#ffffff',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}
+          >
+            ← Anterior
+          </button>
+          <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff' }}>
+            {meses[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+          </h3>
+          <button
+            onClick={nextMonth}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#0f1419',
+              color: '#ffffff',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}
+          >
+            Próximo →
+          </button>
+        </div>
+
+        {/* Grid do Calendário */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px' }}>
+          {/* Cabeçalhos dos dias da semana */}
+          {diasDaSemana.map(day => (
+            <div key={day} style={{
+              padding: '12px',
+              textAlign: 'center',
+              fontWeight: '600',
+              color: '#9ca3af',
+              fontSize: '0.875rem'
+            }}>
+              {day}
+            </div>
+          ))}
+
+          {/* Dias vazios no início */}
+          {Array.from({ length: startingDayOfWeek }).map((_, index) => (
+            <div key={`empty-${index}`} style={{ padding: '12px' }} />
+          ))}
+
+          {/* Dias do mês */}
+          {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+            const temAgendamentos = temAgendamentosNoDia(day);
+            const hoje = new Date();
+            const isToday = day === hoje.getDate() && 
+                          currentMonth.getMonth() === hoje.getMonth() && 
+                          currentMonth.getFullYear() === hoje.getFullYear();
+
+            return (
+              <div
+                key={day}
+                onClick={() => {
+                  if (temAgendamentos) {
+                    const agendamentosDoDia = getAgendamentosDoDia(day);
+                    const dateStr = `${String(day).padStart(2, '0')}/${String(currentMonth.getMonth() + 1).padStart(2, '0')}/${currentMonth.getFullYear()}`;
+                    onDayClick(dateStr, agendamentosDoDia);
+                  }
+                }}
+                style={{
+                  padding: '12px',
+                  textAlign: 'center',
+                  borderRadius: '8px',
+                  cursor: temAgendamentos ? 'pointer' : 'default',
+                  backgroundColor: isToday ? 'rgba(16, 185, 129, 0.2)' : temAgendamentos ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                  border: isToday ? '2px solid #10b981' : temAgendamentos ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid transparent',
+                  color: '#ffffff',
+                  fontWeight: isToday ? '700' : '500',
+                  transition: 'all 0.2s ease',
+                  position: 'relative',
+                  minHeight: '60px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px'
+                }}
+                onMouseEnter={(e) => {
+                  if (temAgendamentos) {
+                    e.target.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
+                    e.target.style.transform = 'scale(1.05)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (temAgendamentos) {
+                    e.target.style.backgroundColor = isToday ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)';
+                    e.target.style.transform = 'scale(1)';
+                  }
+                }}
+              >
+                <span style={{ fontSize: '1rem' }}>{day}</span>
+                {temAgendamentos && (
+                  <div style={{
+                    display: 'flex',
+                    gap: '2px',
+                    flexWrap: 'wrap',
+                    justifyContent: 'center',
+                    marginTop: '4px'
+                  }}>
+                    {getAgendamentosDoDia(day).slice(0, 3).map((agend, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          width: '6px',
+                          height: '6px',
+                          borderRadius: '50%',
+                          backgroundColor: getStatusColor(agend.status)
+                        }}
+                      />
+                    ))}
+                    {getAgendamentosDoDia(day).length > 3 && (
+                      <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
+                        +{getAgendamentosDoDia(day).length - 3}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -4661,6 +4914,217 @@ const DashboardWithFirebase = ({
         database={database}
         showToast={showToast}
       />
+
+      {/* Modal de Agendamentos do Dia Selecionado */}
+      {selectedCalendarDate && selectedDateAgendamentos.length > 0 && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1001
+        }}>
+          <div style={{
+            backgroundColor: '#1a1f36',
+            borderRadius: '16px',
+            padding: '24px',
+            width: '90%',
+            maxWidth: '800px',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            border: '1px solid rgba(16, 185, 129, 0.3)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ffffff' }}>
+                📅 Agendamentos - {selectedCalendarDate}
+              </h3>
+              <button
+                onClick={() => {
+                  setSelectedCalendarDate(null);
+                  setSelectedDateAgendamentos([]);
+                }}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#374151',
+                  color: '#ffffff',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '600'
+                }}
+              >
+                ✕ Fechar
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {selectedDateAgendamentos.map((agend) => {
+                const getStatusColor = (status) => {
+                  switch (status) {
+                    case 'pendente': return '#eab308';
+                    case 'confirmado': return '#3b82f6';
+                    case 'em_andamento': return '#8b5cf6';
+                    case 'concluido': return '#10b981';
+                    case 'cancelado': return '#ef4444';
+                    default: return '#6b7280';
+                  }
+                };
+
+                const getStatusLabel = (status) => {
+                  switch (status) {
+                    case 'pendente': return 'Pendente';
+                    case 'confirmado': return 'Confirmado';
+                    case 'em_andamento': return 'Em Andamento';
+                    case 'concluido': return 'Concluído';
+                    case 'cancelado': return 'Cancelado';
+                    default: return status;
+                  }
+                };
+
+                const getTipoIcon = (tipo) => {
+                  switch (tipo) {
+                    case 'retirada': return '📦';
+                    case 'servico': return '🔧';
+                    case 'visita': return '🏢';
+                    case 'entrega': return '🚚';
+                    case 'ligacao': return '📞';
+                    default: return '📅';
+                  }
+                };
+
+                return (
+                  <div
+                    key={agend.id}
+                    style={{
+                      backgroundColor: '#0f1419',
+                      padding: '20px',
+                      borderRadius: '12px',
+                      border: `1px solid ${getStatusColor(agend.status)}`,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '1.5rem' }}>{getTipoIcon(agend.tipo)}</span>
+                          <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#ffffff' }}>
+                            {agend.titulo}
+                          </h4>
+                          <span
+                            style={{
+                              fontSize: '0.75rem',
+                              fontWeight: '500',
+                              color: 'white',
+                              backgroundColor: getStatusColor(agend.status),
+                              padding: '2px 8px',
+                              borderRadius: '12px'
+                            }}
+                          >
+                            {getStatusLabel(agend.status)}
+                          </span>
+                        </div>
+                        <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: '8px' }}>{agend.descricao}</p>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => {
+                            setEditingAgendamento(agend);
+                            setShowAgendamentoModal(true);
+                            setSelectedCalendarDate(null);
+                            setSelectedDateAgendamentos([]);
+                          }}
+                          style={{
+                            padding: '8px 16px',
+                            backgroundColor: '#10b981',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem',
+                            fontWeight: '600'
+                          }}
+                          title="Editar"
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm('Tem certeza que deseja excluir este agendamento?')) return;
+                            
+                            if (!user || !database) {
+                              showToast('❌ Erro: Usuário não autenticado', 'error');
+                              return;
+                            }
+                            
+                            try {
+                              const agendamentoRef = ref(database, `users/data/${user.uid}/agendamentos/${agend.id}`);
+                              await remove(agendamentoRef);
+                              showToast('Agendamento excluído!', 'success');
+                              setSelectedDateAgendamentos(selectedDateAgendamentos.filter(a => a.id !== agend.id));
+                            } catch (error) {
+                              console.error('Erro ao excluir agendamento:', error);
+                              showToast('❌ Erro ao excluir agendamento', 'error');
+                            }
+                          }}
+                          style={{
+                            padding: '8px 16px',
+                            backgroundColor: '#ef4444',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem',
+                            fontWeight: '600'
+                          }}
+                          title="Excluir"
+                        >
+                          🗑️ Excluir
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '12px' }}>
+                      <div>
+                        <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '2px' }}>⏰ Horário</div>
+                        <div style={{ fontSize: '0.875rem', color: '#ffffff', fontWeight: '500' }}>
+                          {agend.horario}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '2px' }}>👤 Cliente</div>
+                        <div style={{ fontSize: '0.875rem', color: '#ffffff', fontWeight: '500' }}>{agend.cliente}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '2px' }}>📞 Telefone</div>
+                        <div style={{ fontSize: '0.875rem', color: '#ffffff', fontWeight: '500' }}>{agend.telefone}</div>
+                      </div>
+                    </div>
+
+                    {agend.observacoes && (
+                      <div style={{
+                        marginTop: '12px',
+                        padding: '12px',
+                        backgroundColor: 'rgba(255,255,255,0.05)',
+                        borderRadius: '6px',
+                        fontSize: '0.875rem',
+                        color: '#9ca3af'
+                      }}>
+                        <strong>📝 Observações:</strong> {agend.observacoes}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Usuário */}
       {showUserModal && (
