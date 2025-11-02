@@ -1097,6 +1097,74 @@ const CRMDashboard = ({ user, database, showToast }) => {
             <FileSpreadsheet size={18} />
             Template
           </button>
+          
+          {clientesFiltrados.length > 0 && (
+            <button
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 24px',
+                backgroundColor: 'transparent',
+                border: '2px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '12px',
+                color: '#ef4444',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                e.currentTarget.style.borderColor = '#ef4444';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+              }}
+              onClick={async () => {
+                if (!confirm(`ATENÇÃO: Tem certeza que deseja excluir TODOS os ${clientesFiltrados.length} cliente(s)? Esta ação não pode ser desfeita!`)) {
+                  return;
+                }
+                
+                // Confirmação dupla para segurança
+                if (!confirm('ÚLTIMA CONFIRMAÇÃO: Excluir TODOS os clientes?')) {
+                  return;
+                }
+                
+                try {
+                  const { ref, remove } = await import('firebase/database');
+                  let deletedCount = 0;
+                  let errorCount = 0;
+                  
+                  for (const cliente of clientesFiltrados) {
+                    try {
+                      const clienteRef = ref(database, `customerData/${user.uid}/${cliente.id}`);
+                      await remove(clienteRef);
+                      deletedCount++;
+                    } catch (error) {
+                      console.error('Erro ao excluir cliente:', error);
+                      errorCount++;
+                    }
+                  }
+                  
+                  if (errorCount === 0) {
+                    showToast(`${deletedCount} cliente(s) excluído(s) com sucesso!`, 'success');
+                  } else {
+                    showToast(`${deletedCount} excluído(s), ${errorCount} erro(s)`, 'error');
+                  }
+                  
+                  loadCRMData();
+                } catch (error) {
+                  console.error('Erro ao excluir clientes:', error);
+                  showToast('Erro ao excluir clientes', 'error');
+                }
+              }}
+            >
+              <Trash2 size={18} />
+              Excluir Todos
+            </button>
+          )}
         </div>
       </div>
       
@@ -1340,6 +1408,48 @@ const CRMDashboard = ({ user, database, showToast }) => {
                         title="Ver detalhes"
                       >
                         <Eye size={16} />
+                      </button>
+                      
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Tem certeza que deseja excluir o cliente "${cliente.name}"?`)) {
+                            return;
+                          }
+                          
+                          try {
+                            const { ref, remove } = await import('firebase/database');
+                            const clienteRef = ref(database, `customerData/${user.uid}/${cliente.id}`);
+                            await remove(clienteRef);
+                            showToast('Cliente excluído com sucesso!', 'success');
+                            loadCRMData();
+                          } catch (error) {
+                            console.error('Erro ao excluir cliente:', error);
+                            showToast('Erro ao excluir cliente', 'error');
+                          }
+                        }}
+                        style={{
+                          padding: '8px',
+                          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          borderRadius: '8px',
+                          color: '#ef4444',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+                          e.currentTarget.style.transform = 'scale(1.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                          e.currentTarget.style.transform = 'scale(1)';
+                        }}
+                        title="Excluir"
+                      >
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </td>
