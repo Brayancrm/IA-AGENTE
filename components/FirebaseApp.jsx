@@ -1091,7 +1091,9 @@ const DashboardWithFirebase = ({
     includeCatalogProducts: false,
     includeCatalogServices: false,
     flowMode: 'visual', // Sempre visual agora
-    flowSteps: [] // Steps do flow builder
+    flowSteps: [], // Steps do flow builder
+    enableAppointments: false,
+    appointmentTypes: []
   });
   const [userForm, setUserForm] = useState({
     name: '',
@@ -1129,7 +1131,9 @@ const DashboardWithFirebase = ({
       includeCatalogProducts: assistantSettings.includeCatalogProducts || false,
       includeCatalogServices: assistantSettings.includeCatalogServices || false,
       flowMode: 'visual', // Sempre visual
-      flowSteps: assistantSettings.flowSteps || [] // ✅ Carregar steps salvos
+      flowSteps: assistantSettings.flowSteps || [], // ✅ Carregar steps salvos
+      enableAppointments: assistantSettings.enableAppointments || false,
+      appointmentTypes: assistantSettings.appointmentTypes || []
     });
   }, [assistantSettings]);
 
@@ -3768,12 +3772,28 @@ const DashboardWithFirebase = ({
                     initialSteps={assistantForm.flowSteps || []}
                     catalogItems={catalogItems}
                     onChange={(newSteps) => {
+                      // Buscar step de agendamento para sincronizar configuração global
+                      const appointmentStep = newSteps.find(step => step.type === 'create_appointment' && step.appointmentEnabled);
+                      const hasEnabledAppointment = !!appointmentStep;
+                      const appointmentTypes = appointmentStep?.appointmentTypes || [];
+                      
+                      // Buscar step de catálogo para sincronizar configuração global
+                      const catalogStep = newSteps.find(step => step.type === 'show_catalog');
+                      const hasProducts = catalogStep?.catalogSettings?.includeProducts || false;
+                      const hasServices = catalogStep?.catalogSettings?.includeServices || false;
+                      
                       setAssistantForm(prev => ({
                         ...prev,
                         flowSteps: newSteps,
                         flowMode: 'visual',
                         // Gerar prompt automaticamente dos steps
-                        systemPrompt: convertStepsToPrompt(newSteps)
+                        systemPrompt: convertStepsToPrompt(newSteps),
+                        // Sincronizar configurações de agendamento
+                        enableAppointments: hasEnabledAppointment,
+                        appointmentTypes: appointmentTypes,
+                        // Sincronizar configurações de catálogo
+                        includeCatalogProducts: hasProducts,
+                        includeCatalogServices: hasServices
                       }));
                     }}
                     onPromptChange={(improvedPrompt) => {
