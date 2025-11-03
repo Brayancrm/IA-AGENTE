@@ -4307,7 +4307,7 @@ const DashboardWithFirebase = ({
                 💎 Planos e Assinaturas
               </h2>
               <p style={{ fontSize: '1.125rem', color: '#9ca3af' }}>
-                Gerencie os planos disponíveis para seus clientes
+                {user?.isMaster ? 'Gerencie os planos disponíveis para seus clientes' : 'Escolha o plano ideal para sua empresa'}
               </p>
             </div>
 
