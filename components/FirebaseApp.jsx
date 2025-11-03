@@ -1229,6 +1229,7 @@ const FirebaseApp = () => {
         deleteCatalogItem={deleteCatalogItem}
         saveUser={saveUser}
         deleteUser={deleteUser}
+        toggleUserPlan={toggleUserPlan}
         openUserModal={openUserModal}
         resetUserPassword={resetUserPassword}
         handleLogout={handleLogout}
@@ -1295,6 +1296,7 @@ const DashboardWithFirebase = ({
   deleteCatalogItem,
   saveUser,
   deleteUser,
+  toggleUserPlan,
   openUserModal,
   resetUserPassword,
   handleLogout,
