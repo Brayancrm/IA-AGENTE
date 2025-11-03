@@ -2742,11 +2742,12 @@ async function createAsaasSubscription(asaasApiKey, customerData, planData, user
     });
     
     console.log('✅ Assinatura criada no Asaas:', subscriptionResponse.data.id);
+    console.log('📄 Dados completos da resposta Asaas:', JSON.stringify(subscriptionResponse.data, null, 2));
     
     return {
       success: true,
       subscriptionId: subscriptionResponse.data.id,
-      invoiceUrl: subscriptionResponse.data.url,
+      invoiceUrl: subscriptionResponse.data.url || subscriptionResponse.data.invoiceUrl || null,
       value: parseFloat(planData.price),
       cycle: cycle,
       nextDueDate: subscriptionResponse.data.nextDueDate
