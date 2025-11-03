@@ -50,6 +50,8 @@ const FirebaseApp = () => {
   const [users, setUsers] = useState([]);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [showPlanSelectionModal, setShowPlanSelectionModal] = useState(false);
+  const [selectedUserForPlan, setSelectedUserForPlan] = useState(null);
   
   // Estados do WhatsApp
   const [whatsappStatus, setWhatsappStatus] = useState('disconnected');
@@ -1075,36 +1077,183 @@ const FirebaseApp = () => {
         console.log('Plano desativado para usuário:', userData.uid);
         showToast('Plano desativado com sucesso!');
       } else {
-        // Ativar plano - procurar assinatura pendente ou criar manual
-        const subscriptionsRef = ref(database, `subscriptions/${userData.uid}`);
-        const subscriptionsSnapshot = await get(subscriptionsRef);
-        
-        if (subscriptionsSnapshot.exists() && subscriptionsSnapshot.val()) {
-          // Buscar primeira assinatura disponível
-          const subscriptions = subscriptionsSnapshot.val();
-          const firstSubKey = Object.keys(subscriptions)[0];
-          const firstSub = subscriptions[firstSubKey];
-          
-          if (firstSub) {
-            await activePlanRef.set({
-              planId: firstSub.planId,
-              subscriptionId: firstSubKey,
-              asaasSubscriptionId: firstSub.asaasSubscriptionId,
-              startedAt: new Date().toISOString(),
-              nextDueDate: firstSub.nextDueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-              limits: firstSub.limits || {}
-            });
-            console.log('Plano ativado manualmente para usuário:', userData.uid);
-            showToast('Plano ativado com sucesso!');
-          }
-        } else {
-          showToast('Nenhuma assinatura encontrada para este usuário. O usuário precisa assinar um plano primeiro.', 'error');
-        }
+        // Abrir modal para escolher plano
+        setSelectedUserForPlan(userData);
+        setShowPlanSelectionModal(true);
       }
     } catch (error) {
       console.error('Erro ao gerenciar plano do usuário:', error);
       showToast('Erro ao gerenciar plano: ' + error.message, 'error');
     }
+  };
+
+  const activatePlanForUser = async (planId) => {
+    if (!user?.isMaster || !database || !selectedUserForPlan?.uid) {
+      showToast('Erro: Dados insuficientes', 'error');
+      return;
+    }
+
+    try {
+      // Buscar dados do plano
+      const planRef = ref(database, `plans/${planId}`);
+      const planSnapshot = await get(planRef);
+      
+      if (!planSnapshot.exists()) {
+        showToast('Plano não encontrado', 'error');
+        return;
+      }
+
+      const planData = planSnapshot.val();
+      
+      // Criar activePlan para o usuário
+      const activePlanRef = ref(database, `users/data/${selectedUserForPlan.uid}/activePlan`);
+      await set(activePlanRef, {
+        planId: planId,
+        planName: planData.name,
+        startedAt: new Date().toISOString(),
+        nextDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        limits: planData.limits || {
+          messagesPerMonth: null,
+          conversations: null,
+          catalogItems: null,
+          integrations: []
+        }
+      });
+      
+      console.log('Plano ativado manualmente para usuário:', selectedUserForPlan.uid);
+      showToast(`Plano "${planData.name}" ativado com sucesso!`);
+      setShowPlanSelectionModal(false);
+      setSelectedUserForPlan(null);
+    } catch (error) {
+      console.error('Erro ao ativar plano:', error);
+      showToast('Erro ao ativar plano: ' + error.message, 'error');
+    }
+  };
+
+  // Modal de seleção de planos
+  const PlanSelectionModal = () => {
+    if (!showPlanSelectionModal || !selectedUserForPlan) return null;
+
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999
+      }} onClick={() => {
+        setShowPlanSelectionModal(false);
+        setSelectedUserForPlan(null);
+      }}>
+        <div style={{
+          backgroundColor: '#1a1f36',
+          borderRadius: '20px',
+          padding: '32px',
+          maxWidth: '600px',
+          width: '90%',
+          maxHeight: '80vh',
+          overflowY: 'auto',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          border: '2px solid rgba(16, 185, 129, 0.3)'
+        }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', margin: 0 }}>
+              Selecionar Plano para {selectedUserForPlan.name || selectedUserForPlan.email}
+            </h3>
+            <button
+              onClick={() => {
+                setShowPlanSelectionModal(false);
+                setSelectedUserForPlan(null);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#9ca3af',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                padding: '4px 8px'
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {plans.length === 0 ? (
+            <p style={{ color: '#9ca3af', textAlign: 'center', padding: '32px' }}>
+              Nenhum plano disponível
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {plans.map((plan) => (
+                <div
+                  key={plan.id}
+                  style={{
+                    backgroundColor: '#0f1419',
+                    borderRadius: '12px',
+                    padding: '20px',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => activatePlanForUser(plan.id)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#10b981';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <h4 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#ffffff', margin: 0 }}>
+                      {plan.name}
+                    </h4>
+                    <span style={{ fontSize: '1.5rem', fontWeight: '700', color: '#10b981' }}>
+                      R$ {plan.price?.toFixed(2) || '0.00'}
+                    </span>
+                  </div>
+                  {plan.description && (
+                    <p style={{ color: '#9ca3af', marginBottom: '12px', fontSize: '0.9375rem' }}>
+                      {plan.description}
+                    </p>
+                  )}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
+                    {plan.limits?.messagesPerMonth && (
+                      <span style={{
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        color: '#10b981',
+                        padding: '4px 12px',
+                        borderRadius: '8px',
+                        fontSize: '0.875rem'
+                      }}>
+                        {plan.limits.messagesPerMonth} mensagens/mês
+                      </span>
+                    )}
+                    {plan.limits?.messagesPerMonth === null && (
+                      <span style={{
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        color: '#10b981',
+                        padding: '4px 12px',
+                        borderRadius: '8px',
+                        fontSize: '0.875rem'
+                      }}>
+                        Mensagens ilimitadas
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   const openUserModal = (userData = null) => {
@@ -1214,6 +1363,7 @@ const FirebaseApp = () => {
         user={user}
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
+        toggleUserPlan={toggleUserPlan}
         companyProfile={companyProfile}
         integrationsConfig={integrationsConfig}
         assistantSettings={assistantSettings}
@@ -1272,6 +1422,7 @@ const FirebaseApp = () => {
         userPlanUsage={userPlanUsage}
       />
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      <PlanSelectionModal />
     </div>
   );
 };
