@@ -2554,6 +2554,132 @@ async function createAsaasCharge(asaasApiKey, customerData, items, userId) {
   }
 }
 
+// Função para criar assinatura no Asaas
+async function createAsaasSubscription(asaasApiKey, customerData, planData, userId) {
+  try {
+    console.log('💎 Criando assinatura no Asaas...');
+    
+    // Detectar ambiente automaticamente pela chave
+    const isProductionKey = asaasApiKey.includes('_prod_');
+    const asaasEnv = process.env.ASAAS_ENV || (isProductionKey ? 'production' : 'sandbox');
+    const baseUrl = asaasEnv === 'production' 
+      ? 'https://www.asaas.com/api/v3'
+      : 'https://sandbox.asaas.com/api/v3';
+    
+    console.log('🌐 [ASSINATURA] Ambiente detectado:', asaasEnv);
+    console.log('🌐 [ASSINATURA] Base URL:', baseUrl);
+    
+    // Criar ou buscar cliente no Asaas
+    let customerId;
+    
+    try {
+      // Limpar telefone e remover "55" inicial se presente
+      let customerPhone = customerData.mobilePhone || customerData.phone || '';
+      let cleanPhone = customerPhone.replace(/[@c.us]/g, '').replace(/\D/g, '');
+      
+      // REGRA: Se começa com 55, remover esses 2 dígitos
+      if (cleanPhone.startsWith('55') && cleanPhone.length > 10) {
+        console.log('📞 [ASSINATURA] Telefone original:', cleanPhone);
+        cleanPhone = cleanPhone.substring(2); // Remove "55"
+        console.log('📞 [ASSINATURA] Telefone sem 55:', cleanPhone);
+      }
+      
+      const customerPayload = {
+        name: customerData.name || 'Cliente Assinante',
+        mobilePhone: cleanPhone,
+        externalReference: `subscription_${userId}`
+      };
+      
+      // Adicionar campos opcionais apenas se existirem
+      if (customerData.cpfCnpj) {
+        customerPayload.cpfCnpj = customerData.cpfCnpj;
+      }
+      if (customerData.email) {
+        customerPayload.email = customerData.email;
+      }
+      
+      console.log('📝 Criando/buscando cliente para assinatura...');
+      
+      const customerResponse = await axios.post(`${baseUrl}/customers`, customerPayload, {
+        headers: {
+          'access_token': asaasApiKey,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      customerId = customerResponse.data.id;
+      console.log('✅ Cliente para assinatura:', customerId);
+    } catch (error) {
+      // Se cliente já existe, buscar pelo externalReference
+      if (error.response?.status === 400) {
+        const searchResponse = await axios.get(`${baseUrl}/customers`, {
+          params: {
+            externalReference: `subscription_${userId}`
+          },
+          headers: {
+            'access_token': asaasApiKey
+          }
+        });
+        
+        if (searchResponse.data.data && searchResponse.data.data.length > 0) {
+          customerId = searchResponse.data.data[0].id;
+          console.log('✅ Cliente encontrado para assinatura:', customerId);
+        }
+      }
+    }
+    
+    if (!customerId) {
+      throw new Error('Não foi possível criar ou encontrar cliente no Asaas');
+    }
+    
+    // Determinar ciclo de cobrança
+    const cycle = planData.billingCycle === 'yearly' ? 'YEARLY' : 'MONTHLY';
+    
+    // Criar assinatura
+    console.log('💎 Criando assinatura no Asaas...');
+    console.log(`   Cliente ID: ${customerId}`);
+    console.log(`   Plano: ${planData.name}`);
+    console.log(`   Valor: R$ ${parseFloat(planData.price).toFixed(2)}`);
+    console.log(`   Ciclo: ${cycle}`);
+    
+    const subscriptionPayload = {
+      customer: customerId,
+      billingType: 'UNDEFINED', // Permite pix, cartão e boleto
+      value: parseFloat(planData.price),
+      nextDueDate: new Date(Date.now() + (planData.billingCycle === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      cycle: cycle,
+      description: `Assinatura: ${planData.name}`,
+      externalReference: `subscription_${userId}_${planData.id}`,
+      postalService: false
+    };
+    
+    const subscriptionResponse = await axios.post(`${baseUrl}/subscriptions`, subscriptionPayload, {
+      headers: {
+        'access_token': asaasApiKey,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('✅ Assinatura criada no Asaas:', subscriptionResponse.data.id);
+    
+    return {
+      success: true,
+      subscriptionId: subscriptionResponse.data.id,
+      invoiceUrl: subscriptionResponse.data.url,
+      value: parseFloat(planData.price),
+      cycle: cycle,
+      nextDueDate: subscriptionResponse.data.nextDueDate
+    };
+    
+  } catch (error) {
+    console.error('❌ Erro ao criar assinatura no Asaas:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.errors?.[0]?.description || error.message
+    };
+  }
+}
+
 // ============================================
 // FUNÇÕES DE NOTA FISCAL
 // ============================================
@@ -3229,6 +3355,81 @@ app.post('/api/asaas/create-charge', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Erro ao criar cobrança:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Endpoint para criar assinatura
+app.post('/api/asaas/create-subscription', async (req, res) => {
+  try {
+    const { userId, customerData, planData } = req.body;
+    
+    if (!userId || !customerData || !planData) {
+      return res.status(400).json({ error: 'userId, customerData e planData são obrigatórios' });
+    }
+    
+    // Buscar API Key do Asaas
+    const integrations = await getIntegrationsConfig(userId);
+    
+    let asaasApiKey = null;
+    if (integrations) {
+      // Formato Firestore
+      if (integrations.asaasConfig && integrations.asaasConfig.asaasApiKey) {
+        asaasApiKey = integrations.asaasConfig.asaasApiKey;
+      }
+      // Formato Realtime Database
+      else if (integrations.asaasApiKey) {
+        asaasApiKey = integrations.asaasApiKey;
+      }
+    }
+    
+    if (!asaasApiKey) {
+      return res.status(400).json({ error: 'API Key do Asaas não configurada' });
+    }
+    
+    // Criar assinatura
+    const result = await createAsaasSubscription(asaasApiKey, customerData, planData, userId);
+    
+    if (result.success) {
+      // Salvar assinatura no Firebase
+      const subscriptionRef = db.ref(`subscriptions/${userId}`).push();
+      
+      await subscriptionRef.set({
+        subscriptionId: subscriptionRef.key,
+        asaasSubscriptionId: result.subscriptionId,
+        planId: planData.id,
+        planName: planData.name,
+        customer: customerData,
+        value: result.value,
+        cycle: result.cycle,
+        status: 'active',
+        nextDueDate: result.nextDueDate,
+        createdAt: new Date().toISOString(),
+        paymentUrl: result.invoiceUrl,
+        limits: planData.limits || {}
+      });
+      
+      // Vincular plano ao usuário
+      await db.ref(`users/data/${userId}/activePlan`).set({
+        planId: planData.id,
+        subscriptionId: subscriptionRef.key,
+        asaasSubscriptionId: result.subscriptionId,
+        startedAt: new Date().toISOString(),
+        nextDueDate: result.nextDueDate,
+        limits: planData.limits || {}
+      });
+      
+      res.json({
+        success: true,
+        subscriptionId: subscriptionRef.key,
+        ...result
+      });
+    } else {
+      res.status(400).json(result);
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao criar assinatura:', error);
     res.status(500).json({ error: error.message });
   }
 });
