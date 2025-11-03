@@ -2949,7 +2949,7 @@ const DashboardWithFirebase = ({
                     gap: '8px',
                     fontWeight: '600', 
                     marginBottom: '10px', 
-                    color: '#111827',
+                    color: '#ffffff',
                     fontSize: '0.9375rem'
                   }}>
                     <span style={{ fontSize: '1.25rem' }}>📄</span>
@@ -2990,7 +2990,7 @@ const DashboardWithFirebase = ({
                     gap: '8px',
                     fontWeight: '600', 
                     marginBottom: '10px', 
-                    color: '#111827',
+                    color: '#ffffff',
                     fontSize: '0.9375rem'
                   }}>
                     <span style={{ fontSize: '1.25rem' }}>📱</span>
