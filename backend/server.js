@@ -434,6 +434,15 @@ async function handleIncomingMessage(userId, message, client) {
       if (aiConfig && aiConfig.apiKey) {
         console.log('🤖 Gerando resposta com IA...');
         
+        // Verificar limites do plano
+        const limitCheck = await checkPlanLimits(userId, 'messagesPerMonth');
+        
+        if (!limitCheck.allowed) {
+          console.log('⚠️ [PLANO] Mensagem bloqueada por limite do plano');
+          await client.sendText(message.from, limitCheck.message);
+          return;
+        }
+        
         // Gerar resposta com IA
         const aiResult = await generateAIResponse(userId, sanitizedNumber, message.body, aiConfig);
         const aiResponse = aiResult.text;
@@ -441,6 +450,9 @@ async function handleIncomingMessage(userId, message, client) {
         // Enviar resposta de texto
         await client.sendText(message.from, aiResponse);
         console.log('✅ Resposta enviada:', aiResponse);
+        
+        // Incrementar contador de uso
+        await incrementMessageUsage(userId);
         
         // Salvar resposta da IA
         const responseRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
@@ -2680,6 +2692,119 @@ async function createAsaasSubscription(asaasApiKey, customerData, planData, user
   }
 }
 
+// Função para verificar se usuário tem plano ativo
+async function getUserActivePlan(userId) {
+  try {
+    const activePlanSnapshot = await db.ref(`users/data/${userId}/activePlan`).once('value');
+    const activePlan = activePlanSnapshot.val();
+    
+    if (!activePlan) {
+      return null;
+    }
+    
+    // Verificar se o plano ainda está ativo (não expirou)
+    const now = new Date();
+    const nextDueDate = new Date(activePlan.nextDueDate);
+    
+    if (nextDueDate < now) {
+      console.log('⚠️ [PLANO] Plano expirado para usuário:', userId);
+      // Marcar plano como expirado
+      await db.ref(`users/data/${userId}/activePlan`).update({ status: 'expired' });
+      return null;
+    }
+    
+    return activePlan;
+  } catch (error) {
+    console.error('❌ Erro ao verificar plano do usuário:', error);
+    return null;
+  }
+}
+
+// Função para verificar limites do plano antes de enviar mensagem
+async function checkPlanLimits(userId, limitType = 'messagesPerMonth') {
+  try {
+    const activePlan = await getUserActivePlan(userId);
+    
+    // Se não tiver plano ativo, verificar se é master
+    if (!activePlan) {
+      const userSnapshot = await db.ref(`users/registered`).once('value');
+      const users = userSnapshot.val() || {};
+      const userEntry = Object.values(users).find(u => u.uid === userId);
+      
+      // Master não tem limites
+      if (userEntry && userEntry.isMaster) {
+        return { allowed: true, message: null };
+      }
+      
+      // Usuário sem plano - bloquear tudo
+      return {
+        allowed: false,
+        message: 'Você precisa de um plano ativo para usar esta funcionalidade. Acesse o dashboard para contratar um plano.'
+      };
+    }
+    
+    // Verificar limites do plano
+    const limits = activePlan.limits || {};
+    const limit = limits[limitType];
+    
+    // Se limit for null ou -1, é ilimitado
+    if (limit === null || limit === -1) {
+      return { allowed: true, message: null, planInfo: activePlan };
+    }
+    
+    // Verificar uso atual (ajustar conforme necessário)
+    const usageKey = `${limitType}Usage`;
+    const currentUsageSnapshot = await db.ref(`users/data/${userId}/${usageKey}`).once('value');
+    const currentUsage = currentUsageSnapshot.val() || 0;
+    
+    if (currentUsage >= limit) {
+      return {
+        allowed: false,
+        message: `Limite de ${limitType === 'messagesPerMonth' ? 'mensagens mensais' : 'conversas'} atingido. Contrate um plano superior ou aguarde a renovação.`,
+        planInfo: activePlan,
+        usage: currentUsage,
+        limit: limit
+      };
+    }
+    
+    return {
+      allowed: true,
+      message: null,
+      planInfo: activePlan,
+      usage: currentUsage,
+      limit: limit
+    };
+    
+  } catch (error) {
+    console.error('❌ Erro ao verificar limites:', error);
+    return { allowed: true, message: null }; // Em caso de erro, permitir
+  }
+}
+
+// Função para incrementar uso de mensagens
+async function incrementMessageUsage(userId) {
+  try {
+    const activePlan = await getUserActivePlan(userId);
+    
+    if (!activePlan) {
+      return; // Usuário sem plano
+    }
+    
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const usageRef = db.ref(`users/data/${userId}/messagesUsage/${monthKey}`);
+    
+    const usageSnapshot = await usageRef.once('value');
+    const currentCount = usageSnapshot.val() || 0;
+    
+    await usageRef.set(currentCount + 1);
+    
+    console.log(`📊 [USAGE] Mensagem incrementada. Total do mês: ${currentCount + 1}`);
+  } catch (error) {
+    console.error('❌ Erro ao incrementar uso:', error);
+  }
+}
+
 // ============================================
 // FUNÇÕES DE NOTA FISCAL
 // ============================================
@@ -3222,12 +3347,22 @@ app.post('/api/messages/send', async (req, res) => {
       return res.status(400).json({ error: 'userId, to e message são obrigatórios' });
     }
     
+    // Verificar limites do plano
+    const limitCheck = await checkPlanLimits(userId, 'messagesPerMonth');
+    
+    if (!limitCheck.allowed) {
+      return res.status(403).json({ error: limitCheck.message });
+    }
+    
     const client = activeClients.get(userId);
     if (!client) {
       return res.status(404).json({ error: 'Sessão não encontrada ou inativa' });
     }
     
     await client.sendText(to, message);
+    
+    // Incrementar contador de uso
+    await incrementMessageUsage(userId);
     
     // Salvar mensagem enviada
     const messageRef = db.ref(`conversations/${userId}/${to}/messages`).push();
@@ -3285,6 +3420,58 @@ app.get('/api/conversations/:userId', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Erro ao buscar conversas:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obter informações do plano do usuário
+app.get('/api/user/plan/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const activePlan = await getUserActivePlan(userId);
+    
+    if (!activePlan) {
+      // Verificar se é master
+      const usersSnapshot = await db.ref('users/registered').once('value');
+      const users = usersSnapshot.val() || {};
+      const userEntry = Object.values(users).find(u => u.uid === userId);
+      
+      if (userEntry && userEntry.isMaster) {
+        return res.json({
+          hasActivePlan: true,
+          isMaster: true,
+          message: 'Usuário master - sem limites'
+        });
+      }
+      
+      return res.json({
+        hasActivePlan: false,
+        message: 'Nenhum plano ativo'
+      });
+    }
+    
+    // Buscar uso atual
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const usageSnapshot = await db.ref(`users/data/${userId}/messagesUsage/${monthKey}`).once('value');
+    const currentUsage = usageSnapshot.val() || 0;
+    
+    res.json({
+      hasActivePlan: true,
+      plan: activePlan,
+      usage: {
+        messagesPerMonth: {
+          used: currentUsage,
+          limit: activePlan.limits?.messagesPerMonth || null,
+          unlimited: activePlan.limits?.messagesPerMonth === null || activePlan.limits?.messagesPerMonth === -1
+        }
+      },
+      nextDueDate: activePlan.nextDueDate
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao buscar plano do usuário:', error);
     res.status(500).json({ error: error.message });
   }
 });
