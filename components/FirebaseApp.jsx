@@ -585,13 +585,23 @@ const FirebaseApp = () => {
         return;
       }
 
+      // Buscar CPF/CNPJ do company_profile
+      const companyProfileRef = ref(database, `users/data/${user.uid}/company_profile`);
+      const companyProfileSnapshot = await get(companyProfileRef);
+      const companyProfile = companyProfileSnapshot.val() || {};
+
       // Preparar dados do cliente
       const customerData = {
-        name: userEntry.name || userEntry.email,
+        name: companyProfile.companyName || userEntry.name || userEntry.email,
         email: userEntry.email,
-        phone: user.phoneNumber || '',
-        mobilePhone: user.phoneNumber || ''
+        phone: companyProfile.whatsappNumber || user.phoneNumber || '',
+        mobilePhone: companyProfile.whatsappNumber || user.phoneNumber || ''
       };
+
+      // Adicionar CPF/CNPJ se existir
+      if (companyProfile.cnpj) {
+        customerData.cpfCnpj = companyProfile.cnpj.replace(/[^\d]/g, '');
+      }
 
       // Chamar API do backend para criar assinatura
       const response = await fetch(`${BACKEND_URL}/api/asaas/create-subscription`, {
@@ -2875,10 +2885,10 @@ const DashboardWithFirebase = ({
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
-              Cadastro da Empresa
+              Cadastro do Usuário
             </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
-                Configure os dados da sua empresa para personalizar o atendimento
+                Configure seus dados para personalizar o atendimento
               </p>
             </div>
 
@@ -2901,8 +2911,8 @@ const DashboardWithFirebase = ({
                     color: '#ffffff',
                     fontSize: '0.9375rem'
                   }}>
-                    <span style={{ fontSize: '1.25rem' }}>🏢</span>
-                    Nome da Empresa
+                    <span style={{ fontSize: '1.25rem' }}>👤</span>
+                    Nome do Cliente/Razão Social
                   </label>
                   <input
                     type="text"
@@ -2917,7 +2927,7 @@ const DashboardWithFirebase = ({
                       transition: 'all 0.2s ease',
                       outline: 'none'
                     }}
-                    placeholder="Digite o nome da sua empresa"
+                    placeholder="Digite seu nome ou razão social"
                     onFocus={(e) => {
                       e.target.style.borderColor = '#10b981';
                       e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
@@ -2928,7 +2938,7 @@ const DashboardWithFirebase = ({
                     }}
                   />
                   <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '6px' }}>
-                    Nome que será exibido nas mensagens automáticas
+                    Nome ou razão social que será usado nas mensagens e documentos
                   </p>
                 </div>
 
@@ -2943,7 +2953,7 @@ const DashboardWithFirebase = ({
                     fontSize: '0.9375rem'
                   }}>
                     <span style={{ fontSize: '1.25rem' }}>📄</span>
-                    CNPJ
+                    CPF/CNPJ
                   </label>
                   <input
                     type="text"
@@ -2958,7 +2968,7 @@ const DashboardWithFirebase = ({
                       transition: 'all 0.2s ease',
                       outline: 'none'
                     }}
-                    placeholder="00.000.000/0000-00"
+                    placeholder="000.000.000-00 ou 00.000.000/0000-00"
                     onFocus={(e) => {
                       e.target.style.borderColor = '#10b981';
                       e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
@@ -2969,7 +2979,7 @@ const DashboardWithFirebase = ({
                     }}
                   />
                   <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '6px' }}>
-                    Opcional - usado para emissão de notas fiscais
+                    Obrigatório para assinatura de planos e emissão de notas fiscais
                   </p>
                 </div>
 
@@ -3046,7 +3056,7 @@ const DashboardWithFirebase = ({
                     }}
                   >
                     <span style={{ fontSize: '1.25rem' }}>✓</span>
-                    Salvar Dados da Empresa
+                    Salvar Dados do Usuário
                 </button>
                 </div>
               </form>
@@ -4712,7 +4722,7 @@ const DashboardWithFirebase = ({
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
-    { id: 'company', label: 'Cadastro da Empresa', icon: '🏢' },
+    { id: 'company', label: 'Cadastro do Usuário', icon: '👤' },
     { id: 'catalog', label: 'Catálogo', icon: '📦' },
     { id: 'agendamentos', label: 'Agendamentos', icon: '📅' },
     { id: 'conversas', label: 'Conversas WhatsApp', icon: '💬' },
