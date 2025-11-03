@@ -973,6 +973,75 @@ async function getIntegrationsConfig(userId) {
   }
 }
 
+// Função para buscar API Key do Asaas do usuário master
+async function getMasterAsaasApiKey() {
+  try {
+    console.log('🔍 Buscando API Key do Asaas do master...');
+    
+    let masterUserId = null;
+    
+    // Estratégia 1: Buscar em users/registered
+    const usersSnapshot = await db.ref('users/registered').once('value');
+    
+    if (usersSnapshot.exists()) {
+      const users = usersSnapshot.val();
+      console.log('🔍 Buscando master entre', Object.keys(users).length, 'usuários...');
+      
+      const masterUser = Object.values(users).find(u => 
+        u.email === 'brayan@master.com' || u.isMaster === true
+      );
+      
+      if (masterUser) {
+        masterUserId = masterUser.uid;
+        console.log('✅ Master encontrado:', masterUser.email, 'UID:', masterUserId);
+      }
+    }
+    
+    // Estratégia 2: Se não encontrou, buscar todas as configurações em users/data até encontrar uma com API Key do Asaas
+    if (!masterUserId) {
+      console.log('🔍 Master não encontrado em users/registered, buscando em users/data...');
+      
+      const allDataSnapshot = await db.ref('users/data').once('value');
+      
+      if (allDataSnapshot.exists()) {
+        const allUsersData = allDataSnapshot.val();
+        console.log('🔍 Verificando', Object.keys(allUsersData).length, 'usuários em users/data...');
+        
+        // Procurar o primeiro usuário que tem API Key do Asaas configurada
+        for (const [uid, userData] of Object.entries(allUsersData)) {
+          if (userData.integrations_config && userData.integrations_config.asaasApiKey) {
+            masterUserId = uid;
+            console.log('✅ Encontrada API Key do Asaas no UID:', uid);
+            break;
+          }
+        }
+      }
+    }
+    
+    // Se encontrou o master, buscar sua API Key do Asaas
+    if (masterUserId) {
+      const masterIntegrationsSnapshot = await db.ref(`users/data/${masterUserId}/integrations_config`).once('value');
+      const masterIntegrations = masterIntegrationsSnapshot.val();
+      
+      console.log('🔍 Configuração de integrações do master:', masterIntegrations ? 'Encontrada' : 'Não encontrada');
+      
+      if (masterIntegrations && masterIntegrations.asaasApiKey) {
+        console.log('✅ API Key do Asaas do master encontrada (primeiros 15 caracteres):', masterIntegrations.asaasApiKey.substring(0, 15) + '...');
+        return masterIntegrations.asaasApiKey;
+      } else {
+        console.log('❌ Master não tem API Key do Asaas configurada');
+      }
+    } else {
+      console.log('❌ Nenhum master encontrado no sistema');
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('❌ Erro ao buscar API Key do Asaas do master:', error);
+    return null;
+  }
+}
+
 // Função para fazer parse do endereço fornecido pelo cliente
 function parseAddress(messageText) {
   try {
@@ -3555,23 +3624,11 @@ app.post('/api/asaas/create-subscription', async (req, res) => {
       return res.status(400).json({ error: 'userId, customerData e planData são obrigatórios' });
     }
     
-    // Buscar API Key do Asaas
-    const integrations = await getIntegrationsConfig(userId);
-    
-    let asaasApiKey = null;
-    if (integrations) {
-      // Formato Firestore
-      if (integrations.asaasConfig && integrations.asaasConfig.asaasApiKey) {
-        asaasApiKey = integrations.asaasConfig.asaasApiKey;
-      }
-      // Formato Realtime Database
-      else if (integrations.asaasApiKey) {
-        asaasApiKey = integrations.asaasApiKey;
-      }
-    }
+    // Buscar API Key do Asaas do master (assinaturas de planos usam sempre a API do master)
+    const asaasApiKey = await getMasterAsaasApiKey();
     
     if (!asaasApiKey) {
-      return res.status(400).json({ error: 'API Key do Asaas não configurada' });
+      return res.status(400).json({ error: 'API Key do Asaas não configurada no sistema' });
     }
     
     // Criar assinatura
