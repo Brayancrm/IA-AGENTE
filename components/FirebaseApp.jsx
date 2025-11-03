@@ -426,16 +426,35 @@ const FirebaseApp = () => {
       
       const usersRef = ref(database, 'users/registered');
       
-      const unsubscribe = onValue(usersRef, (snapshot) => {
+      const unsubscribe = onValue(usersRef, async (snapshot) => {
         console.log('Snapshot de usuários recebido do Realtime Database');
         const usersList = [];
         
         if (snapshot.exists()) {
           const data = snapshot.val();
           console.log('Dados recebidos:', data);
-          Object.keys(data).forEach((key) => {
-            usersList.push({ id: key, ...data[key] });
-          });
+          
+          // Processar cada usuário e buscar plano ativo
+          for (const key of Object.keys(data)) {
+            const userData = { id: key, ...data[key] };
+            
+            // Buscar plano ativo se tiver uid
+            if (userData.uid && database) {
+              try {
+                const activePlanRef = ref(database, `users/data/${userData.uid}/activePlan`);
+                const planSnapshot = await get(activePlanRef);
+                if (planSnapshot.exists()) {
+                  const planData = planSnapshot.val();
+                  userData.activePlan = planData.planName || planData.planId || 'Plano Ativo';
+                  userData.hasActivePlan = true;
+                }
+              } catch (error) {
+                console.error('Erro ao buscar plano ativo para usuário:', userData.uid, error);
+              }
+            }
+            
+            usersList.push(userData);
+          }
         } else {
           console.log('Nenhum usuário encontrado no Realtime Database');
         }
@@ -1040,6 +1059,51 @@ const FirebaseApp = () => {
     } catch (error) {
       console.error('Erro ao excluir usuário:', error);
       showToast('Erro ao excluir usuário: ' + error.message, 'error');
+    }
+  };
+
+  const toggleUserPlan = async (userData) => {
+    if (!user?.isMaster || !database || !userData.uid) return;
+    
+    try {
+      const activePlanRef = ref(database, `users/data/${userData.uid}/activePlan`);
+      const planSnapshot = await get(activePlanRef);
+      
+      if (planSnapshot.exists()) {
+        // Desativar plano
+        await remove(activePlanRef);
+        console.log('Plano desativado para usuário:', userData.uid);
+        showToast('Plano desativado com sucesso!');
+      } else {
+        // Ativar plano - procurar assinatura pendente ou criar manual
+        const subscriptionsRef = ref(database, `subscriptions/${userData.uid}`);
+        const subscriptionsSnapshot = await get(subscriptionsRef);
+        
+        if (subscriptionsSnapshot.exists() && subscriptionsSnapshot.val()) {
+          // Buscar primeira assinatura disponível
+          const subscriptions = subscriptionsSnapshot.val();
+          const firstSubKey = Object.keys(subscriptions)[0];
+          const firstSub = subscriptions[firstSubKey];
+          
+          if (firstSub) {
+            await activePlanRef.set({
+              planId: firstSub.planId,
+              subscriptionId: firstSubKey,
+              asaasSubscriptionId: firstSub.asaasSubscriptionId,
+              startedAt: new Date().toISOString(),
+              nextDueDate: firstSub.nextDueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              limits: firstSub.limits || {}
+            });
+            console.log('Plano ativado manualmente para usuário:', userData.uid);
+            showToast('Plano ativado com sucesso!');
+          }
+        } else {
+          showToast('Nenhuma assinatura encontrada para este usuário. O usuário precisa assinar um plano primeiro.', 'error');
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao gerenciar plano do usuário:', error);
+      showToast('Erro ao gerenciar plano: ' + error.message, 'error');
     }
   };
 
@@ -4631,6 +4695,7 @@ const DashboardWithFirebase = ({
                         <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Nome</th>
                         <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Email</th>
                         <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Empresa</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Plano</th>
                         <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Status</th>
                         <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Registrado via</th>
                         <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Ações</th>
@@ -4642,6 +4707,7 @@ const DashboardWithFirebase = ({
                           <td style={{ padding: '12px' }}>{userItem.name}</td>
                           <td style={{ padding: '12px' }}>{userItem.email}</td>
                           <td style={{ padding: '12px' }}>{userItem.companyName || '-'}</td>
+                          <td style={{ padding: '12px' }}>{userItem.activePlan || '-'}</td>
                           <td style={{ padding: '12px' }}>
                             <span style={{
                               backgroundColor: userItem.isActive ? '#dcfce7' : '#fee2e2',
@@ -4667,7 +4733,7 @@ const DashboardWithFirebase = ({
                             </span>
                           </td>
                           <td style={{ padding: '12px' }}>
-                            <div style={{ display: 'flex', gap: '8px' }}>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                               <button
                                 onClick={() => handleOpenUserModal(userItem)}
                                 style={{
@@ -4695,6 +4761,20 @@ const DashboardWithFirebase = ({
                                 }}
                               >
                                 Reset Senha
+                              </button>
+                              <button
+                                onClick={() => toggleUserPlan(userItem)}
+                                style={{
+                                  backgroundColor: userItem.hasActivePlan ? '#dc2626' : '#10b981',
+                                  color: 'white',
+                                  padding: '6px 12px',
+                                  borderRadius: '6px',
+                                  border: 'none',
+                                  fontSize: '0.75rem',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                {userItem.hasActivePlan ? 'Desativar Plano' : 'Ativar Plano'}
                               </button>
                               <button
                                 onClick={() => deleteUser(userItem.id)}
