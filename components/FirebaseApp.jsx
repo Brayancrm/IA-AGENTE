@@ -362,35 +362,33 @@ const FirebaseApp = () => {
     });
     cleanupFunctions.push(() => off(agendamentosRef));
 
-    // 💎 Listener para planos (apenas master)
-    if (user.isMaster) {
-      const plansRef = ref(database, 'plans');
-      onValue(plansRef, (snapshot) => {
-        const plansList = [];
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          Object.keys(data).forEach((key) => {
-            const planData = data[key];
-            // Garantir que limits existe com valores padrão
-            plansList.push({ 
-              id: key, 
-              ...planData,
-              limits: planData.limits || {
-                messagesPerMonth: null,
-                conversations: null,
-                catalogItems: null,
-                integrations: []
-              }
-            });
+    // 💎 Listener para planos (todos os usuários precisam ver os planos)
+    const plansRef = ref(database, 'plans');
+    onValue(plansRef, (snapshot) => {
+      const plansList = [];
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        Object.keys(data).forEach((key) => {
+          const planData = data[key];
+          // Garantir que limits existe com valores padrão
+          plansList.push({ 
+            id: key, 
+            ...planData,
+            limits: planData.limits || {
+              messagesPerMonth: null,
+              conversations: null,
+              catalogItems: null,
+              integrations: []
+            }
           });
-          // Ordenar por preço (menor primeiro)
-          plansList.sort((a, b) => (a.price || 0) - (b.price || 0));
-        }
-        console.log('💎 [FIREBASE] Planos carregados:', plansList.length);
-        setPlans(plansList);
-      });
-      cleanupFunctions.push(() => off(plansRef));
-    }
+        });
+        // Ordenar por preço (menor primeiro)
+        plansList.sort((a, b) => (a.price || 0) - (b.price || 0));
+      }
+      console.log('💎 [FIREBASE] Planos carregados:', plansList.length);
+      setPlans(plansList);
+    });
+    cleanupFunctions.push(() => off(plansRef));
 
     // 👤 Listener para plano ativo do usuário
     const activePlanRef = ref(database, `users/data/${userId}/activePlan`);
@@ -4748,7 +4746,8 @@ const DashboardWithFirebase = ({
     { id: 'integrations', label: 'Integrações', icon: '⚙️' },
     { id: 'whatsapp', label: 'Conexão WhatsApp', icon: '📱' },
     { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' },
-    ...(user?.isMaster ? [{ id: 'plans', label: 'Planos e Assinaturas', icon: '💎' }, { id: 'users', label: 'Gerenciar Usuários', icon: '👤' }] : [])
+    { id: 'plans', label: 'Planos e Assinaturas', icon: '💎' },
+    ...(user?.isMaster ? [{ id: 'users', label: 'Gerenciar Usuários', icon: '👤' }] : [])
   ];
 
   return (
