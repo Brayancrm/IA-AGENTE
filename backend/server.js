@@ -3855,7 +3855,65 @@ app.post('/api/asaas/webhook', async (req, res) => {
       return res.json({ received: true, ignored: true, reason: 'Sem dados de pagamento' });
     }
     
-    // Buscar pedido pelo externalReference
+    // 🔥 NOVO: Verificar se é pagamento de assinatura PRIMEIRO
+    if (payment.subscription) {
+      console.log('💎 Pagamento relacionado a assinatura detectado!');
+      console.log('   Subscription ID:', payment.subscription);
+      
+      // Buscar assinatura pelo ID do Asaas
+      const subscriptionsSnapshot = await db.ref('subscriptions').once('value');
+      let subUserId = null;
+      let subKey = null;
+      
+      if (subscriptionsSnapshot.exists()) {
+        subscriptionsSnapshot.forEach((userSubs) => {
+          userSubs.forEach((sub) => {
+            if (sub.val().asaasSubscriptionId === payment.subscription) {
+              subUserId = userSubs.key;
+              subKey = sub.key;
+            }
+          });
+        });
+      }
+      
+      if (subUserId && subKey) {
+        console.log(`✅ Assinatura encontrada para usuário: ${subUserId}`);
+        
+        // Buscar plano ativo para atualizar nextDueDate
+        const activePlanRef = db.ref(`users/data/${subUserId}/activePlan`);
+        const activePlanSnapshot = await activePlanRef.once('value');
+        
+        if (activePlanSnapshot.exists() && activePlanSnapshot.val().subscriptionId === subKey) {
+          // Atualizar nextDueDate baseado no cycle da assinatura
+          const subData = (await db.ref(`subscriptions/${subUserId}/${subKey}`).once('value')).val();
+          const cycle = subData.cycle || 'MONTHLY';
+          const days = cycle === 'YEARLY' ? 365 : 30;
+          
+          const nextDueDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          
+          await db.ref(`subscriptions/${subUserId}/${subKey}`).update({
+            lastPayment: payment.id,
+            lastPaymentDate: payment.paymentDate || new Date().toISOString(),
+            nextDueDate: nextDueDate,
+            status: 'ACTIVE',
+            updatedAt: new Date().toISOString()
+          });
+          
+          await activePlanRef.update({
+            nextDueDate: nextDueDate,
+            updatedAt: new Date().toISOString()
+          });
+          
+          console.log(`✅ Assinatura renovada! Próxima cobrança: ${nextDueDate}`);
+        }
+        
+        return res.json({ received: true, processed: true, type: 'subscription_payment' });
+      } else {
+        console.log('⚠️ Assinatura não encontrada para Subscription ID:', payment.subscription);
+      }
+    }
+    
+    // Buscar pedido pelo externalReference (código original)
     const ordersSnapshot = await db.ref('orders').once('value');
     let userId, orderId, orderData;
     
