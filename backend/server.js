@@ -3725,6 +3725,115 @@ app.post('/api/asaas/webhook', async (req, res) => {
     }
     
     // ============================================
+    // EVENTOS DE ASSINATURA (SUBSCRIPTION)
+    // ============================================
+    const subscriptionEvents = [
+      'SUBSCRIPTION_CREATED',
+      'SUBSCRIPTION_UPDATED',
+      'SUBSCRIPTION_DELETED',
+      'SUBSCRIPTION_ACTIVATED',
+      'SUBSCRIPTION_CANCELLED',
+      'SUBSCRIPTION_CANCELED',
+      'SUBSCRIPTION_DELETED_WITH_PAYMENT',
+      'SUBSCRIPTION_PAYMENT'
+    ];
+    
+    if (subscriptionEvents.includes(event)) {
+      console.log(`💎 Evento de ASSINATURA recebido: ${event}`);
+      
+      const subscription = req.body.subscription || req.body;
+      
+      if (!subscription) {
+        console.log('⚠️ Webhook de assinatura sem dados');
+        return res.json({ received: true, ignored: true, reason: 'Sem dados de assinatura' });
+      }
+      
+      console.log('📋 Dados da assinatura:', {
+        id: subscription.id,
+        externalReference: subscription.externalReference,
+        status: subscription.status,
+        cycle: subscription.cycle
+      });
+      
+      // Extrair userId do externalReference (formato: subscription_userId_planId)
+      if (!subscription.externalReference || !subscription.externalReference.startsWith('subscription_')) {
+        console.log('⚠️ externalReference inválido:', subscription.externalReference);
+        return res.json({ received: true, ignored: true, reason: 'externalReference inválido' });
+      }
+      
+      const externalParts = subscription.externalReference.split('_');
+      const userId = externalParts[1];
+      const planId = externalParts[2];
+      
+      if (!userId) {
+        console.log('⚠️ Não foi possível extrair userId do externalReference');
+        return res.json({ received: true, ignored: true, reason: 'userId não encontrado' });
+      }
+      
+      // Buscar assinatura no Firebase
+      const subscriptionsRef = db.ref(`subscriptions/${userId}`);
+      const subscriptionsSnapshot = await subscriptionsRef.once('value');
+      
+      let subscriptionKey = null;
+      if (subscriptionsSnapshot.exists()) {
+        subscriptionsSnapshot.forEach((sub) => {
+          if (sub.val().asaasSubscriptionId === subscription.id) {
+            subscriptionKey = sub.key;
+          }
+        });
+      }
+      
+      if (!subscriptionKey) {
+        console.log('⚠️ Assinatura não encontrada no Firebase para:', subscription.id);
+        return res.json({ received: true, note: 'Assinatura não encontrada' });
+      }
+      
+      // Atualizar status da assinatura no Firebase
+      const updateData = {
+        status: subscription.status,
+        updatedAt: new Date().toISOString()
+      };
+      
+      if (subscription.nextDueDate) {
+        updateData.nextDueDate = subscription.nextDueDate;
+      }
+      
+      await db.ref(`subscriptions/${userId}/${subscriptionKey}`).update(updateData);
+      console.log(`✅ Assinatura ${subscriptionKey} atualizada no Firebase`);
+      
+      // Atualizar activePlan se necessário
+      const activePlanRef = db.ref(`users/data/${userId}/activePlan`);
+      const activePlanSnapshot = await activePlanRef.once('value');
+      
+      if (activePlanSnapshot.exists() && activePlanSnapshot.val().subscriptionId === subscriptionKey) {
+        const planUpdateData = {
+          nextDueDate: subscription.nextDueDate,
+          updatedAt: new Date().toISOString()
+        };
+        
+        // Se assinatura foi cancelada, desativar plano
+        if (subscription.status === 'CANCELLED' || subscription.status === 'DELETED') {
+          console.log('⚠️ Assinatura cancelada. Desativando plano do usuário...');
+          await db.ref(`users/data/${userId}`).update({ activePlan: null });
+          console.log('✅ Plano desativado');
+        } else {
+          await activePlanRef.update(planUpdateData);
+          console.log('✅ activePlan atualizado');
+        }
+      }
+      
+      // Eventos específicos de pagamento de assinatura
+      if (event === 'SUBSCRIPTION_PAYMENT' && payment) {
+        console.log('✅ Pagamento de assinatura recebido:', payment.id);
+        
+        // Incrementar contador de uso se necessário
+        // ou fazer qualquer outra ação necessária
+      }
+      
+      return res.json({ received: true, processed: true, event, subscriptionKey });
+    }
+    
+    // ============================================
     // EVENTOS DE PAGAMENTO (código original)
     // ============================================
     const paymentEvents = [
@@ -3737,7 +3846,7 @@ app.post('/api/asaas/webhook', async (req, res) => {
     ];
     
     if (!paymentEvents.includes(event)) {
-      console.log(`⚠️ Evento ignorado (não é de pagamento nem NF): ${event}`);
+      console.log(`⚠️ Evento ignorado (não é de pagamento nem NF nem assinatura): ${event}`);
       return res.json({ received: true, ignored: true, reason: 'Evento não reconhecido' });
     }
     
