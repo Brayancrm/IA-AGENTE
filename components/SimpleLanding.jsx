@@ -33,7 +33,6 @@ const SimpleLanding = ({ onLoginSuccess }) => {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [mode, setMode] = useState('login'); // 'login' ou 'register'
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
     password: '',
     companyName: '',
@@ -61,7 +60,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
           const usersRef = ref(database, 'users/registered');
           const newUserRef = push(usersRef);
           const userData = {
-            name: formData.name,
+            name: formData.companyName || formData.email, // Usar companyName se não tiver name
             email: formData.email,
             uid: userId,
             isActive: true,
@@ -1186,33 +1185,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
 
         {/* Formulário */}
         <form onSubmit={handleSubmit}>
-          {mode === 'register' && (
-                <div style={{ marginBottom: '20px' }}>
-              <input
-                type="text"
-                placeholder="Nome completo"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                required
-                style={{
-                  width: '100%',
-                      padding: '14px 16px',
-                  borderRadius: '12px',
-                      border: '2px solid rgba(255,255,255,0.1)',
-                      backgroundColor: '#0f1419',
-                      color: '#ffffff',
-                  fontSize: '1rem',
-                      boxSizing: 'border-box',
-                      outline: 'none',
-                      transition: 'border-color 0.2s ease'
-                }}
-                    onFocus={(e) => e.target.style.borderColor = '#10b981'}
-                    onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-              />
-            </div>
-          )}
-
-              <div style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: '20px' }}>
             <input
               type="email"
               placeholder="Email"
