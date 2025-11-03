@@ -36,7 +36,9 @@ const SimpleLanding = ({ onLoginSuccess }) => {
     name: '',
     email: '',
     password: '',
-    companyName: ''
+    companyName: '',
+    cnpj: '',
+    whatsappNumber: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -51,27 +53,36 @@ const SimpleLanding = ({ onLoginSuccess }) => {
         // Registrar usuário
         const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
         
-        // Salvar dados adicionais no Realtime Database
+        // Salvar dados no Realtime Database
         if (database) {
+          const userId = userCredential.user.uid;
+          
+          // Salvar em users/registered (nome e email para login)
+          const usersRef = ref(database, 'users/registered');
+          const newUserRef = push(usersRef);
           const userData = {
             name: formData.name,
             email: formData.email,
-            companyName: formData.companyName,
-            uid: userCredential.user.uid,
+            uid: userId,
             isActive: true,
             isMaster: false,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             registeredVia: 'landing_page'
           };
-
-          console.log('Salvando usuário no Realtime Database:', userData);
-          
-          const usersRef = ref(database, 'users/registered');
-          const newUserRef = push(usersRef);
           await set(newUserRef, userData);
           
-          console.log('Usuário salvo no Realtime Database com ID:', newUserRef.key);
+          // Salvar em users/data/{userId}/company_profile (dados completos)
+          const companyProfileRef = ref(database, `users/data/${userId}/company_profile`);
+          await set(companyProfileRef, {
+            companyName: formData.companyName,
+            cnpj: formData.cnpj,
+            whatsappNumber: formData.whatsappNumber,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+          
+          console.log('✅ Dados salvos no Realtime Database:', { userId, userData });
         }
         
         onLoginSuccess();
@@ -1250,28 +1261,79 @@ const SimpleLanding = ({ onLoginSuccess }) => {
           </div>
 
           {mode === 'register' && (
-                <div style={{ marginBottom: '20px' }}>
-              <input
-                type="text"
-                    placeholder="Nome da empresa (opcional)"
-                value={formData.companyName}
-                onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
-                style={{
-                  width: '100%',
-                      padding: '14px 16px',
-                  borderRadius: '12px',
-                      border: '2px solid rgba(255,255,255,0.1)',
-                      backgroundColor: '#0f1419',
-                      color: '#ffffff',
-                  fontSize: '1rem',
-                      boxSizing: 'border-box',
-                      outline: 'none',
-                      transition: 'border-color 0.2s ease'
-                }}
-                    onFocus={(e) => e.target.style.borderColor = '#10b981'}
-                    onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-              />
-            </div>
+            <>
+              <div style={{ marginBottom: '20px' }}>
+                <input
+                  type="text"
+                  placeholder="Nome do Cliente/Razão Social"
+                  value={formData.companyName}
+                  onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(255,255,255,0.1)',
+                    backgroundColor: '#0f1419',
+                    color: '#ffffff',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                    transition: 'border-color 0.2s ease'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+                />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <input
+                  type="text"
+                  placeholder="CPF/CNPJ (000.000.000-00 ou 00.000.000/0000-00)"
+                  value={formData.cnpj}
+                  onChange={(e) => setFormData(prev => ({ ...prev, cnpj: e.target.value }))}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(255,255,255,0.1)',
+                    backgroundColor: '#0f1419',
+                    color: '#ffffff',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                    transition: 'border-color 0.2s ease'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+                />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <input
+                  type="text"
+                  placeholder="Número do WhatsApp (+55 11 99999-9999)"
+                  value={formData.whatsappNumber}
+                  onChange={(e) => setFormData(prev => ({ ...prev, whatsappNumber: e.target.value }))}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(255,255,255,0.1)',
+                    backgroundColor: '#0f1419',
+                    color: '#ffffff',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                    transition: 'border-color 0.2s ease'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+                />
+              </div>
+            </>
           )}
 
           {error && (
