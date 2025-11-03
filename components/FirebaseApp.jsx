@@ -187,7 +187,12 @@ const FirebaseApp = () => {
         hasDatabase: !!database,
         isMaster: user.isMaster 
       });
-      setupFirestoreListeners();
+      const cleanup = setupFirestoreListeners();
+      
+      // Retornar função de limpeza se existir
+      if (cleanup) {
+        return cleanup;
+      }
     }
   }, [user, db, database]);
 
@@ -273,6 +278,9 @@ const FirebaseApp = () => {
 
     const userId = user.uid;
 
+    // Array para armazenar referências aos listeners
+    const cleanupFunctions = [];
+
     // Listener para perfil da empresa no Realtime Database
     const companyRef = ref(database, `users/data/${userId}/company_profile`);
     onValue(companyRef, (snapshot) => {
@@ -282,6 +290,7 @@ const FirebaseApp = () => {
         setCompanyProfile({});
       }
     });
+    cleanupFunctions.push(() => off(companyRef));
 
     // Listener para configurações de integração no Realtime Database
     const integrationsRef = ref(database, `users/data/${userId}/integrations_config`);
@@ -292,6 +301,7 @@ const FirebaseApp = () => {
         setIntegrationsConfig({});
       }
     });
+    cleanupFunctions.push(() => off(integrationsRef));
 
     // Listener para configurações do assistente no Realtime Database
     const assistantRef = ref(database, `users/data/${userId}/assistant_settings`);
@@ -309,6 +319,7 @@ const FirebaseApp = () => {
         setAssistantSettings({});
       }
     });
+    cleanupFunctions.push(() => off(assistantRef));
 
     // Listener para itens do catálogo no Realtime Database
     const catalogRef = ref(database, `users/data/${userId}/catalog_items`);
@@ -328,6 +339,7 @@ const FirebaseApp = () => {
       }
       setCatalogItems(items);
     });
+    cleanupFunctions.push(() => off(catalogRef));
 
     // 📅 Listener para agendamentos no Realtime Database
     const agendamentosRef = ref(database, `users/data/${userId}/agendamentos`);
@@ -348,6 +360,7 @@ const FirebaseApp = () => {
       console.log('📅 [FIREBASE] Agendamentos carregados:', agendamentosList.length);
       setAgendamentos(agendamentosList);
     });
+    cleanupFunctions.push(() => off(agendamentosRef));
 
     // 💎 Listener para planos (apenas master)
     if (user.isMaster) {
@@ -376,6 +389,7 @@ const FirebaseApp = () => {
         console.log('💎 [FIREBASE] Planos carregados:', plansList.length);
         setPlans(plansList);
       });
+      cleanupFunctions.push(() => off(plansRef));
     }
 
     // 👤 Listener para plano ativo do usuário
@@ -399,12 +413,14 @@ const FirebaseApp = () => {
             }
           });
         });
+        cleanupFunctions.push(() => off(usageRef));
       } else {
         console.log('👤 [FIREBASE] Usuário sem plano ativo');
         setUserActivePlan(null);
         setUserPlanUsage(null);
       }
     });
+    cleanupFunctions.push(() => off(activePlanRef));
 
     // Se for usuário master, ouvir usuários registrados no Realtime Database
     if (user.isMaster && database) {
@@ -435,14 +451,16 @@ const FirebaseApp = () => {
         console.error('Erro no listener de usuários do Realtime Database:', error);
       });
       
-      // Retornar função de limpeza
-      return () => {
-        console.log('Limpando listener de usuários');
-        off(usersRef);
-      };
+      cleanupFunctions.push(() => off(usersRef));
     } else {
       console.log('Usuário não é master ou database não disponível');
     }
+
+    // Retornar função de limpeza que remove todos os listeners
+    return () => {
+      console.log('🧹 Limpando todos os listeners do Realtime Database');
+      cleanupFunctions.forEach(cleanup => cleanup());
+    };
   };
 
   // Funções de salvamento no Realtime Database
