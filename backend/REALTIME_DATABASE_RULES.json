@@ -51,11 +51,8 @@
     "users": {
       "data": {
         "$userId": {
-          ".read": "auth != null && auth.uid == $userId",
-          ".write": "auth != null && auth.uid == $userId",
-          "activePlan": {
-            ".read": "auth != null"
-          }
+          ".read": "auth != null",
+          ".write": "auth != null && auth.uid == $userId"
         }
       },
       "registered": {
