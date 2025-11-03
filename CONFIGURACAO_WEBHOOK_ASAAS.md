@@ -13,22 +13,38 @@ https://ia-agente-production.up.railway.app/api/asaas/webhook
 
 ---
 
-## 📌 Eventos de Assinatura Obrigatórios
+## 📌 Eventos Necessários
 
-Marque os seguintes eventos na seção "Assinaturas":
+Marque os seguintes eventos:
 
-### 🔴 OBRIGATÓRIOS (essenciais para funcionamento):
+### 🟢 Seção "Assinaturas" (SUBSCRIPTION Events):
+
+Marque TODOS os eventos disponíveis nesta seção:
 
 1. ✅ **`SUBSCRIPTION_CREATED`** - Quando uma nova assinatura é criada
 2. ✅ **`SUBSCRIPTION_UPDATED`** - Quando a assinatura é atualizada
 3. ✅ **`SUBSCRIPTION_DELETED`** - Quando a assinatura é removida
-4. ✅ **`SUBSCRIPTION_ACTIVATED`** - Quando a assinatura é ativada
-5. ✅ **`SUBSCRIPTION_CANCELLED`** ou **`SUBSCRIPTION_CANCELED`** - Quando a assinatura é cancelada
-6. ✅ **`SUBSCRIPTION_PAYMENT`** - Quando há pagamento de assinatura
+4. ✅ **`SUBSCRIPTION_INACTIVATED`** - Quando a assinatura é inativada (se disponível)
+5. ✅ **`SUBSCRIPTION_SPLIT_*`** - Qualquer evento relacionado a split (se disponível)
+
+**NOTA:** O Asaas pode não ter eventos como `SUBSCRIPTION_ACTIVATED` ou `SUBSCRIPTION_PAYMENT` na interface. Isso é normal!
+
+### 🔴 Seção "Cobranças" (PAYMENT Events) - OBRIGATÓRIO!
+
+**MUITO IMPORTANTE:** Você DEVE marcar os eventos de pagamento também:
+
+1. ✅ **`PAYMENT_CREATED`** - Geração de nova cobrança
+2. ✅ **`PAYMENT_CONFIRMED`** - Cobrança confirmada
+3. ✅ **`PAYMENT_RECEIVED`** - Cobrança recebida
+4. ✅ **`PAYMENT_OVERDUE`** - Pagamento vencido
+5. ✅ **`PAYMENT_DELETED`** - Pagamento excluído
+6. ✅ **`PAYMENT_UPDATED`** - Alteração no pagamento
+
+**Por quê?** Os pagamentos de assinatura são enviados como eventos de `PAYMENT`, não `SUBSCRIPTION_PAYMENT`!
 
 ### 🟡 OPCIONAIS (recomendados):
 
-7. ✅ **`SUBSCRIPTION_DELETED_WITH_PAYMENT`** - Se disponível, também marque
+7. ✅ **`INVOICE_*`** - Eventos de nota fiscal, se você quiser emitir NFs automaticamente
 
 ---
 
