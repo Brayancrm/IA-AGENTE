@@ -3647,22 +3647,14 @@ app.post('/api/asaas/create-subscription', async (req, res) => {
         customer: customerData,
         value: result.value,
         cycle: result.cycle,
-        status: 'active',
+        status: 'pending_payment',
         nextDueDate: result.nextDueDate,
         createdAt: new Date().toISOString(),
         paymentUrl: result.invoiceUrl,
         limits: planData.limits || {}
       });
       
-      // Vincular plano ao usuário
-      await db.ref(`users/data/${userId}/activePlan`).set({
-        planId: planData.id,
-        subscriptionId: subscriptionRef.key,
-        asaasSubscriptionId: result.subscriptionId,
-        startedAt: new Date().toISOString(),
-        nextDueDate: result.nextDueDate,
-        limits: planData.limits || {}
-      });
+      // NÃO vincular plano ao usuário ainda - só após pagamento confirmado via webhook
       
       res.json({
         success: true,
@@ -3937,33 +3929,55 @@ app.post('/api/asaas/webhook', async (req, res) => {
       if (subUserId && subKey) {
         console.log(`✅ Assinatura encontrada para usuário: ${subUserId}`);
         
-        // Buscar plano ativo para atualizar nextDueDate
+        // Buscar dados da assinatura e do plano
+        const subDataRef = db.ref(`subscriptions/${subUserId}/${subKey}`);
+        const subDataSnapshot = await subDataRef.once('value');
+        
+        if (!subDataSnapshot.exists()) {
+          console.log('⚠️ Dados da assinatura não encontrados');
+          return res.json({ received: true, processed: true, type: 'subscription_payment', note: 'Assinatura não encontrada' });
+        }
+        
+        const subData = subDataSnapshot.val();
+        const cycle = subData.cycle || 'MONTHLY';
+        const days = cycle === 'YEARLY' ? 365 : 30;
+        const nextDueDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        
+        // Atualizar assinatura
+        await subDataRef.update({
+          lastPayment: payment.id,
+          lastPaymentDate: payment.paymentDate || new Date().toISOString(),
+          nextDueDate: nextDueDate,
+          status: 'ACTIVE',
+          updatedAt: new Date().toISOString()
+        });
+        
+        // Buscar plano para ativar o usuário
         const activePlanRef = db.ref(`users/data/${subUserId}/activePlan`);
         const activePlanSnapshot = await activePlanRef.once('value');
         
-        if (activePlanSnapshot.exists() && activePlanSnapshot.val().subscriptionId === subKey) {
-          // Atualizar nextDueDate baseado no cycle da assinatura
-          const subData = (await db.ref(`subscriptions/${subUserId}/${subKey}`).once('value')).val();
-          const cycle = subData.cycle || 'MONTHLY';
-          const days = cycle === 'YEARLY' ? 365 : 30;
-          
-          const nextDueDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-          
-          await db.ref(`subscriptions/${subUserId}/${subKey}`).update({
-            lastPayment: payment.id,
-            lastPaymentDate: payment.paymentDate || new Date().toISOString(),
-            nextDueDate: nextDueDate,
-            status: 'ACTIVE',
-            updatedAt: new Date().toISOString()
-          });
-          
+        if (activePlanSnapshot.exists()) {
+          // Atualizar plano existente
           await activePlanRef.update({
             nextDueDate: nextDueDate,
             updatedAt: new Date().toISOString()
           });
-          
-          console.log(`✅ Assinatura renovada! Próxima cobrança: ${nextDueDate}`);
+          console.log(`✅ Plano existente atualizado! Próxima cobrança: ${nextDueDate}`);
+        } else {
+          // Criar activePlan pela primeira vez (primeira cobrança confirmada)
+          await activePlanRef.set({
+            planId: subData.planId,
+            subscriptionId: subKey,
+            asaasSubscriptionId: subData.asaasSubscriptionId,
+            startedAt: new Date().toISOString(),
+            nextDueDate: nextDueDate,
+            limits: subData.limits || {},
+            updatedAt: new Date().toISOString()
+          });
+          console.log(`✅ Plano ativado pela primeira vez! Próxima cobrança: ${nextDueDate}`);
         }
+        
+        console.log(`✅ Assinatura renovada! Status: ACTIVE`);
         
         return res.json({ received: true, processed: true, type: 'subscription_payment' });
       } else {
