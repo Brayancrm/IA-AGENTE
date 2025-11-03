@@ -12,8 +12,12 @@ import {
   getFirestore,
   collection,
   addDoc,
-  initializeApp
-} from 'firebase/firestore';
+  initializeApp,
+  getDatabase,
+  ref,
+  set,
+  push
+} from 'firebase/database';
 import { 
   Eye, 
   EyeOff, 
@@ -21,7 +25,9 @@ import {
   Lock, 
   User,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Phone,
+  FileText
 } from 'lucide-react';
 
 // Configuração do Firebase
@@ -35,12 +41,13 @@ const firebaseConfig = {
 };
 
 // Inicializar Firebase apenas se as variáveis estiverem disponíveis
-let app, db;
+let app, db, database;
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsapp-sales-agent';
 
 if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
   app = initializeApp(firebaseConfig);
   db = getFirestore(app);
+  database = getDatabase(app);
 }
 
 // Componente de Login
@@ -206,6 +213,8 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
     password: '',
     confirmPassword: '',
     companyName: '',
+    cnpj: '',
+    whatsappNumber: '',
     userType: 'common'
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -239,20 +248,36 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
         formData.password
       );
 
-      // Salvar dados adicionais do usuário na coleção registered_users
-      if (db) {
+      // Salvar dados no Realtime Database
+      if (database) {
+        const userId = userCredential.user.uid;
+        
+        // Salvar em users/registered (nome e email para login)
+        const usersRef = ref(database, 'users/registered');
+        const newUserRef = push(usersRef);
         const userData = {
           name: formData.name,
           email: formData.email,
-          companyName: formData.companyName,
+          uid: userId,
           isActive: true,
           isMaster: false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           registeredVia: 'landing_page'
         };
-
-        await addDoc(collection(db, `artifacts/${APP_ID}/registered_users`), userData);
+        await set(newUserRef, userData);
+        
+        // Salvar em users/data/{userId}/company_profile (dados completos)
+        const companyProfileRef = ref(database, `users/data/${userId}/company_profile`);
+        await set(companyProfileRef, {
+          companyName: formData.companyName,
+          cnpj: formData.cnpj,
+          whatsappNumber: formData.whatsappNumber,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+        
+        console.log('✅ Dados salvos no Realtime Database:', { userId, userData });
       }
       
       onRegisterSuccess(userCredential.user);
@@ -328,16 +353,50 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Nome da Empresa
+              Nome do Cliente/Razão Social
             </label>
             <input
               type="text"
               value={formData.companyName}
               onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="Nome da sua empresa"
+              placeholder="Seu nome ou razão social"
               required
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              CPF/CNPJ
+            </label>
+            <div className="relative">
+              <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                value={formData.cnpj}
+                onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Número do WhatsApp
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                value={formData.whatsappNumber}
+                onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
+                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="+55 11 99999-9999"
+                required
+              />
+            </div>
           </div>
 
           <div>
