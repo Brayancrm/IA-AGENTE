@@ -353,7 +353,18 @@ const FirebaseApp = () => {
         if (snapshot.exists()) {
           const data = snapshot.val();
           Object.keys(data).forEach((key) => {
-            plansList.push({ id: key, ...data[key] });
+            const planData = data[key];
+            // Garantir que limits existe com valores padrão
+            plansList.push({ 
+              id: key, 
+              ...planData,
+              limits: planData.limits || {
+                messagesPerMonth: null,
+                conversations: null,
+                catalogItems: null,
+                integrations: []
+              }
+            });
           });
           // Ordenar por preço (menor primeiro)
           plansList.sort((a, b) => (a.price || 0) - (b.price || 0));
