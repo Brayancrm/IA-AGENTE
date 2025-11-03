@@ -78,6 +78,12 @@ const FirebaseApp = () => {
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(null); // Data selecionada no calendário
   const [selectedDateAgendamentos, setSelectedDateAgendamentos] = useState([]); // Agendamentos da data selecionada
   
+  // Estados de Planos
+  const [plans, setPlans] = useState([]);
+  const [loadingPlans, setLoadingPlans] = useState(false);
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [editingPlan, setEditingPlan] = useState(null);
+  
   // CRM temporariamente desativado - será reconstruído depois
   
   // Estado do menu mobile - REMOVIDO para evitar erros
@@ -339,6 +345,24 @@ const FirebaseApp = () => {
       setAgendamentos(agendamentosList);
     });
 
+    // 💎 Listener para planos (apenas master)
+    if (user.isMaster) {
+      const plansRef = ref(database, 'plans');
+      onValue(plansRef, (snapshot) => {
+        const plansList = [];
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          Object.keys(data).forEach((key) => {
+            plansList.push({ id: key, ...data[key] });
+          });
+          // Ordenar por preço (menor primeiro)
+          plansList.sort((a, b) => (a.price || 0) - (b.price || 0));
+        }
+        console.log('💎 [FIREBASE] Planos carregados:', plansList.length);
+        setPlans(plansList);
+      });
+    }
+
     // Se for usuário master, ouvir usuários registrados no Realtime Database
     if (user.isMaster && database) {
       console.log('Configurando listener para usuários registrados no Realtime Database');
@@ -435,6 +459,68 @@ const FirebaseApp = () => {
       console.error('❌ [SAVE] Erro ao salvar assistente:', error);
       showToast('Erro ao salvar configurações', 'error');
     }
+  };
+
+  // Funções de gerenciamento de planos (apenas master)
+  const savePlan = async (planData) => {
+    if (!user?.isMaster || !database) {
+      showToast('Erro: Apenas usuários master podem gerenciar planos', 'error');
+      return;
+    }
+    
+    try {
+      const data = {
+        ...planData,
+        price: parseFloat(planData.price) || 0,
+        createdAt: planData.id ? null : new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      if (editingPlan) {
+        // Atualizar plano existente
+        const planRef = ref(database, `plans/${editingPlan.id}`);
+        await set(planRef, data);
+        showToast('Plano atualizado com sucesso!');
+      } else {
+        // Criar novo plano
+        const plansRef = ref(database, 'plans');
+        const newPlanRef = push(plansRef);
+        await set(newPlanRef, data);
+        showToast('Plano criado com sucesso!');
+      }
+    } catch (error) {
+      console.error('Erro ao salvar plano:', error);
+      showToast('Erro ao salvar plano: ' + error.message, 'error');
+    }
+  };
+
+  const deletePlan = async (planId) => {
+    if (!user?.isMaster || !database) {
+      showToast('Erro: Apenas usuários master podem gerenciar planos', 'error');
+      return;
+    }
+
+    if (!confirm('Tem certeza que deseja excluir este plano? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+    
+    try {
+      const planRef = ref(database, `plans/${planId}`);
+      await remove(planRef);
+      showToast('Plano excluído com sucesso!');
+    } catch (error) {
+      console.error('Erro ao excluir plano:', error);
+      showToast('Erro ao excluir plano: ' + error.message, 'error');
+    }
+  };
+
+  const openPlanModal = (plan = null) => {
+    if (plan) {
+      setEditingPlan(plan);
+    } else {
+      setEditingPlan(null);
+    }
+    setShowPlanModal(true);
   };
 
   const saveCatalogItem = async (itemData) => {
@@ -983,6 +1069,15 @@ const FirebaseApp = () => {
         setSelectedDateAgendamentos={setSelectedDateAgendamentos}
         database={database}
         showToast={showToast}
+        plans={plans}
+        loadingPlans={loadingPlans}
+        showPlanModal={showPlanModal}
+        setShowPlanModal={setShowPlanModal}
+        editingPlan={editingPlan}
+        setEditingPlan={setEditingPlan}
+        savePlan={savePlan}
+        deletePlan={deletePlan}
+        openPlanModal={openPlanModal}
       />
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
@@ -1036,7 +1131,16 @@ const DashboardWithFirebase = ({
   selectedDateAgendamentos = [],
   setSelectedDateAgendamentos,
   database,
-  showToast
+  showToast,
+  plans = [],
+  loadingPlans = false,
+  showPlanModal = false,
+  setShowPlanModal,
+  editingPlan = null,
+  setEditingPlan,
+  savePlan,
+  deletePlan,
+  openPlanModal
 }) => {
   const [isActive, setIsActive] = useState(assistantSettings.isActive || true);
   const [showCatalogModal, setShowCatalogModal] = useState(false);
@@ -1102,6 +1206,20 @@ const DashboardWithFirebase = ({
     companyName: '',
     isActive: true
   });
+  const [planForm, setPlanForm] = useState({
+    name: '',
+    description: '',
+    price: 0,
+    billingCycle: 'monthly', // monthly, yearly
+    features: [],
+    limits: {
+      messagesPerMonth: null,
+      conversations: null,
+      catalogItems: null,
+      integrations: []
+    },
+    active: true
+  });
 
   // Inicializar formulários com dados existentes
   useEffect(() => {
@@ -1136,6 +1254,41 @@ const DashboardWithFirebase = ({
       appointmentTypes: assistantSettings.appointmentTypes || []
     });
   }, [assistantSettings]);
+
+  // Preencher planForm quando editingPlan mudar
+  useEffect(() => {
+    if (editingPlan) {
+      setPlanForm({
+        name: editingPlan.name || '',
+        description: editingPlan.description || '',
+        price: editingPlan.price || 0,
+        billingCycle: editingPlan.billingCycle || 'monthly',
+        features: editingPlan.features || [],
+        limits: editingPlan.limits || {
+          messagesPerMonth: null,
+          conversations: null,
+          catalogItems: null,
+          integrations: []
+        },
+        active: editingPlan.active !== undefined ? editingPlan.active : true
+      });
+    } else {
+      setPlanForm({
+        name: '',
+        description: '',
+        price: 0,
+        billingCycle: 'monthly',
+        features: [],
+        limits: {
+          messagesPerMonth: null,
+          conversations: null,
+          catalogItems: null,
+          integrations: []
+        },
+        active: true
+      });
+    }
+  }, [editingPlan]);
 
   // Handlers para catálogo
   const openCatalogModal = (item = null) => {
@@ -3945,6 +4098,219 @@ const DashboardWithFirebase = ({
           </div>
         );
 
+      case 'plans':
+        return (
+          <div style={{ padding: '40px', maxWidth: '1400px', margin: '0 auto' }}>
+            <div style={{ marginBottom: '32px' }}>
+              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+                💎 Planos e Assinaturas
+              </h2>
+              <p style={{ fontSize: '1.125rem', color: '#9ca3af' }}>
+                Gerencie os planos disponíveis para seus clientes
+              </p>
+            </div>
+
+            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => openPlanModal()}
+                style={{
+                  backgroundColor: '#8b5cf6',
+                  color: 'white',
+                  padding: '14px 28px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  fontWeight: '700',
+                  fontSize: '1rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 6px 16px rgba(139, 92, 246, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.3)';
+                }}
+              >
+                <Plus size={20} />
+                Criar Novo Plano
+              </button>
+            </div>
+
+            {plans.length === 0 ? (
+              <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '48px', textAlign: 'center', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+                <div style={{ fontSize: '64px', marginBottom: '16px' }}>💎</div>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+                  Nenhum plano cadastrado
+                </h3>
+                <p style={{ fontSize: '1rem', color: '#9ca3af', marginBottom: '24px' }}>
+                  Crie seu primeiro plano para começar a gerenciar assinaturas
+                </p>
+                <button
+                  onClick={() => openPlanModal()}
+                  style={{
+                    backgroundColor: '#8b5cf6',
+                    color: 'white',
+                    padding: '12px 24px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
+                  }}
+                >
+                  Criar Primeiro Plano
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
+                {plans.map((plan) => (
+                  <div
+                    key={plan.id}
+                    style={{
+                      backgroundColor: '#1a1f36',
+                      borderRadius: '20px',
+                      padding: '32px',
+                      border: plan.active ? '2px solid #8b5cf6' : '2px solid #4b5563',
+                      boxShadow: plan.active ? '0 8px 24px rgba(139, 92, 246, 0.2)' : '0 4px 12px rgba(0,0,0,0.2)',
+                      transition: 'all 0.2s ease',
+                      cursor: 'pointer',
+                      position: 'relative'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                      e.currentTarget.style.boxShadow = '0 12px 32px rgba(139, 92, 246, 0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = plan.active ? '0 8px 24px rgba(139, 92, 246, 0.2)' : '0 4px 12px rgba(0,0,0,0.2)';
+                    }}
+                  >
+                    {/* Badge de Status */}
+                    {plan.active && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '16px',
+                        right: '16px',
+                        backgroundColor: '#10b981',
+                        color: 'white',
+                        padding: '4px 12px',
+                        borderRadius: '12px',
+                        fontSize: '0.75rem',
+                        fontWeight: '700'
+                      }}>
+                        ATIVO
+                      </div>
+                    )}
+
+                    {/* Nome do Plano */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <h3 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+                        {plan.name}
+                      </h3>
+                      <p style={{ fontSize: '0.9375rem', color: '#9ca3af' }}>
+                        {plan.description || 'Sem descrição'}
+                      </p>
+                    </div>
+
+                    {/* Preço */}
+                    <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgba(139, 92, 246, 0.1)', borderRadius: '12px', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                        <span style={{ fontSize: '2.5rem', fontWeight: '700', color: '#a78bfa' }}>
+                          R$ {parseFloat(plan.price || 0).toFixed(2)}
+                        </span>
+                        <span style={{ fontSize: '1rem', color: '#9ca3af' }}>
+                          / {plan.billingCycle === 'yearly' ? 'ano' : 'mês'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Limites */}
+                    <div style={{ marginBottom: '24px' }}>
+                      <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#ffffff', marginBottom: '12px' }}>
+                        Limites do Plano:
+                      </h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {plan.limits?.messagesPerMonth !== null && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d1d5db' }}>
+                            <span>📨</span>
+                            <span>{plan.limits.messagesPerMonth === -1 ? 'Ilimitado' : `${plan.limits.messagesPerMonth} mensagens/mês`}</span>
+                          </div>
+                        )}
+                        {plan.limits?.conversations !== null && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d1d5db' }}>
+                            <span>💬</span>
+                            <span>{plan.limits.conversations === -1 ? 'Conversas ilimitadas' : `${plan.limits.conversations} conversas`}</span>
+                          </div>
+                        )}
+                        {plan.limits?.catalogItems !== null && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d1d5db' }}>
+                            <span>📦</span>
+                            <span>{plan.limits.catalogItems === -1 ? 'Catálogo ilimitado' : `${plan.limits.catalogItems} itens no catálogo`}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Ações */}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '24px', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openPlanModal(plan);
+                        }}
+                        style={{
+                          flex: 1,
+                          backgroundColor: '#6366f1',
+                          color: 'white',
+                          padding: '10px 16px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#4f46e5'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#6366f1'}
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deletePlan(plan.id);
+                        }}
+                        style={{
+                          backgroundColor: '#ef4444',
+                          color: 'white',
+                          padding: '10px 16px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#dc2626'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#ef4444'}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
       case 'users':
         return (
           <div style={{ padding: '24px' }}>
@@ -4097,7 +4463,7 @@ const DashboardWithFirebase = ({
     { id: 'integrations', label: 'Integrações', icon: '⚙️' },
     { id: 'whatsapp', label: 'Conexão WhatsApp', icon: '📱' },
     { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' },
-    ...(user?.isMaster ? [{ id: 'users', label: 'Gerenciar Usuários', icon: '👤' }] : [])
+    ...(user?.isMaster ? [{ id: 'plans', label: 'Planos e Assinaturas', icon: '💎' }, { id: 'users', label: 'Gerenciar Usuários', icon: '👤' }] : [])
   ];
 
   return (
@@ -5083,6 +5449,347 @@ const DashboardWithFirebase = ({
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Plano */}
+      {showPlanModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#1a1f36',
+            borderRadius: '20px',
+            padding: '32px',
+            width: '90%',
+            maxWidth: '600px',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            border: '2px solid #8b5cf6'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#ffffff' }}>
+                {editingPlan ? '✏️ Editar Plano' : '💎 Criar Novo Plano'}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowPlanModal(false);
+                  setEditingPlan(null);
+                  setPlanForm({
+                    name: '',
+                    description: '',
+                    price: 0,
+                    billingCycle: 'monthly',
+                    features: [],
+                    limits: { messagesPerMonth: null, conversations: null, catalogItems: null, integrations: [] },
+                    active: true
+                  });
+                }}
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: 'transparent',
+                  color: '#9ca3af',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '1.25rem',
+                  fontWeight: '600'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              await savePlan(planForm);
+              setShowPlanModal(false);
+              setEditingPlan(null);
+              setPlanForm({
+                name: '',
+                description: '',
+                price: 0,
+                billingCycle: 'monthly',
+                features: [],
+                limits: { messagesPerMonth: null, conversations: null, catalogItems: null, integrations: [] },
+                active: true
+              });
+            }} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Nome do Plano */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.9375rem', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+                  Nome do Plano *
+                </label>
+                <input
+                  type="text"
+                  value={planForm.name}
+                  onChange={(e) => setPlanForm(prev => ({ ...prev, name: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    fontSize: '1rem',
+                    backgroundColor: '#0f1419',
+                    color: '#ffffff'
+                  }}
+                  placeholder="Ex: Básico, Profissional, Enterprise"
+                  required
+                />
+              </div>
+
+              {/* Descrição */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.9375rem', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+                  Descrição
+                </label>
+                <textarea
+                  value={planForm.description}
+                  onChange={(e) => setPlanForm(prev => ({ ...prev, description: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    fontSize: '1rem',
+                    backgroundColor: '#0f1419',
+                    color: '#ffffff',
+                    minHeight: '80px',
+                    resize: 'vertical'
+                  }}
+                  placeholder="Descreva as características deste plano..."
+                />
+              </div>
+
+              {/* Preço e Ciclo de Cobrança */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.9375rem', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+                    Preço (R$) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={planForm.price}
+                    onChange={(e) => setPlanForm(prev => ({ ...prev, price: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      fontSize: '1rem',
+                      backgroundColor: '#0f1419',
+                      color: '#ffffff'
+                    }}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.9375rem', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+                    Ciclo de Cobrança *
+                  </label>
+                  <select
+                    value={planForm.billingCycle}
+                    onChange={(e) => setPlanForm(prev => ({ ...prev, billingCycle: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      fontSize: '1rem',
+                      backgroundColor: '#0f1419',
+                      color: '#ffffff',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="monthly">Mensal</option>
+                    <option value="yearly">Anual</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Limites */}
+              <div style={{ backgroundColor: 'rgba(139, 92, 246, 0.1)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+                <h4 style={{ fontSize: '1.125rem', fontWeight: '700', color: '#a78bfa', marginBottom: '16px' }}>
+                  Limites do Plano
+                </h4>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* Mensagens por Mês */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '6px', color: '#d1d5db' }}>
+                      📨 Mensagens por Mês
+                    </label>
+                    <input
+                      type="number"
+                      value={planForm.limits.messagesPerMonth === null ? '' : planForm.limits.messagesPerMonth}
+                      onChange={(e) => setPlanForm(prev => ({ 
+                        ...prev, 
+                        limits: { 
+                          ...prev.limits, 
+                          messagesPerMonth: e.target.value === '' ? null : parseInt(e.target.value) 
+                        } 
+                      }))}
+                      style={{
+                        width: '100%',
+                        padding: '12px 14px',
+                        borderRadius: '10px',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        fontSize: '0.9375rem',
+                        backgroundColor: '#0f1419',
+                        color: '#ffffff'
+                      }}
+                      placeholder="Ilimitado (deixar vazio)"
+                    />
+                    <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>
+                      Deixe vazio para ilimitado, -1 para ilimitado
+                    </p>
+                  </div>
+
+                  {/* Conversas */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '6px', color: '#d1d5db' }}>
+                      💬 Conversas Simultâneas
+                    </label>
+                    <input
+                      type="number"
+                      value={planForm.limits.conversations === null ? '' : planForm.limits.conversations}
+                      onChange={(e) => setPlanForm(prev => ({ 
+                        ...prev, 
+                        limits: { 
+                          ...prev.limits, 
+                          conversations: e.target.value === '' ? null : parseInt(e.target.value) 
+                        } 
+                      }))}
+                      style={{
+                        width: '100%',
+                        padding: '12px 14px',
+                        borderRadius: '10px',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        fontSize: '0.9375rem',
+                        backgroundColor: '#0f1419',
+                        color: '#ffffff'
+                      }}
+                      placeholder="Ilimitado (deixar vazio)"
+                    />
+                  </div>
+
+                  {/* Itens no Catálogo */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '6px', color: '#d1d5db' }}>
+                      📦 Itens no Catálogo
+                    </label>
+                    <input
+                      type="number"
+                      value={planForm.limits.catalogItems === null ? '' : planForm.limits.catalogItems}
+                      onChange={(e) => setPlanForm(prev => ({ 
+                        ...prev, 
+                        limits: { 
+                          ...prev.limits, 
+                          catalogItems: e.target.value === '' ? null : parseInt(e.target.value) 
+                        } 
+                      }))}
+                      style={{
+                        width: '100%',
+                        padding: '12px 14px',
+                        borderRadius: '10px',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        fontSize: '0.9375rem',
+                        backgroundColor: '#0f1419',
+                        color: '#ffffff'
+                      }}
+                      placeholder="Ilimitado (deixar vazio)"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Ativo */}
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#ffffff', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={planForm.active}
+                    onChange={(e) => setPlanForm(prev => ({ ...prev, active: e.target.checked }))}
+                    style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: '1rem', fontWeight: '600' }}>
+                    Plano Ativo
+                  </span>
+                </label>
+                <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '8px', marginLeft: '32px' }}>
+                  Apenas planos ativos aparecerão para os clientes
+                </p>
+              </div>
+
+              {/* Botões */}
+              <div style={{ display: 'flex', gap: '12px', paddingTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPlanModal(false);
+                    setEditingPlan(null);
+                    setPlanForm({
+                      name: '',
+                      description: '',
+                      price: 0,
+                      billingCycle: 'monthly',
+                      features: [],
+                      limits: { messagesPerMonth: null, conversations: null, catalogItems: null, integrations: [] },
+                      active: true
+                    });
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    backgroundColor: '#374151',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#4b5563'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#374151'}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 4px 16px rgba(139, 92, 246, 0.3)'
+                  }}
+                  onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+                  onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+                >
+                  {editingPlan ? 'Salvar Alterações' : 'Criar Plano'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -59,6 +59,10 @@
         ".read": "auth != null",
         ".write": "auth != null"
       }
+    },
+    "plans": {
+      ".read": "auth != null",
+      ".write": "auth != null"
     }
   }
 }
