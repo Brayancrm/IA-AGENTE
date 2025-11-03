@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useFirebase } from '../hooks/useFirebase';
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as firebaseSignOut, sendPasswordResetEmail } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
-import { ref, push, set, remove, onValue, off } from 'firebase/database';
+import { ref, push, set, remove, onValue, off, get } from 'firebase/database';
 import SimpleLanding from './SimpleLanding';
 import dynamic from 'next/dynamic';
 import { convertStepsToPrompt } from '../hooks/useFlowBuilder';
@@ -83,6 +83,10 @@ const FirebaseApp = () => {
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
+  
+  // Estados do plano do usuário logado
+  const [userActivePlan, setUserActivePlan] = useState(null);
+  const [userPlanUsage, setUserPlanUsage] = useState(null);
   
   // CRM temporariamente desativado - será reconstruído depois
   
@@ -374,6 +378,34 @@ const FirebaseApp = () => {
       });
     }
 
+    // 👤 Listener para plano ativo do usuário
+    const activePlanRef = ref(database, `users/data/${userId}/activePlan`);
+    onValue(activePlanRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const plan = snapshot.val();
+        console.log('👤 [FIREBASE] Plano ativo carregado:', plan.planName);
+        setUserActivePlan(plan);
+        
+        // Buscar uso atual
+        const now = new Date();
+        const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const usageRef = ref(database, `users/data/${userId}/messagesUsage/${monthKey}`);
+        onValue(usageRef, (usageSnapshot) => {
+          const usage = usageSnapshot.val() || 0;
+          setUserPlanUsage({
+            messagesPerMonth: {
+              used: usage,
+              limit: plan.limits?.messagesPerMonth || null
+            }
+          });
+        });
+      } else {
+        console.log('👤 [FIREBASE] Usuário sem plano ativo');
+        setUserActivePlan(null);
+        setUserPlanUsage(null);
+      }
+    });
+
     // Se for usuário master, ouvir usuários registrados no Realtime Database
     if (user.isMaster && database) {
       console.log('Configurando listener para usuários registrados no Realtime Database');
@@ -532,6 +564,61 @@ const FirebaseApp = () => {
       setEditingPlan(null);
     }
     setShowPlanModal(true);
+  };
+
+  // Função para assinar um plano
+  const subscribeToPlan = async (plan) => {
+    if (!user || !database) {
+      showToast('Erro: Usuário não autenticado', 'error');
+      return;
+    }
+
+    try {
+      // Buscar dados do usuário
+      const usersRef = ref(database, `users/registered`);
+      const userSnapshot = await get(usersRef);
+      const users = userSnapshot.val() || {};
+      const userEntry = Object.values(users).find(u => u.uid === user.uid);
+      
+      if (!userEntry) {
+        showToast('Erro: Dados do usuário não encontrados', 'error');
+        return;
+      }
+
+      // Preparar dados do cliente
+      const customerData = {
+        name: userEntry.name || userEntry.email,
+        email: userEntry.email,
+        phone: user.phoneNumber || '',
+        mobilePhone: user.phoneNumber || ''
+      };
+
+      // Chamar API do backend para criar assinatura
+      const response = await fetch(`${BACKEND_URL}/api/asaas/create-subscription`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+          customerData: customerData,
+          planData: plan
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        showToast('Assinatura criada com sucesso! Verifique seu email para o link de pagamento.');
+        console.log('✅ Assinatura criada:', result);
+      } else {
+        showToast('Erro ao criar assinatura: ' + (result.error || 'Erro desconhecido'), 'error');
+        console.error('❌ Erro:', result);
+      }
+    } catch (error) {
+      console.error('Erro ao assinar plano:', error);
+      showToast('Erro ao assinar plano: ' + error.message, 'error');
+    }
   };
 
   const saveCatalogItem = async (itemData) => {
@@ -1089,6 +1176,9 @@ const FirebaseApp = () => {
         savePlan={savePlan}
         deletePlan={deletePlan}
         openPlanModal={openPlanModal}
+        subscribeToPlan={subscribeToPlan}
+        userActivePlan={userActivePlan}
+        userPlanUsage={userPlanUsage}
       />
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
@@ -1151,7 +1241,10 @@ const DashboardWithFirebase = ({
   setEditingPlan,
   savePlan,
   deletePlan,
-  openPlanModal
+  openPlanModal,
+  subscribeToPlan,
+  userActivePlan,
+  userPlanUsage
 }) => {
   const [isActive, setIsActive] = useState(assistantSettings.isActive || true);
   const [showCatalogModal, setShowCatalogModal] = useState(false);
@@ -2482,6 +2575,103 @@ const DashboardWithFirebase = ({
               gap: '20px',
               marginBottom: '32px'
             }}>
+              {/* Card: Meu Plano */}
+              {userActivePlan ? (
+                <div style={{ 
+                  backgroundColor: '#1a1f36',
+                  borderRadius: '16px', 
+                  padding: '24px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                  border: '2px solid #8b5cf6',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setCurrentPage('plans')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.borderColor = '#a78bfa';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(139, 92, 246, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.borderColor = '#8b5cf6';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+                }}
+                >
+                  <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>💎</div>
+                  <h4 style={{ fontWeight: '600', marginBottom: '8px', fontSize: '1rem', color: '#ffffff' }}>Meu Plano Ativo</h4>
+                  <p style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '8px', color: '#a78bfa' }}>
+                    {userActivePlan.planName}
+                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div>
+                      <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>Uso Mensal</p>
+                      <p style={{ fontSize: '1rem', fontWeight: '600', color: '#ffffff', margin: 0 }}>
+                        {userPlanUsage?.messagesPerMonth?.used || 0} / {userPlanUsage?.messagesPerMonth?.limit === null || userPlanUsage?.messagesPerMonth?.limit === -1 ? '∞' : userPlanUsage?.messagesPerMonth?.limit}
+                      </p>
+                    </div>
+                    {userActivePlan.nextDueDate && (
+                      <div style={{ textAlign: 'right' }}>
+                        <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>Próxima cobrança</p>
+                        <p style={{ fontSize: '0.875rem', fontWeight: '600', color: '#a78bfa', margin: 0 }}>
+                          {new Date(userActivePlan.nextDueDate).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : user?.isMaster ? null : (
+                <div style={{ 
+                  backgroundColor: '#1a1f36',
+                  borderRadius: '16px', 
+                  padding: '24px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                  border: '2px solid #f59e0b',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setCurrentPage('plans')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.borderColor = '#fbbf24';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(245, 158, 11, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.borderColor = '#f59e0b';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+                }}
+                >
+                  <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>⚠️</div>
+                  <h4 style={{ fontWeight: '600', marginBottom: '8px', fontSize: '1rem', color: '#ffffff' }}>Nenhum Plano Ativo</h4>
+                  <p style={{ fontSize: '0.875rem', marginBottom: '12px', color: '#fbbf24' }}>
+                    Contrate um plano para usar todas as funcionalidades
+                  </p>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentPage('plans');
+                    }}
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#f59e0b',
+                      color: 'white',
+                      padding: '10px 16px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#d97706'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = '#f59e0b'}
+                  >
+                    Ver Planos Disponíveis
+                  </button>
+                </div>
+              )}
+
               <div style={{ 
                 backgroundColor: '#1a1f36',
                 borderRadius: '16px', 
@@ -4121,67 +4311,81 @@ const DashboardWithFirebase = ({
               </p>
             </div>
 
-            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => openPlanModal()}
-                style={{
-                  backgroundColor: '#8b5cf6',
-                  color: 'white',
-                  padding: '14px 28px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontWeight: '700',
-                  fontSize: '1rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 6px 16px rgba(139, 92, 246, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.3)';
-                }}
-              >
-                <Plus size={20} />
-                Criar Novo Plano
-              </button>
-            </div>
-
-            {plans.length === 0 ? (
-              <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '48px', textAlign: 'center', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
-                <div style={{ fontSize: '64px', marginBottom: '16px' }}>💎</div>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
-                  Nenhum plano cadastrado
-                </h3>
-                <p style={{ fontSize: '1rem', color: '#9ca3af', marginBottom: '24px' }}>
-                  Crie seu primeiro plano para começar a gerenciar assinaturas
-                </p>
+            {user?.isMaster && (
+              <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'flex-end' }}>
                 <button
                   onClick={() => openPlanModal()}
                   style={{
                     backgroundColor: '#8b5cf6',
                     color: 'white',
-                    padding: '12px 24px',
-                    borderRadius: '10px',
+                    padding: '14px 28px',
+                    borderRadius: '12px',
                     border: 'none',
-                    fontWeight: '600',
-                    cursor: 'pointer',
+                    fontWeight: '700',
                     fontSize: '1rem',
-                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 6px 16px rgba(139, 92, 246, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.3)';
                   }}
                 >
-                  Criar Primeiro Plano
+                  <Plus size={20} />
+                  Criar Novo Plano
                 </button>
               </div>
+            )}
+
+            {plans.length === 0 ? (
+              user?.isMaster ? (
+                <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '48px', textAlign: 'center', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+                  <div style={{ fontSize: '64px', marginBottom: '16px' }}>💎</div>
+                  <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+                    Nenhum plano cadastrado
+                  </h3>
+                  <p style={{ fontSize: '1rem', color: '#9ca3af', marginBottom: '24px' }}>
+                    Crie seu primeiro plano para começar a gerenciar assinaturas
+                  </p>
+                  <button
+                    onClick={() => openPlanModal()}
+                    style={{
+                      backgroundColor: '#8b5cf6',
+                      color: 'white',
+                      padding: '12px 24px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      fontSize: '1rem',
+                      boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
+                    }}
+                  >
+                    Criar Primeiro Plano
+                  </button>
+                </div>
+              ) : (
+                <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '48px', textAlign: 'center', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                  <div style={{ fontSize: '64px', marginBottom: '16px' }}>⚠️</div>
+                  <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+                    Nenhum plano disponível
+                  </h3>
+                  <p style={{ fontSize: '1rem', color: '#9ca3af', marginBottom: '24px' }}>
+                    Ainda não há planos cadastrados no sistema. Entre em contato com o administrador.
+                  </p>
+                </div>
+              )
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
-                {plans.map((plan) => (
+                {(user?.isMaster ? plans : plans.filter(p => p.active)).map((plan) => (
                   <div
                     key={plan.id}
                     style={{
@@ -4270,51 +4474,93 @@ const DashboardWithFirebase = ({
                     </div>
 
                     {/* Ações */}
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '24px', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openPlanModal(plan);
-                        }}
-                        style={{
-                          flex: 1,
-                          backgroundColor: '#6366f1',
-                          color: 'white',
-                          padding: '10px 16px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                          fontSize: '0.875rem',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onMouseEnter={(e) => e.target.style.backgroundColor = '#4f46e5'}
-                        onMouseLeave={(e) => e.target.style.backgroundColor = '#6366f1'}
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deletePlan(plan.id);
-                        }}
-                        style={{
-                          backgroundColor: '#ef4444',
-                          color: 'white',
-                          padding: '10px 16px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                          fontSize: '0.875rem',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onMouseEnter={(e) => e.target.style.backgroundColor = '#dc2626'}
-                        onMouseLeave={(e) => e.target.style.backgroundColor = '#ef4444'}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+                    {user?.isMaster ? (
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '24px', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openPlanModal(plan);
+                          }}
+                          style={{
+                            flex: 1,
+                            backgroundColor: '#6366f1',
+                            color: 'white',
+                            padding: '10px 16px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => e.target.style.backgroundColor = '#4f46e5'}
+                          onMouseLeave={(e) => e.target.style.backgroundColor = '#6366f1'}
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deletePlan(plan.id);
+                          }}
+                          style={{
+                            backgroundColor: '#ef4444',
+                            color: 'white',
+                            padding: '10px 16px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => e.target.style.backgroundColor = '#dc2626'}
+                          onMouseLeave={(e) => e.target.style.backgroundColor = '#ef4444'}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (userActivePlan && userActivePlan.planId === plan.id) {
+                              showToast('Você já está neste plano!', 'error');
+                            } else {
+                              subscribeToPlan(plan);
+                            }
+                          }}
+                          disabled={userActivePlan?.planId === plan.id}
+                          style={{
+                            width: '100%',
+                            backgroundColor: userActivePlan?.planId === plan.id ? '#6b7280' : '#10b981',
+                            color: 'white',
+                            padding: '14px 16px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            fontWeight: '700',
+                            cursor: userActivePlan?.planId === plan.id ? 'not-allowed' : 'pointer',
+                            fontSize: '1rem',
+                            transition: 'all 0.2s ease',
+                            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                            opacity: userActivePlan?.planId === plan.id ? 0.7 : 1
+                          }}
+                          onMouseEnter={(e) => {
+                            if (userActivePlan?.planId !== plan.id) {
+                              e.target.style.transform = 'translateY(-2px)';
+                              e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.transform = 'translateY(0)';
+                            e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+                          }}
+                        >
+                          {userActivePlan?.planId === plan.id ? '✓ Plano Atual' : 'Assinar Plano'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
