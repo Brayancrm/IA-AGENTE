@@ -317,8 +317,18 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
     // Criar cliente no Asaas ANTES de criar conta no Firebase
     // Se não conseguir criar no Asaas, não permitir criar a conta
     let asaasCustomerId = null;
+    console.log('🔍 [REGISTRO] Iniciando validação e criação de cliente no Asaas...');
+    console.log('🔍 [REGISTRO] Dados do formulário:', {
+      name: formData.companyName || formData.name,
+      email: formData.email,
+      cpfCnpj: formData.cnpj,
+      phone: formData.whatsappNumber
+    });
+    
     try {
       const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+      console.log('🔍 [REGISTRO] BACKEND_URL:', BACKEND_URL);
+      
       const createCustomerResponse = await fetch(`${BACKEND_URL}/api/asaas/create-customer`, {
         method: 'POST',
         headers: {
@@ -333,26 +343,41 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
         })
       });
       
+      console.log('🔍 [REGISTRO] Resposta do servidor:', createCustomerResponse.status, createCustomerResponse.statusText);
+      
       const customerData = await createCustomerResponse.json();
+      console.log('🔍 [REGISTRO] Dados retornados:', customerData);
       
       if (!customerData.success || !customerData.valid) {
-        setError(`CPF/CNPJ inválido: ${customerData.error || 'Não foi possível criar cliente no Asaas. Verifique se o documento é válido.'}`);
+        const errorMsg = `CPF/CNPJ inválido: ${customerData.error || 'Não foi possível criar cliente no Asaas. Verifique se o documento é válido.'}`;
+        console.error('❌ [REGISTRO] Falha na validação:', errorMsg);
+        setError(errorMsg);
+        setLoading(false);
+        return;
+      }
+      
+      if (!customerData.customerId) {
+        const errorMsg = 'Erro: Cliente criado no Asaas mas ID não foi retornado. Tente novamente.';
+        console.error('❌ [REGISTRO]', errorMsg);
+        setError(errorMsg);
         setLoading(false);
         return;
       }
       
       asaasCustomerId = customerData.customerId;
-      console.log('✅ Cliente criado no Asaas:', asaasCustomerId);
+      console.log('✅ [REGISTRO] Cliente criado no Asaas com sucesso! ID:', asaasCustomerId);
       
     } catch (error) {
-      console.error('Erro ao criar cliente no Asaas:', error);
-      setError('Erro ao validar CPF/CNPJ com o Asaas. Verifique se o documento é válido e tente novamente.');
+      console.error('❌ [REGISTRO] Erro ao criar cliente no Asaas:', error);
+      const errorMsg = `Erro ao validar CPF/CNPJ com o Asaas: ${error.message || 'Erro de conexão. Verifique se o documento é válido e tente novamente.'}`;
+      setError(errorMsg);
       setLoading(false);
       return;
     }
 
     // Se chegou aqui, o cliente foi criado no Asaas com sucesso
     // Agora pode criar a conta no Firebase
+    console.log('✅ [REGISTRO] Validação concluída. Criando conta no Firebase...');
     try {
       const auth = getAuth();
       const userCredential = await createUserWithEmailAndPassword(
