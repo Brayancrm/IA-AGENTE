@@ -450,6 +450,9 @@ const FirebaseApp = () => {
                   const planData = planSnapshot.val();
                   userData.activePlan = planData.planName || planData.planId || 'Plano Ativo';
                   userData.hasActivePlan = true;
+                } else {
+                  userData.activePlan = undefined;
+                  userData.hasActivePlan = false;
                 }
                 
                 // Buscar dados de company_profile
@@ -1117,6 +1120,15 @@ const FirebaseApp = () => {
         await remove(activePlanRef);
         console.log('Plano desativado para usuário:', userData.uid);
         showToast('Plano desativado com sucesso!');
+        
+        // Atualizar estado local imediatamente
+        setUsers(prevUsers => 
+          prevUsers.map(u => 
+            u.uid === userData.uid 
+              ? { ...u, activePlan: undefined, hasActivePlan: false }
+              : u
+          )
+        );
       } else {
         // Abrir modal para escolher plano
         setSelectedUserForPlan(userData);
@@ -1164,6 +1176,16 @@ const FirebaseApp = () => {
       
       console.log('Plano ativado manualmente para usuário:', selectedUserForPlan.uid);
       showToast(`Plano "${planData.name}" ativado com sucesso!`);
+      
+      // Atualizar estado local imediatamente
+      setUsers(prevUsers => 
+        prevUsers.map(u => 
+          u.uid === selectedUserForPlan.uid 
+            ? { ...u, activePlan: planData.name, hasActivePlan: true }
+            : u
+        )
+      );
+      
       setShowPlanSelectionModal(false);
       setSelectedUserForPlan(null);
     } catch (error) {
