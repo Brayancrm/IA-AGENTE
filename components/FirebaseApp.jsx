@@ -4814,72 +4814,84 @@ const DashboardWithFirebase = ({
         return (
           <div style={{ padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937' }}>
+              <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#ffffff' }}>
                 Gerenciar Usuários
               </h2>
               <button
                 onClick={() => handleOpenUserModal()}
                 style={{
-                  backgroundColor: '#4f46e5',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                   color: 'white',
                   padding: '12px 24px',
-                  borderRadius: '8px',
+                  borderRadius: '12px',
                   border: 'none',
-                  fontWeight: 'bold',
-                  cursor: 'pointer'
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
                 }}
               >
                 + Adicionar Usuário
               </button>
             </div>
             
-            <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
+            <div style={{ backgroundColor: '#1a1f36', borderRadius: '20px', padding: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
               {users.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '48px', color: '#6b7280' }}>
-                  <p style={{ fontSize: '1.125rem', marginBottom: '8px' }}>Nenhum usuário cadastrado</p>
+                <div style={{ textAlign: 'center', padding: '48px', color: '#9ca3af' }}>
+                  <p style={{ fontSize: '1.125rem', marginBottom: '8px', color: '#ffffff' }}>Nenhum usuário cadastrado</p>
                   <p style={{ fontSize: '0.875rem' }}>Adicione usuários clicando no botão acima</p>
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
-                      <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
-                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Nome</th>
-                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Email</th>
-                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Empresa</th>
-                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Plano</th>
-                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Status</th>
-                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Registrado via</th>
-                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold', color: '#374151' }}>Ações</th>
+                      <tr style={{ borderBottom: '2px solid rgba(16, 185, 129, 0.2)' }}>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Nome</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Email</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Empresa</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Plano</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Status</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Registrado via</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Ações</th>
                       </tr>
                     </thead>
                     <tbody>
                       {users.map((userItem) => (
-                        <tr key={userItem.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                          <td style={{ padding: '12px' }}>{userItem.name}</td>
-                          <td style={{ padding: '12px' }}>{userItem.email}</td>
-                          <td style={{ padding: '12px' }}>{userItem.companyName || '-'}</td>
-                          <td style={{ padding: '12px' }}>{userItem.activePlan || '-'}</td>
+                        <tr key={userItem.id} style={{ borderBottom: '1px solid rgba(16, 185, 129, 0.1)' }}>
+                          <td style={{ padding: '12px', color: '#ffffff' }}>{userItem.name}</td>
+                          <td style={{ padding: '12px', color: '#9ca3af' }}>{userItem.email}</td>
+                          <td style={{ padding: '12px', color: '#9ca3af' }}>{userItem.companyName || '-'}</td>
+                          <td style={{ padding: '12px', color: '#ffffff', fontWeight: '500' }}>{userItem.activePlan || '-'}</td>
                           <td style={{ padding: '12px' }}>
                             <span style={{
-                              backgroundColor: userItem.isActive ? '#dcfce7' : '#fee2e2',
-                              color: userItem.isActive ? '#166534' : '#dc2626',
-                              padding: '4px 8px',
-                              borderRadius: '4px',
+                              backgroundColor: userItem.isActive ? 'rgba(16, 185, 129, 0.2)' : 'rgba(220, 38, 38, 0.2)',
+                              color: userItem.isActive ? '#10b981' : '#ef4444',
+                              padding: '4px 12px',
+                              borderRadius: '12px',
                               fontSize: '0.75rem',
-                              fontWeight: 'bold'
+                              fontWeight: '600',
+                              border: `1px solid ${userItem.isActive ? 'rgba(16, 185, 129, 0.3)' : 'rgba(220, 38, 38, 0.3)'}`
                             }}>
                               {userItem.isActive ? 'Ativo' : 'Inativo'}
                             </span>
                           </td>
                           <td style={{ padding: '12px' }}>
                             <span style={{
-                              backgroundColor: userItem.registeredVia === 'landing_page' ? '#dbeafe' : '#f3e8ff',
-                              color: userItem.registeredVia === 'landing_page' ? '#1e40af' : '#7c3aed',
-                              padding: '4px 8px',
-                              borderRadius: '4px',
+                              backgroundColor: userItem.registeredVia === 'landing_page' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(168, 85, 247, 0.2)',
+                              color: userItem.registeredVia === 'landing_page' ? '#60a5fa' : '#a78bfa',
+                              padding: '4px 12px',
+                              borderRadius: '12px',
                               fontSize: '0.75rem',
-                              fontWeight: 'bold'
+                              fontWeight: '600',
+                              border: `1px solid ${userItem.registeredVia === 'landing_page' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(168, 85, 247, 0.3)'}`
                             }}>
                               {userItem.registeredVia === 'landing_page' ? 'Landing Page' : 'Criado pelo Master'}
                             </span>
@@ -6318,28 +6330,30 @@ const DashboardWithFirebase = ({
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
+          backgroundColor: 'rgba(0,0,0,0.75)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 1000
         }}>
           <div style={{
-            backgroundColor: 'white',
-            borderRadius: '16px',
-            padding: '24px',
+            backgroundColor: '#1a1f36',
+            borderRadius: '20px',
+            padding: '32px',
             width: '90%',
             maxWidth: '500px',
             maxHeight: '90vh',
-            overflow: 'auto'
+            overflow: 'auto',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            border: '2px solid rgba(16, 185, 129, 0.3)'
           }}>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '24px', color: '#1f2937' }}>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '24px', color: '#ffffff' }}>
               {editingUser ? 'Editar Usuário' : 'Adicionar Usuário'}
             </h3>
             
             <form onSubmit={handleUserSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
                   Nome Completo
                 </label>
                 <input
@@ -6348,10 +6362,22 @@ const DashboardWithFirebase = ({
                   onChange={(e) => setUserForm(prev => ({ ...prev, name: e.target.value }))}
                   style={{
                     width: '100%',
-                    padding: '12px',
-                    borderRadius: '8px',
-                    border: '1px solid #d1d5db',
-                    fontSize: '1rem'
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    fontSize: '1rem',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: '#ffffff',
+                    outline: 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#10b981';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                    e.target.style.boxShadow = 'none';
                   }}
                   placeholder="Digite o nome completo"
                   required
@@ -6359,7 +6385,7 @@ const DashboardWithFirebase = ({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
                   Email
                 </label>
                 <input
@@ -6368,10 +6394,22 @@ const DashboardWithFirebase = ({
                   onChange={(e) => setUserForm(prev => ({ ...prev, email: e.target.value }))}
                   style={{
                     width: '100%',
-                    padding: '12px',
-                    borderRadius: '8px',
-                    border: '1px solid #d1d5db',
-                    fontSize: '1rem'
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    fontSize: '1rem',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: '#ffffff',
+                    outline: 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#10b981';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                    e.target.style.boxShadow = 'none';
                   }}
                   placeholder="usuario@empresa.com"
                   required
@@ -6379,8 +6417,8 @@ const DashboardWithFirebase = ({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
-                  Senha {editingUser && '(deixe em branco para manter a atual)'}
+                <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+                  Senha {editingUser && <span style={{ color: '#9ca3af', fontWeight: '400' }}>(deixe em branco para manter a atual)</span>}
                 </label>
                 <input
                   type="password"
@@ -6388,10 +6426,22 @@ const DashboardWithFirebase = ({
                   onChange={(e) => setUserForm(prev => ({ ...prev, password: e.target.value }))}
                   style={{
                     width: '100%',
-                    padding: '12px',
-                    borderRadius: '8px',
-                    border: '1px solid #d1d5db',
-                    fontSize: '1rem'
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    fontSize: '1rem',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: '#ffffff',
+                    outline: 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#10b981';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                    e.target.style.boxShadow = 'none';
                   }}
                   placeholder="Digite a senha"
                   required={!editingUser}
@@ -6399,7 +6449,7 @@ const DashboardWithFirebase = ({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#374151' }}>
+                <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
                   Nome da Empresa
                 </label>
                 <input
@@ -6408,10 +6458,22 @@ const DashboardWithFirebase = ({
                   onChange={(e) => setUserForm(prev => ({ ...prev, companyName: e.target.value }))}
                   style={{
                     width: '100%',
-                    padding: '12px',
-                    borderRadius: '8px',
-                    border: '1px solid #d1d5db',
-                    fontSize: '1rem'
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    fontSize: '1rem',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: '#ffffff',
+                    outline: 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#10b981';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                    e.target.style.boxShadow = 'none';
                   }}
                   placeholder="Nome da empresa"
                 />
@@ -6423,9 +6485,9 @@ const DashboardWithFirebase = ({
                     type="checkbox"
                     checked={userForm.isActive}
                     onChange={(e) => setUserForm(prev => ({ ...prev, isActive: e.target.checked }))}
-                    style={{ width: '20px', height: '20px' }}
+                    style={{ width: '20px', height: '20px', cursor: 'pointer' }}
                   />
-                  <span style={{ fontWeight: 'bold', color: '#374151' }}>Usuário Ativo</span>
+                  <span style={{ fontWeight: '600', color: '#ffffff' }}>Usuário Ativo</span>
                 </label>
               </div>
 
