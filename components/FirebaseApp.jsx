@@ -839,8 +839,38 @@ const FirebaseApp = () => {
           });
           console.log('✅ Assinatura criada, redirecionando para pagamento:', result.invoiceUrl);
         } else {
-          showToast('Assinatura criada com sucesso! Verifique seu email para o link de pagamento.');
-          console.log('✅ Assinatura criada:', result);
+          // Se não tiver invoiceUrl, ainda mostrar página de pagamento informando que o link será enviado por email
+          // Ou tentar buscar o link da assinatura após alguns segundos
+          showToast('Assinatura criada! Aguardando link de pagamento...', 'success');
+          
+          // Tentar buscar o link após alguns segundos (pode levar um tempo para ser gerado)
+          setTimeout(async () => {
+            try {
+              // Buscar assinatura no Firebase para ver se o link foi atualizado
+              const subscriptionsRef = ref(database, `subscriptions/${user.uid}`);
+              const snapshot = await get(subscriptionsRef);
+              if (snapshot.exists()) {
+                const subscriptions = snapshot.val();
+                const subscription = Object.values(subscriptions).find(
+                  sub => sub.asaasSubscriptionId === result.subscriptionId
+                );
+                if (subscription && subscription.paymentUrl) {
+                  setPaymentPage({
+                    plan: plan,
+                    invoiceUrl: subscription.paymentUrl,
+                    subscriptionId: result.subscriptionId,
+                    value: result.value
+                  });
+                  return;
+                }
+              }
+              
+              // Se ainda não tiver link, mostrar mensagem informando que será enviado por email
+              showToast('Link de pagamento será enviado por email. Verifique sua caixa de entrada.', 'success');
+            } catch (error) {
+              console.error('Erro ao buscar link de pagamento:', error);
+            }
+          }, 3000);
         }
       } else {
         showToast('Erro ao criar assinatura: ' + (result.error || 'Erro desconhecido'), 'error');
