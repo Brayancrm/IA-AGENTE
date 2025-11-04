@@ -314,14 +314,45 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
       return;
     }
 
-    // Validar CPF/CNPJ via API do Asaas
-    const validation = await validateDocument(formData.cnpj);
-    if (!validation.valid) {
-      setError(`CPF/CNPJ inválido: ${validation.error || 'Documento não é válido'}`);
+    // Criar cliente no Asaas ANTES de criar conta no Firebase
+    // Se não conseguir criar no Asaas, não permitir criar a conta
+    let asaasCustomerId = null;
+    try {
+      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+      const createCustomerResponse = await fetch(`${BACKEND_URL}/api/asaas/create-customer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: formData.companyName || formData.name,
+          email: formData.email,
+          cpfCnpj: formData.cnpj,
+          phone: formData.whatsappNumber,
+          mobilePhone: formData.whatsappNumber
+        })
+      });
+      
+      const customerData = await createCustomerResponse.json();
+      
+      if (!customerData.success || !customerData.valid) {
+        setError(`CPF/CNPJ inválido: ${customerData.error || 'Não foi possível criar cliente no Asaas. Verifique se o documento é válido.'}`);
+        setLoading(false);
+        return;
+      }
+      
+      asaasCustomerId = customerData.customerId;
+      console.log('✅ Cliente criado no Asaas:', asaasCustomerId);
+      
+    } catch (error) {
+      console.error('Erro ao criar cliente no Asaas:', error);
+      setError('Erro ao validar CPF/CNPJ com o Asaas. Verifique se o documento é válido e tente novamente.');
       setLoading(false);
       return;
     }
 
+    // Se chegou aqui, o cliente foi criado no Asaas com sucesso
+    // Agora pode criar a conta no Firebase
     try {
       const auth = getAuth();
       const userCredential = await createUserWithEmailAndPassword(
@@ -355,6 +386,7 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
           companyName: formData.companyName,
           cnpj: formData.cnpj,
           whatsappNumber: formData.whatsappNumber,
+          asaasCustomerId: asaasCustomerId, // Salvar ID do cliente no Asaas
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
