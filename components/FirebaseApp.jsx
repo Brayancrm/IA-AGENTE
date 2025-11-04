@@ -41,6 +41,9 @@ const FirebaseApp = () => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [toast, setToast] = useState(null);
+  
+  // Estado para página de pagamento
+  const [paymentPage, setPaymentPage] = useState(null); // { plan, invoiceUrl, subscriptionId }
 
   // Estados dos dados
   const [companyProfile, setCompanyProfile] = useState({});
@@ -826,8 +829,19 @@ const FirebaseApp = () => {
       const result = await response.json();
 
       if (result.success) {
-        showToast('Assinatura criada com sucesso! Verifique seu email para o link de pagamento.');
-        console.log('✅ Assinatura criada:', result);
+        // Se tiver invoiceUrl, abrir página de pagamento
+        if (result.invoiceUrl) {
+          setPaymentPage({
+            plan: plan,
+            invoiceUrl: result.invoiceUrl,
+            subscriptionId: result.subscriptionId,
+            value: result.value
+          });
+          console.log('✅ Assinatura criada, redirecionando para pagamento:', result.invoiceUrl);
+        } else {
+          showToast('Assinatura criada com sucesso! Verifique seu email para o link de pagamento.');
+          console.log('✅ Assinatura criada:', result);
+        }
       } else {
         showToast('Erro ao criar assinatura: ' + (result.error || 'Erro desconhecido'), 'error');
         console.error('❌ Erro:', result);
@@ -1849,11 +1863,178 @@ const FirebaseApp = () => {
     );
   }
 
+  // Componente de Página de Pagamento
+  const PaymentPage = () => {
+    if (!paymentPage) return null;
+
+    // Verificar status do pagamento periodicamente
+    useEffect(() => {
+      if (!paymentPage || !database || !user) return;
+
+      const checkPaymentStatus = async () => {
+        try {
+          // Buscar assinatura no Firebase
+          const subscriptionsRef = ref(database, `subscriptions/${user.uid}`);
+          const snapshot = await get(subscriptionsRef);
+          
+          if (snapshot.exists()) {
+            const subscriptions = snapshot.val();
+            // Encontrar a assinatura atual pelo subscriptionId
+            const subscription = Object.values(subscriptions).find(
+              sub => sub.asaasSubscriptionId === paymentPage.subscriptionId
+            );
+            
+            if (subscription && subscription.status === 'active') {
+              // Pagamento confirmado! Redirecionar de volta
+              showToast('Pagamento confirmado! Seu plano foi ativado com sucesso.', 'success');
+              setPaymentPage(null);
+              setCurrentPage('plans');
+            }
+          }
+        } catch (error) {
+          console.error('Erro ao verificar status do pagamento:', error);
+        }
+      };
+
+      // Verificar a cada 5 segundos
+      const interval = setInterval(checkPaymentStatus, 5000);
+      
+      return () => clearInterval(interval);
+    }, [paymentPage, database, user]);
+
+    return (
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#0f1419',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px'
+      }}>
+        <div style={{
+          backgroundColor: '#1a1f36',
+          borderRadius: '20px',
+          padding: '40px',
+          maxWidth: '600px',
+          width: '100%',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          border: '2px solid rgba(139, 92, 246, 0.3)'
+        }}>
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <div style={{ fontSize: '4rem', marginBottom: '16px' }}>💳</div>
+            <h2 style={{ fontSize: '2rem', fontWeight: '700', color: '#ffffff', marginBottom: '12px' }}>
+              Finalizar Pagamento
+            </h2>
+            <p style={{ fontSize: '1.125rem', color: '#9ca3af', marginBottom: '8px' }}>
+              Plano: <strong style={{ color: '#a78bfa' }}>{paymentPage.plan.name}</strong>
+            </p>
+            <p style={{ fontSize: '1.25rem', fontWeight: '700', color: '#10b981', marginTop: '16px' }}>
+              Valor: R$ {paymentPage.value.toFixed(2)}
+            </p>
+          </div>
+
+          <div style={{
+            backgroundColor: '#0f1419',
+            borderRadius: '12px',
+            padding: '24px',
+            marginBottom: '24px',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }}>
+            <p style={{ color: '#9ca3af', marginBottom: '16px', fontSize: '0.9375rem' }}>
+              Clique no botão abaixo para ser redirecionado para a página de pagamento do Asaas.
+              Após concluir o pagamento, você será redirecionado automaticamente de volta para a plataforma.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <a
+                href={paymentPage.invoiceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'block',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  padding: '16px 24px',
+                  borderRadius: '12px',
+                  textDecoration: 'none',
+                  fontWeight: '700',
+                  fontSize: '1.125rem',
+                  textAlign: 'center',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#059669';
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = '#10b981';
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+                }}
+              >
+                🔗 Ir para Pagamento
+              </a>
+              <button
+                onClick={() => {
+                  setPaymentPage(null);
+                  setCurrentPage('plans');
+                }}
+                style={{
+                  backgroundColor: 'transparent',
+                  color: '#9ca3af',
+                  padding: '12px 24px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  fontWeight: '600',
+                  fontSize: '1rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                  e.target.style.color = '#ffffff';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.color = '#9ca3af';
+                }}
+              >
+                Cancelar e Voltar
+              </button>
+            </div>
+          </div>
+
+          <div style={{
+            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+            borderRadius: '12px',
+            padding: '16px',
+            border: '1px solid rgba(139, 92, 246, 0.3)'
+          }}>
+            <p style={{ color: '#a78bfa', fontSize: '0.875rem', margin: 0, textAlign: 'center' }}>
+              ⏳ Aguardando confirmação do pagamento... Você será redirecionado automaticamente quando o pagamento for confirmado.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Se não está autenticado, mostrar landing page
   if (!isAuthenticated) {
     return (
       <div>
         <SimpleLanding onLoginSuccess={() => setIsAuthenticated(true)} />
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      </div>
+    );
+  }
+
+  // Se está na página de pagamento, mostrar apenas ela
+  if (paymentPage) {
+    return (
+      <div>
+        <PaymentPage />
         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       </div>
     );
