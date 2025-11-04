@@ -3547,6 +3547,72 @@ app.get('/api/user/plan/:userId', async (req, res) => {
 });
 
 // Criar cobrança Asaas
+// Função para validar dígitos verificadores de CPF
+function validateCPF(cpf) {
+  cpf = cpf.replace(/[^\d]/g, '');
+  
+  if (cpf.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(cpf)) return false; // CPF com todos dígitos iguais
+  
+  let sum = 0;
+  let remainder;
+  
+  // Validar primeiro dígito verificador
+  for (let i = 1; i <= 9; i++) {
+    sum += parseInt(cpf.substring(i - 1, i)) * (11 - i);
+  }
+  remainder = (sum * 10) % 11;
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  if (remainder !== parseInt(cpf.substring(9, 10))) return false;
+  
+  // Validar segundo dígito verificador
+  sum = 0;
+  for (let i = 1; i <= 10; i++) {
+    sum += parseInt(cpf.substring(i - 1, i)) * (12 - i);
+  }
+  remainder = (sum * 10) % 11;
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  if (remainder !== parseInt(cpf.substring(10, 11))) return false;
+  
+  return true;
+}
+
+// Função para validar dígitos verificadores de CNPJ
+function validateCNPJ(cnpj) {
+  cnpj = cnpj.replace(/[^\d]/g, '');
+  
+  if (cnpj.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(cnpj)) return false; // CNPJ com todos dígitos iguais
+  
+  let length = cnpj.length - 2;
+  let numbers = cnpj.substring(0, length);
+  const digits = cnpj.substring(length);
+  let sum = 0;
+  let pos = length - 7;
+  
+  // Validar primeiro dígito verificador
+  for (let i = length; i >= 1; i--) {
+    sum += numbers.charAt(length - i) * pos--;
+    if (pos < 2) pos = 9;
+  }
+  let result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+  if (result !== parseInt(digits.charAt(0))) return false;
+  
+  // Validar segundo dígito verificador
+  length = length + 1;
+  numbers = cnpj.substring(0, length);
+  sum = 0;
+  pos = length - 7;
+  for (let i = length; i >= 1; i--) {
+    sum += numbers.charAt(length - i) * pos--;
+    if (pos < 2) pos = 9;
+  }
+  result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+  if (result !== parseInt(digits.charAt(1))) return false;
+  
+  return true;
+}
+
 // Endpoint para validar CPF/CNPJ usando a API do Asaas
 app.post('/api/asaas/validate-document', async (req, res) => {
   try {
@@ -3569,7 +3635,7 @@ app.post('/api/asaas/validate-document', async (req, res) => {
       });
     }
     
-    // Limpar CPF/CNPJ (remover caracteres especiais)
+    // Validar formato primeiro
     const cleanCpfCnpj = cpfCnpj.replace(/[^\d]/g, '');
     
     // Determinar se é CPF (11 dígitos) ou CNPJ (14 dígitos)
@@ -3582,6 +3648,27 @@ app.post('/api/asaas/validate-document', async (req, res) => {
         error: 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos' 
       });
     }
+    
+    // Validar dígitos verificadores antes de chamar API
+    if (isCPF && !validateCPF(cleanCpfCnpj)) {
+      return res.json({ 
+        success: true, 
+        valid: false,
+        type: 'CPF',
+        error: 'CPF inválido: dígitos verificadores incorretos'
+      });
+    }
+    
+    if (isCNPJ && !validateCNPJ(cleanCpfCnpj)) {
+      return res.json({ 
+        success: true, 
+        valid: false,
+        type: 'CNPJ',
+        error: 'CNPJ inválido: dígitos verificadores incorretos'
+      });
+    }
+    
+    // Limpar CPF/CNPJ (remover caracteres especiais)
     
     // URL base da API do Asaas
     const baseUrl = asaasApiKey.includes('_prod_') 

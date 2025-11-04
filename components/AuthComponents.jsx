@@ -252,14 +252,29 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
           return { valid: false, error: data.error || `${data.type} inválido` };
         }
       } else {
-        // Se não conseguir validar (API não configurada, etc), permitir continuar
+        // Se não conseguir validar (API não configurada, etc), mostrar aviso mas permitir continuar
         console.warn('Não foi possível validar documento:', data.error);
-        return { valid: true }; // Permitir continuar se a validação falhar
+        // Mesmo assim, tentar validar localmente antes de permitir
+        const cleanCpfCnpj = cpfCnpj.replace(/[^\d]/g, '');
+        if (cleanCpfCnpj.length === 11 || cleanCpfCnpj.length === 14) {
+          // Se tem formato válido, permitir mas avisar
+          return { valid: true, warning: 'Não foi possível validar com a API do Asaas. O documento será validado ao criar o primeiro pagamento.' };
+        } else {
+          setDocumentValidationError('CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos');
+          return { valid: false, error: 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos' };
+        }
       }
     } catch (error) {
       console.error('Erro ao validar documento:', error);
-      // Se houver erro na validação, permitir continuar (não bloquear cadastro)
-      return { valid: true };
+      // Se houver erro na validação, validar formato localmente
+      const cleanCpfCnpj = cpfCnpj.replace(/[^\d]/g, '');
+      if (cleanCpfCnpj.length === 11 || cleanCpfCnpj.length === 14) {
+        // Se tem formato válido, permitir mas avisar
+        return { valid: true, warning: 'Não foi possível validar com a API do Asaas. O documento será validado ao criar o primeiro pagamento.' };
+      } else {
+        setDocumentValidationError('CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos');
+        return { valid: false, error: 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos' };
+      }
     } finally {
       setValidatingDocument(false);
     }
@@ -284,14 +299,27 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
       return;
     }
 
-    // Validar CPF/CNPJ antes de criar a conta
-    if (formData.cnpj && formData.cnpj.trim() !== '') {
-      const validation = await validateDocument(formData.cnpj);
-      if (!validation.valid) {
-        setError(`CPF/CNPJ inválido: ${validation.error || 'Documento não é válido'}`);
-        setLoading(false);
-        return;
-      }
+    // Validar CPF/CNPJ antes de criar a conta - OBRIGATÓRIO
+    if (!formData.cnpj || formData.cnpj.trim() === '') {
+      setError('CPF/CNPJ é obrigatório.');
+      setLoading(false);
+      return;
+    }
+
+    // Validar formato antes de chamar API
+    const cleanCpfCnpj = formData.cnpj.replace(/[^\d]/g, '');
+    if (cleanCpfCnpj.length !== 11 && cleanCpfCnpj.length !== 14) {
+      setError('CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.');
+      setLoading(false);
+      return;
+    }
+
+    // Validar CPF/CNPJ via API do Asaas
+    const validation = await validateDocument(formData.cnpj);
+    if (!validation.valid) {
+      setError(`CPF/CNPJ inválido: ${validation.error || 'Documento não é válido'}`);
+      setLoading(false);
+      return;
     }
 
     try {

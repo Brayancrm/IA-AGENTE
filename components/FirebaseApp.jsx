@@ -51,6 +51,7 @@ const FirebaseApp = () => {
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [showPlanSelectionModal, setShowPlanSelectionModal] = useState(false);
+  const [showRequiredPlanModal, setShowRequiredPlanModal] = useState(false); // Modal obrigatório para novos usuários
   const [selectedUserForPlan, setSelectedUserForPlan] = useState(null);
   
   // Estados do WhatsApp
@@ -103,6 +104,40 @@ const FirebaseApp = () => {
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
+  };
+
+  // Função auxiliar para formatar duração do trial (formato curto)
+  const formatTrialDuration = (hours, minutes) => {
+    const h = hours || 0;
+    const m = minutes || 0;
+    
+    if (h === 0 && m === 0) {
+      return '30min'; // Padrão
+    }
+    if (h === 0) {
+      return `${m}min`;
+    }
+    if (m === 0) {
+      return `${h}h`;
+    }
+    return `${h}h ${m}min`;
+  };
+
+  // Função auxiliar para formatar duração completa do trial
+  const formatTrialDurationFull = (hours, minutes) => {
+    const h = hours || 0;
+    const m = minutes || 0;
+    
+    if (h === 0 && m === 0) {
+      return '30 minutos (padrão)';
+    }
+    if (h === 0) {
+      return `${m} minuto${m !== 1 ? 's' : ''}`;
+    }
+    if (m === 0) {
+      return `${h} hora${h !== 1 ? 's' : ''}`;
+    }
+    return `${h}h ${m}min`;
   };
 
   // Componente Toast
@@ -275,6 +310,27 @@ const FirebaseApp = () => {
     }
   }, [showAgendamentoModal]);
 
+  // Mostrar modal obrigatório de seleção de plano quando usuário não tem plano ativo
+  useEffect(() => {
+    // Não mostrar para usuários master
+    if (user?.isMaster) {
+      setShowRequiredPlanModal(false);
+      return;
+    }
+
+    // Aguardar um pouco para garantir que os listeners foram configurados
+    if (user && database && !userActivePlan && !loading) {
+      const timer = setTimeout(() => {
+        // Verificar novamente se ainda não tem plano
+        if (!userActivePlan && !user?.isMaster) {
+          setShowRequiredPlanModal(true);
+        }
+      }, 1500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [user, database, userActivePlan, loading]);
+
   // Configurar listeners do Realtime Database
   const setupFirestoreListeners = () => {
     if (!user || !database) return;
@@ -417,6 +473,10 @@ const FirebaseApp = () => {
         }
         
         setUserActivePlan(plan);
+        // Se usuário não for master e tiver plano ativo, fechar modal obrigatório se estiver aberto
+        if (!user?.isMaster && plan) {
+          setShowRequiredPlanModal(false);
+        }
         
         // Buscar uso atual
         const now = new Date();
@@ -443,10 +503,16 @@ const FirebaseApp = () => {
     // Listener para planos de teste já usados pelo usuário
     const usedTrialsRef = ref(database, `users/data/${userId}/usedTrials`);
     onValue(usedTrialsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setUsedTrials(snapshot.val());
-      } else {
-        setUsedTrials({});
+      try {
+        if (snapshot.exists()) {
+          const trials = snapshot.val();
+          setUsedTrials(trials || {});
+        } else {
+          setUsedTrials({});
+        }
+      } catch (error) {
+        console.error('Erro ao carregar usedTrials:', error);
+        setUsedTrials({}); // Garantir que sempre tenha um valor padrão
       }
     });
     cleanupFunctions.push(() => off(usedTrialsRef));
@@ -666,10 +732,13 @@ const FirebaseApp = () => {
         }
       }
       
-      // Se for plano de teste gratuito, ativar diretamente sem passar pelo Asaas
-      if (plan.isTrialPlan && (plan.price === 0 || !plan.price)) {
-        // Calcular data de expiração
-        const expirationDate = new Date(Date.now() + (plan.trialDurationHours || 24) * 60 * 60 * 1000);
+      // Se for plano de teste, ativar diretamente sem passar pelo Asaas (independente do preço)
+      if (plan.isTrialPlan) {
+        // Calcular data de expiração considerando horas e minutos
+        const hours = plan.trialDurationHours || 0;
+        const minutes = plan.trialDurationMinutes || 30;
+        const totalMilliseconds = (hours * 60 * 60 * 1000) + (minutes * 60 * 1000);
+        const expirationDate = new Date(Date.now() + totalMilliseconds);
         const nextDueDate = expirationDate.toISOString();
         
         // Ativar plano diretamente
@@ -680,7 +749,8 @@ const FirebaseApp = () => {
           startedAt: new Date().toISOString(),
           nextDueDate: nextDueDate,
           isTrialPlan: true,
-          trialDurationHours: plan.trialDurationHours || 24,
+          trialDurationHours: plan.trialDurationHours || 0,
+          trialDurationMinutes: plan.trialDurationMinutes || 30,
           allowedFeatures: plan.allowedFeatures || [],
           limits: plan.limits || {
             messagesPerMonth: null,
@@ -699,7 +769,15 @@ const FirebaseApp = () => {
           });
         }
         
-        showToast(`Plano de teste "${plan.name}" ativado com sucesso! Você tem ${plan.trialDurationHours || 24} horas para testar.`);
+        const durationText = hours === 0 
+          ? `${minutes} minuto${minutes !== 1 ? 's' : ''}`
+          : minutes === 0
+          ? `${hours} hora${hours !== 1 ? 's' : ''}`
+          : `${hours}h ${minutes}min`;
+        
+        showToast(`Plano de teste "${plan.name}" ativado com sucesso! Você tem ${durationText} para testar.`);
+        // Fechar modal obrigatório se estiver aberto
+        setShowRequiredPlanModal(false);
         return;
       }
       
@@ -1251,8 +1329,11 @@ const FirebaseApp = () => {
       // Calcular data de expiração
       let nextDueDate;
       if (planData.isTrialPlan) {
-        // Para planos de teste, calcular baseado em horas
-        const expirationDate = new Date(Date.now() + (planData.trialDurationHours || 24) * 60 * 60 * 1000);
+        // Para planos de teste, calcular baseado em horas e minutos
+        const hours = planData.trialDurationHours || 0;
+        const minutes = planData.trialDurationMinutes || 30;
+        const totalMilliseconds = (hours * 60 * 60 * 1000) + (minutes * 60 * 1000);
+        const expirationDate = new Date(Date.now() + totalMilliseconds);
         nextDueDate = expirationDate.toISOString();
       } else {
         // Para planos normais, usar cálculo mensal/anual
@@ -1268,7 +1349,8 @@ const FirebaseApp = () => {
         startedAt: new Date().toISOString(),
         nextDueDate: nextDueDate,
         isTrialPlan: planData.isTrialPlan || false,
-        trialDurationHours: planData.trialDurationHours || null,
+        trialDurationHours: planData.trialDurationHours || 0,
+        trialDurationMinutes: planData.trialDurationMinutes || 30,
         allowedFeatures: planData.allowedFeatures || [],
         limits: planData.limits || {
           messagesPerMonth: null,
@@ -1428,6 +1510,250 @@ const FirebaseApp = () => {
               ))}
             </div>
           )}
+        </div>
+      </div>
+    );
+  };
+
+  // Modal obrigatório de seleção de plano para novos usuários
+  const RequiredPlanSelectionModal = () => {
+    if (!showRequiredPlanModal || user?.isMaster) return null;
+
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 99999
+      }}>
+        <div style={{
+          backgroundColor: '#1a1f36',
+          borderRadius: '20px',
+          padding: '32px',
+          maxWidth: '900px',
+          width: '90%',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          border: '2px solid rgba(139, 92, 246, 0.5)'
+        }}>
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <div style={{ fontSize: '4rem', marginBottom: '16px' }}>🎉</div>
+            <h2 style={{ fontSize: '2rem', fontWeight: '700', color: '#ffffff', marginBottom: '12px' }}>
+              Bem-vindo!
+            </h2>
+            <p style={{ fontSize: '1.125rem', color: '#9ca3af', marginBottom: '8px' }}>
+              Para começar a usar nossa plataforma, você precisa selecionar um plano.
+            </p>
+            <p style={{ fontSize: '0.9375rem', color: '#6b7280' }}>
+              Escolha o plano que melhor se adequa às suas necessidades.
+            </p>
+          </div>
+
+          {plans.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '48px' }}>
+              <p style={{ color: '#9ca3af', fontSize: '1.125rem', marginBottom: '16px' }}>
+                Carregando planos disponíveis...
+              </p>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                border: '4px solid rgba(139, 92, 246, 0.2)',
+                borderTop: '4px solid #8b5cf6',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                margin: '0 auto'
+              }}></div>
+            </div>
+          ) : (
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+              gap: '20px',
+              marginBottom: '24px'
+            }}>
+              {plans.map((plan) => {
+                const isUsedTrial = plan.isTrialPlan && plan.oneTimeUse && (usedTrials || {})[plan.id];
+                
+                return (
+                  <div
+                    key={plan.id}
+                    style={{
+                      backgroundColor: '#0f1419',
+                      borderRadius: '16px',
+                      padding: '24px',
+                      border: '2px solid rgba(139, 92, 246, 0.3)',
+                      cursor: isUsedTrial ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.3s ease',
+                      opacity: isUsedTrial ? 0.6 : 1,
+                      position: 'relative'
+                    }}
+                    onClick={() => {
+                      if (!isUsedTrial) {
+                        subscribeToPlan(plan);
+                      }
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isUsedTrial) {
+                        e.currentTarget.style.borderColor = '#8b5cf6';
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = '0 8px 24px rgba(139, 92, 246, 0.4)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isUsedTrial) {
+                        e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }
+                    }}
+                  >
+                    {/* Badge de Trial */}
+                    {plan.isTrialPlan && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '16px',
+                        right: '16px',
+                        backgroundColor: '#f59e0b',
+                        color: 'white',
+                        padding: '4px 12px',
+                        borderRadius: '12px',
+                        fontSize: '0.75rem',
+                        fontWeight: '700'
+                      }}>
+                        🎁 TESTE {formatTrialDuration(plan.trialDurationHours, plan.trialDurationMinutes)}{plan.oneTimeUse ? ' (ÚNICO)' : ''}
+                      </div>
+                    )}
+                    
+                    {/* Badge de Usado */}
+                    {isUsedTrial && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '16px',
+                        left: '16px',
+                        backgroundColor: '#6b7280',
+                        color: 'white',
+                        padding: '4px 12px',
+                        borderRadius: '12px',
+                        fontSize: '0.75rem',
+                        fontWeight: '700'
+                      }}>
+                        JÁ USADO
+                      </div>
+                    )}
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+                        {plan.name}
+                      </h3>
+                      {plan.description && (
+                        <p style={{ color: '#9ca3af', fontSize: '0.9375rem', marginBottom: '16px' }}>
+                          {plan.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: plan.isTrialPlan ? 'rgba(245, 158, 11, 0.1)' : 'rgba(139, 92, 246, 0.1)', borderRadius: '12px', border: `1px solid ${plan.isTrialPlan ? 'rgba(245, 158, 11, 0.3)' : 'rgba(139, 92, 246, 0.3)'}` }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                        {plan.isTrialPlan ? (
+                          <span style={{ fontSize: '2rem', fontWeight: '700', color: '#f59e0b' }}>
+                            🎁 GRÁTIS
+                          </span>
+                        ) : (
+                          <>
+                            <span style={{ fontSize: '2rem', fontWeight: '700', color: '#a78bfa' }}>
+                              R$ {parseFloat(plan.price || 0).toFixed(2)}
+                            </span>
+                            <span style={{ fontSize: '1rem', color: '#9ca3af' }}>
+                              / {plan.billingCycle === 'yearly' ? 'ano' : 'mês'}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {plan.isTrialPlan && (
+                        <p style={{ fontSize: '0.875rem', color: '#f59e0b', marginTop: '8px', fontWeight: '600' }}>
+                          Teste por {formatTrialDurationFull(plan.trialDurationHours, plan.trialDurationMinutes)}{plan.oneTimeUse ? ' • Uso único' : ''}
+                        </p>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+                      {plan.limits?.messagesPerMonth ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9ca3af', fontSize: '0.875rem' }}>
+                          <span>✅</span>
+                          <span>{plan.limits.messagesPerMonth} mensagens/mês</span>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9ca3af', fontSize: '0.875rem' }}>
+                          <span>✅</span>
+                          <span>Mensagens ilimitadas</span>
+                        </div>
+                      )}
+                      {plan.features && plan.features.length > 0 && plan.features.slice(0, 3).map((feature, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9ca3af', fontSize: '0.875rem' }}>
+                          <span>✅</span>
+                          <span>{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      disabled={isUsedTrial}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!isUsedTrial) {
+                          subscribeToPlan(plan);
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        backgroundColor: isUsedTrial ? '#6b7280' : '#8b5cf6',
+                        color: 'white',
+                        padding: '14px 20px',
+                        borderRadius: '12px',
+                        border: 'none',
+                        fontWeight: '700',
+                        fontSize: '1rem',
+                        cursor: isUsedTrial ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.2s ease',
+                        opacity: isUsedTrial ? 0.6 : 1
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isUsedTrial) {
+                          e.target.style.backgroundColor = '#7c3aed';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isUsedTrial) {
+                          e.target.style.backgroundColor = '#8b5cf6';
+                        }
+                      }}
+                    >
+                      {isUsedTrial ? 'Já Utilizado' : plan.isTrialPlan ? 'Iniciar Teste Grátis' : 'Selecionar Plano'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div style={{ 
+            padding: '20px', 
+            backgroundColor: 'rgba(139, 92, 246, 0.1)', 
+            borderRadius: '12px', 
+            border: '1px solid rgba(139, 92, 246, 0.3)',
+            textAlign: 'center'
+          }}>
+            <p style={{ fontSize: '0.875rem', color: '#a78bfa', margin: 0 }}>
+              ⚠️ Este modal não pode ser fechado até que você selecione um plano.
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -1596,9 +1922,13 @@ const FirebaseApp = () => {
         subscribeToPlan={subscribeToPlan}
         userActivePlan={userActivePlan}
         userPlanUsage={userPlanUsage}
+        usedTrials={usedTrials}
+        formatTrialDuration={formatTrialDuration}
+        formatTrialDurationFull={formatTrialDurationFull}
       />
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <PlanSelectionModal />
+      <RequiredPlanSelectionModal />
     </div>
   );
 };
@@ -1663,8 +1993,13 @@ const DashboardWithFirebase = ({
   openPlanModal,
   subscribeToPlan,
   userActivePlan,
-  userPlanUsage
+  userPlanUsage,
+  usedTrials = {},
+  formatTrialDuration,
+  formatTrialDurationFull
 }) => {
+  // Garantir que usedTrials sempre seja um objeto
+  const safeUsedTrials = usedTrials || {};
   const [isActive, setIsActive] = useState(assistantSettings.isActive || true);
   const [showCatalogModal, setShowCatalogModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -1739,7 +2074,8 @@ const DashboardWithFirebase = ({
     features: [],
     allowedFeatures: [], // Funcionalidades do sidebar permitidas para este plano
     isTrialPlan: false, // Se é um plano de teste
-    trialDurationHours: 24, // Duração do teste em horas (padrão 24h)
+    trialDurationHours: 0, // Duração do teste em horas
+    trialDurationMinutes: 30, // Duração do teste em minutos (padrão 30 minutos)
     oneTimeUse: false, // Se cada usuário só pode usar uma vez
     limits: {
       messagesPerMonth: null,
@@ -1795,7 +2131,8 @@ const DashboardWithFirebase = ({
         features: editingPlan.features || [],
         allowedFeatures: editingPlan.allowedFeatures || [],
         isTrialPlan: editingPlan.isTrialPlan || false,
-        trialDurationHours: editingPlan.trialDurationHours || 24,
+        trialDurationHours: editingPlan.trialDurationHours || 0,
+        trialDurationMinutes: editingPlan.trialDurationMinutes || 30,
         oneTimeUse: editingPlan.oneTimeUse || false,
         limits: editingPlan.limits || {
           messagesPerMonth: null,
@@ -1814,7 +2151,8 @@ const DashboardWithFirebase = ({
         features: [],
         allowedFeatures: [],
         isTrialPlan: false,
-        trialDurationHours: 24,
+        trialDurationHours: 0,
+        trialDurationMinutes: 30,
         oneTimeUse: false,
         limits: {
           messagesPerMonth: null,
@@ -2964,7 +3302,7 @@ const DashboardWithFirebase = ({
       hasAccess = true; // Master tem acesso a tudo
     } else if (isAlwaysAvailable || isBasicAccess) {
       hasAccess = true; // Planos e Cadastro sempre disponíveis
-    } else if (userActivePlan?.allowedFeatures) {
+    } else if (userActivePlan?.allowedFeatures && Array.isArray(userActivePlan.allowedFeatures)) {
       hasAccess = userActivePlan.allowedFeatures.includes(currentPage);
     }
     
@@ -4994,7 +5332,7 @@ const DashboardWithFirebase = ({
                           alignItems: 'center',
                           gap: '4px'
                         }}>
-                          🎁 TESTE {plan.trialDurationHours}h{plan.oneTimeUse ? ' (ÚNICO)' : ''}
+                          🎁 TESTE {formatTrialDuration(plan.trialDurationHours, plan.trialDurationMinutes)}{plan.oneTimeUse ? ' (ÚNICO)' : ''}
                         </div>
                       )}
                     </div>
@@ -5029,7 +5367,7 @@ const DashboardWithFirebase = ({
                       </div>
                       {plan.isTrialPlan && (
                         <p style={{ fontSize: '0.875rem', color: '#f59e0b', marginTop: '8px', fontWeight: '600' }}>
-                          Teste por {plan.trialDurationHours} horas{plan.oneTimeUse ? ' • Uso único' : ''}
+                          Teste por {formatTrialDurationFull(plan.trialDurationHours, plan.trialDurationMinutes)}{plan.oneTimeUse ? ' • Uso único' : ''}
                         </p>
                       )}
                     </div>
@@ -5112,7 +5450,7 @@ const DashboardWithFirebase = ({
                       <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                         {(() => {
                           // Verificar se é plano de teste com uso único que já foi usado
-                          const isUsedTrial = plan.isTrialPlan && plan.oneTimeUse && usedTrials[plan.id];
+                          const isUsedTrial = plan.isTrialPlan && plan.oneTimeUse && safeUsedTrials[plan.id];
                           const isCurrentPlan = userActivePlan?.planId === plan.id;
                           const isDisabled = isCurrentPlan || isUsedTrial;
                           
@@ -5430,7 +5768,7 @@ const DashboardWithFirebase = ({
                 userHasAccess = true; // Master tem acesso a tudo
               } else if (isAlwaysAvailable || isBasicAccess) {
                 userHasAccess = true; // Planos e Cadastro sempre disponíveis
-              } else if (userActivePlan?.allowedFeatures) {
+              } else if (userActivePlan?.allowedFeatures && Array.isArray(userActivePlan.allowedFeatures)) {
                 userHasAccess = userActivePlan.allowedFeatures.includes(item.id);
               }
               
@@ -6409,7 +6747,8 @@ const DashboardWithFirebase = ({
                     features: [],
                     allowedFeatures: [],
                     isTrialPlan: false,
-                    trialDurationHours: 24,
+                    trialDurationHours: 0,
+                    trialDurationMinutes: 30,
                     oneTimeUse: false,
                     limits: { messagesPerMonth: null, conversations: null, catalogItems: null, integrations: [] },
                     active: true
@@ -6443,7 +6782,8 @@ const DashboardWithFirebase = ({
                 features: [],
                 allowedFeatures: [],
                 isTrialPlan: false,
-                trialDurationHours: 24,
+                trialDurationHours: 0,
+                trialDurationMinutes: 30,
                 oneTimeUse: false,
                 limits: { messagesPerMonth: null, conversations: null, catalogItems: null, integrations: [] },
                 active: true
@@ -6668,20 +7008,20 @@ const DashboardWithFirebase = ({
                         alignItems: 'center',
                         gap: '10px',
                         padding: '12px',
-                        backgroundColor: planForm.allowedFeatures.includes(feature.id) ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                        backgroundColor: (planForm.allowedFeatures || []).includes(feature.id) ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
                         borderRadius: '8px',
-                        border: `2px solid ${planForm.allowedFeatures.includes(feature.id) ? '#10b981' : 'rgba(255, 255, 255, 0.1)'}`,
+                        border: `2px solid ${(planForm.allowedFeatures || []).includes(feature.id) ? '#10b981' : 'rgba(255, 255, 255, 0.1)'}`,
                         cursor: 'pointer',
                         transition: 'all 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        if (!planForm.allowedFeatures.includes(feature.id)) {
+                        if (!(planForm.allowedFeatures || []).includes(feature.id)) {
                           e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
                           e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (!planForm.allowedFeatures.includes(feature.id)) {
+                        if (!(planForm.allowedFeatures || []).includes(feature.id)) {
                           e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
                           e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                         }
@@ -6689,17 +7029,17 @@ const DashboardWithFirebase = ({
                     >
                       <input
                         type="checkbox"
-                        checked={planForm.allowedFeatures.includes(feature.id)}
+                        checked={(planForm.allowedFeatures || []).includes(feature.id)}
                         onChange={(e) => {
                           if (e.target.checked) {
                             setPlanForm(prev => ({
                               ...prev,
-                              allowedFeatures: [...prev.allowedFeatures, feature.id]
+                              allowedFeatures: [...(prev.allowedFeatures || []), feature.id]
                             }));
                           } else {
                             setPlanForm(prev => ({
                               ...prev,
-                              allowedFeatures: prev.allowedFeatures.filter(f => f !== feature.id)
+                              allowedFeatures: (prev.allowedFeatures || []).filter(f => f !== feature.id)
                             }));
                           }
                         }}
@@ -6746,30 +7086,75 @@ const DashboardWithFirebase = ({
                       {/* Duração do teste */}
                       <div>
                         <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '6px', color: '#d1d5db' }}>
-                          ⏱️ Duração do Teste (horas)
+                          ⏱️ Duração do Teste
                         </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="720"
-                          value={planForm.trialDurationHours}
-                          onChange={(e) => setPlanForm(prev => ({ 
-                            ...prev, 
-                            trialDurationHours: Math.max(1, parseInt(e.target.value) || 24) 
-                          }))}
-                          style={{
-                            width: '100%',
-                            padding: '12px 14px',
-                            borderRadius: '10px',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            fontSize: '0.9375rem',
-                            backgroundColor: '#0f1419',
-                            color: '#ffffff'
-                          }}
-                          placeholder="24"
-                        />
-                        <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>
-                          Quantas horas o teste durará? (Padrão: 24 horas)
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                          {/* Campo de Horas */}
+                          <div style={{ flex: 1 }}>
+                            <label style={{ display: 'block', fontSize: '0.75rem', color: '#9ca3af', marginBottom: '4px' }}>
+                              Horas
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="720"
+                              value={planForm.trialDurationHours}
+                              onChange={(e) => setPlanForm(prev => ({ 
+                                ...prev, 
+                                trialDurationHours: Math.max(0, parseInt(e.target.value) || 0) 
+                              }))}
+                              style={{
+                                width: '100%',
+                                padding: '12px 14px',
+                                borderRadius: '10px',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                fontSize: '0.9375rem',
+                                backgroundColor: '#0f1419',
+                                color: '#ffffff'
+                              }}
+                              placeholder="0"
+                            />
+                          </div>
+                          
+                          {/* Campo de Minutos */}
+                          <div style={{ flex: 1 }}>
+                            <label style={{ display: 'block', fontSize: '0.75rem', color: '#9ca3af', marginBottom: '4px' }}>
+                              Minutos
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="59"
+                              value={planForm.trialDurationMinutes}
+                              onChange={(e) => {
+                                const minutes = Math.max(0, Math.min(59, parseInt(e.target.value) || 0));
+                                setPlanForm(prev => ({ 
+                                  ...prev, 
+                                  trialDurationMinutes: minutes 
+                                }));
+                              }}
+                              style={{
+                                width: '100%',
+                                padding: '12px 14px',
+                                borderRadius: '10px',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                fontSize: '0.9375rem',
+                                backgroundColor: '#0f1419',
+                                color: '#ffffff'
+                              }}
+                              placeholder="30"
+                            />
+                          </div>
+                        </div>
+                        <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '8px' }}>
+                          {planForm.trialDurationHours === 0 && planForm.trialDurationMinutes === 0 
+                            ? '⚠️ A duração total deve ser maior que 0'
+                            : planForm.trialDurationHours === 0
+                            ? `Duração total: ${planForm.trialDurationMinutes} minuto${planForm.trialDurationMinutes !== 1 ? 's' : ''}`
+                            : planForm.trialDurationMinutes === 0
+                            ? `Duração total: ${planForm.trialDurationHours} hora${planForm.trialDurationHours !== 1 ? 's' : ''}`
+                            : `Duração total: ${planForm.trialDurationHours}h ${planForm.trialDurationMinutes}min`
+                          }
                         </p>
                       </div>
 
@@ -6797,7 +7182,15 @@ const DashboardWithFirebase = ({
                 {planForm.isTrialPlan && (
                   <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                     <p style={{ fontSize: '0.875rem', color: '#10b981', margin: 0 }}>
-                      ✅ <strong>Plano de teste configurado:</strong> Este plano terá duração de <strong>{planForm.trialDurationHours} horas</strong>
+                      ✅ <strong>Plano de teste configurado:</strong> Este plano terá duração de{' '}
+                      {planForm.trialDurationHours === 0 && planForm.trialDurationMinutes === 0 
+                        ? '30 minutos (padrão)'
+                        : planForm.trialDurationHours === 0
+                        ? `${planForm.trialDurationMinutes} minuto${planForm.trialDurationMinutes !== 1 ? 's' : ''}`
+                        : planForm.trialDurationMinutes === 0
+                        ? `${planForm.trialDurationHours} hora${planForm.trialDurationHours !== 1 ? 's' : ''}`
+                        : `${planForm.trialDurationHours}h ${planForm.trialDurationMinutes}min`
+                      }
                       {planForm.oneTimeUse ? ' e será de uso único por usuário' : ' e poderá ser usado múltiplas vezes'}.
                     </p>
                   </div>
@@ -6835,7 +7228,12 @@ const DashboardWithFirebase = ({
                       price: 0,
                       billingCycle: 'monthly',
                       features: [],
+                      allowedFeatures: [],
                       limits: { messagesPerMonth: null, conversations: null, catalogItems: null, integrations: [] },
+                      isTrialPlan: false,
+                      trialDurationHours: 0,
+                      trialDurationMinutes: 30,
+                      oneTimeUse: false,
                       active: true
                     });
                   }}
