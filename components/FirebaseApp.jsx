@@ -329,18 +329,24 @@ const FirebaseApp = () => {
       return;
     }
 
+    // IMPORTANTE: Não mostrar modal obrigatório se estiver na página de pagamento
+    if (paymentPage) {
+      setShowRequiredPlanModal(false);
+      return;
+    }
+
     // Aguardar um pouco para garantir que os listeners foram configurados
     if (user && database && !userActivePlan && !loading) {
       const timer = setTimeout(() => {
-        // Verificar novamente se ainda não tem plano
-        if (!userActivePlan && !user?.isMaster) {
+        // Verificar novamente se ainda não tem plano E não está na página de pagamento
+        if (!userActivePlan && !user?.isMaster && !paymentPage) {
           setShowRequiredPlanModal(true);
         }
       }, 1500);
 
       return () => clearTimeout(timer);
     }
-  }, [user, database, userActivePlan, loading]);
+  }, [user, database, userActivePlan, loading, paymentPage]);
 
   // Configurar listeners do Realtime Database
   const setupFirestoreListeners = () => {
@@ -1944,20 +1950,38 @@ const FirebaseApp = () => {
             
             // Verificar se status é 'active' ou 'ACTIVE' (o webhook pode usar maiúsculas)
             if (subscription && (subscription.status === 'active' || subscription.status === 'ACTIVE')) {
-              // Pagamento confirmado! Redirecionar de volta
-              showToast('Pagamento confirmado! Seu plano foi ativado com sucesso.', 'success');
-              setPaymentPage(null);
-              setCurrentPage('plans');
-              return; // Evitar verificações desnecessárias
+              // IMPORTANTE: Verificar se o plano ativo corresponde ao plano que está sendo pago
+              const activePlanRef = ref(database, `users/data/${user.uid}/activePlan`);
+              const activePlanSnapshot = await get(activePlanRef);
+              
+              if (activePlanSnapshot.exists()) {
+                const activePlan = activePlanSnapshot.val();
+                // Só fechar página de pagamento se o plano ativo for o mesmo que está sendo pago
+                if (activePlan.planId === paymentPage.plan.id || activePlan.asaasSubscriptionId === paymentPage.subscriptionId) {
+                  console.log('✅ Pagamento confirmado! Plano ativado:', activePlan.planName);
+                  showToast('Pagamento confirmado! Seu plano foi ativado com sucesso.', 'success');
+                  setPaymentPage(null);
+                  setCurrentPage('plans');
+                  return; // Evitar verificações desnecessárias
+                } else {
+                  console.log('⚠️ Plano ativo detectado mas não corresponde ao plano sendo pago. Aguardando...');
+                  console.log('   Plano ativo:', activePlan.planId);
+                  console.log('   Plano sendo pago:', paymentPage.plan.id);
+                }
+              } else {
+                console.log('⚠️ Assinatura ativa mas plano ainda não foi ativado. Aguardando webhook...');
+              }
             }
             
-            // Também verificar se o activePlan foi criado (indica que pagamento foi confirmado)
+            // Verificar se o activePlan foi criado (indica que pagamento foi confirmado)
             const activePlanRef = ref(database, `users/data/${user.uid}/activePlan`);
             const activePlanSnapshot = await get(activePlanRef);
             if (activePlanSnapshot.exists()) {
               const activePlan = activePlanSnapshot.val();
-              // Se o plano ativo tem o mesmo subscriptionId, pagamento foi confirmado
-              if (subscriptionKey && (activePlan.subscriptionId === subscriptionKey || activePlan.asaasSubscriptionId === paymentPage.subscriptionId)) {
+              // IMPORTANTE: Só considerar confirmado se o plano ativo corresponder ao plano que está sendo pago
+              // Isso evita falsos positivos quando o usuário ainda tem um plano de teste ativo
+              if (activePlan.planId === paymentPage.plan.id || activePlan.asaasSubscriptionId === paymentPage.subscriptionId) {
+                console.log('✅ Pagamento confirmado via activePlan! Plano:', activePlan.planName);
                 showToast('Pagamento confirmado! Seu plano foi ativado com sucesso.', 'success');
                 setPaymentPage(null);
                 setCurrentPage('plans');
