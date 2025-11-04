@@ -1880,15 +1880,35 @@ const FirebaseApp = () => {
           if (snapshot.exists()) {
             const subscriptions = snapshot.val();
             // Encontrar a assinatura atual pelo subscriptionId
-            const subscription = Object.values(subscriptions).find(
-              sub => sub.asaasSubscriptionId === paymentPage.subscriptionId
-            );
+            let subscriptionKey = null;
+            const subscription = Object.values(subscriptions).find((sub, index) => {
+              if (sub.asaasSubscriptionId === paymentPage.subscriptionId) {
+                subscriptionKey = Object.keys(subscriptions)[index];
+                return true;
+              }
+              return false;
+            });
             
-            if (subscription && subscription.status === 'active') {
+            // Verificar se status é 'active' ou 'ACTIVE' (o webhook pode usar maiúsculas)
+            if (subscription && (subscription.status === 'active' || subscription.status === 'ACTIVE')) {
               // Pagamento confirmado! Redirecionar de volta
               showToast('Pagamento confirmado! Seu plano foi ativado com sucesso.', 'success');
               setPaymentPage(null);
               setCurrentPage('plans');
+              return; // Evitar verificações desnecessárias
+            }
+            
+            // Também verificar se o activePlan foi criado (indica que pagamento foi confirmado)
+            const activePlanRef = ref(database, `users/data/${user.uid}/activePlan`);
+            const activePlanSnapshot = await get(activePlanRef);
+            if (activePlanSnapshot.exists()) {
+              const activePlan = activePlanSnapshot.val();
+              // Se o plano ativo tem o mesmo subscriptionId, pagamento foi confirmado
+              if (subscriptionKey && (activePlan.subscriptionId === subscriptionKey || activePlan.asaasSubscriptionId === paymentPage.subscriptionId)) {
+                showToast('Pagamento confirmado! Seu plano foi ativado com sucesso.', 'success');
+                setPaymentPage(null);
+                setCurrentPage('plans');
+              }
             }
           }
         } catch (error) {
