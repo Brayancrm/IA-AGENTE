@@ -44,6 +44,14 @@ const FirebaseApp = () => {
   
   // Estado para página de pagamento
   const [paymentPage, setPaymentPage] = useState(null); // { plan, invoiceUrl, subscriptionId }
+  
+  // Ref para paymentPage para usar nos listeners
+  const paymentPageRef = React.useRef(null);
+  
+  // Atualizar ref quando paymentPage mudar
+  useEffect(() => {
+    paymentPageRef.current = paymentPage;
+  }, [paymentPage]);
 
   // Estados dos dados
   const [companyProfile, setCompanyProfile] = useState({});
@@ -457,10 +465,20 @@ const FirebaseApp = () => {
     onValue(activePlanRef, async (snapshot) => {
       if (snapshot.exists()) {
         const plan = snapshot.val();
+        
+        // Proteção: garantir que plan não seja null
+        if (!plan) {
+          console.log('👤 [FIREBASE] Plano existe mas dados são null');
+          setUserActivePlan(null);
+          setUserPlanUsage(null);
+          return;
+        }
+        
         console.log('👤 [FIREBASE] Plano ativo carregado:', plan.planName);
         
         // Verificar se plano de teste expirou
-        if (plan.isTrialPlan && plan.nextDueDate) {
+        // IMPORTANTE: NÃO remover plano se estiver na página de pagamento (aguardando confirmação)
+        if (plan.isTrialPlan && plan.nextDueDate && !paymentPageRef.current) {
           const expirationDate = new Date(plan.nextDueDate);
           const now = new Date();
           
@@ -497,8 +515,13 @@ const FirebaseApp = () => {
         cleanupFunctions.push(() => off(usageRef));
       } else {
         console.log('👤 [FIREBASE] Usuário sem plano ativo');
-        setUserActivePlan(null);
-        setUserPlanUsage(null);
+        
+        // IMPORTANTE: Se estiver na página de pagamento, manter o estado atual
+        // Não limpar userActivePlan se estiver aguardando pagamento
+        if (!paymentPageRef.current) {
+          setUserActivePlan(null);
+          setUserPlanUsage(null);
+        }
       }
     });
     cleanupFunctions.push(() => off(activePlanRef));
@@ -2080,7 +2103,7 @@ const FirebaseApp = () => {
     );
   }
 
-  // Se está na página de pagamento, mostrar apenas ela
+  // Se está na página de pagamento, mostrar apenas ela (NÃO pode ser fechada facilmente)
   if (paymentPage) {
     return (
       <div>
@@ -3660,97 +3683,97 @@ const DashboardWithFirebase = ({
               marginBottom: '32px'
             }}>
               {/* Card: Meu Plano */}
-              {userActivePlan ? (
+        {userActivePlan ? (
+          <div style={{ 
+            backgroundColor: '#1a1f36',
+            borderRadius: '16px', 
+            padding: '24px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            border: userActivePlan?.isTrialPlan ? '2px solid #f59e0b' : '2px solid #8b5cf6',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer'
+          }}
+          onClick={() => setCurrentPage('plans')}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.borderColor = userActivePlan?.isTrialPlan ? '#fbbf24' : '#a78bfa';
+            e.currentTarget.style.boxShadow = userActivePlan?.isTrialPlan ? '0 8px 24px rgba(245, 158, 11, 0.4)' : '0 8px 24px rgba(139, 92, 246, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.borderColor = userActivePlan?.isTrialPlan ? '#f59e0b' : '#8b5cf6';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+          }}
+          >
+            <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>{userActivePlan?.isTrialPlan ? '🎁' : '💎'}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <h4 style={{ fontWeight: '600', fontSize: '1rem', color: '#ffffff' }}>Meu Plano Ativo</h4>
+              {userActivePlan?.isTrialPlan && (
+                <span style={{
+                  backgroundColor: '#f59e0b',
+                  color: 'white',
+                  padding: '2px 8px',
+                  borderRadius: '8px',
+                  fontSize: '0.75rem',
+                  fontWeight: '700'
+                }}>
+                  TESTE
+                </span>
+              )}
+            </div>
+            <p style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '8px', color: userActivePlan?.isTrialPlan ? '#f59e0b' : '#a78bfa' }}>
+              {userActivePlan.planName}
+            </p>
+            
+            {/* Mostrar tempo restante para planos de teste */}
+            {userActivePlan?.isTrialPlan && userActivePlan?.nextDueDate && (() => {
+              const expirationDate = new Date(userActivePlan.nextDueDate);
+              const now = new Date();
+              const timeLeft = expirationDate - now;
+              const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+              const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+              const isExpired = timeLeft <= 0;
+              
+              return (
                 <div style={{ 
-                  backgroundColor: userActivePlan.isTrialPlan ? '#1a1f36' : '#1a1f36',
-                  borderRadius: '16px', 
-                  padding: '24px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                  border: userActivePlan.isTrialPlan ? '2px solid #f59e0b' : '2px solid #8b5cf6',
-                  transition: 'all 0.2s ease',
-                  cursor: 'pointer'
-                }}
-                onClick={() => setCurrentPage('plans')}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.borderColor = userActivePlan.isTrialPlan ? '#fbbf24' : '#a78bfa';
-                  e.currentTarget.style.boxShadow = userActivePlan.isTrialPlan ? '0 8px 24px rgba(245, 158, 11, 0.4)' : '0 8px 24px rgba(139, 92, 246, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.borderColor = userActivePlan.isTrialPlan ? '#f59e0b' : '#8b5cf6';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
-                }}
-                >
-                  <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>{userActivePlan.isTrialPlan ? '🎁' : '💎'}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <h4 style={{ fontWeight: '600', fontSize: '1rem', color: '#ffffff' }}>Meu Plano Ativo</h4>
-                    {userActivePlan.isTrialPlan && (
-                      <span style={{
-                        backgroundColor: '#f59e0b',
-                        color: 'white',
-                        padding: '2px 8px',
-                        borderRadius: '8px',
-                        fontSize: '0.75rem',
-                        fontWeight: '700'
-                      }}>
-                        TESTE
-                      </span>
-                    )}
-                  </div>
-                  <p style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '8px', color: userActivePlan.isTrialPlan ? '#f59e0b' : '#a78bfa' }}>
-                    {userActivePlan.planName}
-                  </p>
-                  
-                  {/* Mostrar tempo restante para planos de teste */}
-                  {userActivePlan.isTrialPlan && userActivePlan.nextDueDate && (() => {
-                    const expirationDate = new Date(userActivePlan.nextDueDate);
-                    const now = new Date();
-                    const timeLeft = expirationDate - now;
-                    const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
-                    const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                    const isExpired = timeLeft <= 0;
-                    
-                    return (
-                      <div style={{ 
-                        marginTop: '12px', 
-                        marginBottom: '12px',
-                        padding: '12px', 
-                        backgroundColor: isExpired ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)', 
-                        borderRadius: '8px',
-                        border: `1px solid ${isExpired ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`
-                      }}>
-                        {isExpired ? (
-                          <p style={{ fontSize: '0.875rem', color: '#ef4444', fontWeight: '600', margin: 0 }}>
-                            ⏰ Plano de teste expirado
-                          </p>
-                        ) : (
-                          <p style={{ fontSize: '0.875rem', color: '#f59e0b', fontWeight: '600', margin: 0 }}>
-                            ⏱️ Tempo restante: {hoursLeft > 0 ? `${hoursLeft}h ${minutesLeft}m` : `${minutesLeft}m`}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })()}
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                    <div>
-                      <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>Uso Mensal</p>
-                      <p style={{ fontSize: '1rem', fontWeight: '600', color: '#ffffff', margin: 0 }}>
-                        {userPlanUsage?.messagesPerMonth?.used || 0} / {userPlanUsage?.messagesPerMonth?.limit === null || userPlanUsage?.messagesPerMonth?.limit === -1 ? '∞' : userPlanUsage?.messagesPerMonth?.limit}
-                      </p>
-                    </div>
-                    {!userActivePlan.isTrialPlan && userActivePlan.nextDueDate && (
-                      <div style={{ textAlign: 'right' }}>
-                        <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>Próxima cobrança</p>
-                        <p style={{ fontSize: '0.875rem', fontWeight: '600', color: '#a78bfa', margin: 0 }}>
-                          {new Date(userActivePlan.nextDueDate).toLocaleDateString('pt-BR')}
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                  marginTop: '12px', 
+                  marginBottom: '12px',
+                  padding: '12px', 
+                  backgroundColor: isExpired ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)', 
+                  borderRadius: '8px',
+                  border: `1px solid ${isExpired ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`
+                }}>
+                  {isExpired ? (
+                    <p style={{ fontSize: '0.875rem', color: '#ef4444', fontWeight: '600', margin: 0 }}>
+                      ⏰ Plano de teste expirado
+                    </p>
+                  ) : (
+                    <p style={{ fontSize: '0.875rem', color: '#f59e0b', fontWeight: '600', margin: 0 }}>
+                      ⏱️ Tempo restante: {hoursLeft > 0 ? `${hoursLeft}h ${minutesLeft}m` : `${minutesLeft}m`}
+                    </p>
+                  )}
                 </div>
-              ) : user?.isMaster ? null : (
+              );
+            })()}
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <div>
+                <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>Uso Mensal</p>
+                <p style={{ fontSize: '1rem', fontWeight: '600', color: '#ffffff', margin: 0 }}>
+                  {userPlanUsage?.messagesPerMonth?.used || 0} / {userPlanUsage?.messagesPerMonth?.limit === null || userPlanUsage?.messagesPerMonth?.limit === -1 ? '∞' : userPlanUsage?.messagesPerMonth?.limit}
+                </p>
+              </div>
+              {!userActivePlan?.isTrialPlan && userActivePlan?.nextDueDate && (
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>Próxima cobrança</p>
+                  <p style={{ fontSize: '0.875rem', fontWeight: '600', color: '#a78bfa', margin: 0 }}>
+                    {new Date(userActivePlan.nextDueDate).toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : user?.isMaster ? null : (
                 <div style={{ 
                   backgroundColor: '#1a1f36',
                   borderRadius: '16px', 
