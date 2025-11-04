@@ -3949,8 +3949,11 @@ app.post('/api/asaas/webhook', async (req, res) => {
         // Calcular nextDueDate baseado no tipo de plano
         let nextDueDate;
         if (planData?.isTrialPlan) {
-          // Para planos de teste, calcular baseado em horas
-          const expirationDate = new Date(Date.now() + (planData.trialDurationHours || 24) * 60 * 60 * 1000);
+          // Para planos de teste, calcular baseado em horas e minutos
+          const hours = planData.trialDurationHours || 0;
+          const minutes = planData.trialDurationMinutes || 30;
+          const totalMilliseconds = (hours * 60 * 60 * 1000) + (minutes * 60 * 1000);
+          const expirationDate = new Date(Date.now() + totalMilliseconds);
           nextDueDate = expirationDate.toISOString();
         } else {
           // Para planos normais, usar cálculo mensal/anual
@@ -3989,6 +3992,7 @@ app.post('/api/asaas/webhook', async (req, res) => {
             nextDueDate: nextDueDate,
             isTrialPlan: planData?.isTrialPlan || false,
             trialDurationHours: planData?.trialDurationHours || null,
+            trialDurationMinutes: planData?.trialDurationMinutes || null,
             allowedFeatures: planData?.allowedFeatures || [],
             limits: subData.limits || {},
             updatedAt: new Date().toISOString()
