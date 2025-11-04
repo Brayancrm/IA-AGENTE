@@ -3965,12 +3965,19 @@ app.post('/api/asaas/webhook', async (req, res) => {
           console.log(`✅ Plano existente atualizado! Próxima cobrança: ${nextDueDate}`);
         } else {
           // Criar activePlan pela primeira vez (primeira cobrança confirmada)
+          // Buscar dados completos do plano para incluir allowedFeatures
+          const planRef = db.ref(`plans/${subData.planId}`);
+          const planSnapshot = await planRef.once('value');
+          const planData = planSnapshot.exists() ? planSnapshot.val() : null;
+          
           await activePlanRef.set({
             planId: subData.planId,
+            planName: planData?.name || subData.planName,
             subscriptionId: subKey,
             asaasSubscriptionId: subData.asaasSubscriptionId,
             startedAt: new Date().toISOString(),
             nextDueDate: nextDueDate,
+            allowedFeatures: planData?.allowedFeatures || [],
             limits: subData.limits || {},
             updatedAt: new Date().toISOString()
           });

@@ -1153,6 +1153,7 @@ const FirebaseApp = () => {
         planName: planData.name,
         startedAt: new Date().toISOString(),
         nextDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        allowedFeatures: planData.allowedFeatures || [],
         limits: planData.limits || {
           messagesPerMonth: null,
           conversations: null,
@@ -1601,6 +1602,7 @@ const DashboardWithFirebase = ({
     price: 0,
     billingCycle: 'monthly', // monthly, yearly
     features: [],
+    allowedFeatures: [], // Funcionalidades do sidebar permitidas para este plano
     limits: {
       messagesPerMonth: null,
       conversations: null,
@@ -1653,6 +1655,7 @@ const DashboardWithFirebase = ({
         price: editingPlan.price || 0,
         billingCycle: editingPlan.billingCycle || 'monthly',
         features: editingPlan.features || [],
+        allowedFeatures: editingPlan.allowedFeatures || [],
         limits: editingPlan.limits || {
           messagesPerMonth: null,
           conversations: null,
@@ -1668,6 +1671,7 @@ const DashboardWithFirebase = ({
         price: 0,
         billingCycle: 'monthly',
         features: [],
+        allowedFeatures: [],
         limits: {
           messagesPerMonth: null,
           conversations: null,
@@ -2805,6 +2809,62 @@ const DashboardWithFirebase = ({
     const safeSelectedConversation = (typeof selectedConversation !== 'undefined') ? selectedConversation : null;
     const safeAgendamentoFilter = (typeof agendamentoFilter !== 'undefined') ? (agendamentoFilter || 'todos') : 'todos';
     const safeAgendamentoTypeFilter = (typeof agendamentoTypeFilter !== 'undefined') ? (agendamentoTypeFilter || 'todos') : 'todos';
+    
+    // Verificar acesso à página atual
+    const isAlwaysAvailable = currentPage === 'plans' || currentPage === 'users';
+    const isMasterOnly = currentPage === 'users';
+    const isBasicAccess = currentPage === 'company';
+    
+    let hasAccess = false;
+    if (user?.isMaster) {
+      hasAccess = true; // Master tem acesso a tudo
+    } else if (isAlwaysAvailable || isBasicAccess) {
+      hasAccess = true; // Planos e Cadastro sempre disponíveis
+    } else if (userActivePlan?.allowedFeatures) {
+      hasAccess = userActivePlan.allowedFeatures.includes(currentPage);
+    }
+    
+    // Se não tem acesso, mostrar mensagem e redirecionar para planos
+    if (!hasAccess && !isMasterOnly) {
+      return (
+        <div style={{ padding: '40px', maxWidth: '900px', margin: '0 auto', textAlign: 'center' }}>
+          <div style={{ backgroundColor: '#1a1f36', borderRadius: '20px', padding: '48px', border: '2px solid rgba(239, 68, 68, 0.3)' }}>
+            <div style={{ fontSize: '64px', marginBottom: '24px' }}>🔒</div>
+            <h2 style={{ fontSize: '2rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px' }}>
+              Funcionalidade Bloqueada
+            </h2>
+            <p style={{ fontSize: '1.125rem', color: '#9ca3af', marginBottom: '32px', lineHeight: '1.6' }}>
+              Esta funcionalidade não está disponível no seu plano atual. Faça upgrade para acessar!
+            </p>
+            <button
+              onClick={() => setCurrentPage('plans')}
+              style={{
+                backgroundColor: '#8b5cf6',
+                color: 'white',
+                padding: '14px 28px',
+                borderRadius: '12px',
+                border: 'none',
+                fontWeight: '700',
+                fontSize: '1rem',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 16px rgba(139, 92, 246, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.3)';
+              }}
+            >
+              Ver Planos Disponíveis
+            </button>
+          </div>
+        </div>
+      );
+    }
     
     switch (currentPage) {
       case 'dashboard':
@@ -5130,45 +5190,76 @@ const DashboardWithFirebase = ({
 
           {/* Navegação */}
           <nav style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
-            {menuItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setCurrentPage(item.id)}
-                style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '14px 16px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  backgroundColor: currentPage === item.id ? '#10b981' : 'transparent',
-                  color: currentPage === item.id ? 'white' : '#d1d5db',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  fontSize: '15px',
-                  fontWeight: currentPage === item.id ? '600' : '500',
-                  transition: 'all 0.2s ease',
-                  transform: currentPage === item.id ? 'translateX(4px)' : 'translateX(0)',
-                  boxShadow: currentPage === item.id ? '0 4px 12px rgba(16, 185, 129, 0.25)' : 'none'
-                }}
-                onMouseEnter={(e) => {
-                  if (currentPage !== item.id) {
-                    e.target.style.backgroundColor = '#2a3142';
-                    e.target.style.color = 'white';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (currentPage !== item.id) {
-                    e.target.style.backgroundColor = 'transparent';
-                    e.target.style.color = '#d1d5db';
-                  }
-                }}
-              >
-                <span style={{ fontSize: '20px' }}>{item.icon}</span>
-                <span>{item.label}</span>
-              </button>
-            ))}
+            {menuItems.map((item) => {
+              // Verificar se a funcionalidade está disponível para o usuário
+              const isAlwaysAvailable = item.id === 'plans' || item.id === 'users';
+              const isMasterOnly = item.id === 'users';
+              const isBasicAccess = item.id === 'company'; // Cadastro do usuário sempre disponível
+              
+              // Se não tem plano ativo, só permite acesso básico e planos
+              let userHasAccess = false;
+              if (user?.isMaster) {
+                userHasAccess = true; // Master tem acesso a tudo
+              } else if (isAlwaysAvailable || isBasicAccess) {
+                userHasAccess = true; // Planos e Cadastro sempre disponíveis
+              } else if (userActivePlan?.allowedFeatures) {
+                userHasAccess = userActivePlan.allowedFeatures.includes(item.id);
+              }
+              
+              const isLocked = !userHasAccess && !isMasterOnly;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    if (isLocked) {
+                      showToast('Esta funcionalidade não está disponível no seu plano atual. Faça upgrade para acessar!', 'error');
+                      setCurrentPage('plans');
+                    } else {
+                      setCurrentPage(item.id);
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '14px 16px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    backgroundColor: currentPage === item.id ? '#10b981' : isLocked ? 'rgba(107, 114, 128, 0.2)' : 'transparent',
+                    color: isLocked ? '#6b7280' : (currentPage === item.id ? 'white' : '#d1d5db'),
+                    cursor: isLocked ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    fontSize: '15px',
+                    fontWeight: currentPage === item.id ? '600' : '500',
+                    transition: 'all 0.2s ease',
+                    transform: currentPage === item.id ? 'translateX(4px)' : 'translateX(0)',
+                    boxShadow: currentPage === item.id ? '0 4px 12px rgba(16, 185, 129, 0.25)' : 'none',
+                    opacity: isLocked ? 0.6 : 1,
+                    position: 'relative'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (currentPage !== item.id && !isLocked) {
+                      e.target.style.backgroundColor = '#2a3142';
+                      e.target.style.color = 'white';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (currentPage !== item.id && !isLocked) {
+                      e.target.style.backgroundColor = 'transparent';
+                      e.target.style.color = '#d1d5db';
+                    }
+                  }}
+                >
+                  <span style={{ fontSize: '20px' }}>{item.icon}</span>
+                  <span style={{ flex: 1 }}>{item.label}</span>
+                  {isLocked && (
+                    <span style={{ fontSize: '16px', opacity: 0.8 }}>🔒</span>
+                  )}
+                </button>
+              );
+            })}
           </nav>
 
           {/* Footer da Sidebar */}
@@ -6088,6 +6179,7 @@ const DashboardWithFirebase = ({
                     price: 0,
                     billingCycle: 'monthly',
                     features: [],
+                    allowedFeatures: [],
                     limits: { messagesPerMonth: null, conversations: null, catalogItems: null, integrations: [] },
                     active: true
                   });
@@ -6118,6 +6210,7 @@ const DashboardWithFirebase = ({
                 price: 0,
                 billingCycle: 'monthly',
                 features: [],
+                allowedFeatures: [],
                 limits: { messagesPerMonth: null, conversations: null, catalogItems: null, integrations: [] },
                 active: true
               });
@@ -6311,6 +6404,83 @@ const DashboardWithFirebase = ({
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Funcionalidades Permitidas */}
+              <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                <h4 style={{ fontSize: '1.125rem', fontWeight: '700', color: '#10b981', marginBottom: '16px' }}>
+                  🔓 Funcionalidades Permitidas no Sidebar
+                </h4>
+                <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '16px' }}>
+                  Selecione quais funcionalidades estarão disponíveis para usuários com este plano. As funcionalidades não selecionadas aparecerão bloqueadas no sidebar.
+                </p>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+                  {[
+                    { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
+                    { id: 'company', label: 'Cadastro do Usuário', icon: '👤' },
+                    { id: 'catalog', label: 'Catálogo', icon: '📦' },
+                    { id: 'agendamentos', label: 'Agendamentos', icon: '📅' },
+                    { id: 'conversas', label: 'Conversas WhatsApp', icon: '💬' },
+                    { id: 'crm', label: 'CRM', icon: '👥' },
+                    { id: 'integrations', label: 'Integrações', icon: '⚙️' },
+                    { id: 'whatsapp', label: 'Conexão WhatsApp', icon: '📱' },
+                    { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' }
+                  ].map((feature) => (
+                    <label
+                      key={feature.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '12px',
+                        backgroundColor: planForm.allowedFeatures.includes(feature.id) ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: '8px',
+                        border: `2px solid ${planForm.allowedFeatures.includes(feature.id) ? '#10b981' : 'rgba(255, 255, 255, 0.1)'}`,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!planForm.allowedFeatures.includes(feature.id)) {
+                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!planForm.allowedFeatures.includes(feature.id)) {
+                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                        }
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={planForm.allowedFeatures.includes(feature.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setPlanForm(prev => ({
+                              ...prev,
+                              allowedFeatures: [...prev.allowedFeatures, feature.id]
+                            }));
+                          } else {
+                            setPlanForm(prev => ({
+                              ...prev,
+                              allowedFeatures: prev.allowedFeatures.filter(f => f !== feature.id)
+                            }));
+                          }
+                        }}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: '16px' }}>{feature.icon}</span>
+                      <span style={{ fontSize: '0.875rem', color: '#ffffff', fontWeight: '500' }}>
+                        {feature.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '12px', fontStyle: 'italic' }}>
+                  💡 Dica: Selecione todas as funcionalidades que deseja que este plano ofereça. "Planos e Assinaturas" sempre estará disponível para todos os usuários.
+                </p>
               </div>
 
               {/* Status Ativo */}
