@@ -2744,10 +2744,41 @@ async function createAsaasSubscription(asaasApiKey, customerData, planData, user
     console.log('✅ Assinatura criada no Asaas:', subscriptionResponse.data.id);
     console.log('📄 Dados completos da resposta Asaas:', JSON.stringify(subscriptionResponse.data, null, 2));
     
+    // Criar uma cobrança inicial para obter o link de pagamento
+    // O Asaas não retorna invoiceUrl na criação de assinatura, então criamos uma cobrança inicial
+    let paymentUrl = null;
+    try {
+      console.log('💳 Criando cobrança inicial para obter link de pagamento...');
+      const chargePayload = {
+        customer: customerId,
+        billingType: 'UNDEFINED', // Permite pix, cartão e boleto
+        value: parseFloat(planData.price),
+        dueDate: subscriptionResponse.data.nextDueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        description: `Pagamento inicial - Assinatura: ${planData.name}`,
+        externalReference: `subscription_initial_${userId}_${planData.id}`,
+        subscription: subscriptionResponse.data.id, // Vincular à assinatura
+        postalService: false
+      };
+      
+      const chargeResponse = await axios.post(`${baseUrl}/payments`, chargePayload, {
+        headers: {
+          'access_token': asaasApiKey,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      paymentUrl = chargeResponse.data.invoiceUrl || chargeResponse.data.url || null;
+      console.log('✅ Cobrança inicial criada:', chargeResponse.data.id);
+      console.log('🔗 Link de pagamento:', paymentUrl);
+    } catch (chargeError) {
+      console.error('⚠️ Erro ao criar cobrança inicial (continuando sem link):', chargeError.response?.data || chargeError.message);
+      // Continuar mesmo sem o link, pois a assinatura foi criada com sucesso
+    }
+    
     return {
       success: true,
       subscriptionId: subscriptionResponse.data.id,
-      invoiceUrl: subscriptionResponse.data.url || subscriptionResponse.data.invoiceUrl || null,
+      invoiceUrl: paymentUrl || subscriptionResponse.data.url || subscriptionResponse.data.invoiceUrl || null,
       value: parseFloat(planData.price),
       cycle: cycle,
       nextDueDate: subscriptionResponse.data.nextDueDate
