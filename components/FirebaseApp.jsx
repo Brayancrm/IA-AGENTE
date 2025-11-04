@@ -43,7 +43,7 @@ const FirebaseApp = () => {
   const [toast, setToast] = useState(null);
 
   // Estado para página de pagamento
-  const [paymentPage, setPaymentPage] = useState(null); // { plan, invoiceUrl, subscriptionId }
+  const [paymentPage, setPaymentPage] = useState(null); // { plan, invoiceUrl, subscriptionId, createdAt }
   
   // Ref para paymentPage para usar nos listeners
   const paymentPageRef = React.useRef(null);
@@ -864,7 +864,8 @@ const FirebaseApp = () => {
             plan: plan,
             invoiceUrl: result.invoiceUrl,
             subscriptionId: result.subscriptionId,
-            value: result.value
+            value: result.value,
+            createdAt: Date.now() // Timestamp para evitar verificação imediata
           });
           console.log('✅ Assinatura criada, redirecionando para pagamento:', result.invoiceUrl);
         } else {
@@ -888,7 +889,8 @@ const FirebaseApp = () => {
                     plan: plan,
                     invoiceUrl: subscription.paymentUrl,
                     subscriptionId: result.subscriptionId,
-                    value: result.value
+                    value: result.value,
+                    createdAt: Date.now() // Timestamp para evitar verificação imediata
                   });
                   return;
                 }
@@ -1932,6 +1934,13 @@ const FirebaseApp = () => {
 
       const checkPaymentStatus = async () => {
         try {
+          // IMPORTANTE: Não verificar imediatamente após criar a assinatura
+          // Aguardar pelo menos 10 segundos para dar tempo do webhook processar
+          if (paymentPage.createdAt && (Date.now() - paymentPage.createdAt) < 10000) {
+            console.log('⏳ Aguardando processamento inicial da assinatura...');
+            return;
+          }
+
           // Buscar assinatura no Firebase
           const subscriptionsRef = ref(database, `subscriptions/${user.uid}`);
           const snapshot = await get(subscriptionsRef);
@@ -1948,59 +1957,79 @@ const FirebaseApp = () => {
               return false;
             });
             
-            // Verificar se status é 'active' ou 'ACTIVE' (o webhook pode usar maiúsculas)
-            if (subscription && (subscription.status === 'active' || subscription.status === 'ACTIVE')) {
-              // IMPORTANTE: Verificar se o plano ativo corresponde ao plano que está sendo pago
-              const activePlanRef = ref(database, `users/data/${user.uid}/activePlan`);
-              const activePlanSnapshot = await get(activePlanRef);
-              
-              if (activePlanSnapshot.exists()) {
-                const activePlan = activePlanSnapshot.val();
-                // Verificar se o plano ativo corresponde ao plano sendo pago
-                // Considerar correspondência se:
-                // 1. planId corresponde OU
-                // 2. asaasSubscriptionId corresponde (indicando que o webhook já atualizou o plano)
-                const planMatches = activePlan.planId === paymentPage.plan.id;
-                const subscriptionMatches = activePlan.asaasSubscriptionId === paymentPage.subscriptionId;
-                
-                if (planMatches || subscriptionMatches) {
-                  console.log('✅ Pagamento confirmado! Plano ativado:', activePlan.planName);
-                  console.log('   PlanId corresponde:', planMatches);
-                  console.log('   SubscriptionId corresponde:', subscriptionMatches);
-                  showToast('Pagamento confirmado! Seu plano foi ativado com sucesso.', 'success');
-                  setPaymentPage(null);
-                  setCurrentPage('plans');
-                  return; // Evitar verificações desnecessárias
-                } else {
-                  console.log('⚠️ Plano ativo detectado mas não corresponde ao plano sendo pago. Aguardando...');
-                  console.log('   Plano ativo planId:', activePlan.planId);
-                  console.log('   Plano sendo pago planId:', paymentPage.plan.id);
-                  console.log('   Plano ativo asaasSubscriptionId:', activePlan.asaasSubscriptionId);
-                  console.log('   Plano sendo pago subscriptionId:', paymentPage.subscriptionId);
-                }
-              } else {
-                console.log('⚠️ Assinatura ativa mas plano ainda não foi ativado. Aguardando webhook...');
-              }
+            if (!subscription) {
+              console.log('⚠️ Assinatura não encontrada. Aguardando...');
+              return;
             }
+
+            console.log('🔍 Verificando status da assinatura:', {
+              subscriptionId: paymentPage.subscriptionId,
+              status: subscription.status,
+              planId: subscription.planId,
+              createdAt: subscription.createdAt,
+              lastPaymentDate: subscription.lastPaymentDate
+            });
+
+            // CRÍTICO: Só considerar pagamento confirmado se:
+            // 1. Status é 'active' ou 'ACTIVE' (webhook atualizou)
+            // 2. E há um lastPaymentDate (indicando que houve pagamento confirmado)
+            // 3. E o plano ativo corresponde ao plano sendo pago
+            const hasActiveStatus = subscription.status === 'active' || subscription.status === 'ACTIVE';
+            const hasPaymentDate = subscription.lastPaymentDate || subscription.lastPayment;
             
-            // Verificar se o activePlan foi criado/atualizado (indica que pagamento foi confirmado)
+            if (!hasActiveStatus) {
+              console.log('⏳ Assinatura ainda não está ativa. Status:', subscription.status);
+              return;
+            }
+
+            if (!hasPaymentDate) {
+              console.log('⏳ Assinatura ativa mas sem confirmação de pagamento. Aguardando webhook...');
+              return;
+            }
+
+            // Verificar se o plano ativo corresponde ao plano que está sendo pago
             const activePlanRef = ref(database, `users/data/${user.uid}/activePlan`);
             const activePlanSnapshot = await get(activePlanRef);
-            if (activePlanSnapshot.exists()) {
-              const activePlan = activePlanSnapshot.val();
-              // Verificar correspondência tanto por planId quanto por subscriptionId
-              const planMatches = activePlan.planId === paymentPage.plan.id;
-              const subscriptionMatches = activePlan.asaasSubscriptionId === paymentPage.subscriptionId;
-              
-              if (planMatches || subscriptionMatches) {
-                console.log('✅ Pagamento confirmado via activePlan! Plano:', activePlan.planName);
-                console.log('   PlanId corresponde:', planMatches);
-                console.log('   SubscriptionId corresponde:', subscriptionMatches);
-                showToast('Pagamento confirmado! Seu plano foi ativado com sucesso.', 'success');
-                setPaymentPage(null);
-                setCurrentPage('plans');
-              }
+            
+            if (!activePlanSnapshot.exists()) {
+              console.log('⏳ Plano ativo ainda não foi criado. Aguardando webhook...');
+              return;
             }
+
+            const activePlan = activePlanSnapshot.val();
+            
+            // Verificar se o plano ativo corresponde ao plano sendo pago
+            // IMPORTANTE: Verificar AMBOS planId E subscriptionId para garantir que é o mesmo plano
+            const planMatches = activePlan.planId === paymentPage.plan.id;
+            const subscriptionMatches = activePlan.asaasSubscriptionId === paymentPage.subscriptionId;
+            
+            // Só fechar se AMBOS corresponderem (ou pelo menos um deles)
+            // Mas também verificar se o plano foi atualizado DEPOIS da criação da assinatura
+            const planUpdatedAfterPayment = activePlan.updatedAt && 
+              new Date(activePlan.updatedAt) > new Date(paymentPage.createdAt);
+            
+            if ((planMatches || subscriptionMatches) && planUpdatedAfterPayment) {
+              console.log('✅ Pagamento confirmado! Plano ativado:', activePlan.planName);
+              console.log('   PlanId corresponde:', planMatches);
+              console.log('   SubscriptionId corresponde:', subscriptionMatches);
+              console.log('   Plano atualizado após pagamento:', planUpdatedAfterPayment);
+              console.log('   LastPaymentDate:', subscription.lastPaymentDate);
+              showToast('Pagamento confirmado! Seu plano foi ativado com sucesso.', 'success');
+              setPaymentPage(null);
+              setCurrentPage('plans');
+              return;
+            } else {
+              console.log('⚠️ Aguardando confirmação do pagamento...');
+              console.log('   PlanId corresponde:', planMatches);
+              console.log('   SubscriptionId corresponde:', subscriptionMatches);
+              console.log('   Plano atualizado após pagamento:', planUpdatedAfterPayment);
+              console.log('   Plano ativo planId:', activePlan.planId);
+              console.log('   Plano sendo pago planId:', paymentPage.plan.id);
+              console.log('   Plano ativo asaasSubscriptionId:', activePlan.asaasSubscriptionId);
+              console.log('   Plano sendo pago subscriptionId:', paymentPage.subscriptionId);
+            }
+          } else {
+            console.log('⚠️ Nenhuma assinatura encontrada. Aguardando...');
           }
         } catch (error) {
           console.error('Erro ao verificar status do pagamento:', error);
