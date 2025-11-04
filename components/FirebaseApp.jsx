@@ -6499,10 +6499,19 @@ const DashboardWithFirebase = ({
                     backgroundColor: '#6b7280',
                     color: 'white',
                     padding: '12px 24px',
-                    borderRadius: '8px',
+                    borderRadius: '12px',
                     border: 'none',
-                    fontWeight: 'bold',
-                    cursor: 'pointer'
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#4b5563';
+                    e.target.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = '#6b7280';
+                    e.target.style.transform = 'translateY(0)';
                   }}
                 >
                   Cancelar
@@ -6510,13 +6519,23 @@ const DashboardWithFirebase = ({
                 <button
                   type="submit"
                   style={{
-                    backgroundColor: '#4f46e5',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                     color: 'white',
                     padding: '12px 24px',
-                    borderRadius: '8px',
+                    borderRadius: '12px',
                     border: 'none',
-                    fontWeight: 'bold',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
                   }}
                 >
                   {editingUser ? 'Atualizar' : 'Criar Usuário'}
