@@ -4345,12 +4345,21 @@ app.post('/api/asaas/webhook', async (req, res) => {
         const activePlanSnapshot = await activePlanRef.once('value');
         
         if (activePlanSnapshot.exists()) {
-          // Atualizar plano existente
+          // Atualizar plano existente - IMPORTANTE: sempre atualizar com dados do novo plano pago
           await activePlanRef.update({
+            planId: subData.planId, // Garantir que o planId corresponde ao plano pago
+            planName: planData?.name || subData.planName,
+            subscriptionId: subKey,
+            asaasSubscriptionId: subData.asaasSubscriptionId,
             nextDueDate: nextDueDate,
+            isTrialPlan: planData?.isTrialPlan || false,
+            trialDurationHours: planData?.trialDurationHours || null,
+            trialDurationMinutes: planData?.trialDurationMinutes || null,
+            allowedFeatures: planData?.allowedFeatures || [],
+            limits: subData.limits || {},
             updatedAt: new Date().toISOString()
           });
-          console.log(`✅ Plano existente atualizado! Próxima cobrança: ${nextDueDate}`);
+          console.log(`✅ Plano existente atualizado com novo plano pago! Plano: ${planData?.name || subData.planName}, Próxima cobrança: ${nextDueDate}`);
         } else {
           // Criar activePlan pela primeira vez (primeira cobrança confirmada)
           await activePlanRef.set({

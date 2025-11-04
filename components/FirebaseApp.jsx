@@ -41,7 +41,7 @@ const FirebaseApp = () => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [toast, setToast] = useState(null);
-  
+
   // Estado para página de pagamento
   const [paymentPage, setPaymentPage] = useState(null); // { plan, invoiceUrl, subscriptionId }
   
@@ -525,8 +525,8 @@ const FirebaseApp = () => {
         // IMPORTANTE: Se estiver na página de pagamento, manter o estado atual
         // Não limpar userActivePlan se estiver aguardando pagamento
         if (!paymentPageRef.current) {
-          setUserActivePlan(null);
-          setUserPlanUsage(null);
+        setUserActivePlan(null);
+        setUserPlanUsage(null);
         }
       }
     });
@@ -1956,32 +1956,46 @@ const FirebaseApp = () => {
               
               if (activePlanSnapshot.exists()) {
                 const activePlan = activePlanSnapshot.val();
-                // Só fechar página de pagamento se o plano ativo for o mesmo que está sendo pago
-                if (activePlan.planId === paymentPage.plan.id || activePlan.asaasSubscriptionId === paymentPage.subscriptionId) {
+                // Verificar se o plano ativo corresponde ao plano sendo pago
+                // Considerar correspondência se:
+                // 1. planId corresponde OU
+                // 2. asaasSubscriptionId corresponde (indicando que o webhook já atualizou o plano)
+                const planMatches = activePlan.planId === paymentPage.plan.id;
+                const subscriptionMatches = activePlan.asaasSubscriptionId === paymentPage.subscriptionId;
+                
+                if (planMatches || subscriptionMatches) {
                   console.log('✅ Pagamento confirmado! Plano ativado:', activePlan.planName);
+                  console.log('   PlanId corresponde:', planMatches);
+                  console.log('   SubscriptionId corresponde:', subscriptionMatches);
                   showToast('Pagamento confirmado! Seu plano foi ativado com sucesso.', 'success');
                   setPaymentPage(null);
                   setCurrentPage('plans');
                   return; // Evitar verificações desnecessárias
                 } else {
                   console.log('⚠️ Plano ativo detectado mas não corresponde ao plano sendo pago. Aguardando...');
-                  console.log('   Plano ativo:', activePlan.planId);
-                  console.log('   Plano sendo pago:', paymentPage.plan.id);
+                  console.log('   Plano ativo planId:', activePlan.planId);
+                  console.log('   Plano sendo pago planId:', paymentPage.plan.id);
+                  console.log('   Plano ativo asaasSubscriptionId:', activePlan.asaasSubscriptionId);
+                  console.log('   Plano sendo pago subscriptionId:', paymentPage.subscriptionId);
                 }
               } else {
                 console.log('⚠️ Assinatura ativa mas plano ainda não foi ativado. Aguardando webhook...');
               }
             }
             
-            // Verificar se o activePlan foi criado (indica que pagamento foi confirmado)
+            // Verificar se o activePlan foi criado/atualizado (indica que pagamento foi confirmado)
             const activePlanRef = ref(database, `users/data/${user.uid}/activePlan`);
             const activePlanSnapshot = await get(activePlanRef);
             if (activePlanSnapshot.exists()) {
               const activePlan = activePlanSnapshot.val();
-              // IMPORTANTE: Só considerar confirmado se o plano ativo corresponder ao plano que está sendo pago
-              // Isso evita falsos positivos quando o usuário ainda tem um plano de teste ativo
-              if (activePlan.planId === paymentPage.plan.id || activePlan.asaasSubscriptionId === paymentPage.subscriptionId) {
+              // Verificar correspondência tanto por planId quanto por subscriptionId
+              const planMatches = activePlan.planId === paymentPage.plan.id;
+              const subscriptionMatches = activePlan.asaasSubscriptionId === paymentPage.subscriptionId;
+              
+              if (planMatches || subscriptionMatches) {
                 console.log('✅ Pagamento confirmado via activePlan! Plano:', activePlan.planName);
+                console.log('   PlanId corresponde:', planMatches);
+                console.log('   SubscriptionId corresponde:', subscriptionMatches);
                 showToast('Pagamento confirmado! Seu plano foi ativado com sucesso.', 'success');
                 setPaymentPage(null);
                 setCurrentPage('plans');
@@ -3707,28 +3721,28 @@ const DashboardWithFirebase = ({
               marginBottom: '32px'
             }}>
               {/* Card: Meu Plano */}
-        {userActivePlan ? (
-          <div style={{ 
-            backgroundColor: '#1a1f36',
-            borderRadius: '16px', 
-            padding: '24px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              {userActivePlan ? (
+                <div style={{ 
+                  backgroundColor: '#1a1f36',
+                  borderRadius: '16px', 
+                  padding: '24px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
             border: userActivePlan?.isTrialPlan ? '2px solid #f59e0b' : '2px solid #8b5cf6',
-            transition: 'all 0.2s ease',
-            cursor: 'pointer'
-          }}
-          onClick={() => setCurrentPage('plans')}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setCurrentPage('plans')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
             e.currentTarget.style.borderColor = userActivePlan?.isTrialPlan ? '#fbbf24' : '#a78bfa';
             e.currentTarget.style.boxShadow = userActivePlan?.isTrialPlan ? '0 8px 24px rgba(245, 158, 11, 0.4)' : '0 8px 24px rgba(139, 92, 246, 0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
             e.currentTarget.style.borderColor = userActivePlan?.isTrialPlan ? '#f59e0b' : '#8b5cf6';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
-          }}
-          >
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+                }}
+                >
             <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>{userActivePlan?.isTrialPlan ? '🎁' : '💎'}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <h4 style={{ fontWeight: '600', fontSize: '1rem', color: '#ffffff' }}>Meu Plano Ativo</h4>
@@ -3746,8 +3760,8 @@ const DashboardWithFirebase = ({
               )}
             </div>
             <p style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '8px', color: userActivePlan?.isTrialPlan ? '#f59e0b' : '#a78bfa' }}>
-              {userActivePlan.planName}
-            </p>
+                    {userActivePlan.planName}
+                  </p>
             
             {/* Mostrar tempo restante para planos de teste */}
             {userActivePlan?.isTrialPlan && userActivePlan?.nextDueDate && (() => {
@@ -3780,24 +3794,24 @@ const DashboardWithFirebase = ({
               );
             })()}
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-              <div>
-                <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>Uso Mensal</p>
-                <p style={{ fontSize: '1rem', fontWeight: '600', color: '#ffffff', margin: 0 }}>
-                  {userPlanUsage?.messagesPerMonth?.used || 0} / {userPlanUsage?.messagesPerMonth?.limit === null || userPlanUsage?.messagesPerMonth?.limit === -1 ? '∞' : userPlanUsage?.messagesPerMonth?.limit}
-                </p>
-              </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div>
+                      <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>Uso Mensal</p>
+                      <p style={{ fontSize: '1rem', fontWeight: '600', color: '#ffffff', margin: 0 }}>
+                        {userPlanUsage?.messagesPerMonth?.used || 0} / {userPlanUsage?.messagesPerMonth?.limit === null || userPlanUsage?.messagesPerMonth?.limit === -1 ? '∞' : userPlanUsage?.messagesPerMonth?.limit}
+                      </p>
+                    </div>
               {!userActivePlan?.isTrialPlan && userActivePlan?.nextDueDate && (
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>Próxima cobrança</p>
-                  <p style={{ fontSize: '0.875rem', fontWeight: '600', color: '#a78bfa', margin: 0 }}>
-                    {new Date(userActivePlan.nextDueDate).toLocaleDateString('pt-BR')}
-                  </p>
+                      <div style={{ textAlign: 'right' }}>
+                        <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>Próxima cobrança</p>
+                        <p style={{ fontSize: '0.875rem', fontWeight: '600', color: '#a78bfa', margin: 0 }}>
+                          {new Date(userActivePlan.nextDueDate).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
-        ) : user?.isMaster ? null : (
+              ) : user?.isMaster ? null : (
                 <div style={{ 
                   backgroundColor: '#1a1f36',
                   borderRadius: '16px', 
@@ -5586,18 +5600,18 @@ const DashboardWithFirebase = ({
                   >
                     {/* Badge de Status */}
                     <div style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-                      {plan.active && (
-                        <div style={{
-                          backgroundColor: '#10b981',
-                          color: 'white',
-                          padding: '4px 12px',
-                          borderRadius: '12px',
-                          fontSize: '0.75rem',
-                          fontWeight: '700'
-                        }}>
-                          ATIVO
-                        </div>
-                      )}
+                    {plan.active && (
+                      <div style={{
+                        backgroundColor: '#10b981',
+                        color: 'white',
+                        padding: '4px 12px',
+                        borderRadius: '12px',
+                        fontSize: '0.75rem',
+                        fontWeight: '700'
+                      }}>
+                        ATIVO
+                      </div>
+                    )}
                       {plan.isTrialPlan && (
                         <div style={{
                           backgroundColor: '#f59e0b',
@@ -5634,12 +5648,12 @@ const DashboardWithFirebase = ({
                           </span>
                         ) : (
                           <>
-                            <span style={{ fontSize: '2.5rem', fontWeight: '700', color: '#a78bfa' }}>
-                              R$ {parseFloat(plan.price || 0).toFixed(2)}
-                            </span>
-                            <span style={{ fontSize: '1rem', color: '#9ca3af' }}>
-                              / {plan.billingCycle === 'yearly' ? 'ano' : 'mês'}
-                            </span>
+                        <span style={{ fontSize: '2.5rem', fontWeight: '700', color: '#a78bfa' }}>
+                          R$ {parseFloat(plan.price || 0).toFixed(2)}
+                        </span>
+                        <span style={{ fontSize: '1rem', color: '#9ca3af' }}>
+                          / {plan.billingCycle === 'yearly' ? 'ano' : 'mês'}
+                        </span>
                           </>
                         )}
                       </div>
@@ -5733,45 +5747,45 @@ const DashboardWithFirebase = ({
                           const isDisabled = isCurrentPlan || isUsedTrial;
                           
                           return (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
                                 if (isCurrentPlan) {
-                                  showToast('Você já está neste plano!', 'error');
+                              showToast('Você já está neste plano!', 'error');
                                 } else if (isUsedTrial) {
                                   showToast('Você já utilizou este plano de teste. É permitido apenas uma vez.', 'error');
-                                } else {
-                                  subscribeToPlan(plan);
-                                }
-                              }}
+                            } else {
+                              subscribeToPlan(plan);
+                            }
+                          }}
                               disabled={isDisabled}
-                              style={{
-                                width: '100%',
+                          style={{
+                            width: '100%',
                                 backgroundColor: isDisabled ? '#6b7280' : '#10b981',
-                                color: 'white',
-                                padding: '14px 16px',
-                                borderRadius: '10px',
-                                border: 'none',
-                                fontWeight: '700',
+                            color: 'white',
+                            padding: '14px 16px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            fontWeight: '700',
                                 cursor: isDisabled ? 'not-allowed' : 'pointer',
-                                fontSize: '1rem',
-                                transition: 'all 0.2s ease',
+                            fontSize: '1rem',
+                            transition: 'all 0.2s ease',
                                 boxShadow: isDisabled ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.3)',
                                 opacity: isDisabled ? 0.7 : 1
-                              }}
-                              onMouseEnter={(e) => {
+                          }}
+                          onMouseEnter={(e) => {
                                 if (!isDisabled) {
-                                  e.target.style.transform = 'translateY(-2px)';
-                                  e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
-                                }
-                              }}
-                              onMouseLeave={(e) => {
-                                e.target.style.transform = 'translateY(0)';
+                              e.target.style.transform = 'translateY(-2px)';
+                              e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.transform = 'translateY(0)';
                                 e.target.style.boxShadow = isDisabled ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.3)';
-                              }}
-                            >
+                          }}
+                        >
                               {isCurrentPlan ? '✓ Plano Atual' : isUsedTrial ? '🔒 Já Utilizado' : 'Assinar Plano'}
-                            </button>
+                        </button>
                           );
                         })()}
                       </div>
@@ -6053,8 +6067,8 @@ const DashboardWithFirebase = ({
               const isLocked = !userHasAccess && !isMasterOnly;
 
               return (
-                <button
-                  key={item.id}
+              <button
+                key={item.id}
                   onClick={() => {
                     if (isLocked) {
                       showToast('Esta funcionalidade não está disponível no seu plano atual. Faça upgrade para acessar!', 'error');
@@ -6063,45 +6077,45 @@ const DashboardWithFirebase = ({
                       setCurrentPage(item.id);
                     }
                   }}
-                  style={{
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '14px 16px',
-                    borderRadius: '12px',
-                    border: 'none',
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  border: 'none',
                     backgroundColor: currentPage === item.id ? '#10b981' : isLocked ? 'rgba(107, 114, 128, 0.2)' : 'transparent',
                     color: isLocked ? '#6b7280' : (currentPage === item.id ? 'white' : '#d1d5db'),
                     cursor: isLocked ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    fontSize: '15px',
-                    fontWeight: currentPage === item.id ? '600' : '500',
-                    transition: 'all 0.2s ease',
-                    transform: currentPage === item.id ? 'translateX(4px)' : 'translateX(0)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  fontSize: '15px',
+                  fontWeight: currentPage === item.id ? '600' : '500',
+                  transition: 'all 0.2s ease',
+                  transform: currentPage === item.id ? 'translateX(4px)' : 'translateX(0)',
                     boxShadow: currentPage === item.id ? '0 4px 12px rgba(16, 185, 129, 0.25)' : 'none',
                     opacity: isLocked ? 0.6 : 1,
                     position: 'relative'
-                  }}
-                  onMouseEnter={(e) => {
+                }}
+                onMouseEnter={(e) => {
                     if (currentPage !== item.id && !isLocked) {
-                      e.target.style.backgroundColor = '#2a3142';
-                      e.target.style.color = 'white';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = '#2a3142';
+                    e.target.style.color = 'white';
+                  }
+                }}
+                onMouseLeave={(e) => {
                     if (currentPage !== item.id && !isLocked) {
-                      e.target.style.backgroundColor = 'transparent';
-                      e.target.style.color = '#d1d5db';
-                    }
-                  }}
-                >
-                  <span style={{ fontSize: '20px' }}>{item.icon}</span>
+                    e.target.style.backgroundColor = 'transparent';
+                    e.target.style.color = '#d1d5db';
+                  }
+                }}
+              >
+                <span style={{ fontSize: '20px' }}>{item.icon}</span>
                   <span style={{ flex: 1 }}>{item.label}</span>
                   {isLocked && (
                     <span style={{ fontSize: '16px', opacity: 0.8 }}>🔒</span>
                   )}
-                </button>
+              </button>
               );
             })}
           </nav>
