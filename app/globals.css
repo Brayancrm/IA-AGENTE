@@ -1,3 +1,16 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Estilos para placeholders em inputs com tema escuro */
+input::placeholder {
+  color: #6b7280 !important;
+  opacity: 0.7;
+}
+
+input[type="text"]::placeholder,
+input[type="email"]::placeholder,
+input[type="password"]::placeholder {
+  color: #6b7280 !important;
+  opacity: 0.7;
+}
