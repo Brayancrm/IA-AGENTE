@@ -440,9 +440,10 @@ const FirebaseApp = () => {
           for (const key of Object.keys(data)) {
             const userData = { id: key, ...data[key] };
             
-            // Buscar plano ativo se tiver uid
+            // Buscar plano ativo e dados de company_profile se tiver uid
             if (userData.uid && database) {
               try {
+                // Buscar plano ativo
                 const activePlanRef = ref(database, `users/data/${userData.uid}/activePlan`);
                 const planSnapshot = await get(activePlanRef);
                 if (planSnapshot.exists()) {
@@ -450,8 +451,18 @@ const FirebaseApp = () => {
                   userData.activePlan = planData.planName || planData.planId || 'Plano Ativo';
                   userData.hasActivePlan = true;
                 }
+                
+                // Buscar dados de company_profile
+                const companyProfileRef = ref(database, `users/data/${userData.uid}/company_profile`);
+                const companySnapshot = await get(companyProfileRef);
+                if (companySnapshot.exists()) {
+                  const companyData = companySnapshot.val();
+                  userData.companyName = companyData.companyName || '';
+                  userData.cnpj = companyData.cnpj || '';
+                  userData.whatsappNumber = companyData.whatsappNumber || '';
+                }
               } catch (error) {
-                console.error('Erro ao buscar plano ativo para usuário:', userData.uid, error);
+                console.error('Erro ao buscar dados do usuário:', userData.uid, error);
               }
             }
             
@@ -991,12 +1002,31 @@ const FirebaseApp = () => {
         // Manter os dados existentes e atualizar apenas os campos editados
         const updatedData = {
           ...editingUser,
-          ...userData,
+          name: userData.name || editingUser.name,
+          email: userData.email || editingUser.email,
+          isActive: userData.isActive !== undefined ? userData.isActive : editingUser.isActive,
           updatedAt: new Date().toISOString()
         };
         
         await set(userRef, updatedData);
         console.log('Usuário atualizado no Realtime Database:', editingUser.id);
+        
+        // Atualizar company_profile se tiver uid
+        if (editingUser.uid) {
+          const companyProfileRef = ref(database, `users/data/${editingUser.uid}/company_profile`);
+          const companyProfileData = {
+            companyName: userData.companyName || '',
+            cnpj: userData.cnpj || '',
+            whatsappNumber: userData.whatsappNumber || '',
+            updatedAt: new Date().toISOString()
+          };
+          await set(companyProfileRef, companyProfileData);
+          console.log('Company profile atualizado para usuário:', editingUser.uid);
+        }
+        
+        // Nota: A atualização de senha precisa ser feita separadamente via resetUserPassword
+        // Por enquanto, a senha só pode ser atualizada através da função resetUserPassword
+        
         showToast('Usuário atualizado com sucesso!');
       } else {
         console.log('Criando novo usuário:', userData.email);
@@ -1018,7 +1048,6 @@ const FirebaseApp = () => {
         const userDoc = {
           name: userData.name,
           email: userData.email,
-          companyName: userData.companyName,
           uid: userCredential.user.uid,
           isActive: userData.isActive !== undefined ? userData.isActive : true,
           isMaster: false,
@@ -1035,6 +1064,18 @@ const FirebaseApp = () => {
         await set(newUserRef, userDoc);
         
         console.log('Usuário criado no Realtime Database com ID:', newUserRef.key);
+        
+        // Salvar company_profile
+        const companyProfileRef = ref(database, `users/data/${userCredential.user.uid}/company_profile`);
+        const companyProfileData = {
+          companyName: userData.companyName || '',
+          cnpj: userData.cnpj || '',
+          whatsappNumber: userData.whatsappNumber || '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        await set(companyProfileRef, companyProfileData);
+        console.log('Company profile criado para usuário:', userCredential.user.uid);
         
         // Fazer logout do novo usuário e re-login como master
         await firebaseSignOut(auth);
@@ -1550,6 +1591,8 @@ const DashboardWithFirebase = ({
     email: '',
     password: '',
     companyName: '',
+    cnpj: '',
+    whatsappNumber: '',
     isActive: true
   });
   const [planForm, setPlanForm] = useState({
@@ -1680,17 +1723,41 @@ const DashboardWithFirebase = ({
       email: '',
       password: '',
       companyName: '',
+      cnpj: '',
+      whatsappNumber: '',
       isActive: true
     });
   };
 
-  const handleOpenUserModal = (userData = null) => {
+  const handleOpenUserModal = async (userData = null) => {
     if (userData) {
+      // Buscar dados de company_profile se estiver editando
+      let companyName = userData.companyName || '';
+      let cnpj = '';
+      let whatsappNumber = '';
+      
+      if (userData.uid && database) {
+        try {
+          const companyProfileRef = ref(database, `users/data/${userData.uid}/company_profile`);
+          const companySnapshot = await get(companyProfileRef);
+          if (companySnapshot.exists()) {
+            const companyData = companySnapshot.val();
+            companyName = companyData.companyName || '';
+            cnpj = companyData.cnpj || '';
+            whatsappNumber = companyData.whatsappNumber || '';
+          }
+        } catch (error) {
+          console.error('Erro ao buscar company_profile:', error);
+        }
+      }
+      
       setUserForm({
         name: userData.name || '',
         email: userData.email || '',
         password: '', // Não mostrar senha existente
-        companyName: userData.companyName || '',
+        companyName: companyName,
+        cnpj: cnpj,
+        whatsappNumber: whatsappNumber,
         isActive: userData.isActive !== undefined ? userData.isActive : true
       });
     } else {
@@ -1699,6 +1766,8 @@ const DashboardWithFirebase = ({
         email: '',
         password: '',
         companyName: '',
+        cnpj: '',
+        whatsappNumber: '',
         isActive: true
       });
     }
@@ -4856,7 +4925,7 @@ const DashboardWithFirebase = ({
                       <tr style={{ borderBottom: '2px solid rgba(16, 185, 129, 0.2)' }}>
                         <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Nome</th>
                         <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Email</th>
-                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Empresa</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Número do WhatsApp</th>
                         <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Plano</th>
                         <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Status</th>
                         <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Registrado via</th>
@@ -4868,7 +4937,7 @@ const DashboardWithFirebase = ({
                         <tr key={userItem.id} style={{ borderBottom: '1px solid rgba(16, 185, 129, 0.1)' }}>
                           <td style={{ padding: '12px', color: '#ffffff' }}>{userItem.name}</td>
                           <td style={{ padding: '12px', color: '#9ca3af' }}>{userItem.email}</td>
-                          <td style={{ padding: '12px', color: '#9ca3af' }}>{userItem.companyName || '-'}</td>
+                          <td style={{ padding: '12px', color: '#9ca3af' }}>{userItem.whatsappNumber || '-'}</td>
                           <td style={{ padding: '12px', color: '#ffffff', fontWeight: '500' }}>{userItem.activePlan || '-'}</td>
                           <td style={{ padding: '12px' }}>
                             <span style={{
@@ -6354,12 +6423,12 @@ const DashboardWithFirebase = ({
             <form onSubmit={handleUserSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-                  Nome Completo
+                  Nome do Cliente/Razão Social
                 </label>
                 <input
                   type="text"
-                  value={userForm.name}
-                  onChange={(e) => setUserForm(prev => ({ ...prev, name: e.target.value }))}
+                  value={userForm.companyName}
+                  onChange={(e) => setUserForm(prev => ({ ...prev, companyName: e.target.value }))}
                   style={{
                     width: '100%',
                     padding: '12px 16px',
@@ -6379,7 +6448,71 @@ const DashboardWithFirebase = ({
                     e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                     e.target.style.boxShadow = 'none';
                   }}
-                  placeholder="Digite o nome completo"
+                  placeholder="Digite o nome ou razão social"
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+                  CPF/CNPJ
+                </label>
+                <input
+                  type="text"
+                  value={userForm.cnpj}
+                  onChange={(e) => setUserForm(prev => ({ ...prev, cnpj: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    fontSize: '1rem',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: '#ffffff',
+                    outline: 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#10b981';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+                  Número do WhatsApp
+                </label>
+                <input
+                  type="text"
+                  value={userForm.whatsappNumber}
+                  onChange={(e) => setUserForm(prev => ({ ...prev, whatsappNumber: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(255, 255, 255, 0.1)',
+                    fontSize: '1rem',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: '#ffffff',
+                    outline: 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#10b981';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                  placeholder="+55 11 99999-9999"
                   required
                 />
               </div>
@@ -6446,49 +6579,6 @@ const DashboardWithFirebase = ({
                   placeholder="Digite a senha"
                   required={!editingUser}
                 />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-                  Nome da Empresa
-                </label>
-                <input
-                  type="text"
-                  value={userForm.companyName}
-                  onChange={(e) => setUserForm(prev => ({ ...prev, companyName: e.target.value }))}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    borderRadius: '12px',
-                    border: '2px solid rgba(255, 255, 255, 0.1)',
-                    fontSize: '1rem',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: '#ffffff',
-                    outline: 'none',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = '#10b981';
-                    e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                    e.target.style.boxShadow = 'none';
-                  }}
-                  placeholder="Nome da empresa"
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input
-                    type="checkbox"
-                    checked={userForm.isActive}
-                    onChange={(e) => setUserForm(prev => ({ ...prev, isActive: e.target.checked }))}
-                    style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-                  />
-                  <span style={{ fontWeight: '600', color: '#ffffff' }}>Usuário Ativo</span>
-                </label>
               </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px' }}>
