@@ -3940,8 +3940,23 @@ app.post('/api/asaas/webhook', async (req, res) => {
         
         const subData = subDataSnapshot.val();
         const cycle = subData.cycle || 'MONTHLY';
-        const days = cycle === 'YEARLY' ? 365 : 30;
-        const nextDueDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        
+        // Buscar dados completos do plano para verificar se é trial
+        const planRef = db.ref(`plans/${subData.planId}`);
+        const planSnapshot = await planRef.once('value');
+        const planData = planSnapshot.exists() ? planSnapshot.val() : null;
+        
+        // Calcular nextDueDate baseado no tipo de plano
+        let nextDueDate;
+        if (planData?.isTrialPlan) {
+          // Para planos de teste, calcular baseado em horas
+          const expirationDate = new Date(Date.now() + (planData.trialDurationHours || 24) * 60 * 60 * 1000);
+          nextDueDate = expirationDate.toISOString();
+        } else {
+          // Para planos normais, usar cálculo mensal/anual
+          const days = cycle === 'YEARLY' ? 365 : 30;
+          nextDueDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        }
         
         // Atualizar assinatura
         await subDataRef.update({
@@ -3965,11 +3980,6 @@ app.post('/api/asaas/webhook', async (req, res) => {
           console.log(`✅ Plano existente atualizado! Próxima cobrança: ${nextDueDate}`);
         } else {
           // Criar activePlan pela primeira vez (primeira cobrança confirmada)
-          // Buscar dados completos do plano para incluir allowedFeatures
-          const planRef = db.ref(`plans/${subData.planId}`);
-          const planSnapshot = await planRef.once('value');
-          const planData = planSnapshot.exists() ? planSnapshot.val() : null;
-          
           await activePlanRef.set({
             planId: subData.planId,
             planName: planData?.name || subData.planName,
@@ -3977,6 +3987,8 @@ app.post('/api/asaas/webhook', async (req, res) => {
             asaasSubscriptionId: subData.asaasSubscriptionId,
             startedAt: new Date().toISOString(),
             nextDueDate: nextDueDate,
+            isTrialPlan: planData?.isTrialPlan || false,
+            trialDurationHours: planData?.trialDurationHours || null,
             allowedFeatures: planData?.allowedFeatures || [],
             limits: subData.limits || {},
             updatedAt: new Date().toISOString()
