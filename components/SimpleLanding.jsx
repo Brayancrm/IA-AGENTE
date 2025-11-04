@@ -122,9 +122,16 @@ const SimpleLanding = ({ onLoginSuccess }) => {
         // Se chegou aqui, o cliente foi criado no Asaas com sucesso
         // Agora pode criar a conta no Firebase
         console.log('✅ [REGISTRO] Validação concluída. Criando conta no Firebase...');
+        console.log('🔍 [REGISTRO] Firebase Auth inicializado:', auth ? 'OK' : 'ERRO');
+        console.log('🔍 [REGISTRO] Criando usuário no Firebase Authentication...');
+        console.log('🔍 [REGISTRO] Email:', formData.email);
         
         // Registrar usuário
         const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+        
+        console.log('✅ [REGISTRO] Usuário criado no Firebase Authentication com sucesso!');
+        console.log('✅ [REGISTRO] User UID:', userCredential.user.uid);
+        console.log('✅ [REGISTRO] User Email:', userCredential.user.email);
         
         // Salvar dados no Realtime Database
         if (database) {
@@ -166,7 +173,36 @@ const SimpleLanding = ({ onLoginSuccess }) => {
         onLoginSuccess();
       }
     } catch (error) {
-      setError(error.message);
+      console.error('❌ [REGISTRO] Erro:', error);
+      console.error('❌ [REGISTRO] Error code:', error.code);
+      console.error('❌ [REGISTRO] Error message:', error.message);
+      
+      if (error.code) {
+        switch (error.code) {
+          case 'auth/email-already-in-use':
+            setError('Este email já está em uso. Se você já tem conta, faça login.');
+            break;
+          case 'auth/invalid-email':
+            setError('Email inválido. Verifique o email digitado.');
+            break;
+          case 'auth/weak-password':
+            setError('Senha muito fraca. Use uma senha com pelo menos 6 caracteres.');
+            break;
+          case 'auth/user-not-found':
+            setError('Usuário não encontrado. Verifique o email.');
+            break;
+          case 'auth/wrong-password':
+            setError('Senha incorreta.');
+            break;
+          case 'auth/invalid-credential':
+            setError('Credenciais inválidas. Verifique email e senha.');
+            break;
+          default:
+            setError(`Erro: ${error.message || 'Erro desconhecido. Tente novamente.'}`);
+        }
+      } else {
+        setError(error.message || 'Erro desconhecido. Tente novamente.');
+      }
     } finally {
       setLoading(false);
     }

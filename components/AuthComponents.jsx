@@ -380,11 +380,19 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
     console.log('✅ [REGISTRO] Validação concluída. Criando conta no Firebase...');
     try {
       const auth = getAuth();
+      console.log('🔍 [REGISTRO] Firebase Auth inicializado:', auth ? 'OK' : 'ERRO');
+      console.log('🔍 [REGISTRO] Criando usuário no Firebase Authentication...');
+      console.log('🔍 [REGISTRO] Email:', formData.email);
+      
       const userCredential = await createUserWithEmailAndPassword(
         auth, 
         formData.email, 
         formData.password
       );
+      
+      console.log('✅ [REGISTRO] Usuário criado no Firebase Authentication com sucesso!');
+      console.log('✅ [REGISTRO] User UID:', userCredential.user.uid);
+      console.log('✅ [REGISTRO] User Email:', userCredential.user.email);
 
       // Salvar dados no Realtime Database
       if (database) {
@@ -421,20 +429,32 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
       
       onRegisterSuccess(userCredential.user);
     } catch (error) {
-      console.error('Erro no registro:', error);
+      console.error('❌ [REGISTRO] Erro ao criar usuário no Firebase Authentication:', error);
+      console.error('❌ [REGISTRO] Error code:', error.code);
+      console.error('❌ [REGISTRO] Error message:', error.message);
+      
+      // Se falhou ao criar no Firebase Authentication, MAS já criamos no Asaas,
+      // precisamos informar o usuário sobre o problema
       switch (error.code) {
         case 'auth/email-already-in-use':
-          setError('Este email já está em uso.');
+          setError('Este email já está em uso. Se você já tem conta, faça login.');
           break;
         case 'auth/invalid-email':
-          setError('Email inválido.');
+          setError('Email inválido. Verifique o email digitado.');
           break;
         case 'auth/weak-password':
-          setError('Senha muito fraca.');
+          setError('Senha muito fraca. Use uma senha com pelo menos 6 caracteres.');
+          break;
+        case 'auth/operation-not-allowed':
+          setError('Operação não permitida. Entre em contato com o suporte.');
           break;
         default:
-          setError('Erro ao criar conta. Tente novamente.');
+          setError(`Erro ao criar conta: ${error.message || 'Erro desconhecido. Tente novamente.'}`);
       }
+      
+      // IMPORTANTE: Se falhou ao criar no Firebase Authentication, não devemos continuar
+      // O usuário NÃO foi criado, então não há nada para limpar no Asaas (o cliente já foi criado lá)
+      // Mas informamos o usuário que precisa tentar novamente
     } finally {
       setLoading(false);
     }
