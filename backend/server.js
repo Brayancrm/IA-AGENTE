@@ -3547,6 +3547,105 @@ app.get('/api/user/plan/:userId', async (req, res) => {
 });
 
 // Criar cobrança Asaas
+// Endpoint para validar CPF/CNPJ usando a API do Asaas
+app.post('/api/asaas/validate-document', async (req, res) => {
+  try {
+    const { cpfCnpj } = req.body;
+    
+    if (!cpfCnpj) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'CPF/CNPJ é obrigatório' 
+      });
+    }
+    
+    // Buscar API Key do Asaas do master
+    const asaasApiKey = await getMasterAsaasApiKey();
+    
+    if (!asaasApiKey) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'API Key do Asaas não configurada no sistema' 
+      });
+    }
+    
+    // Limpar CPF/CNPJ (remover caracteres especiais)
+    const cleanCpfCnpj = cpfCnpj.replace(/[^\d]/g, '');
+    
+    // Determinar se é CPF (11 dígitos) ou CNPJ (14 dígitos)
+    const isCPF = cleanCpfCnpj.length === 11;
+    const isCNPJ = cleanCpfCnpj.length === 14;
+    
+    if (!isCPF && !isCNPJ) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos' 
+      });
+    }
+    
+    // URL base da API do Asaas
+    const baseUrl = asaasApiKey.includes('_prod_') 
+      ? 'https://api.asaas.com/v3' 
+      : 'https://sandbox.asaas.com/v3';
+    
+    // Validar documento usando o endpoint de criação de cliente do Asaas
+    // A API do Asaas valida automaticamente o CPF/CNPJ
+    try {
+      const response = await axios.post(
+        `${baseUrl}/customers`,
+        {
+          name: 'Validação Temporária',
+          cpfCnpj: cleanCpfCnpj,
+          email: `validacao_${Date.now()}@temp.com`
+        },
+        {
+          headers: {
+            'access_token': asaasApiKey,
+            'Content-Type': 'application/json'
+          },
+          validateStatus: (status) => status < 500
+        }
+      );
+      
+      // Se chegou aqui, o documento foi aceito pela API
+      res.json({ 
+        success: true, 
+        valid: true,
+        type: isCPF ? 'CPF' : 'CNPJ',
+        message: `${isCPF ? 'CPF' : 'CNPJ'} válido`
+      });
+      
+    } catch (error) {
+      // Se retornar erro 400, verificar se é documento inválido
+      if (error.response && error.response.status === 400) {
+        const errorMessage = error.response.data?.errors?.[0]?.description || error.response.data?.message || 'Documento inválido';
+        
+        // Verificar se é erro específico de documento inválido
+        if (errorMessage.includes('CPF') || errorMessage.includes('CNPJ') || 
+            errorMessage.includes('inválido') || errorMessage.includes('invalid') ||
+            errorMessage.includes('inválido') || errorMessage.toLowerCase().includes('invalid')) {
+          return res.json({ 
+            success: true, 
+            valid: false,
+            type: isCPF ? 'CPF' : 'CNPJ',
+            error: errorMessage
+          });
+        }
+      }
+      
+      // Outros erros
+      throw error;
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao validar documento:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.response?.data?.message || error.message || 'Erro ao validar documento' 
+    });
+  }
+});
+
 app.post('/api/asaas/create-charge', async (req, res) => {
   try {
     const { userId, customerData, items } = req.body;

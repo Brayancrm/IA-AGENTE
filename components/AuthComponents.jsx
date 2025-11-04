@@ -221,11 +221,55 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [validatingDocument, setValidatingDocument] = useState(false);
+  const [documentValidationError, setDocumentValidationError] = useState('');
+
+  const validateDocument = async (cpfCnpj) => {
+    if (!cpfCnpj || cpfCnpj.trim() === '') {
+      return { valid: true }; // Não validar se vazio (será validado pelo required)
+    }
+    
+    setValidatingDocument(true);
+    setDocumentValidationError('');
+    
+    try {
+      const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+      const response = await fetch(`${BACKEND_URL}/api/asaas/validate-document`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ cpfCnpj })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        if (data.valid) {
+          return { valid: true };
+        } else {
+          setDocumentValidationError(data.error || `${data.type} inválido`);
+          return { valid: false, error: data.error || `${data.type} inválido` };
+        }
+      } else {
+        // Se não conseguir validar (API não configurada, etc), permitir continuar
+        console.warn('Não foi possível validar documento:', data.error);
+        return { valid: true }; // Permitir continuar se a validação falhar
+      }
+    } catch (error) {
+      console.error('Erro ao validar documento:', error);
+      // Se houver erro na validação, permitir continuar (não bloquear cadastro)
+      return { valid: true };
+    } finally {
+      setValidatingDocument(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setDocumentValidationError('');
 
     // Validações
     if (formData.password !== formData.confirmPassword) {
@@ -238,6 +282,16 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
       setError('A senha deve ter pelo menos 6 caracteres.');
       setLoading(false);
       return;
+    }
+
+    // Validar CPF/CNPJ antes de criar a conta
+    if (formData.cnpj && formData.cnpj.trim() !== '') {
+      const validation = await validateDocument(formData.cnpj);
+      if (!validation.valid) {
+        setError(`CPF/CNPJ inválido: ${validation.error || 'Documento não é válido'}`);
+        setLoading(false);
+        return;
+      }
     }
 
     try {
@@ -374,12 +428,44 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
               <input
                 type="text"
                 value={formData.cnpj}
-                onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormData({ ...formData, cnpj: value });
+                  setDocumentValidationError(''); // Limpar erro ao digitar
+                }}
+                onBlur={async () => {
+                  // Validar apenas quando sair do campo
+                  if (formData.cnpj && formData.cnpj.trim() !== '') {
+                    const cleanValue = formData.cnpj.replace(/[^\d]/g, '');
+                    if (cleanValue.length === 11 || cleanValue.length === 14) {
+                      await validateDocument(formData.cnpj);
+                    }
+                  }
+                }}
+                className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                  documentValidationError ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                }`}
                 placeholder="000.000.000-00 ou 00.000.000/0000-00"
                 required
               />
+              {validatingDocument && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                </div>
+              )}
             </div>
+            {documentValidationError && (
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <AlertCircle className="w-4 h-4" />
+                {documentValidationError}
+              </p>
+            )}
+            {formData.cnpj && !documentValidationError && !validatingDocument && formData.cnpj.replace(/[^\d]/g, '').length >= 11 && (
+              <p className="mt-1 text-sm text-green-600 flex items-center gap-1">
+                <CheckCircle className="w-4 h-4" />
+                Documento válido
+              </p>
+            )}
           </div>
 
           <div>
