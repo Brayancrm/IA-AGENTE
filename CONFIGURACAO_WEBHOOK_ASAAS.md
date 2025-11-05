@@ -1,137 +1,150 @@
-# 📋 Configuração do Webhook Asaas - Guia Completo
+# 🔧 Configuração de Webhook Asaas - Campos Necessários
 
-## ✅ URL do Webhook
+## 📋 Eventos que DEVEM estar selecionados no Webhook
+
+### ✅ Eventos de Pagamento (Cobranças) - **CRÍTICOS**
+
+Estes eventos são essenciais para que o sistema ative o plano após o pagamento:
+
+1. **`PAYMENT_RECEIVED`** ✅ **OBRIGATÓRIO**
+   - Descrição: "Cobrança recebida"
+   - Quando dispara: Quando o pagamento é efetivamente recebido pelo Asaas
+   - **Este é o evento mais importante para ativação de planos**
+
+2. **`PAYMENT_CONFIRMED`** ✅ **OBRIGATÓRIO**
+   - Descrição: "Cobrança confirmada (pagamento efetuado, porém o saldo ainda não foi disponibilizado)"
+   - Quando dispara: Quando o pagamento é confirmado (especialmente para boletos)
+   - **Importante para métodos de pagamento que requerem confirmação**
+
+3. **`PAYMENT_CREATED`** ⚠️ **OPCIONAL** (mas recomendado)
+   - Descrição: "Geração de nova cobrança"
+   - Quando dispara: Quando uma cobrança é criada
+   - Útil para rastreamento, mas não ativa o plano
+
+4. **`PAYMENT_UPDATED`** ⚠️ **OPCIONAL** (mas recomendado)
+   - Descrição: "Alteração no vencimento ou valor de cobrança existente"
+   - Quando dispara: Quando uma cobrança é atualizada
+   - Útil para rastreamento, mas não ativa o plano
+
+5. **`PAYMENT_OVERDUE`** ⚠️ **OPCIONAL**
+   - Descrição: "Cobrança vencida"
+   - Quando dispara: Quando uma cobrança passa do vencimento
+   - Útil para gerenciar inadimplência
+
+### ✅ Eventos de Assinatura - **RECOMENDADOS**
+
+Estes eventos ajudam no rastreamento, mas não são críticos para ativação:
+
+1. **`SUBSCRIPTION_CREATED`** ✅ **RECOMENDADO**
+   - Descrição: "Geração de nova assinatura"
+   - Quando dispara: Quando uma assinatura é criada no Asaas
+
+2. **`SUBSCRIPTION_UPDATED`** ✅ **RECOMENDADO**
+   - Descrição: "Alteração na assinatura"
+   - Quando dispara: Quando uma assinatura é atualizada
+
+3. **`SUBSCRIPTION_DELETED`** ✅ **RECOMENDADO**
+   - Descrição: "Assinatura removida"
+   - Quando dispara: Quando uma assinatura é cancelada
+
+---
+
+## 🔑 Campos que DEVEM estar incluídos no Payload do Webhook
+
+Quando você configura o webhook no Asaas, certifique-se de que os seguintes campos estão incluídos no JSON enviado:
+
+### Para eventos `PAYMENT_RECEIVED` e `PAYMENT_CONFIRMED`:
+
+**Objeto `payment` (obrigatório):**
+- ✅ `id` - ID único do pagamento no Asaas (usado como `lastPayment`)
+- ✅ `status` - Status do pagamento (`RECEIVED`, `CONFIRMED`, `PENDING`, etc.)
+- ✅ `value` - Valor total do pagamento
+- ✅ `paymentDate` - Data de processamento do pagamento (usado como `lastPaymentDate`)
+- ✅ `confirmedDate` - Data de confirmação do pagamento (usado como `lastPaymentDate` se `paymentDate` não estiver disponível)
+- ✅ `dateCreated` - Data de criação do pagamento
+- ✅ `subscription` - **CRÍTICO**: ID da assinatura vinculada ao pagamento
+- ✅ `customer` - ID do cliente
+- ✅ `invoiceUrl` - URL da fatura
+
+**Campos do nível superior:**
+- ✅ `event` - Tipo do evento (`PAYMENT_RECEIVED`, `PAYMENT_CONFIRMED`, etc.)
+
+---
+
+## 🚨 IMPORTANTE: Validação no Backend
+
+O backend **só ativa o plano** quando:
+
+1. ✅ O evento é `PAYMENT_RECEIVED` **OU** `PAYMENT_CONFIRMED`
+2. ✅ O `payment.status` é `RECEIVED`, `CONFIRMED` ou `RECEIVED_IN_CASH`
+3. ✅ O `payment.subscription` existe (vincula o pagamento à assinatura)
+4. ✅ O `payment.paymentDate` **OU** `payment.confirmedDate` existe
+
+**Se qualquer uma dessas condições não for atendida, o plano NÃO será ativado.**
+
+---
+
+## 📍 URL do Webhook
+
+Configure o webhook para apontar para:
 
 ```
-https://ia-agente-production.up.railway.app/api/asaas/webhook
+https://seu-backend-url.com/api/asaas/webhook
 ```
 
-**IMPORTANTE:** 
-- ✅ Use HTTPS (não HTTP)
-- ✅ Inclua o caminho completo `/api/asaas/webhook`
-- ✅ Não adicione `/` no final
+**Exemplo para produção:**
+```
+https://seu-backend.railway.app/api/asaas/webhook
+```
+
+**Exemplo para desenvolvimento local (usando ngrok):**
+```
+https://seu-ngrok-url.ngrok.io/api/asaas/webhook
+```
 
 ---
 
-## 📌 Eventos Necessários
+## ✅ Checklist de Configuração
 
-Marque os seguintes eventos:
-
-### 🟢 Seção "Assinaturas" (SUBSCRIPTION Events):
-
-Marque TODOS os eventos disponíveis nesta seção:
-
-1. ✅ **`SUBSCRIPTION_CREATED`** - Quando uma nova assinatura é criada
-2. ✅ **`SUBSCRIPTION_UPDATED`** - Quando a assinatura é atualizada
-3. ✅ **`SUBSCRIPTION_DELETED`** - Quando a assinatura é removida
-4. ✅ **`SUBSCRIPTION_INACTIVATED`** - Quando a assinatura é inativada (se disponível)
-5. ✅ **`SUBSCRIPTION_SPLIT_*`** - Qualquer evento relacionado a split (se disponível)
-
-**NOTA:** O Asaas pode não ter eventos como `SUBSCRIPTION_ACTIVATED` ou `SUBSCRIPTION_PAYMENT` na interface. Isso é normal!
-
-### 🔴 Seção "Cobranças" (PAYMENT Events) - OBRIGATÓRIO!
-
-**MUITO IMPORTANTE:** Você DEVE marcar os eventos de pagamento também:
-
-1. ✅ **`PAYMENT_CREATED`** - Geração de nova cobrança
-2. ✅ **`PAYMENT_CONFIRMED`** - Cobrança confirmada
-3. ✅ **`PAYMENT_RECEIVED`** - Cobrança recebida
-4. ✅ **`PAYMENT_OVERDUE`** - Pagamento vencido
-5. ✅ **`PAYMENT_DELETED`** - Pagamento excluído
-6. ✅ **`PAYMENT_UPDATED`** - Alteração no pagamento
-
-**Por quê?** Os pagamentos de assinatura são enviados como eventos de `PAYMENT`, não `SUBSCRIPTION_PAYMENT`!
-
-### 🟡 OPCIONAIS (recomendados):
-
-7. ✅ **`INVOICE_*`** - Eventos de nota fiscal, se você quiser emitir NFs automaticamente
+- [ ] `PAYMENT_RECEIVED` está selecionado
+- [ ] `PAYMENT_CONFIRMED` está selecionado
+- [ ] URL do webhook está configurada corretamente
+- [ ] O payload inclui todos os campos obrigatórios (`payment.id`, `payment.subscription`, `payment.paymentDate`, etc.)
+- [ ] O webhook está configurado para o ambiente correto (produção ou sandbox)
+- [ ] Testou o webhook após fazer um pagamento de teste
 
 ---
 
-## 🔧 Como Configurar
+## 🐛 Troubleshooting
 
-### Passo 1: URL do Webhook
+### O plano não está sendo ativado após o pagamento?
 
-1. No campo **"URL do Webhook"**, cole:
-   ```
-   https://ia-agente-production.up.railway.app/api/asaas/webhook
-   ```
+1. **Verifique os logs do backend:**
+   - Procure por "💎 Pagamento relacionado a assinatura detectado!"
+   - Procure por "✅ Pagamento CONFIRMADO! Processando ativação do plano..."
+   - Se não aparecer, o webhook pode não estar chegando ou sendo processado
 
-### Passo 2: Eventos de Assinatura
+2. **Verifique o Firebase:**
+   - Acesse `subscriptions/{userId}/{subscriptionId}`
+   - Verifique se `lastPayment` e `lastPaymentDate` foram preenchidos
+   - Verifique se `status` está como `ACTIVE`
 
-1. Na seção **"Adicionar Eventos"** → **"Assinaturas"**
-2. Marque TODOS os eventos listados acima (obrigatórios)
-3. Clique em "Selecionar Todos" se disponível
+3. **Verifique o console do navegador:**
+   - Procure por "🔍 ========== VERIFICAÇÃO DE PAGAMENTO =========="
+   - Veja os valores de `LastPayment` e `LastPaymentDate`
+   - Se estiverem `undefined`, o webhook pode não ter processado corretamente
 
-### Passo 3: Outras Configurações
-
-- **Este Webhook ficará ativo?** → ✅ Sim
-- **Versão da API** → v3 (ou a mais recente)
-- **Fila de sincronização ativada?** → ✅ Sim (recomendado)
-- **Tipo de envio** → Sequencial (recomendado)
-
-### Passo 4: Salvar
-
-1. Clique em **"Salvar"** ou **"Criar Webhook"**
-2. O Asaas irá testar a URL automaticamente
-
----
-
-## ✅ Checklist Final
-
-Antes de salvar, verifique:
-
-- [ ] URL completa: `https://ia-agente-production.up.railway.app/api/asaas/webhook`
-- [ ] SUBSCRIPTION_CREATED marcado
-- [ ] SUBSCRIPTION_UPDATED marcado
-- [ ] SUBSCRIPTION_DELETED marcado
-- [ ] SUBSCRIPTION_ACTIVATED marcado (se disponível)
-- [ ] SUBSCRIPTION_CANCELLED/CANCELED marcado (se disponível)
-- [ ] SUBSCRIPTION_PAYMENT marcado (se disponível)
-- [ ] Webhook está ativo (Sim)
-- [ ] Fila de sincronização ativada (Sim)
-
----
-
-## 🧪 Como Testar
-
-Após configurar:
-
-1. **Crie uma assinatura de teste** no sistema
-2. **Verifique os logs do Railway:**
-   - Acesse: https://railway.app
-   - Vá em seu projeto → Deployments → Logs
-   - Procure por: `📬 Webhook Asaas recebido`
-   - Ou: `💎 Evento de ASSINATURA recebido`
-
-3. **Verifique no Firebase:**
-   - A assinatura deve aparecer em `subscriptions/{userId}`
-   - O `activePlan` deve ser atualizado em `users/data/{userId}/activePlan`
-
----
-
-## ⚠️ Problemas Comuns
-
-### Webhook não recebe eventos
-
-**Solução:**
-1. Verifique se a URL está correta (sem espaços, com HTTPS)
-2. Verifique se o backend está rodando (https://ia-agente-production.up.railway.app)
-3. Verifique os logs do Railway para ver se há erros
-
-### Eventos não estão sendo processados
-
-**Solução:**
-1. Verifique se todos os eventos obrigatórios estão marcados
-2. Verifique os logs do backend para ver qual evento chegou
-3. Certifique-se de que o `externalReference` está no formato correto: `subscription_{userId}_{planId}`
+4. **Teste o webhook manualmente:**
+   - Use a ferramenta de teste do Asaas
+   - Envie um evento `PAYMENT_RECEIVED` simulado
+   - Verifique se o backend responde corretamente
 
 ---
 
 ## 📞 Suporte
 
-Se algo não funcionar:
-1. Verifique os logs do Railway
-2. Verifique os logs do Firebase Console
-3. Teste manualmente fazendo uma assinatura
-
+Se mesmo após seguir este guia o problema persistir, verifique:
+- Logs do backend para erros específicos
+- Status do webhook no painel do Asaas
+- Configuração da URL do webhook
+- Campos incluídos no payload do webhook

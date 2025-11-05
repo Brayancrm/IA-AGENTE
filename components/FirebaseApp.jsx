@@ -223,46 +223,125 @@ const FirebaseApp = () => {
           return;
         }
         
-        const subscriptions = snapshot.val();
-        const subscription = Object.values(subscriptions).find(
-          sub => sub.asaasSubscriptionId === pendingPayment.subscriptionId
-        );
+      const subscriptions = snapshot.val();
+      
+      // Buscar a assinatura que corresponde ao subscriptionId do pendingPayment
+      let foundSubscription = null;
+      let subscriptionKey = null;
+      
+      Object.keys(subscriptions).forEach((key) => {
+        const subData = subscriptions[key];
+        if (subData.asaasSubscriptionId === pendingPayment.subscriptionId) {
+          foundSubscription = subData;
+          subscriptionKey = key;
+        }
+      });
+      
+      if (!foundSubscription) {
+        console.log('⏳ Assinatura ainda não encontrada...');
+        console.log('   Esperado asaasSubscriptionId:', pendingPayment.subscriptionId);
+        console.log('   Assinaturas disponíveis:', Object.keys(subscriptions).map(key => ({
+          key,
+          asaasSubscriptionId: subscriptions[key].asaasSubscriptionId,
+          status: subscriptions[key].status
+        })));
+        return;
+      }
+      
+      // 🔍 LOGS DETALHADOS PARA DEBUG
+      console.log('🔍 ========== VERIFICAÇÃO DE PAGAMENTO ==========');
+      console.log('📋 Dados da Assinatura no Firebase:');
+      console.log('   Subscription Key:', subscriptionKey);
+      console.log('   Asaas Subscription ID:', foundSubscription.asaasSubscriptionId);
+      console.log('   Status:', foundSubscription.status);
+      console.log('   LastPayment ID:', foundSubscription.lastPayment);
+      console.log('   LastPaymentDate:', foundSubscription.lastPaymentDate);
+      console.log('   UpdatedAt:', foundSubscription.updatedAt);
+      console.log('   PlanId:', foundSubscription.planId);
+      console.log('   PlanName:', foundSubscription.planName);
+      console.log('📋 Dados do PendingPayment (localStorage):');
+      console.log('   SubscriptionId:', pendingPayment.subscriptionId);
+      console.log('   PlanId:', pendingPayment.planId);
+      console.log('   CreatedAt:', new Date(pendingPayment.createdAt).toISOString());
+      console.log('==========================================');
+      
+      // Verificar se há confirmação de pagamento
+      const hasPayment = foundSubscription.lastPayment || foundSubscription.lastPaymentDate;
+      const isActive = foundSubscription.status === 'active' || foundSubscription.status === 'ACTIVE';
+      
+      console.log('🔍 Verificações:');
+      console.log('   hasPayment (lastPayment OU lastPaymentDate):', hasPayment);
+      console.log('   isActive (status ACTIVE):', isActive);
+      
+      if (hasPayment && isActive) {
+        // Pagamento confirmado!
+        console.log('✅ ========== PAGAMENTO CONFIRMADO! ==========');
+        console.log('   LastPayment ID:', foundSubscription.lastPayment);
+        console.log('   LastPaymentDate:', foundSubscription.lastPaymentDate);
+        console.log('   Status:', foundSubscription.status);
+        console.log('   Ativando plano...');
+        console.log('==========================================');
         
-        if (!subscription) {
-          console.log('⏳ Assinatura ainda não encontrada...');
-          return;
+        // Remover pagamento pendente do localStorage
+        localStorage.removeItem('pendingPayment');
+        
+        // Limpar parâmetros da URL se houver
+        if (window.location.search.includes('payment_return')) {
+          window.history.replaceState({}, '', window.location.pathname);
         }
         
-        // Verificar se há confirmação de pagamento
-        const hasPayment = subscription.lastPayment || subscription.lastPaymentDate;
-        const isActive = subscription.status === 'active' || subscription.status === 'ACTIVE';
+        // Atualizar página de planos
+        setCurrentPage('plans');
         
-        if (hasPayment && isActive) {
-          // Pagamento confirmado!
-          console.log('✅ Pagamento confirmado! Plano ativado.');
+        // Mostrar mensagem de sucesso
+        showToast('Pagamento confirmado! Seu plano foi ativado com sucesso.', 'success');
+        
+        // Forçar recarregamento para garantir que os listeners do Firebase atualizem tudo
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+        
+        return;
+      } else {
+        console.log('⏳ Aguardando confirmação do pagamento...');
+        console.log('   Status:', foundSubscription.status);
+        console.log('   LastPayment:', foundSubscription.lastPayment);
+        console.log('   LastPaymentDate:', foundSubscription.lastPaymentDate);
+        console.log('   ⚠️ Um dos campos necessários ainda não está presente.');
+        console.log('   Aguardando webhook processar pagamento...');
+        
+        // Verificar também o activePlan diretamente
+        const activePlanRef = ref(database, `users/data/${user.uid}/activePlan`);
+        const activePlanSnapshot = await get(activePlanRef);
+        
+        if (activePlanSnapshot.exists()) {
+          const activePlan = activePlanSnapshot.val();
+          console.log('📋 ActivePlan encontrado:');
+          console.log('   PlanId:', activePlan.planId);
+          console.log('   PlanName:', activePlan.planName);
+          console.log('   UpdatedAt:', activePlan.updatedAt);
+          console.log('   SubscriptionId:', activePlan.asaasSubscriptionId);
           
-          // Remover pagamento pendente do localStorage
-          localStorage.removeItem('pendingPayment');
-          
-          // Limpar parâmetros da URL se houver
-          if (window.location.search.includes('payment_return')) {
-            window.history.replaceState({}, '', window.location.pathname);
+          // Se o activePlan já existe e corresponde ao plano sendo pago, pode ser que o pagamento já foi processado
+          if (activePlan.planId === pendingPayment.planId && 
+              activePlan.asaasSubscriptionId === pendingPayment.subscriptionId) {
+            console.log('✅ ActivePlan já corresponde ao plano pago! Pagamento pode ter sido processado.');
+            console.log('   Removendo pendingPayment e recarregando...');
+            localStorage.removeItem('pendingPayment');
+            if (window.location.search.includes('payment_return')) {
+              window.history.replaceState({}, '', window.location.pathname);
+            }
+            setCurrentPage('plans');
+            showToast('Plano já está ativo!', 'success');
+            setTimeout(() => {
+              window.location.reload();
+            }, 1000);
+            return;
           }
-          
-          // Atualizar página de planos
-          setCurrentPage('plans');
-          
-          // Mostrar mensagem de sucesso
-          showToast('Pagamento confirmado! Seu plano foi ativado com sucesso.', 'success');
-          
-          // Não recarregar a página inteira - apenas atualizar os dados
-          // Os listeners do Firebase já vão atualizar automaticamente
         } else {
-          console.log('⏳ Aguardando confirmação do pagamento...');
-          console.log('   Status:', subscription.status);
-          console.log('   LastPayment:', subscription.lastPayment);
-          console.log('   LastPaymentDate:', subscription.lastPaymentDate);
+          console.log('📋 ActivePlan ainda não existe. Aguardando webhook criar...');
         }
+      }
       } catch (error) {
         console.error('Erro ao verificar status do pagamento:', error);
       }
