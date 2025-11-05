@@ -170,8 +170,43 @@ const FirebaseApp = () => {
   useEffect(() => {
     if (!user || !database || !isReady) return;
     
-    // Verificar se há pagamento pendente no localStorage
+    // Verificar se há parâmetro na URL indicando retorno do pagamento
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentReturn = urlParams.get('payment_return');
+    const subscriptionIdFromUrl = urlParams.get('subscriptionId');
+    
+    // Verificar se há pagamento pendente no localStorage OU se veio da URL
     const pendingPaymentStr = localStorage.getItem('pendingPayment');
+    
+    // Se veio da URL mas não tem no localStorage, criar entrada
+    if (paymentReturn && subscriptionIdFromUrl && !pendingPaymentStr) {
+      console.log('📥 Retorno do pagamento detectado na URL');
+      // Buscar planId da assinatura no Firebase
+      const checkAndSave = async () => {
+        try {
+          const subscriptionsRef = ref(database, `subscriptions/${user.uid}`);
+          const snapshot = await get(subscriptionsRef);
+          if (snapshot.exists()) {
+            const subscriptions = snapshot.val();
+            const subscription = Object.values(subscriptions).find(
+              sub => sub.asaasSubscriptionId === subscriptionIdFromUrl
+            );
+            if (subscription) {
+              localStorage.setItem('pendingPayment', JSON.stringify({
+                planId: subscription.planId,
+                subscriptionId: subscriptionIdFromUrl,
+                createdAt: Date.now()
+              }));
+            }
+          }
+        } catch (error) {
+          console.error('Erro ao buscar assinatura:', error);
+        }
+      };
+      checkAndSave();
+      return; // Aguardar próxima execução do useEffect
+    }
+    
     if (!pendingPaymentStr) return;
     
     const pendingPayment = JSON.parse(pendingPaymentStr);
@@ -209,15 +244,19 @@ const FirebaseApp = () => {
           // Remover pagamento pendente do localStorage
           localStorage.removeItem('pendingPayment');
           
+          // Limpar parâmetros da URL se houver
+          if (window.location.search.includes('payment_return')) {
+            window.history.replaceState({}, '', window.location.pathname);
+          }
+          
           // Atualizar página de planos
           setCurrentPage('plans');
           
           // Mostrar mensagem de sucesso
           showToast('Pagamento confirmado! Seu plano foi ativado com sucesso.', 'success');
           
-          // Recarregar plano ativo (os listeners já vão atualizar automaticamente)
-          // Forçar atualização da página de planos
-          window.location.reload();
+          // Não recarregar a página inteira - apenas atualizar os dados
+          // Os listeners do Firebase já vão atualizar automaticamente
         } else {
           console.log('⏳ Aguardando confirmação do pagamento...');
           console.log('   Status:', subscription.status);

@@ -2749,6 +2749,10 @@ async function createAsaasSubscription(asaasApiKey, customerData, planData, user
     let paymentUrl = null;
     try {
       console.log('💳 Criando cobrança inicial para obter link de pagamento...');
+      // URL de retorno após pagamento (apontar para o site da ferramenta)
+      const returnUrl = process.env.FRONTEND_URL || 'https://ia-agente.vercel.app';
+      const returnUrlWithParams = `${returnUrl}?payment_return=true&subscriptionId=${subscriptionResponse.data.id}`;
+      
       const chargePayload = {
         customer: customerId,
         billingType: 'UNDEFINED', // Permite pix, cartão e boleto
@@ -2757,8 +2761,15 @@ async function createAsaasSubscription(asaasApiKey, customerData, planData, user
         description: `Pagamento inicial - Assinatura: ${planData.name}`,
         externalReference: `subscription_initial_${userId}_${planData.id}`,
         subscription: subscriptionResponse.data.id, // Vincular à assinatura
-        postalService: false
+        postalService: false,
+        // O Asaas não suporta returnUrl direto na API, mas vamos tentar adicionar na URL depois
+        callback: {
+          successUrl: returnUrlWithParams,
+          autoRedirect: true
+        }
       };
+      
+      console.log('🔗 Return URL configurado:', returnUrlWithParams);
       
       const chargeResponse = await axios.post(`${baseUrl}/payments`, chargePayload, {
         headers: {
@@ -2768,8 +2779,10 @@ async function createAsaasSubscription(asaasApiKey, customerData, planData, user
       });
       
       paymentUrl = chargeResponse.data.invoiceUrl || chargeResponse.data.url || null;
+      
       console.log('✅ Cobrança inicial criada:', chargeResponse.data.id);
       console.log('🔗 Link de pagamento:', paymentUrl);
+      console.log('📋 Callback configurado com successUrl:', returnUrlWithParams);
     } catch (chargeError) {
       console.error('⚠️ Erro ao criar cobrança inicial (continuando sem link):', chargeError.response?.data || chargeError.message);
       // Continuar mesmo sem o link, pois a assinatura foi criada com sucesso
