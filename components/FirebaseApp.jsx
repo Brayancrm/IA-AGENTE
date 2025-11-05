@@ -42,16 +42,7 @@ const FirebaseApp = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [toast, setToast] = useState(null);
 
-  // Estado para página de pagamento
-  const [paymentPage, setPaymentPage] = useState(null); // { plan, invoiceUrl, subscriptionId, createdAt }
-  
-  // Ref para paymentPage para usar nos listeners
-  const paymentPageRef = React.useRef(null);
-  
-  // Atualizar ref quando paymentPage mudar
-  useEffect(() => {
-    paymentPageRef.current = paymentPage;
-  }, [paymentPage]);
+  // Estado para página de pagamento removido - agora redirecionamos diretamente
 
   // Estados dos dados
   const [companyProfile, setCompanyProfile] = useState({});
@@ -174,6 +165,76 @@ const FirebaseApp = () => {
       </button>
     </div>
   );
+
+  // Verificar se retornou do pagamento do Asaas
+  useEffect(() => {
+    if (!user || !database || !isReady) return;
+    
+    // Verificar se há pagamento pendente no localStorage
+    const pendingPaymentStr = localStorage.getItem('pendingPayment');
+    if (!pendingPaymentStr) return;
+    
+    const pendingPayment = JSON.parse(pendingPaymentStr);
+    
+    // Verificar se o pagamento foi processado
+    const checkPaymentStatus = async () => {
+      try {
+        // Buscar assinatura no Firebase
+        const subscriptionsRef = ref(database, `subscriptions/${user.uid}`);
+        const snapshot = await get(subscriptionsRef);
+        
+        if (!snapshot.exists()) {
+          console.log('⏳ Aguardando processamento da assinatura...');
+          return;
+        }
+        
+        const subscriptions = snapshot.val();
+        const subscription = Object.values(subscriptions).find(
+          sub => sub.asaasSubscriptionId === pendingPayment.subscriptionId
+        );
+        
+        if (!subscription) {
+          console.log('⏳ Assinatura ainda não encontrada...');
+          return;
+        }
+        
+        // Verificar se há confirmação de pagamento
+        const hasPayment = subscription.lastPayment || subscription.lastPaymentDate;
+        const isActive = subscription.status === 'active' || subscription.status === 'ACTIVE';
+        
+        if (hasPayment && isActive) {
+          // Pagamento confirmado!
+          console.log('✅ Pagamento confirmado! Plano ativado.');
+          
+          // Remover pagamento pendente do localStorage
+          localStorage.removeItem('pendingPayment');
+          
+          // Atualizar página de planos
+          setCurrentPage('plans');
+          
+          // Mostrar mensagem de sucesso
+          showToast('Pagamento confirmado! Seu plano foi ativado com sucesso.', 'success');
+          
+          // Recarregar plano ativo (os listeners já vão atualizar automaticamente)
+          // Forçar atualização da página de planos
+          window.location.reload();
+        } else {
+          console.log('⏳ Aguardando confirmação do pagamento...');
+          console.log('   Status:', subscription.status);
+          console.log('   LastPayment:', subscription.lastPayment);
+          console.log('   LastPaymentDate:', subscription.lastPaymentDate);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar status do pagamento:', error);
+      }
+    };
+    
+    // Verificar imediatamente e depois a cada 5 segundos
+    checkPaymentStatus();
+    const interval = setInterval(checkPaymentStatus, 5000);
+    
+    return () => clearInterval(interval);
+  }, [user, database, isReady]);
 
   // Verificar autenticação
   useEffect(() => {
@@ -330,7 +391,8 @@ const FirebaseApp = () => {
     }
 
     // IMPORTANTE: Não mostrar modal obrigatório se estiver na página de pagamento
-    if (paymentPage) {
+    // Removido: paymentPage não é mais usado - redirecionamos diretamente
+    if (false) {
       setShowRequiredPlanModal(false);
       return;
     }
@@ -338,15 +400,15 @@ const FirebaseApp = () => {
     // Aguardar um pouco para garantir que os listeners foram configurados
     if (user && database && !userActivePlan && !loading) {
       const timer = setTimeout(() => {
-        // Verificar novamente se ainda não tem plano E não está na página de pagamento
-        if (!userActivePlan && !user?.isMaster && !paymentPage) {
+        // Verificar novamente se ainda não tem plano
+        if (!userActivePlan && !user?.isMaster) {
           setShowRequiredPlanModal(true);
         }
       }, 1500);
 
       return () => clearTimeout(timer);
     }
-  }, [user, database, userActivePlan, loading, paymentPage]);
+  }, [user, database, userActivePlan, loading]);
 
   // Configurar listeners do Realtime Database
   const setupFirestoreListeners = () => {
@@ -484,7 +546,7 @@ const FirebaseApp = () => {
         
         // Verificar se plano de teste expirou
         // IMPORTANTE: NÃO remover plano se estiver na página de pagamento (aguardando confirmação)
-        if (plan.isTrialPlan && plan.nextDueDate && !paymentPageRef.current) {
+        if (plan.isTrialPlan && plan.nextDueDate) {
           const expirationDate = new Date(plan.nextDueDate);
           const now = new Date();
           
@@ -522,12 +584,9 @@ const FirebaseApp = () => {
       } else {
         console.log('👤 [FIREBASE] Usuário sem plano ativo');
         
-        // IMPORTANTE: Se estiver na página de pagamento, manter o estado atual
-        // Não limpar userActivePlan se estiver aguardando pagamento
-        if (!paymentPageRef.current) {
+        // Limpar plano ativo
         setUserActivePlan(null);
         setUserPlanUsage(null);
-        }
       }
     });
     cleanupFunctions.push(() => off(activePlanRef));
@@ -858,16 +917,20 @@ const FirebaseApp = () => {
       const result = await response.json();
 
       if (result.success) {
-        // Se tiver invoiceUrl, abrir página de pagamento
+        // Se tiver invoiceUrl, redirecionar DIRETAMENTE para o Asaas
         if (result.invoiceUrl) {
-          setPaymentPage({
-            plan: plan,
-            invoiceUrl: result.invoiceUrl,
+          // Salvar informações da assinatura no localStorage para verificar ao retornar
+          const paymentInfo = {
+            planId: plan.id,
             subscriptionId: result.subscriptionId,
-            value: result.value,
-            createdAt: Date.now() // Timestamp para evitar verificação imediata
-          });
+            createdAt: Date.now()
+          };
+          localStorage.setItem('pendingPayment', JSON.stringify(paymentInfo));
+          
+          // Redirecionar diretamente para o Asaas
           console.log('✅ Assinatura criada, redirecionando para pagamento:', result.invoiceUrl);
+          window.location.href = result.invoiceUrl;
+          return; // Não renderizar mais nada, vai redirecionar
         } else {
           // Se não tiver invoiceUrl, ainda mostrar página de pagamento informando que o link será enviado por email
           // Ou tentar buscar o link da assinatura após alguns segundos
@@ -885,13 +948,16 @@ const FirebaseApp = () => {
                   sub => sub.asaasSubscriptionId === result.subscriptionId
                 );
                 if (subscription && subscription.paymentUrl) {
-                  setPaymentPage({
-                    plan: plan,
-                    invoiceUrl: subscription.paymentUrl,
+                  // Salvar informações da assinatura no localStorage para verificar ao retornar
+                  const paymentInfo = {
+                    planId: plan.id,
                     subscriptionId: result.subscriptionId,
-                    value: result.value,
-                    createdAt: Date.now() // Timestamp para evitar verificação imediata
-                  });
+                    createdAt: Date.now()
+                  };
+                  localStorage.setItem('pendingPayment', JSON.stringify(paymentInfo));
+                  
+                  // Redirecionar diretamente para o Asaas
+                  window.location.href = subscription.paymentUrl;
                   return;
                 }
               }
@@ -1924,300 +1990,7 @@ const FirebaseApp = () => {
     );
   }
 
-  // Componente de Página de Pagamento
-  const PaymentPage = () => {
-    if (!paymentPage) return null;
-
-    // Verificar status do pagamento periodicamente
-    useEffect(() => {
-      if (!paymentPage || !database || !user) return;
-
-      const checkPaymentStatus = async () => {
-        try {
-          // IMPORTANTE: Não verificar imediatamente após criar a assinatura
-          // Aguardar pelo menos 30 segundos para dar tempo do usuário pagar e webhook processar
-          if (paymentPage.createdAt && (Date.now() - paymentPage.createdAt) < 30000) {
-            console.log('⏳ Aguardando processamento inicial da assinatura... (', Math.round((Date.now() - paymentPage.createdAt) / 1000), 's)');
-            return;
-          }
-
-          // Buscar assinatura no Firebase
-          const subscriptionsRef = ref(database, `subscriptions/${user.uid}`);
-          const snapshot = await get(subscriptionsRef);
-          
-          if (!snapshot.exists()) {
-            console.log('⚠️ Nenhuma assinatura encontrada. Aguardando...');
-            return;
-          }
-
-          const subscriptions = snapshot.val();
-          // Encontrar a assinatura atual pelo subscriptionId
-          let subscriptionKey = null;
-          const subscription = Object.values(subscriptions).find((sub, index) => {
-            if (sub.asaasSubscriptionId === paymentPage.subscriptionId) {
-              subscriptionKey = Object.keys(subscriptions)[index];
-              return true;
-            }
-            return false;
-          });
-          
-          if (!subscription) {
-            console.log('⚠️ Assinatura não encontrada. Aguardando...');
-            return;
-          }
-
-          console.log('🔍 Verificando status da assinatura:', {
-            subscriptionId: paymentPage.subscriptionId,
-            status: subscription.status,
-            planId: subscription.planId,
-            createdAt: subscription.createdAt,
-            lastPaymentDate: subscription.lastPaymentDate,
-            lastPayment: subscription.lastPayment
-          });
-
-          // CRÍTICO: Só considerar pagamento confirmado se:
-          // 1. Há um lastPayment ID (indicando que houve um pagamento REAL processado pelo webhook)
-          // 2. E status é 'active' ou 'ACTIVE' (webhook atualizou)
-          // 3. E o plano ativo corresponde EXATAMENTE ao plano sendo pago
-          // IMPORTANTE: Não confiar apenas em lastPaymentDate porque pode ser definido antes do pagamento real
-          // O lastPayment ID é mais confiável pois só é definido quando o webhook processa um pagamento REAL
-          
-          // Verificar se há confirmação de pagamento: lastPayment ID OU lastPaymentDate
-          // O lastPayment ID é mais confiável, mas lastPaymentDate também indica pagamento processado
-          const hasPaymentConfirmation = subscription.lastPayment || subscription.lastPaymentDate;
-          
-          if (!hasPaymentConfirmation) {
-            console.log('⏳ Aguardando confirmação de pagamento (sem lastPayment ou lastPaymentDate ainda)...');
-            return;
-          }
-
-          const hasActiveStatus = subscription.status === 'active' || subscription.status === 'ACTIVE';
-          
-          if (!hasActiveStatus) {
-            console.log('⏳ Assinatura ainda não está ativa. Status:', subscription.status);
-            return;
-          }
-
-          // CRÍTICO: Verificar se a assinatura sendo verificada corresponde EXATAMENTE à assinatura da página de pagamento
-          // Primeiro verificar se o planId da assinatura corresponde ao plano sendo pago
-          if (subscription.planId !== paymentPage.plan.id) {
-            console.log('⚠️ Assinatura encontrada não corresponde ao plano sendo pago. Aguardando assinatura correta...');
-            console.log('   Assinatura planId:', subscription.planId);
-            console.log('   Plano sendo pago planId:', paymentPage.plan.id);
-            return;
-          }
-
-          // Verificar se o plano ativo corresponde ao plano que está sendo pago
-          const activePlanRef = ref(database, `users/data/${user.uid}/activePlan`);
-          const activePlanSnapshot = await get(activePlanRef);
-          
-          if (!activePlanSnapshot.exists()) {
-            console.log('⏳ Plano ativo ainda não foi criado. Aguardando webhook...');
-            return;
-          }
-
-          const activePlan = activePlanSnapshot.val();
-          // paymentPage.createdAt pode ser timestamp (Date.now()) ou ISO string
-          const paymentPageCreatedAt = typeof paymentPage.createdAt === 'number' ? 
-            new Date(paymentPage.createdAt) : 
-            new Date(paymentPage.createdAt);
-          
-          // Verificar se o plano ativo corresponde EXATAMENTE ao plano sendo pago
-          // CRÍTICO: AMBOS planId E subscriptionId devem corresponder EXATAMENTE
-          const planMatches = activePlan.planId === paymentPage.plan.id;
-          const subscriptionMatches = activePlan.asaasSubscriptionId === paymentPage.subscriptionId;
-          
-          // CRÍTICO: O activePlan DEVE ser atualizado DEPOIS de criar a página de pagamento
-          // Isso garante que o webhook processou o pagamento APÓS o usuário ver a página e pagar
-          // Não aceitar atualizações anteriores, pois podem ser de pagamentos antigos
-          const planUpdatedAt = activePlan.updatedAt ? new Date(activePlan.updatedAt) : null;
-          
-          // Só aceitar se o plano foi atualizado DEPOIS de criar a página de pagamento
-          // Isso garante que é um pagamento novo relacionado a esta página específica
-          const planUpdatedAfterPage = planUpdatedAt ? 
-            planUpdatedAt > paymentPageCreatedAt : 
-            false; // Se não há updatedAt, não aceitar (plano antigo)
-          
-          // Verificar também se a assinatura foi atualizada após criar a página
-          const subscriptionUpdatedAt = subscription.updatedAt ? new Date(subscription.updatedAt) : null;
-          const subscriptionUpdatedAfterPage = subscriptionUpdatedAt ? 
-            subscriptionUpdatedAt > paymentPageCreatedAt : 
-            false;
-          
-          // Aceitar apenas se AMBOS foram atualizados após criar a página
-          // Isso garante que o webhook processou um pagamento novo, não um antigo
-          const paymentProcessedAfterPage = planUpdatedAfterPage && subscriptionUpdatedAfterPage;
-          
-          // VERIFICAÇÃO FINAL: Todos os critérios devem ser atendidos
-          // 1. planId corresponde EXATAMENTE
-          // 2. subscriptionId corresponde EXATAMENTE  
-          // 3. Status é ACTIVE (já verificado acima)
-          // 4. Há confirmação de pagamento (lastPayment ou lastPaymentDate - já verificado acima)
-          // 5. CRÍTICO: Plano E assinatura foram atualizados DEPOIS de criar a página de pagamento
-          // Isso garante que é um pagamento novo, não um antigo que já estava ativo
-          if (planMatches && subscriptionMatches && paymentProcessedAfterPage) {
-            console.log('✅ Pagamento confirmado! Plano ativado:', activePlan.planName);
-            console.log('   PlanId corresponde:', planMatches, '(esperado:', paymentPage.plan.id, ', encontrado:', activePlan.planId, ')');
-            console.log('   SubscriptionId corresponde:', subscriptionMatches, '(esperado:', paymentPage.subscriptionId, ', encontrado:', activePlan.asaasSubscriptionId, ')');
-            console.log('   Status:', subscription.status);
-            console.log('   LastPayment ID:', subscription.lastPayment);
-            console.log('   LastPaymentDate:', subscription.lastPaymentDate);
-            console.log('   Plano atualizado após criar página:', planUpdatedAfterPage);
-            console.log('   Assinatura atualizada após criar página:', subscriptionUpdatedAfterPage);
-            showToast('Pagamento confirmado! Seu plano foi ativado com sucesso.', 'success');
-            setPaymentPage(null);
-            setCurrentPage('plans');
-            return;
-          } else {
-            console.log('⚠️ Aguardando confirmação do pagamento...');
-            console.log('   PlanId corresponde:', planMatches, '(esperado:', paymentPage.plan.id, ', encontrado:', activePlan.planId, ')');
-            console.log('   SubscriptionId corresponde:', subscriptionMatches, '(esperado:', paymentPage.subscriptionId, ', encontrado:', activePlan.asaasSubscriptionId, ')');
-            console.log('   Plano atualizado após criar página:', planUpdatedAfterPage);
-            console.log('   Assinatura atualizada após criar página:', subscriptionUpdatedAfterPage);
-            console.log('   Pagamento processado após criar página:', paymentProcessedAfterPage);
-            console.log('   Status:', subscription.status);
-            console.log('   ActivePlan updatedAt:', activePlan.updatedAt);
-            console.log('   Subscription updatedAt:', subscription.updatedAt);
-            console.log('   PaymentPage createdAt:', paymentPageCreatedAt);
-            console.log('   LastPayment ID:', subscription.lastPayment);
-            console.log('   LastPaymentDate:', subscription.lastPaymentDate);
-            
-            // Se o plano ativo não corresponde ao plano sendo pago, é um plano antigo
-            if (!planMatches) {
-              console.log('⚠️ ATENÇÃO: Plano ativo é diferente do plano sendo pago. Este é um plano antigo!');
-            }
-            if (!subscriptionMatches) {
-              console.log('⚠️ ATENÇÃO: SubscriptionId não corresponde. Esta é uma assinatura antiga!');
-            }
-          }
-        } catch (error) {
-          console.error('Erro ao verificar status do pagamento:', error);
-        }
-      };
-
-      // Verificar a cada 5 segundos
-      const interval = setInterval(checkPaymentStatus, 5000);
-      
-      return () => clearInterval(interval);
-    }, [paymentPage, database, user]);
-
-    return (
-      <div style={{
-        minHeight: '100vh',
-        backgroundColor: '#0f1419',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px'
-      }}>
-        <div style={{
-          backgroundColor: '#1a1f36',
-          borderRadius: '20px',
-          padding: '40px',
-          maxWidth: '600px',
-          width: '100%',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-          border: '2px solid rgba(139, 92, 246, 0.3)'
-        }}>
-          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <div style={{ fontSize: '4rem', marginBottom: '16px' }}>💳</div>
-            <h2 style={{ fontSize: '2rem', fontWeight: '700', color: '#ffffff', marginBottom: '12px' }}>
-              Finalizar Pagamento
-            </h2>
-            <p style={{ fontSize: '1.125rem', color: '#9ca3af', marginBottom: '8px' }}>
-              Plano: <strong style={{ color: '#a78bfa' }}>{paymentPage.plan.name}</strong>
-            </p>
-            <p style={{ fontSize: '1.25rem', fontWeight: '700', color: '#10b981', marginTop: '16px' }}>
-              Valor: R$ {paymentPage.value.toFixed(2)}
-            </p>
-          </div>
-
-          <div style={{
-            backgroundColor: '#0f1419',
-            borderRadius: '12px',
-            padding: '24px',
-            marginBottom: '24px',
-            border: '1px solid rgba(255,255,255,0.1)'
-          }}>
-            <p style={{ color: '#9ca3af', marginBottom: '16px', fontSize: '0.9375rem' }}>
-              Clique no botão abaixo para ser redirecionado para a página de pagamento do Asaas.
-              Após concluir o pagamento, você será redirecionado automaticamente de volta para a plataforma.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <a
-                href={paymentPage.invoiceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'block',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  padding: '16px 24px',
-                  borderRadius: '12px',
-                  textDecoration: 'none',
-                  fontWeight: '700',
-                  fontSize: '1.125rem',
-                  textAlign: 'center',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#059669';
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#10b981';
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
-                }}
-              >
-                🔗 Ir para Pagamento
-              </a>
-              <button
-                onClick={() => {
-                  setPaymentPage(null);
-                  setCurrentPage('plans');
-                }}
-                style={{
-                  backgroundColor: 'transparent',
-                  color: '#9ca3af',
-                  padding: '12px 24px',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  fontWeight: '600',
-                  fontSize: '1rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                  e.target.style.color = '#ffffff';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                  e.target.style.color = '#9ca3af';
-                }}
-              >
-                Cancelar e Voltar
-              </button>
-            </div>
-          </div>
-
-          <div style={{
-            backgroundColor: 'rgba(139, 92, 246, 0.1)',
-            borderRadius: '12px',
-            padding: '16px',
-            border: '1px solid rgba(139, 92, 246, 0.3)'
-          }}>
-            <p style={{ color: '#a78bfa', fontSize: '0.875rem', margin: 0, textAlign: 'center' }}>
-              ⏳ Aguardando confirmação do pagamento... Você será redirecionado automaticamente quando o pagamento for confirmado.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  // Componente PaymentPage removido - agora redirecionamos diretamente para o Asaas
 
   // Se não está autenticado, mostrar landing page
   if (!isAuthenticated) {
@@ -2229,15 +2002,7 @@ const FirebaseApp = () => {
     );
   }
 
-  // Se está na página de pagamento, mostrar apenas ela (NÃO pode ser fechada facilmente)
-  if (paymentPage) {
-    return (
-      <div>
-        <PaymentPage />
-        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-      </div>
-    );
-  }
+  // Não precisa mais do componente PaymentPage - redirecionamos diretamente para o Asaas
 
   // Renderizar dashboard com Firebase integrado
   return (
