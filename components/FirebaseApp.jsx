@@ -2012,6 +2012,15 @@ const FirebaseApp = () => {
             return;
           }
 
+          // CRÍTICO: Verificar se a assinatura sendo verificada corresponde EXATAMENTE à assinatura da página de pagamento
+          // Primeiro verificar se o planId da assinatura corresponde ao plano sendo pago
+          if (subscription.planId !== paymentPage.plan.id) {
+            console.log('⚠️ Assinatura encontrada não corresponde ao plano sendo pago. Aguardando assinatura correta...');
+            console.log('   Assinatura planId:', subscription.planId);
+            console.log('   Plano sendo pago planId:', paymentPage.plan.id);
+            return;
+          }
+
           // Verificar se o plano ativo corresponde ao plano que está sendo pago
           const activePlanRef = ref(database, `users/data/${user.uid}/activePlan`);
           const activePlanSnapshot = await get(activePlanRef);
@@ -2025,22 +2034,26 @@ const FirebaseApp = () => {
           const paymentPageCreatedAt = new Date(paymentPage.createdAt);
           
           // Verificar se o plano ativo corresponde EXATAMENTE ao plano sendo pago
+          // CRÍTICO: AMBOS planId E subscriptionId devem corresponder EXATAMENTE
           const planMatches = activePlan.planId === paymentPage.plan.id;
           const subscriptionMatches = activePlan.asaasSubscriptionId === paymentPage.subscriptionId;
           
-          // CRÍTICO: Só fechar se AMBOS planId E subscriptionId corresponderem
-          // E o plano foi atualizado DEPOIS da criação da assinatura (não da página de pagamento)
-          // Usar createdAt da assinatura como referência, não paymentPageCreatedAt
+          // CRÍTICO: Só fechar se AMBOS planId E subscriptionId corresponderem EXATAMENTE
+          // E o plano foi atualizado DEPOIS da criação da assinatura
           // subscriptionCreatedAt já foi definido acima na verificação de tempo
           const planUpdatedAfterSubscription = activePlan.updatedAt && subscriptionCreatedAt ? 
             new Date(activePlan.updatedAt) > subscriptionCreatedAt :
             activePlan.updatedAt && new Date(activePlan.updatedAt) > paymentPageCreatedAt;
           
-          // Se status é ACTIVE, tem lastPaymentDate, IDs correspondem e plano foi atualizado, considerar válido
+          // VERIFICAÇÃO FINAL: Todos os critérios devem ser atendidos
+          // 1. planId corresponde EXATAMENTE
+          // 2. subscriptionId corresponde EXATAMENTE  
+          // 3. Plano foi atualizado após criar a assinatura
+          // 4. lastPaymentDate foi definido com tempo suficiente (já verificado acima)
           if (planMatches && subscriptionMatches && planUpdatedAfterSubscription) {
             console.log('✅ Pagamento confirmado! Plano ativado:', activePlan.planName);
-            console.log('   PlanId corresponde:', planMatches);
-            console.log('   SubscriptionId corresponde:', subscriptionMatches);
+            console.log('   PlanId corresponde:', planMatches, '(esperado:', paymentPage.plan.id, ', encontrado:', activePlan.planId, ')');
+            console.log('   SubscriptionId corresponde:', subscriptionMatches, '(esperado:', paymentPage.subscriptionId, ', encontrado:', activePlan.asaasSubscriptionId, ')');
             console.log('   Plano atualizado após criação da assinatura:', planUpdatedAfterSubscription);
             console.log('   Status:', subscription.status);
             console.log('   LastPaymentDate:', subscription.lastPaymentDate);
@@ -2057,6 +2070,14 @@ const FirebaseApp = () => {
             console.log('   ActivePlan updatedAt:', activePlan.updatedAt);
             console.log('   Subscription createdAt:', subscriptionCreatedAt);
             console.log('   PaymentPage createdAt:', paymentPageCreatedAt);
+            
+            // Se o plano ativo não corresponde ao plano sendo pago, é um plano antigo
+            if (!planMatches) {
+              console.log('⚠️ ATENÇÃO: Plano ativo é diferente do plano sendo pago. Este é um plano antigo!');
+            }
+            if (!subscriptionMatches) {
+              console.log('⚠️ ATENÇÃO: SubscriptionId não corresponde. Esta é uma assinatura antiga!');
+            }
           }
         } catch (error) {
           console.error('Erro ao verificar status do pagamento:', error);
