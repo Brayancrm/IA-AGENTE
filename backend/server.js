@@ -4285,9 +4285,38 @@ app.post('/api/asaas/webhook', async (req, res) => {
       // 🔥 NOVO: Verificar se é pagamento de assinatura PRIMEIRO
       // CRÍTICO: Só processar se o pagamento foi REALMENTE confirmado/recebido
       // NÃO processar eventos PAYMENT_CREATED ou PAYMENT_UPDATED que ainda não foram pagos
-      if (payment.subscription) {
+      
+      // IMPORTANTE: O payment.subscription pode não estar presente no webhook
+      // Se não estiver, tentar buscar pelo externalReference que contém o subscriptionId
+      let subscriptionIdFromPayment = payment.subscription;
+      
+      if (!subscriptionIdFromPayment && payment.externalReference) {
+        // externalReference formato: subscription_initial_{userId}_{planId}
+        // Ou pode ser apenas o subscriptionId se vier direto
+        console.log('⚠️ payment.subscription não encontrado, tentando buscar por externalReference:', payment.externalReference);
+        
+        // Tentar buscar todas as assinaturas e encontrar pelo externalReference ou paymentUrl
+        const allSubsSnapshot = await db.ref('subscriptions').once('value');
+        if (allSubsSnapshot.exists()) {
+          allSubsSnapshot.forEach((userSubs) => {
+            userSubs.forEach((sub) => {
+              const subVal = sub.val();
+              // Verificar se o paymentUrl corresponde ou se o externalReference contém o planId
+              if (subVal.paymentUrl && payment.invoiceUrl && subVal.paymentUrl.includes(payment.id)) {
+                subscriptionIdFromPayment = subVal.asaasSubscriptionId;
+                console.log('✅ Assinatura encontrada pelo paymentUrl:', subscriptionIdFromPayment);
+              } else if (payment.externalReference && payment.externalReference.includes(subVal.planId)) {
+                subscriptionIdFromPayment = subVal.asaasSubscriptionId;
+                console.log('✅ Assinatura encontrada pelo externalReference:', subscriptionIdFromPayment);
+              }
+            });
+          });
+        }
+      }
+      
+      if (subscriptionIdFromPayment) {
         console.log('💎 Pagamento relacionado a assinatura detectado!');
-        console.log('   Subscription ID:', payment.subscription);
+        console.log('   Subscription ID:', subscriptionIdFromPayment);
         console.log('   Event:', event);
         console.log('   Payment Status:', payment.status);
         console.log('   Payment Date:', payment.paymentDate);
@@ -4316,7 +4345,7 @@ app.post('/api/asaas/webhook', async (req, res) => {
         if (subscriptionsSnapshot.exists()) {
           subscriptionsSnapshot.forEach((userSubs) => {
             userSubs.forEach((sub) => {
-              if (sub.val().asaasSubscriptionId === payment.subscription) {
+              if (sub.val().asaasSubscriptionId === subscriptionIdFromPayment) {
                 subUserId = userSubs.key;
                 subKey = sub.key;
               }
@@ -4421,24 +4450,10 @@ app.post('/api/asaas/webhook', async (req, res) => {
           
           return res.json({ received: true, processed: true, type: 'subscription_payment' });
       } else {
-        console.log('⚠️ Assinatura não encontrada para Subscription ID:', payment.subscription);
-        console.log('🔍 Buscando todas as assinaturas para debug...');
-        const allSubsSnapshot = await db.ref('subscriptions').once('value');
-        if (allSubsSnapshot.exists()) {
-          console.log('📋 Assinaturas encontradas no Firebase:');
-          allSubsSnapshot.forEach((userSubs) => {
-            console.log(`   Usuário: ${userSubs.key}`);
-            userSubs.forEach((sub) => {
-              const subVal = sub.val();
-              console.log(`     - Key: ${sub.key}`);
-              console.log(`       AsaasSubscriptionId: ${subVal.asaasSubscriptionId}`);
-              console.log(`       Status: ${subVal.status}`);
-            });
-          });
-        } else {
-          console.log('⚠️ Nenhuma assinatura encontrada no Firebase!');
-        }
-        return res.json({ received: true, processed: false, reason: 'Assinatura não encontrada' });
+        console.log('⚠️ Pagamento não relacionado a assinatura ou subscriptionId não encontrado');
+        console.log('   payment.subscription:', payment.subscription);
+        console.log('   payment.externalReference:', payment.externalReference);
+        console.log('   Continuando processamento como pagamento normal de pedido...');
       }
     }
     
