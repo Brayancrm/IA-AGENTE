@@ -4057,9 +4057,25 @@ app.post('/api/asaas/create-subscription', async (req, res) => {
 // Webhook Asaas (receber notificações de pagamento)
 app.post('/api/asaas/webhook', async (req, res) => {
   try {
-    console.log('📬 Webhook Asaas recebido:', req.body);
+    console.log('\n╔════════════════════════════════════════╗');
+    console.log('║  📥 WEBHOOK RECEBIDO DO ASAAS         ║');
+    console.log('╚════════════════════════════════════════╝');
+    console.log('📋 Event:', req.body.event);
+    console.log('📋 Body completo:', JSON.stringify(req.body, null, 2));
+    console.log('');
     
     const { event, payment, invoice } = req.body;
+    
+    if (payment) {
+      console.log('📋 Detalhes do Payment:');
+      console.log('   ID:', payment.id);
+      console.log('   Status:', payment.status);
+      console.log('   Subscription:', payment.subscription);
+      console.log('   PaymentDate:', payment.paymentDate);
+      console.log('   ConfirmedDate:', payment.confirmedDate);
+      console.log('   Value:', payment.value);
+      console.log('');
+    }
     
     // ============================================
     // EVENTOS DE NOTA FISCAL
@@ -4404,25 +4420,26 @@ app.post('/api/asaas/webhook', async (req, res) => {
           console.log(`✅ Assinatura renovada! Status: ACTIVE`);
           
           return res.json({ received: true, processed: true, type: 'subscription_payment' });
-        console.log('⚠️ Assinatura não encontrada para Subscription ID:', payment.subscription);
-        console.log('🔍 Buscando todas as assinaturas para debug...');
-        const allSubsSnapshot = await db.ref('subscriptions').once('value');
-        if (allSubsSnapshot.exists()) {
-          console.log('📋 Assinaturas encontradas no Firebase:');
-          allSubsSnapshot.forEach((userSubs) => {
-            console.log(`   Usuário: ${userSubs.key}`);
-            userSubs.forEach((sub) => {
-              const subVal = sub.val();
-              console.log(`     - Key: ${sub.key}`);
-              console.log(`       AsaasSubscriptionId: ${subVal.asaasSubscriptionId}`);
-              console.log(`       Status: ${subVal.status}`);
-            });
-          });
         } else {
-          console.log('⚠️ Nenhuma assinatura encontrada no Firebase!');
+          console.log('⚠️ Assinatura não encontrada para Subscription ID:', payment.subscription);
+          console.log('🔍 Buscando todas as assinaturas para debug...');
+          const allSubsSnapshot = await db.ref('subscriptions').once('value');
+          if (allSubsSnapshot.exists()) {
+            console.log('📋 Assinaturas encontradas no Firebase:');
+            allSubsSnapshot.forEach((userSubs) => {
+              console.log(`   Usuário: ${userSubs.key}`);
+              userSubs.forEach((sub) => {
+                const subVal = sub.val();
+                console.log(`     - Key: ${sub.key}`);
+                console.log(`       AsaasSubscriptionId: ${subVal.asaasSubscriptionId}`);
+                console.log(`       Status: ${subVal.status}`);
+              });
+            });
+          } else {
+            console.log('⚠️ Nenhuma assinatura encontrada no Firebase!');
+          }
+          return res.json({ received: true, processed: false, reason: 'Assinatura não encontrada' });
         }
-        return res.json({ received: true, processed: false, reason: 'Assinatura não encontrada' });
-      }
     
     // Buscar pedido pelo externalReference (código original)
     const ordersSnapshot = await db.ref('orders').once('value');
