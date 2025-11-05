@@ -4234,34 +4234,12 @@ app.post('/api/asaas/webhook', async (req, res) => {
       await db.ref(`subscriptions/${userId}/${subscriptionKey}`).update(updateData);
       console.log(`✅ Assinatura ${subscriptionKey} atualizada no Firebase`);
       
-      // Atualizar activePlan se necessário
-      const activePlanRef = db.ref(`users/data/${userId}/activePlan`);
-      const activePlanSnapshot = await activePlanRef.once('value');
+      // CRÍTICO: NÃO criar/ativar activePlan aqui para eventos de criação/atualização de assinatura
+      // O activePlan só deve ser criado quando houver um PAGAMENTO CONFIRMADO (PAYMENT_RECEIVED/CONFIRMED)
+      // Eventos SUBSCRIPTION_CREATED ou SUBSCRIPTION_ACTIVATED não significam que houve pagamento
+      // O plano só será ativado quando o webhook processar um PAYMENT_RECEIVED/CONFIRMED relacionado à assinatura
       
-      if (activePlanSnapshot.exists() && activePlanSnapshot.val().subscriptionId === subscriptionKey) {
-        const planUpdateData = {
-          nextDueDate: subscription.nextDueDate,
-          updatedAt: new Date().toISOString()
-        };
-        
-        // Se assinatura foi cancelada, desativar plano
-        if (subscription.status === 'CANCELLED' || subscription.status === 'DELETED') {
-          console.log('⚠️ Assinatura cancelada. Desativando plano do usuário...');
-          await db.ref(`users/data/${userId}`).update({ activePlan: null });
-          console.log('✅ Plano desativado');
-        } else {
-          await activePlanRef.update(planUpdateData);
-          console.log('✅ activePlan atualizado');
-        }
-      }
-      
-      // Eventos específicos de pagamento de assinatura
-      if (event === 'SUBSCRIPTION_PAYMENT' && payment) {
-        console.log('✅ Pagamento de assinatura recebido:', payment.id);
-        
-        // Incrementar contador de uso se necessário
-        // ou fazer qualquer outra ação necessária
-      }
+      console.log(`ℹ️ Assinatura atualizada, mas plano NÃO será ativado até pagamento confirmado`);
       
       return res.json({ received: true, processed: true, event, subscriptionKey });
     }
