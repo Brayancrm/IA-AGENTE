@@ -1976,14 +1976,17 @@ const FirebaseApp = () => {
           });
 
           // CRÍTICO: Só considerar pagamento confirmado se:
-          // 1. Há um lastPaymentDate OU lastPayment (indicando que houve pagamento confirmado pelo webhook)
+          // 1. Há um lastPayment ID (indicando que houve um pagamento REAL processado pelo webhook)
           // 2. E status é 'active' ou 'ACTIVE' (webhook atualizou)
           // 3. E o plano ativo corresponde EXATAMENTE ao plano sendo pago
-          // IMPORTANTE: Não comparar lastPaymentDate com paymentPageCreatedAt porque o webhook pode processar ANTES
-          const hasPaymentDate = subscription.lastPaymentDate || subscription.lastPayment;
+          // IMPORTANTE: Não confiar apenas em lastPaymentDate porque pode ser definido antes do pagamento real
+          // O lastPayment ID é mais confiável pois só é definido quando o webhook processa um pagamento REAL
           
-          if (!hasPaymentDate) {
-            console.log('⏳ Aguardando confirmação de pagamento (sem lastPaymentDate ainda)...');
+          // Verificar se há um lastPayment ID válido (isso confirma que um pagamento foi realmente processado)
+          if (!subscription.lastPayment) {
+            console.log('⏳ Aguardando confirmação de pagamento (sem lastPayment ID ainda)...');
+            console.log('   lastPaymentDate existe?', !!subscription.lastPaymentDate);
+            console.log('   Isso significa que o webhook ainda não processou um pagamento real.');
             return;
           }
 
@@ -1992,6 +1995,25 @@ const FirebaseApp = () => {
           if (!hasActiveStatus) {
             console.log('⏳ Assinatura ainda não está ativa. Status:', subscription.status);
             return;
+          }
+          
+          // Verificar se o plano foi atualizado DEPOIS da criação da página de pagamento
+          // Isso garante que o webhook processou o pagamento após o usuário ver a página
+          const subscriptionCreatedAt = subscription.createdAt ? new Date(subscription.createdAt) : null;
+          const paymentPageCreatedAt = new Date(paymentPage.createdAt);
+          
+          // Se a assinatura foi criada DEPOIS da página de pagamento, é uma assinatura nova válida
+          // Mas se foi criada ANTES, precisamos verificar se foi atualizada depois
+          if (subscriptionCreatedAt && subscriptionCreatedAt < paymentPageCreatedAt) {
+            // Assinatura antiga - só aceitar se foi atualizada após criar a página
+            const subscriptionUpdatedAt = subscription.updatedAt ? new Date(subscription.updatedAt) : null;
+            if (!subscriptionUpdatedAt || subscriptionUpdatedAt <= paymentPageCreatedAt) {
+              console.log('⏳ Aguardando atualização da assinatura após criar a página de pagamento...');
+              console.log('   Subscription createdAt:', subscriptionCreatedAt);
+              console.log('   Subscription updatedAt:', subscriptionUpdatedAt);
+              console.log('   PaymentPage createdAt:', paymentPageCreatedAt);
+              return;
+            }
           }
 
           // CRÍTICO: Verificar se a assinatura sendo verificada corresponde EXATAMENTE à assinatura da página de pagamento
@@ -2013,7 +2035,6 @@ const FirebaseApp = () => {
           }
 
           const activePlan = activePlanSnapshot.val();
-          const paymentPageCreatedAt = new Date(paymentPage.createdAt);
           
           // Verificar se o plano ativo corresponde EXATAMENTE ao plano sendo pago
           // CRÍTICO: AMBOS planId E subscriptionId devem corresponder EXATAMENTE
@@ -2024,7 +2045,8 @@ const FirebaseApp = () => {
           // 1. planId corresponde EXATAMENTE
           // 2. subscriptionId corresponde EXATAMENTE  
           // 3. Status é ACTIVE (já verificado acima)
-          // 4. lastPaymentDate existe (já verificado acima)
+          // 4. lastPayment ID existe (já verificado acima - confirma pagamento real)
+          // 5. Assinatura foi atualizada após criar a página (já verificado acima)
           // Se todos esses critérios são atendidos, o pagamento foi confirmado pelo webhook
           if (planMatches && subscriptionMatches) {
             console.log('✅ Pagamento confirmado! Plano ativado:', activePlan.planName);
@@ -2042,8 +2064,9 @@ const FirebaseApp = () => {
             console.log('   SubscriptionId corresponde:', subscriptionMatches, '(esperado:', paymentPage.subscriptionId, ', encontrado:', activePlan.asaasSubscriptionId, ')');
             console.log('   Status:', subscription.status);
             console.log('   ActivePlan updatedAt:', activePlan.updatedAt);
-            console.log('   PaymentPage createdAt:', paymentPageCreatedAt);
+            console.log('   PaymentPage createdAt:', new Date(paymentPage.createdAt));
             console.log('   LastPaymentDate:', subscription.lastPaymentDate);
+            console.log('   LastPayment ID:', subscription.lastPayment);
             
             // Se o plano ativo não corresponde ao plano sendo pago, é um plano antigo
             if (!planMatches) {
