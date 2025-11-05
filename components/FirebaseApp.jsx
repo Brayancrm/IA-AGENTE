@@ -1987,20 +1987,22 @@ const FirebaseApp = () => {
             return;
           }
 
-          // CRÍTICO: Verificar se o lastPaymentDate foi definido DEPOIS de um tempo mínimo
-          // Se lastPaymentDate é muito próximo ao createdAt (menos de 15 segundos), pode ser um webhook prematuro
-          // Isso garante que o usuário realmente teve tempo de pagar
+          // Verificar se há um lastPaymentDate válido (indicando que o webhook processou o pagamento)
+          // Se há um lastPaymentDate E lastPayment, significa que o webhook já processou o pagamento
+          // NÃO bloquear baseado apenas no tempo, pois pagamentos Pix podem ser confirmados rapidamente
           const paymentDate = subscription.lastPaymentDate ? new Date(subscription.lastPaymentDate) : null;
           const subscriptionCreatedAt = subscription.createdAt ? new Date(subscription.createdAt) : null;
           
+          // Apenas verificar se há um tempo negativo (erro de dados) ou se é muito rápido (menos de 1 segundo)
+          // Isso é apenas para evitar falsos positivos imediatos, não para bloquear pagamentos reais
           if (paymentDate && subscriptionCreatedAt) {
             const timeDiffSeconds = (paymentDate.getTime() - subscriptionCreatedAt.getTime()) / 1000;
             
-            // Se o pagamento foi confirmado em menos de 15 segundos após criar a assinatura,
-            // é muito rápido para ser um pagamento real do usuário
-            if (timeDiffSeconds < 15) {
-              console.log('⚠️ lastPaymentDate muito próximo ao createdAt (', Math.round(timeDiffSeconds), 's). Aguardando pagamento real...');
-              console.log('   Isso pode ser um webhook prematuro do Asaas. O usuário precisa ter tempo de pagar.');
+            // Se o pagamento foi "confirmado" ANTES de criar a assinatura (tempo negativo), há um erro
+            // Ou se foi confirmado em menos de 1 segundo (provavelmente um erro de sincronização)
+            if (timeDiffSeconds < 1) {
+              console.log('⚠️ lastPaymentDate muito próximo ao createdAt (', Math.round(timeDiffSeconds), 's). Isso pode ser um erro de sincronização.');
+              console.log('   Aguardando mais tempo para confirmar...');
               return;
             }
           }

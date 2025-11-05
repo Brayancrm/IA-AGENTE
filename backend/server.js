@@ -4332,9 +4332,19 @@ app.post('/api/asaas/webhook', async (req, res) => {
         }
         
         // Atualizar assinatura
+        // Usar paymentDate do Asaas se disponível, caso contrário usar a data/hora atual
+        // O paymentDate do Asaas é mais confiável pois representa quando o pagamento foi realmente processado
+        const paymentDate = payment.paymentDate || payment.confirmedDate || payment.dateCreated || new Date().toISOString();
+        
+        console.log('📅 Datas de pagamento disponíveis:');
+        console.log('   payment.paymentDate:', payment.paymentDate);
+        console.log('   payment.confirmedDate:', payment.confirmedDate);
+        console.log('   payment.dateCreated:', payment.dateCreated);
+        console.log('   Usando:', paymentDate);
+        
         await subDataRef.update({
           lastPayment: payment.id,
-          lastPaymentDate: payment.paymentDate || new Date().toISOString(),
+          lastPaymentDate: paymentDate,
           nextDueDate: nextDueDate,
           status: 'ACTIVE',
           updatedAt: new Date().toISOString()
