@@ -4404,9 +4404,24 @@ app.post('/api/asaas/webhook', async (req, res) => {
           console.log(`✅ Assinatura renovada! Status: ACTIVE`);
           
           return res.json({ received: true, processed: true, type: 'subscription_payment' });
+        console.log('⚠️ Assinatura não encontrada para Subscription ID:', payment.subscription);
+        console.log('🔍 Buscando todas as assinaturas para debug...');
+        const allSubsSnapshot = await db.ref('subscriptions').once('value');
+        if (allSubsSnapshot.exists()) {
+          console.log('📋 Assinaturas encontradas no Firebase:');
+          allSubsSnapshot.forEach((userSubs) => {
+            console.log(`   Usuário: ${userSubs.key}`);
+            userSubs.forEach((sub) => {
+              const subVal = sub.val();
+              console.log(`     - Key: ${sub.key}`);
+              console.log(`       AsaasSubscriptionId: ${subVal.asaasSubscriptionId}`);
+              console.log(`       Status: ${subVal.status}`);
+            });
+          });
         } else {
-          console.log('⚠️ Assinatura não encontrada para Subscription ID:', payment.subscription);
+          console.log('⚠️ Nenhuma assinatura encontrada no Firebase!');
         }
+        return res.json({ received: true, processed: false, reason: 'Assinatura não encontrada' });
       }
     
     // Buscar pedido pelo externalReference (código original)
