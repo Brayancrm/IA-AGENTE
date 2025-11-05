@@ -2031,7 +2031,7 @@ const FirebaseApp = () => {
           // CRÍTICO: Só fechar se AMBOS planId E subscriptionId corresponderem
           // E o plano foi atualizado DEPOIS da criação da assinatura (não da página de pagamento)
           // Usar createdAt da assinatura como referência, não paymentPageCreatedAt
-          const subscriptionCreatedAt = subscription.createdAt ? new Date(subscription.createdAt) : null;
+          // subscriptionCreatedAt já foi definido acima na verificação de tempo
           const planUpdatedAfterSubscription = activePlan.updatedAt && subscriptionCreatedAt ? 
             new Date(activePlan.updatedAt) > subscriptionCreatedAt :
             activePlan.updatedAt && new Date(activePlan.updatedAt) > paymentPageCreatedAt;
