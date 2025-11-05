@@ -1987,6 +1987,24 @@ const FirebaseApp = () => {
             return;
           }
 
+          // CRÍTICO: Verificar se o lastPaymentDate foi definido DEPOIS de um tempo mínimo
+          // Se lastPaymentDate é muito próximo ao createdAt (menos de 15 segundos), pode ser um webhook prematuro
+          // Isso garante que o usuário realmente teve tempo de pagar
+          const paymentDate = subscription.lastPaymentDate ? new Date(subscription.lastPaymentDate) : null;
+          const subscriptionCreatedAt = subscription.createdAt ? new Date(subscription.createdAt) : null;
+          
+          if (paymentDate && subscriptionCreatedAt) {
+            const timeDiffSeconds = (paymentDate.getTime() - subscriptionCreatedAt.getTime()) / 1000;
+            
+            // Se o pagamento foi confirmado em menos de 15 segundos após criar a assinatura,
+            // é muito rápido para ser um pagamento real do usuário
+            if (timeDiffSeconds < 15) {
+              console.log('⚠️ lastPaymentDate muito próximo ao createdAt (', Math.round(timeDiffSeconds), 's). Aguardando pagamento real...');
+              console.log('   Isso pode ser um webhook prematuro do Asaas. O usuário precisa ter tempo de pagar.');
+              return;
+            }
+          }
+
           const hasActiveStatus = subscription.status === 'active' || subscription.status === 'ACTIVE';
           
           if (!hasActiveStatus) {
