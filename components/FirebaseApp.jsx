@@ -2627,33 +2627,33 @@ const DashboardWithFirebase = ({
     const categories = [...new Set(validItems.map(i => i.category).filter(Boolean))];
 
     return (
-      <div className="p-6 lg:p-10 space-y-6 max-w-[1400px] mx-auto">
+      <div className={`${isMobile ? 'p-4' : 'p-6 lg:p-10'} space-y-6 max-w-[1400px] mx-auto`} style={{ width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
         {/* Header Modernizado */}
         <div className="mb-8">
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <h2 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
-                <span className="text-5xl">📦</span>
+          <div className={`flex ${isMobile ? 'flex-col' : 'justify-between'} items-start mb-2`} style={{ gap: isMobile ? '16px' : '0' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h2 className={`${isMobile ? 'text-2xl' : 'text-4xl'} font-bold text-white mb-2 flex items-center gap-3`}>
+                <span className={isMobile ? 'text-3xl' : 'text-5xl'}>📦</span>
                 Catálogo
               </h2>
-              <p className="text-base text-gray-400">
+              <p className={`${isMobile ? 'text-sm' : 'text-base'} text-gray-400`}>
                 Gerencie seus produtos e serviços em um só lugar
               </p>
             </div>
-          <div className="flex space-x-3">
+          <div className={`flex ${isMobile ? 'flex-col w-full' : 'space-x-3'}`} style={{ gap: isMobile ? '8px' : '0' }}>
             <button
               onClick={() => setShowImportModal(true)}
-                className="bg-gradient-to-br from-gray-800 to-gray-900 text-gray-300 px-5 py-2.5 rounded-xl font-semibold hover:from-gray-700 hover:to-gray-800 transition-all shadow-sm hover:shadow-md transform hover:-translate-y-0.5 flex items-center space-x-2 border border-gray-700"
+                className={`bg-gradient-to-br from-gray-800 to-gray-900 text-gray-300 ${isMobile ? 'px-4 py-2 w-full' : 'px-5 py-2.5'} rounded-xl font-semibold hover:from-gray-700 hover:to-gray-800 transition-all shadow-sm hover:shadow-md transform hover:-translate-y-0.5 flex items-center ${isMobile ? 'justify-center' : ''} space-x-2 border border-gray-700`}
             >
-              <Upload className="w-4 h-4" />
-              <span>Importar</span>
+              <Upload className={isMobile ? 'w-3 h-3' : 'w-4 h-4'} />
+              <span className={isMobile ? 'text-sm' : ''}>Importar</span>
             </button>
             <button
               onClick={() => openCatalogModal()}
-                className="bg-gradient-to-br from-green-600 to-green-700 text-white px-6 py-3 rounded-xl font-bold hover:from-green-700 hover:to-green-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center space-x-2 border border-green-500"
+                className={`bg-gradient-to-br from-green-600 to-green-700 text-white ${isMobile ? 'px-4 py-2 w-full' : 'px-6 py-3'} rounded-xl font-bold hover:from-green-700 hover:to-green-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center ${isMobile ? 'justify-center' : ''} space-x-2 border border-green-500`}
             >
-              <Plus className="w-5 h-5" />
-              <span>Novo Item</span>
+              <Plus className={isMobile ? 'w-4 h-4' : 'w-5 h-5'} />
+              <span className={isMobile ? 'text-sm' : ''}>Novo Item</span>
             </button>
             </div>
           </div>
@@ -3072,15 +3072,15 @@ const DashboardWithFirebase = ({
     };
     
     return (
-      <div style={{ padding: '40px', maxWidth: '1400px', margin: '0 auto' }}>
+      <div style={{ padding: getResponsivePadding(), maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
         {/* Header */}
         <div style={{ marginBottom: '32px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div>
-              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: '16px', gap: isMobile ? '16px' : '0' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
               📅 Agendamentos
             </h2>
-              <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
+              <p style={{ fontSize: isMobile ? '0.875rem' : '1rem', color: '#9ca3af' }}>
                 Gerencie todos os agendamentos e compromissos
               </p>
             </div>
@@ -3089,17 +3089,19 @@ const DashboardWithFirebase = ({
               style={{
                 background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                 color: 'white',
-                padding: '14px 28px',
+                padding: isMobile ? '10px 16px' : '14px 28px',
                 borderRadius: '12px',
                 border: 'none',
                 cursor: 'pointer',
-                fontSize: '1rem',
+                fontSize: isMobile ? '0.875rem' : '1rem',
                 fontWeight: '600',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
                 transition: 'all 0.2s ease',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                whiteSpace: 'nowrap',
+                width: isMobile ? '100%' : 'auto'
               }}
               onMouseEnter={(e) => {
                 e.target.style.transform = 'translateY(-2px)';
@@ -3474,17 +3476,19 @@ const DashboardWithFirebase = ({
         </div>
 
           {/* Grid do Calendário */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '2px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', overflow: 'hidden', width: '100%' }}>
           {/* Cabeçalhos dos dias da semana */}
           {diasDaSemana.map(day => (
             <div key={day} style={{
-              padding: '12px',
+              padding: isMobile ? '8px 4px' : '12px',
               textAlign: 'center',
               fontWeight: '600',
               color: '#9ca3af',
-              fontSize: '0.875rem',
+              fontSize: isMobile ? '0.75rem' : '0.875rem',
               backgroundColor: '#0f1419',
-              border: '1px solid rgba(255,255,255,0.1)'
+              border: '1px solid rgba(255,255,255,0.1)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
             }}>
               {day}
             </div>
@@ -3607,7 +3611,7 @@ const DashboardWithFirebase = ({
     // Se não tem acesso, mostrar mensagem e redirecionar para planos
     if (!hasAccess && !isMasterOnly) {
       return (
-        <div style={{ padding: '40px', maxWidth: '900px', margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ padding: getResponsivePadding(), maxWidth: '900px', margin: '0 auto', textAlign: 'center', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
           <div style={{ backgroundColor: '#1a1f36', borderRadius: '20px', padding: '48px', border: '2px solid rgba(239, 68, 68, 0.3)' }}>
             <div style={{ fontSize: '64px', marginBottom: '24px' }}>🔒</div>
             <h2 style={{ fontSize: '2rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px' }}>
@@ -3649,10 +3653,10 @@ const DashboardWithFirebase = ({
     switch (currentPage) {
       case 'dashboard':
         return (
-          <div style={{ padding: '40px', maxWidth: '1400px', margin: '0 auto' }}>
+          <div style={{ padding: getResponsivePadding(), maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
               Dashboard
             </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
@@ -4068,10 +4072,10 @@ const DashboardWithFirebase = ({
 
       case 'company':
         return (
-          <div style={{ padding: '40px', maxWidth: '900px', margin: '0 auto' }}>
+          <div style={{ padding: getResponsivePadding(), maxWidth: '900px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
               Cadastro do Usuário
             </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
@@ -4083,7 +4087,7 @@ const DashboardWithFirebase = ({
             <div style={{ 
               backgroundColor: '#1a1f36', 
               borderRadius: '20px', 
-              padding: '40px', 
+              padding: getResponsivePadding(), 
               boxShadow: '0 4px 12px rgba(0,0,0,0.3)', 
               border: '1px solid rgba(16, 185, 129, 0.2)' 
             }}>
@@ -4283,10 +4287,10 @@ const DashboardWithFirebase = ({
 
       case 'integrations':
         return (
-          <div style={{ padding: '40px', maxWidth: '1000px', margin: '0 auto' }}>
+          <div style={{ padding: getResponsivePadding(), maxWidth: '1000px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
               Integrações
             </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
@@ -4294,7 +4298,7 @@ const DashboardWithFirebase = ({
               </p>
             </div>
 
-            <div style={{ backgroundColor: '#1a1f36', borderRadius: '20px', padding: '40px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+            <div style={{ backgroundColor: '#1a1f36', borderRadius: '20px', padding: getResponsivePadding(), boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.2)', width: '100%', boxSizing: 'border-box' }}>
               <form onSubmit={handleIntegrationsSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                 {/* OpenAI API */}
                 <div style={{ 
@@ -4392,7 +4396,7 @@ const DashboardWithFirebase = ({
                     <label style={{ display: 'block', fontWeight: '600', marginBottom: '10px', color: '#1e40af', fontSize: '0.875rem' }}>
                       📎 Webhook URL
                     </label>
-                    <div style={{ display: 'flex', gap: '10px' }}>
+                    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '10px', alignItems: isMobile ? 'stretch' : 'center' }}>
                       <input
                         type="text"
                         value={`https://your-api.com/webhook/${user?.uid}`}
@@ -4402,10 +4406,13 @@ const DashboardWithFirebase = ({
                           padding: '12px 14px',
                           borderRadius: '10px',
                           border: '1px solid #bfdbfe',
-                          fontSize: '0.875rem',
+                          fontSize: isMobile ? '0.75rem' : '0.875rem',
                           backgroundColor: 'white',
                           color: '#64748b',
-                          fontFamily: 'monospace'
+                          fontFamily: 'monospace',
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          minWidth: 0
                         }}
                       />
                       <button
@@ -4417,14 +4424,16 @@ const DashboardWithFirebase = ({
                         style={{
                           background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                           color: 'white',
-                          padding: '12px 20px',
+                          padding: isMobile ? '10px 16px' : '12px 20px',
                           borderRadius: '10px',
                           border: 'none',
                           cursor: 'pointer',
                           fontWeight: '600',
-                          fontSize: '0.875rem',
+                          fontSize: isMobile ? '0.75rem' : '0.875rem',
                           transition: 'all 0.2s ease',
-                          boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                          boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+                          whiteSpace: 'nowrap',
+                          width: isMobile ? '100%' : 'auto'
                         }}
                         onMouseEnter={(e) => {
                           e.target.style.transform = 'translateY(-2px)';
@@ -4788,7 +4797,7 @@ const DashboardWithFirebase = ({
         const currentIsConnecting = isConnecting || false;
         
         return (
-          <div style={{ padding: '40px', maxWidth: '1100px', margin: '0 auto' }}>
+          <div style={{ padding: getResponsivePadding(), maxWidth: '1100px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -5147,7 +5156,7 @@ const DashboardWithFirebase = ({
 
       case 'assistant': 
         return (
-          <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{ padding: getResponsivePadding(), maxWidth: '1200px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -5498,9 +5507,9 @@ const DashboardWithFirebase = ({
 
       case 'plans':
         return (
-          <div style={{ padding: '40px', maxWidth: '1400px', margin: '0 auto' }}>
+          <div style={{ padding: getResponsivePadding(), maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
                 💎 Planos e Assinaturas
               </h2>
               <p style={{ fontSize: '1.125rem', color: '#9ca3af' }}>
@@ -5805,9 +5814,9 @@ const DashboardWithFirebase = ({
 
       case 'users':
         return (
-          <div style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#ffffff' }}>
+          <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: '24px', gap: isMobile ? '16px' : '0' }}>
+              <h2 style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 'bold', color: '#ffffff' }}>
                 Gerenciar Usuários
               </h2>
               <button
@@ -5815,13 +5824,16 @@ const DashboardWithFirebase = ({
                 style={{
                   background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                   color: 'white',
-                  padding: '12px 24px',
+                  padding: isMobile ? '10px 16px' : '12px 24px',
                   borderRadius: '12px',
                   border: 'none',
                   fontWeight: '600',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                  fontSize: isMobile ? '0.875rem' : '1rem',
+                  whiteSpace: 'nowrap',
+                  width: isMobile ? '100%' : 'auto'
                 }}
                 onMouseEnter={(e) => {
                   e.target.style.transform = 'translateY(-2px)';
@@ -5988,7 +6000,90 @@ const DashboardWithFirebase = ({
   ];
 
   return (
-        <div style={{ minHeight: '100vh', backgroundColor: '#0f1419', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
+        <>
+          {/* Estilos CSS para Mobile */}
+          <style jsx global>{`
+            * {
+              box-sizing: border-box;
+            }
+            
+            body {
+              overflow-x: hidden;
+              max-width: 100vw;
+            }
+            
+            /* Estilos responsivos para mobile */
+            @media (max-width: 768px) {
+              .main-content {
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+                overflow-x: hidden !important;
+                max-width: 100vw !important;
+              }
+              
+              /* Reduzir padding geral */
+              [style*="padding: 40px"] {
+                padding: 16px !important;
+              }
+              
+              [style*="padding: '40px'"] {
+                padding: 16px !important;
+              }
+              
+              /* Reduzir tamanhos de fonte */
+              h1, h2, h3 {
+                font-size: 1.5rem !important;
+              }
+              
+              /* Garantir que inputs e botões não ultrapassem */
+              input, textarea, select, button {
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+              }
+              
+              /* Tabelas responsivas */
+              table {
+                display: block !important;
+                overflow-x: auto !important;
+                white-space: nowrap !important;
+                width: 100% !important;
+              }
+              
+              /* Cards e containers */
+              [style*="maxWidth"] {
+                max-width: 100% !important;
+                padding-left: 16px !important;
+                padding-right: 16px !important;
+              }
+              
+              /* Grids responsivos */
+              [style*="gridTemplateColumns"] {
+                grid-template-columns: 1fr !important;
+              }
+              
+              /* Reduzir ícones */
+              [style*="fontSize: '2rem'"],
+              [style*="fontSize: '1.5rem'"] {
+                font-size: 1.25rem !important;
+              }
+              
+              /* Botões com texto longo */
+              button {
+                white-space: normal !important;
+                word-wrap: break-word !important;
+                padding: 10px 12px !important;
+                font-size: 0.875rem !important;
+              }
+              
+              /* Calendário responsivo */
+              [style*="gridTemplateColumns: 'repeat(7"] {
+                grid-template-columns: repeat(7, minmax(40px, 1fr)) !important;
+                font-size: 0.75rem !important;
+              }
+            }
+          `}</style>
+          
+        <div style={{ minHeight: '100vh', backgroundColor: '#0f1419', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', overflowX: 'hidden', maxWidth: '100vw' }}>
 
             {/* Overlay escuro quando sidebar aberto em mobile */}
             {isMobile && isMobileMenuOpen && (
@@ -6236,6 +6331,8 @@ const DashboardWithFirebase = ({
                 minHeight: '100vh',
                 backgroundColor: '#0f1419',
                 overflowY: 'auto',
+                overflowX: 'hidden',
+                maxWidth: '100vw',
                 transition: 'margin-left 0.3s ease'
               }}
             >
@@ -7873,6 +7970,7 @@ const DashboardWithFirebase = ({
         </div>
       )}
     </div>
+        </>
   );
 };
 
