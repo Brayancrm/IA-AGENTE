@@ -571,19 +571,18 @@ export default function ConversasSimples({ userId, backendUrl }) {
                 backgroundColor: '#0f1419',
                 position: 'relative'
               }}>
-                {/* Background da conversa - você pode alterar aqui */}
+                {/* Background da conversa */}
                 <div style={{
                   position: 'absolute',
                   top: 0,
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  // Usar imagem de background
                   backgroundImage: 'url(/whatsapp-bg.png)',
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   backgroundRepeat: 'no-repeat',
-                  opacity: 0.3,
+                  opacity: 0.15,
                   pointerEvents: 'none',
                   zIndex: 0
                 }}></div>
