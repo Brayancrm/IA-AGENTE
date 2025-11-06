@@ -96,8 +96,24 @@ const FirebaseApp = () => {
   
   // CRM temporariamente desativado - será reconstruído depois
   
-  // Estado do menu mobile - REMOVIDO para evitar erros
-  // const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(true);
+  // Estado do menu mobile
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detectar se está em mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      // Em mobile, fechar sidebar por padrão
+      if (window.innerWidth < 768) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   
   // URL do backend
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
@@ -5959,11 +5975,54 @@ const DashboardWithFirebase = ({
   return (
         <div style={{ minHeight: '100vh', backgroundColor: '#0f1419', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
 
-            {/* Sidebar Modernizada - FIXA E CONGELADA */}
+            {/* Overlay escuro quando sidebar aberto em mobile */}
+            {isMobile && isMobileMenuOpen && (
+              <div
+                onClick={() => setIsMobileMenuOpen(false)}
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  zIndex: 999,
+                  transition: 'opacity 0.3s ease'
+                }}
+              />
+            )}
+
+            {/* Botão Hambúrguer - apenas em mobile */}
+            {isMobile && (
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                style={{
+                  position: 'fixed',
+                  top: '16px',
+                  left: '16px',
+                  zIndex: 1001,
+                  backgroundColor: '#1a1f36',
+                  border: '2px solid rgba(16, 185, 129, 0.3)',
+                  borderRadius: '8px',
+                  padding: '10px',
+                  color: '#10b981',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '24px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                }}
+              >
+                {isMobileMenuOpen ? '✕' : '☰'}
+              </button>
+            )}
+
+            {/* Sidebar Modernizada - Responsivo */}
             <div 
               style={{ 
                 position: 'fixed',
-                left: 0,
+                left: isMobile && !isMobileMenuOpen ? '-280px' : 0,
                 top: 0,
                 width: '280px',
                 minWidth: '280px',
@@ -5979,7 +6038,8 @@ const DashboardWithFirebase = ({
                 overflowY: 'auto',
                 zIndex: 1000,
                 transform: 'scale(1)',
-                transformOrigin: 'top left'
+                transformOrigin: 'top left',
+                transition: 'left 0.3s ease'
               }}
             >
           {/* Logo */}
@@ -6050,6 +6110,10 @@ const DashboardWithFirebase = ({
                       setCurrentPage('plans');
                     } else {
                       setCurrentPage(item.id);
+                      // Fechar sidebar em mobile após clicar
+                      if (isMobile) {
+                        setIsMobileMenuOpen(false);
+                      }
                     }
                   }}
                 style={{
@@ -6148,14 +6212,16 @@ const DashboardWithFirebase = ({
           </div>
         </div>
 
-            {/* Main Content - COM MARGEM PARA A SIDEBAR FIXA */}
+            {/* Main Content - Responsivo */}
             <div 
               className="main-content"
               style={{ 
-                marginLeft: '280px',
+                marginLeft: isMobile ? '0' : '280px',
+                paddingTop: isMobile ? '60px' : '0',
                 minHeight: '100vh',
                 backgroundColor: '#0f1419',
-                overflowY: 'auto'
+                overflowY: 'auto',
+                transition: 'margin-left 0.3s ease'
               }}
             >
           {renderContent()}
