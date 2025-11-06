@@ -18,6 +18,33 @@ export default function ConversasSimples({ userId, backendUrl }) {
   const [mensagemInput, setMensagemInput] = useState('');
   const [enviandoMensagem, setEnviandoMensagem] = useState(false);
   const [whatsappStatus, setWhatsappStatus] = useState('checking'); // checking, connected, disconnected
+  const [isMobile, setIsMobile] = useState(false);
+  const [showConversationList, setShowConversationList] = useState(true);
+
+  // Detectar se está em mobile
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      // Em mobile, mostrar lista por padrão se não houver conversa selecionada
+      if (mobile && !conversaSelecionada) {
+        setShowConversationList(true);
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [conversaSelecionada]);
+
+  // Quando selecionar uma conversa em mobile, esconder a lista
+  useEffect(() => {
+    if (isMobile && conversaSelecionada) {
+      setShowConversationList(false);
+    }
+  }, [conversaSelecionada, isMobile]);
 
   // Esperar o Firebase Auth estar REALMENTE pronto
   useEffect(() => {
@@ -293,33 +320,37 @@ export default function ConversasSimples({ userId, backendUrl }) {
   }
 
   return (
-    <div style={{ padding: '40px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ padding: isMobile ? '16px' : '40px', maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
       {/* Header */}
       <div style={{ marginBottom: '32px' }}>
-        <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+        <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
           💬 Conversas WhatsApp ({conversas.length})
         </h2>
-        <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
+        <p style={{ fontSize: isMobile ? '0.875rem' : '1rem', color: '#9ca3af' }}>
           Acompanhe todas as conversas do WhatsApp em tempo real
         </p>
       </div>
 
       <div style={{ 
         display: 'flex', 
+        flexDirection: isMobile ? 'column' : 'row',
         gap: '16px', 
-        height: 'calc(100% - 80px)', 
+        height: isMobile ? 'auto' : 'calc(100% - 80px)', 
         backgroundColor: '#1a1f36', 
         borderRadius: '16px', 
         boxShadow: '0 4px 6px rgba(0,0,0,0.3)', 
         border: '1px solid rgba(255,255,255,0.1)',
-        overflow: 'hidden' 
+        overflow: 'hidden',
+        minHeight: isMobile ? '500px' : '600px'
       }}>
-        {/* Lista de Conversas - Esquerda */}
+        {/* Lista de Conversas - Esquerda (ou em cima no mobile) */}
         <div style={{ 
-          width: '350px', 
-          borderRight: '1px solid rgba(255,255,255,0.1)', 
-          display: 'flex', 
-          flexDirection: 'column' 
+          width: isMobile ? '100%' : '350px',
+          display: isMobile && !showConversationList ? 'none' : 'flex',
+          flexDirection: 'column',
+          borderRight: isMobile ? 'none' : '1px solid rgba(255,255,255,0.1)',
+          borderBottom: isMobile && showConversationList ? '1px solid rgba(255,255,255,0.1)' : 'none',
+          maxHeight: isMobile ? '400px' : 'none'
         }}>
           {/* Header da lista */}
           <div style={{ 
@@ -386,13 +417,30 @@ export default function ConversasSimples({ userId, backendUrl }) {
                 return (
                   <div
                     key={conv.contactNumber}
-                    onClick={() => setConversaSelecionada(conv.contactNumber)}
+                    onClick={() => {
+                      setConversaSelecionada(conv.contactNumber);
+                      if (isMobile) {
+                        setShowConversationList(false);
+                      }
+                    }}
+                    onTouchStart={(e) => {
+                      // Adicionar feedback visual no touch
+                      e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+                    }}
+                    onTouchEnd={(e) => {
+                      setTimeout(() => {
+                        e.currentTarget.style.backgroundColor = selecionada ? 'rgba(16, 185, 129, 0.1)' : 'transparent';
+                      }, 150);
+                    }}
                     style={{
                       padding: '16px',
                       borderBottom: '1px solid rgba(255,255,255,0.1)',
                       cursor: 'pointer',
                       backgroundColor: selecionada ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
-                      transition: 'background-color 0.2s'
+                      transition: 'background-color 0.2s',
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation',
+                      userSelect: 'none'
                     }}
                     onMouseEnter={(e) => {
                       if (!selecionada) e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.05)';
@@ -432,12 +480,13 @@ export default function ConversasSimples({ userId, backendUrl }) {
           </div>
         </div>
 
-        {/* Área de Mensagens - Direita */}
+        {/* Área de Mensagens - Direita (ou embaixo no mobile) */}
         <div style={{ 
           flex: 1, 
-          display: 'flex', 
+          display: isMobile && showConversationList ? 'none' : 'flex', 
           flexDirection: 'column',
-          backgroundColor: '#0f1419'
+          backgroundColor: '#0f1419',
+          minHeight: isMobile ? '500px' : 'auto'
         }}>
           {!conversaSelecionada ? (
             <div style={{
@@ -446,17 +495,18 @@ export default function ConversasSimples({ userId, backendUrl }) {
               alignItems: 'center',
               justifyContent: 'center',
               height: '100%',
-              color: '#9ca3af'
+              color: '#9ca3af',
+              padding: '24px'
             }}>
-              <div style={{ fontSize: '4rem', marginBottom: '16px' }}>💬</div>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+              <div style={{ fontSize: isMobile ? '3rem' : '4rem', marginBottom: '16px' }}>💬</div>
+              <h3 style={{ fontSize: isMobile ? '1.25rem' : '1.5rem', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
                 Nenhuma conversa selecionada
               </h3>
-              <p>Clique em uma conversa para ver as mensagens</p>
+              <p style={{ fontSize: isMobile ? '0.875rem' : '1rem', textAlign: 'center' }}>Clique em uma conversa para ver as mensagens</p>
             </div>
           ) : (
             <>
-              {/* Header da conversa */}
+              {/* Header da conversa com botão voltar em mobile */}
               <div style={{ 
                 padding: '16px', 
                 borderBottom: '1px solid rgba(255,255,255,0.1)', 
@@ -465,6 +515,30 @@ export default function ConversasSimples({ userId, backendUrl }) {
                 alignItems: 'center',
                 gap: '12px'
               }}>
+                {isMobile && (
+                  <button
+                    onClick={() => {
+                      setShowConversationList(true);
+                      setConversaSelecionada(null);
+                    }}
+                    style={{
+                      padding: '8px',
+                      backgroundColor: 'transparent',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      cursor: 'pointer',
+                      fontSize: '1.25rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minWidth: '36px',
+                      minHeight: '36px'
+                    }}
+                  >
+                    ←
+                  </button>
+                )}
                 <div style={{ 
                   width: '40px', 
                   height: '40px', 
@@ -480,7 +554,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
                   {formatarTelefone(conversaSelecionada).substring(0, 2).toUpperCase()}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 'bold', color: '#ffffff' }}>
+                  <div style={{ fontWeight: 'bold', color: '#ffffff', fontSize: isMobile ? '0.9rem' : '1rem' }}>
                     {formatarTelefone(conversaSelecionada)}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
