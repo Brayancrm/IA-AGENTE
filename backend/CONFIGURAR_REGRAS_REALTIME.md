@@ -53,6 +53,7 @@ As regras garantem que cada usuário só pode acessar seus próprios dados:
 | `sales/{userId}/{saleId}` | Vendas realizadas |
 | `users/data/{userId}` | Configurações do usuário |
 | `users/registered` | Usuários registrados (master pode ler) |
+| `plans` | Planos disponíveis (**leitura pública** para landing page) |
 
 ---
 

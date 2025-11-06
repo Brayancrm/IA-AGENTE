@@ -223,13 +223,22 @@ const SimpleLanding = ({ onLoginSuccess }) => {
 
   // Buscar planos do Firebase
   useEffect(() => {
-    if (!database) return;
+    if (!database) {
+      console.log('⚠️ [LANDING] Database não disponível ainda');
+      return;
+    }
 
+    console.log('🔍 [LANDING] Iniciando busca de planos...');
     const plansRef = ref(database, 'plans');
+    
     const unsubscribe = onValue(plansRef, (snapshot) => {
+      console.log('📥 [LANDING] Snapshot recebido do Firebase');
       const plansList = [];
+      
       if (snapshot.exists()) {
         const data = snapshot.val();
+        console.log('📋 [LANDING] Dados brutos recebidos:', Object.keys(data).length, 'planos');
+        
         Object.keys(data).forEach((key) => {
           const planData = data[key];
           // Apenas planos ativos devem aparecer na landing page
@@ -252,9 +261,18 @@ const SimpleLanding = ({ onLoginSuccess }) => {
           const priceB = parseFloat(b.price) || 0;
           return priceA - priceB;
         });
+      } else {
+        console.log('⚠️ [LANDING] Nenhum plano encontrado no Firebase');
       }
+      
       console.log('💎 [LANDING] Planos carregados:', plansList.length);
       setPlans(plansList);
+    }, (error) => {
+      console.error('❌ [LANDING] Erro ao buscar planos:', error);
+      console.error('❌ [LANDING] Código do erro:', error.code);
+      console.error('❌ [LANDING] Mensagem:', error.message);
+      // Manter array vazio em caso de erro para não mostrar "Carregando..." indefinidamente
+      setPlans([]);
     });
 
     return () => {
