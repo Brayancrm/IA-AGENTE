@@ -6246,7 +6246,6 @@ const DashboardWithFirebase = ({
                   fontWeight: currentPage === item.id ? '600' : '500',
                   transition: 'all 0.2s ease',
                   transform: currentPage === item.id ? 'translateX(4px)' : 'translateX(0)',
-                    boxShadow: currentPage === item.id ? '0 4px 12px rgba(16, 185, 129, 0.25)' : 'none',
                     opacity: isLocked ? 0.6 : 1,
                     position: 'relative'
                 }}
