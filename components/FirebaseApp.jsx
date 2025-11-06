@@ -98,14 +98,23 @@ const FirebaseApp = () => {
   
   // Estado do menu mobile
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  // Inicializar isMobile verificando se window existe (SSR-safe)
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 768;
+    }
+    return false;
+  });
 
   // Detectar se está em mobile
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
       // Em mobile, fechar sidebar por padrão
-      if (window.innerWidth < 768) {
+      if (mobile) {
         setIsMobileMenuOpen(false);
       }
     };
@@ -788,7 +797,7 @@ const FirebaseApp = () => {
               } catch (error) {
                 // Ignorar erros de permissão silenciosamente (são esperados quando não é master)
                 if (error.code !== 'PERMISSION_DENIED') {
-                  console.error('Erro ao buscar dados do usuário:', userData.uid, error);
+                console.error('Erro ao buscar dados do usuário:', userData.uid, error);
                 }
               }
             }
@@ -5977,12 +5986,12 @@ const DashboardWithFirebase = ({
 
             {/* Overlay escuro quando sidebar aberto em mobile */}
             {isMobile && isMobileMenuOpen && (
-              <div
+            <div 
                 onClick={() => setIsMobileMenuOpen(false)}
-                style={{
-                  position: 'fixed',
+              style={{ 
+                position: 'fixed',
                   top: 0,
-                  left: 0,
+                left: 0,
                   right: 0,
                   bottom: 0,
                   backgroundColor: 'rgba(0, 0, 0, 0.5)',
