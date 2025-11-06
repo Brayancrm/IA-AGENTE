@@ -745,7 +745,8 @@ const FirebaseApp = () => {
             const userData = { id: key, ...data[key] };
             
             // Buscar plano ativo e dados de company_profile se tiver uid
-            if (userData.uid && database) {
+            // IMPORTANTE: Só tentar acessar se o usuário atual for master e estiver autenticado
+            if (userData.uid && database && user?.isMaster && user?.uid) {
               try {
                 // Buscar plano ativo
                 const activePlanRef = ref(database, `users/data/${userData.uid}/activePlan`);
@@ -769,7 +770,10 @@ const FirebaseApp = () => {
                   userData.whatsappNumber = companyData.whatsappNumber || '';
                 }
               } catch (error) {
-                console.error('Erro ao buscar dados do usuário:', userData.uid, error);
+                // Ignorar erros de permissão silenciosamente (são esperados quando não é master)
+                if (error.code !== 'PERMISSION_DENIED') {
+                  console.error('Erro ao buscar dados do usuário:', userData.uid, error);
+                }
               }
             }
             

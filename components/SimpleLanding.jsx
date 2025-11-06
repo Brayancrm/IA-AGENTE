@@ -263,8 +263,9 @@ const SimpleLanding = ({ onLoginSuccess }) => {
   }, [database]);
 
   // Função auxiliar para formatar preço
-  const formatPrice = (price) => {
-    if (!price || price === 0) return { main: 'GRÁTIS', decimal: '' };
+  const formatPrice = (price, isTrialPlan = false) => {
+    // Planos trial são sempre gratuitos, independente do preço
+    if (isTrialPlan || !price || price === 0) return { main: 'GRÁTIS', decimal: '' };
     const numPrice = parseFloat(price);
     const parts = numPrice.toFixed(2).split('.');
     return { main: `R$ ${parts[0]}`, decimal: `,${parts[1]}` };
@@ -856,9 +857,11 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             </div>
           ) : (
             plans.map((plan, index) => {
-              const price = formatPrice(plan.price);
+              // Planos trial são sempre gratuitos, independente do preço
+              const isTrialPlan = plan.isTrialPlan === true;
+              const price = formatPrice(plan.price, isTrialPlan);
               const features = getPlanFeatures(plan);
-              const isFree = !plan.price || plan.price === 0;
+              const isFree = isTrialPlan || !plan.price || plan.price === 0;
               const isPopular = index === Math.floor(plans.length / 2); // Plano do meio como popular
               const isHighlighted = isFree || isPopular;
               
@@ -1715,9 +1718,11 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                 </div>
               ) : (
                 plans.map((plan, index) => {
-                  const price = formatPrice(plan.price);
+                  // Planos trial são sempre gratuitos, independente do preço
+                  const isTrialPlan = plan.isTrialPlan === true;
+                  const price = formatPrice(plan.price, isTrialPlan);
                   const features = getPlanFeatures(plan);
-                  const isFree = !plan.price || plan.price === 0;
+                  const isFree = isTrialPlan || !plan.price || plan.price === 0;
                   const isPopular = index === Math.floor(plans.length / 2);
                   const isHighlighted = isFree || isPopular;
                   
