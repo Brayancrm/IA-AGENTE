@@ -5630,43 +5630,47 @@ const DashboardWithFirebase = ({
                       e.currentTarget.style.borderColor = plan.active ? '#10b981' : '#4b5563';
                     }}
                   >
-                    {/* Badge de Status */}
-                    <div style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-                    {plan.active && (
-                      <div style={{
-                        backgroundColor: '#10b981',
-                        color: 'white',
-                        padding: '4px 12px',
-                        borderRadius: '12px',
-                        fontSize: '0.75rem',
-                        fontWeight: '700'
-                      }}>
-                        ATIVO
-                      </div>
-                    )}
-                      {plan.isTrialPlan && (
-                        <div style={{
-                          backgroundColor: '#f59e0b',
-                          color: 'white',
-                          padding: '4px 12px',
-                          borderRadius: '12px',
-                          fontSize: '0.75rem',
-                          fontWeight: '700',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}>
-                          🎁 TESTE {formatTrialDuration(plan.trialDurationHours, plan.trialDurationMinutes)}{plan.oneTimeUse ? ' (ÚNICO)' : ''}
+                    {/* Nome do Plano com Badges */}
+                    <div style={{ marginBottom: '16px', position: 'relative', paddingRight: (plan.active || plan.isTrialPlan) ? '140px' : '0' }}>
+                      {/* Badge de Status */}
+                      {(plan.active || plan.isTrialPlan) && (
+                        <div style={{ position: 'absolute', top: '0', right: '0', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end', zIndex: 1 }}>
+                        {plan.active && (
+                          <div style={{
+                            backgroundColor: '#10b981',
+                            color: 'white',
+                            padding: '4px 12px',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem',
+                            fontWeight: '700',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            ATIVO
+                          </div>
+                        )}
+                          {plan.isTrialPlan && (
+                            <div style={{
+                              backgroundColor: '#f59e0b',
+                              color: 'white',
+                              padding: '4px 12px',
+                              borderRadius: '12px',
+                              fontSize: '0.75rem',
+                              fontWeight: '700',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              🎁 TESTE {formatTrialDuration(plan.trialDurationHours, plan.trialDurationMinutes)}{plan.oneTimeUse ? ' (ÚNICO)' : ''}
+                            </div>
+                          )}
                         </div>
                       )}
-                    </div>
-
-                    {/* Nome do Plano */}
-                    <div style={{ marginBottom: '16px' }}>
-                      <h3 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+                      
+                      <h3 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', wordBreak: 'break-word' }}>
                         {plan.name}
                       </h3>
-                      <p style={{ fontSize: '0.9375rem', color: '#9ca3af' }}>
+                      <p style={{ fontSize: '0.9375rem', color: '#9ca3af', wordBreak: 'break-word' }}>
                         {plan.description || 'Sem descrição'}
                       </p>
                     </div>
