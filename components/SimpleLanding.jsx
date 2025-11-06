@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { getDatabase, ref, push, set } from 'firebase/database';
+import { getDatabase, ref, push, set, onValue, off } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -41,6 +41,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [plans, setPlans] = useState([]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -218,6 +219,94 @@ const SimpleLanding = ({ onLoginSuccess }) => {
     setShowPlanModal(false);
     setMode('register');
     setShowModal(true);
+  };
+
+  // Buscar planos do Firebase
+  useEffect(() => {
+    if (!database) return;
+
+    const plansRef = ref(database, 'plans');
+    const unsubscribe = onValue(plansRef, (snapshot) => {
+      const plansList = [];
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        Object.keys(data).forEach((key) => {
+          const planData = data[key];
+          // Apenas planos ativos devem aparecer na landing page
+          if (planData.active !== false) {
+            plansList.push({ 
+              id: key, 
+              ...planData,
+              limits: planData.limits || {
+                messagesPerMonth: null,
+                conversations: null,
+                catalogItems: null,
+                integrations: []
+              }
+            });
+          }
+        });
+        // Ordenar por preço (menor primeiro), planos gratuitos primeiro
+        plansList.sort((a, b) => {
+          const priceA = parseFloat(a.price) || 0;
+          const priceB = parseFloat(b.price) || 0;
+          return priceA - priceB;
+        });
+      }
+      console.log('💎 [LANDING] Planos carregados:', plansList.length);
+      setPlans(plansList);
+    });
+
+    return () => {
+      off(plansRef);
+    };
+  }, [database]);
+
+  // Função auxiliar para formatar preço
+  const formatPrice = (price) => {
+    if (!price || price === 0) return { main: 'GRÁTIS', decimal: '' };
+    const numPrice = parseFloat(price);
+    const parts = numPrice.toFixed(2).split('.');
+    return { main: `R$ ${parts[0]}`, decimal: `,${parts[1]}` };
+  };
+
+  // Função auxiliar para gerar features do plano baseado nos limites
+  const getPlanFeatures = (plan) => {
+    // Se o plano tem features definidas, usar elas
+    if (plan.features && Array.isArray(plan.features) && plan.features.length > 0) {
+      return plan.features;
+    }
+    
+    // Caso contrário, gerar features baseadas nos limites
+    const features = [];
+    const limits = plan.limits || {};
+    
+    // Adicionar features baseadas nos limites
+    if (limits.messagesPerMonth) {
+      features.push(`Até ${limits.messagesPerMonth.toLocaleString('pt-BR')} conversas/mês`);
+    } else if (limits.messagesPerMonth === null) {
+      features.push('Conversas ilimitadas');
+    }
+    
+    if (limits.conversations) {
+      features.push(`${limits.conversations} atendente${limits.conversations > 1 ? 's' : ''} simultâneo${limits.conversations > 1 ? 's' : ''}`);
+    } else if (limits.conversations === null) {
+      features.push('Atendentes ilimitados');
+    }
+    
+    if (limits.catalogItems) {
+      features.push(`Até ${limits.catalogItems} produtos no catálogo`);
+    } else if (limits.catalogItems === null) {
+      features.push('Catálogo ilimitado');
+    }
+    
+    // Features padrão
+    features.push('Catálogo de produtos');
+    features.push('Respostas automáticas');
+    features.push('Relatórios básicos');
+    features.push('Suporte por email');
+    
+    return features.slice(0, 6); // Limitar a 6 features para manter o layout
   };
 
   return (
@@ -749,369 +838,148 @@ const SimpleLanding = ({ onLoginSuccess }) => {
           className="pricing-grid"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: plans.length > 0 ? `repeat(${Math.min(plans.length, 4)}, 1fr)` : 'repeat(4, 1fr)',
             gap: '24px',
             maxWidth: '1600px',
             margin: '0 auto',
             padding: '0 20px'
           }}
         >
-          {/* Teste Gratuito */}
-          <div style={{
-            backgroundColor: '#1a1f36',
-            padding: '40px',
-            borderRadius: '20px',
-            border: '3px solid #10b981',
-            position: 'relative',
-            transition: 'all 0.3s ease',
-            boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-8px)';
-            e.currentTarget.style.boxShadow = '0 16px 40px rgba(16, 185, 129, 0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.3)';
-          }}>
-            {/* Badge GRÁTIS */}
-            <div style={{
-              position: 'absolute',
-              top: '-12px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              backgroundColor: '#10b981',
-              color: '#ffffff',
-              padding: '6px 20px',
-              borderRadius: '20px',
-              fontSize: '0.75rem',
-              fontWeight: '700',
-              letterSpacing: '0.5px'
+          {plans.length === 0 ? (
+            <div style={{ 
+              gridColumn: '1 / -1', 
+              textAlign: 'center', 
+              padding: '40px',
+              color: '#9ca3af'
             }}>
-              GRÁTIS
+              Carregando planos...
             </div>
+          ) : (
+            plans.map((plan, index) => {
+              const price = formatPrice(plan.price);
+              const features = getPlanFeatures(plan);
+              const isFree = !plan.price || plan.price === 0;
+              const isPopular = index === Math.floor(plans.length / 2); // Plano do meio como popular
+              const isHighlighted = isFree || isPopular;
+              
+              return (
+                <div
+                  key={plan.id}
+                  style={{
+                    backgroundColor: '#1a1f36',
+                    padding: '40px',
+                    borderRadius: '20px',
+                    border: isHighlighted ? '3px solid #10b981' : '2px solid rgba(16, 185, 129, 0.2)',
+                    position: 'relative',
+                    transition: 'all 0.3s ease',
+                    boxShadow: isHighlighted ? '0 8px 24px rgba(16, 185, 129, 0.3)' : 'none'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-8px)';
+                    e.currentTarget.style.borderColor = '#10b981';
+                    e.currentTarget.style.boxShadow = '0 16px 40px rgba(16, 185, 129, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.borderColor = isHighlighted ? '#10b981' : 'rgba(16, 185, 129, 0.2)';
+                    e.currentTarget.style.boxShadow = isHighlighted ? '0 8px 24px rgba(16, 185, 129, 0.3)' : 'none';
+                  }}
+                >
+                  {/* Badge GRÁTIS ou POPULAR */}
+                  {(isFree || isPopular) && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '-12px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      backgroundColor: '#10b981',
+                      color: '#ffffff',
+                      padding: '6px 20px',
+                      borderRadius: '20px',
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      letterSpacing: '0.5px'
+                    }}>
+                      {isFree ? 'GRÁTIS' : 'MAIS POPULAR'}
+                    </div>
+                  )}
 
-            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-              <h3 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px' }}>
-                Teste Gratuito
-              </h3>
-              <div style={{ marginBottom: '8px' }}>
-                <span style={{ fontSize: '3rem', fontWeight: '800', color: '#10b981' }}>24h</span>
-              </div>
-              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Acesso total sem compromisso</div>
-            </div>
-            
-            <ul style={{ listStyle: 'none', padding: 0, marginBottom: '32px' }}>
-              {[
-                'Acesso completo a todos recursos',
-                'Teste todas as funcionalidades',
-                'Sem cartão de crédito',
-                'Sem compromisso',
-                'Suporte técnico incluído',
-                'Upgrade fácil após teste'
-              ].map((feature, idx) => (
-                <li key={idx} style={{ 
-                  padding: '12px 0', 
-                  color: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  borderBottom: idx < 5 ? '1px solid rgba(255,255,255,0.05)' : 'none'
-                }}>
-                  <span style={{ color: '#10b981', fontSize: '1.25rem' }}>✓</span>
-                  {feature}
-                </li>
-              ))}
-            </ul>
+                  <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                    <h3 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px' }}>
+                      {plan.name || 'Plano'}
+                    </h3>
+                    <div style={{ marginBottom: '8px' }}>
+                      {isFree ? (
+                        <span style={{ fontSize: '3rem', fontWeight: '800', color: '#10b981' }}>GRÁTIS</span>
+                      ) : (
+                        <>
+                          <span style={{ fontSize: '3rem', fontWeight: '800', color: '#10b981' }}>{price.main}</span>
+                          {price.decimal && <span style={{ fontSize: '1.25rem', color: '#9ca3af' }}>{price.decimal}</span>}
+                        </>
+                      )}
+                    </div>
+                    {!isFree && <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>por mês</div>}
+                  </div>
+                  
+                  <ul style={{ listStyle: 'none', padding: 0, marginBottom: '32px' }}>
+                    {features.map((feature, idx) => (
+                      <li key={idx} style={{ 
+                        padding: '12px 0', 
+                        color: isHighlighted ? '#ffffff' : '#9ca3af',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        borderBottom: idx < features.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none'
+                      }}>
+                        <span style={{ color: '#10b981', fontSize: '1.25rem' }}>✓</span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
 
-          <button
-              onClick={() => handleSelectPlan('teste-gratuito')}
-            style={{
-              width: '100%',
-                padding: '14px',
-              borderRadius: '12px',
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              border: 'none',
-                color: '#ffffff',
-                fontSize: '1rem',
-                fontWeight: '700',
-              cursor: 'pointer',
-                boxShadow: '0 4px 16px rgba(16, 185, 129, 0.4)',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.5)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 4px 16px rgba(16, 185, 129, 0.4)';
-              }}
-            >
-              🚀 Começar Teste Grátis
-          </button>
-        </div>
-
-          {/* Plano Básico */}
-        <div style={{
-            backgroundColor: '#1a1f36',
-            padding: '40px',
-            borderRadius: '20px',
-            border: '2px solid rgba(16, 185, 129, 0.2)',
-            position: 'relative',
-            transition: 'all 0.3s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-8px)';
-            e.currentTarget.style.borderColor = '#10b981';
-            e.currentTarget.style.boxShadow = '0 12px 32px rgba(16, 185, 129, 0.3)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}>
-            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-              <h3 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px' }}>
-                Básico
-              </h3>
-              <div style={{ marginBottom: '8px' }}>
-                <span style={{ fontSize: '3rem', fontWeight: '800', color: '#10b981' }}>R$ 399</span>
-                <span style={{ fontSize: '1.25rem', color: '#9ca3af' }}>,90</span>
-              </div>
-              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>por mês</div>
-            </div>
-            
-            <ul style={{ listStyle: 'none', padding: 0, marginBottom: '32px' }}>
-              {[
-                'Até 500 conversas/mês',
-                '1 atendente simultâneo',
-                'Catálogo de produtos',
-                'Respostas automáticas',
-                'Relatórios básicos',
-                'Suporte por email'
-              ].map((feature, idx) => (
-                <li key={idx} style={{ 
-                  padding: '12px 0', 
-                  color: '#9ca3af',
-          display: 'flex',
-          alignItems: 'center',
-                  gap: '12px',
-                  borderBottom: idx < 5 ? '1px solid rgba(255,255,255,0.05)' : 'none'
-                }}>
-                  <span style={{ color: '#10b981', fontSize: '1.25rem' }}>✓</span>
-                  {feature}
-                </li>
-              ))}
-            </ul>
-
-            <button
-              onClick={() => handleSelectPlan('basico')}
-              style={{
-                width: '100%',
-                padding: '14px',
-                borderRadius: '12px',
-                border: '2px solid #10b981',
-                backgroundColor: 'transparent',
-                color: '#10b981',
-                fontSize: '1rem',
-                fontWeight: '700',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#10b981';
-                e.target.style.color = '#ffffff';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = 'transparent';
-                e.target.style.color = '#10b981';
-              }}
-            >
-              Começar Agora
-            </button>
-          </div>
-
-          {/* Plano Pro (Destaque) */}
-          <div style={{
-            backgroundColor: '#1a1f36',
-            padding: '40px',
-            borderRadius: '20px',
-            border: '3px solid #10b981',
-            position: 'relative',
-            transition: 'all 0.3s ease',
-            boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-8px)';
-            e.currentTarget.style.boxShadow = '0 16px 40px rgba(16, 185, 129, 0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.3)';
-          }}>
-            {/* Badge Popular */}
-            <div style={{
-              position: 'absolute',
-              top: '-12px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              backgroundColor: '#10b981',
-              color: '#ffffff',
-              padding: '6px 20px',
-              borderRadius: '20px',
-              fontSize: '0.75rem',
-              fontWeight: '700',
-              letterSpacing: '0.5px'
-            }}>
-              MAIS POPULAR
-            </div>
-
-            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-              <h3 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px' }}>
-                Pro
-              </h3>
-              <div style={{ marginBottom: '8px' }}>
-                <span style={{ fontSize: '3rem', fontWeight: '800', color: '#10b981' }}>R$ 1.099</span>
-                <span style={{ fontSize: '1.25rem', color: '#9ca3af' }}>,90</span>
-              </div>
-              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>por mês</div>
-            </div>
-            
-            <ul style={{ listStyle: 'none', padding: 0, marginBottom: '32px' }}>
-              {[
-                'Conversas ilimitadas',
-                '5 atendentes simultâneos',
-                'Tudo do Básico +',
-                'IA conversacional avançada',
-                'Agendamentos automáticos',
-                'Integração com pagamentos',
-                'Relatórios avançados',
-                'Suporte prioritário'
-              ].map((feature, idx) => (
-                <li key={idx} style={{ 
-                  padding: '12px 0', 
-                  color: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  borderBottom: idx < 7 ? '1px solid rgba(255,255,255,0.05)' : 'none'
-                }}>
-                  <span style={{ color: '#10b981', fontSize: '1.25rem' }}>✓</span>
-                  {feature}
-                </li>
-              ))}
-            </ul>
-
-            <button
-              onClick={() => handleSelectPlan('pro')}
-              style={{
-                width: '100%',
-                padding: '14px',
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                border: 'none',
-                color: '#ffffff',
-                fontSize: '1rem',
-                fontWeight: '700',
-                cursor: 'pointer',
-                boxShadow: '0 4px 16px rgba(16, 185, 129, 0.4)',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.5)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 4px 16px rgba(16, 185, 129, 0.4)';
-              }}
-            >
-              Começar Agora
-            </button>
-          </div>
-
-          {/* Plano Enterprise */}
-          <div style={{
-            backgroundColor: '#1a1f36',
-            padding: '40px',
-            borderRadius: '20px',
-            border: '2px solid rgba(16, 185, 129, 0.2)',
-            position: 'relative',
-            transition: 'all 0.3s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-8px)';
-            e.currentTarget.style.borderColor = '#10b981';
-            e.currentTarget.style.boxShadow = '0 12px 32px rgba(16, 185, 129, 0.3)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}>
-            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-              <h3 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px' }}>
-                Enterprise
-              </h3>
-              <div style={{ marginBottom: '8px' }}>
-                <span style={{ fontSize: '3rem', fontWeight: '800', color: '#10b981' }}>R$ 1.999</span>
-                <span style={{ fontSize: '1.25rem', color: '#9ca3af' }}>,90</span>
-              </div>
-              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>por mês</div>
-            </div>
-            
-            <ul style={{ listStyle: 'none', padding: 0, marginBottom: '32px' }}>
-              {[
-                'Tudo ilimitado',
-                'Atendentes ilimitados',
-                'Tudo do Pro +',
-                'API dedicada',
-                'Customizações personalizadas',
-                'Gerente de conta dedicado',
-                'Treinamento da equipe',
-                'Suporte 24/7 prioritário'
-              ].map((feature, idx) => (
-                <li key={idx} style={{ 
-                  padding: '12px 0', 
-                  color: '#9ca3af',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  borderBottom: idx < 7 ? '1px solid rgba(255,255,255,0.05)' : 'none'
-                }}>
-                  <span style={{ color: '#10b981', fontSize: '1.25rem' }}>✓</span>
-                  {feature}
-                </li>
-              ))}
-            </ul>
-
-            <button
-              onClick={() => handleSelectPlan('enterprise')}
-              style={{
-                width: '100%',
-                padding: '14px',
-                borderRadius: '12px',
-                border: '2px solid #10b981',
-                backgroundColor: 'transparent',
-                color: '#10b981',
-                fontSize: '1rem',
-                fontWeight: '700',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#10b981';
-                e.target.style.color = '#ffffff';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = 'transparent';
-                e.target.style.color = '#10b981';
-              }}
-            >
-              Começar Agora
-            </button>
-          </div>
+                  <button
+                    onClick={() => handleSelectPlan(plan.id)}
+                    style={{
+                      width: '100%',
+                      padding: '14px',
+                      borderRadius: '12px',
+                      background: isHighlighted 
+                        ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                        : 'transparent',
+                      border: isHighlighted ? 'none' : '2px solid #10b981',
+                      backgroundColor: isHighlighted ? undefined : 'transparent',
+                      color: isHighlighted ? '#ffffff' : '#10b981',
+                      fontSize: '1rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      boxShadow: isHighlighted ? '0 4px 16px rgba(16, 185, 129, 0.4)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isHighlighted) {
+                        e.target.style.backgroundColor = '#10b981';
+                        e.target.style.color = '#ffffff';
+                      } else {
+                        e.target.style.transform = 'translateY(-2px)';
+                        e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.5)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isHighlighted) {
+                        e.target.style.backgroundColor = 'transparent';
+                        e.target.style.color = '#10b981';
+                      } else {
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 4px 16px rgba(16, 185, 129, 0.4)';
+                      }
+                    }}
+                  >
+                    {isFree ? '🚀 Começar Teste Grátis' : 'Começar Agora'}
+                  </button>
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* Garantia */}
@@ -1832,247 +1700,115 @@ const SimpleLanding = ({ onLoginSuccess }) => {
               className="modal-plan-grid"
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
+                gridTemplateColumns: plans.length > 0 ? `repeat(${Math.min(plans.length, 4)}, 1fr)` : 'repeat(4, 1fr)',
                 gap: '20px'
               }}
             >
-              {/* Teste Gratuito */}
-              <div
-                onClick={() => handleSelectPlan('teste-gratuito')}
-                style={{
-                  backgroundColor: '#0f1419',
-                  padding: '32px',
-                  borderRadius: '16px',
-                  border: '3px solid #10b981',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  position: 'relative',
-                  boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-8px)';
-                  e.currentTarget.style.boxShadow = '0 16px 40px rgba(16, 185, 129, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.3)';
-                }}
-              >
-                <div style={{
-                  position: 'absolute',
-                  top: '-12px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  backgroundColor: '#10b981',
-                  color: '#ffffff',
-                  padding: '4px 16px',
-                  borderRadius: '12px',
-                  fontSize: '0.75rem',
-                  fontWeight: '700'
+              {plans.length === 0 ? (
+                <div style={{ 
+                  gridColumn: '1 / -1', 
+                  textAlign: 'center', 
+                  padding: '40px',
+                  color: '#9ca3af'
                 }}>
-                  GRÁTIS
+                  Carregando planos...
                 </div>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px', textAlign: 'center' }}>
-                  Teste Gratuito
-                </h3>
-                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                  <div>
-                    <span style={{ fontSize: '2.5rem', fontWeight: '800', color: '#10b981' }}>24 horas</span>
-                  </div>
-                  <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '8px' }}>
-                    Acesso total sem compromisso
-                  </div>
-                </div>
-                <ul style={{ listStyle: 'none', padding: 0, marginBottom: '24px' }}>
-                  {['Acesso completo', 'Todos os recursos', 'Sem cartão de crédito', 'Sem compromisso', 'Suporte incluído'].map((item, idx) => (
-                    <li key={idx} style={{ padding: '8px 0', color: '#ffffff', fontSize: '0.9375rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ color: '#10b981' }}>✓</span>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <div style={{
-                  textAlign: 'center',
-                  padding: '12px',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  borderRadius: '8px',
-                  color: '#ffffff',
-                  fontSize: '0.875rem',
-                  fontWeight: '600'
-                }}>
-                  🚀 Começar Teste Grátis
-                </div>
-              </div>
-
-              {/* Plano Básico */}
-              <div
-                onClick={() => handleSelectPlan('basico')}
-                style={{
-                  backgroundColor: '#0f1419',
-                  padding: '32px',
-                  borderRadius: '16px',
-                  border: '2px solid rgba(16, 185, 129, 0.2)',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-8px)';
-                  e.currentTarget.style.borderColor = '#10b981';
-                  e.currentTarget.style.boxShadow = '0 12px 32px rgba(16, 185, 129, 0.3)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px', textAlign: 'center' }}>
-                  Básico
-                </h3>
-                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                  <div>
-                    <span style={{ fontSize: '2.5rem', fontWeight: '800', color: '#10b981' }}>R$ 399</span>
-                    <span style={{ fontSize: '1rem', color: '#9ca3af' }}>,90/mês</span>
-                  </div>
-                </div>
-                <ul style={{ listStyle: 'none', padding: 0, marginBottom: '24px' }}>
-                  {['500 conversas/mês', '1 atendente', 'Catálogo básico', 'Suporte email'].map((item, idx) => (
-                    <li key={idx} style={{ padding: '8px 0', color: '#9ca3af', fontSize: '0.9375rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ color: '#10b981' }}>✓</span>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <div style={{
-                  textAlign: 'center',
-                  padding: '12px',
-                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                  borderRadius: '8px',
-                  color: '#10b981',
-                  fontSize: '0.875rem',
-                  fontWeight: '600'
-                }}>
-                  Clique para selecionar
-                </div>
-              </div>
-
-              {/* Plano Pro */}
-              <div
-                onClick={() => handleSelectPlan('pro')}
-                style={{
-                  backgroundColor: '#0f1419',
-                  padding: '32px',
-                  borderRadius: '16px',
-                  border: '3px solid #10b981',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  position: 'relative',
-                  boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-8px)';
-                  e.currentTarget.style.boxShadow = '0 16px 40px rgba(16, 185, 129, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.3)';
-                }}
-              >
-                <div style={{
-                  position: 'absolute',
-                  top: '-12px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  backgroundColor: '#10b981',
-                  color: '#ffffff',
-                  padding: '4px 16px',
-                  borderRadius: '12px',
-                  fontSize: '0.75rem',
-                  fontWeight: '700'
-                }}>
-                  POPULAR
-                </div>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px', textAlign: 'center' }}>
-                  Pro
-                </h3>
-                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                  <div>
-                    <span style={{ fontSize: '2.5rem', fontWeight: '800', color: '#10b981' }}>R$ 1.099</span>
-                    <span style={{ fontSize: '1rem', color: '#9ca3af' }}>,90/mês</span>
-                  </div>
-                </div>
-                <ul style={{ listStyle: 'none', padding: 0, marginBottom: '24px' }}>
-                  {['Conversas ilimitadas', '5 atendentes', 'IA avançada', 'Pagamentos', 'Suporte prioritário'].map((item, idx) => (
-                    <li key={idx} style={{ padding: '8px 0', color: '#ffffff', fontSize: '0.9375rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ color: '#10b981' }}>✓</span>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <div style={{
-                  textAlign: 'center',
-                  padding: '12px',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  borderRadius: '8px',
-                  color: '#ffffff',
-                  fontSize: '0.875rem',
-                  fontWeight: '600'
-                }}>
-                  Clique para selecionar
-                </div>
-              </div>
-
-              {/* Plano Enterprise */}
-              <div
-                onClick={() => handleSelectPlan('enterprise')}
-                style={{
-                  backgroundColor: '#0f1419',
-                  padding: '32px',
-                  borderRadius: '16px',
-                  border: '2px solid rgba(16, 185, 129, 0.2)',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-8px)';
-                  e.currentTarget.style.borderColor = '#10b981';
-                  e.currentTarget.style.boxShadow = '0 12px 32px rgba(16, 185, 129, 0.3)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px', textAlign: 'center' }}>
-                  Enterprise
-                </h3>
-                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                  <div>
-                    <span style={{ fontSize: '2.5rem', fontWeight: '800', color: '#10b981' }}>R$ 1.999</span>
-                    <span style={{ fontSize: '1rem', color: '#9ca3af' }}>,90/mês</span>
-                  </div>
-                </div>
-                <ul style={{ listStyle: 'none', padding: 0, marginBottom: '24px' }}>
-                  {['Tudo ilimitado', 'API dedicada', 'Customizações', 'Gerente de conta', 'Suporte 24/7'].map((item, idx) => (
-                    <li key={idx} style={{ padding: '8px 0', color: '#9ca3af', fontSize: '0.9375rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ color: '#10b981' }}>✓</span>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <div style={{
-                  textAlign: 'center',
-                  padding: '12px',
-                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                  borderRadius: '8px',
-                  color: '#10b981',
-                  fontSize: '0.875rem',
-                  fontWeight: '600'
-                }}>
-                  Clique para selecionar
-                </div>
-              </div>
+              ) : (
+                plans.map((plan, index) => {
+                  const price = formatPrice(plan.price);
+                  const features = getPlanFeatures(plan);
+                  const isFree = !plan.price || plan.price === 0;
+                  const isPopular = index === Math.floor(plans.length / 2);
+                  const isHighlighted = isFree || isPopular;
+                  
+                  return (
+                    <div
+                      key={plan.id}
+                      onClick={() => handleSelectPlan(plan.id)}
+                      style={{
+                        backgroundColor: '#0f1419',
+                        padding: '32px',
+                        borderRadius: '16px',
+                        border: isHighlighted ? '3px solid #10b981' : '2px solid rgba(16, 185, 129, 0.2)',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        position: 'relative',
+                        boxShadow: isHighlighted ? '0 8px 24px rgba(16, 185, 129, 0.3)' : 'none'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-8px)';
+                        e.currentTarget.style.borderColor = '#10b981';
+                        e.currentTarget.style.boxShadow = '0 16px 40px rgba(16, 185, 129, 0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.borderColor = isHighlighted ? '#10b981' : 'rgba(16, 185, 129, 0.2)';
+                        e.currentTarget.style.boxShadow = isHighlighted ? '0 8px 24px rgba(16, 185, 129, 0.3)' : 'none';
+                      }}
+                    >
+                      {(isFree || isPopular) && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '-12px',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          backgroundColor: '#10b981',
+                          color: '#ffffff',
+                          padding: '4px 16px',
+                          borderRadius: '12px',
+                          fontSize: '0.75rem',
+                          fontWeight: '700'
+                        }}>
+                          {isFree ? 'GRÁTIS' : 'POPULAR'}
+                        </div>
+                      )}
+                      <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px', textAlign: 'center' }}>
+                        {plan.name || 'Plano'}
+                      </h3>
+                      <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                        <div>
+                          {isFree ? (
+                            <span style={{ fontSize: '2.5rem', fontWeight: '800', color: '#10b981' }}>GRÁTIS</span>
+                          ) : (
+                            <>
+                              <span style={{ fontSize: '2.5rem', fontWeight: '800', color: '#10b981' }}>{price.main}</span>
+                              <span style={{ fontSize: '1rem', color: '#9ca3af' }}>{price.decimal}/mês</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <ul style={{ listStyle: 'none', padding: 0, marginBottom: '24px' }}>
+                        {features.slice(0, 5).map((item, idx) => (
+                          <li key={idx} style={{ 
+                            padding: '8px 0', 
+                            color: isHighlighted ? '#ffffff' : '#9ca3af', 
+                            fontSize: '0.9375rem', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '8px' 
+                          }}>
+                            <span style={{ color: '#10b981' }}>✓</span>
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                      <div style={{
+                        textAlign: 'center',
+                        padding: '12px',
+                        background: isHighlighted 
+                          ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                          : 'rgba(16, 185, 129, 0.1)',
+                        borderRadius: '8px',
+                        color: isHighlighted ? '#ffffff' : '#10b981',
+                        fontSize: '0.875rem',
+                        fontWeight: '600'
+                      }}>
+                        {isFree ? '🚀 Começar Teste Grátis' : 'Clique para selecionar'}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
