@@ -2299,6 +2299,10 @@ const DashboardWithFirebase = ({
   // Garantir que usedTrials sempre seja um objeto
   const safeUsedTrials = usedTrials || {};
   const [isActive, setIsActive] = useState(assistantSettings.isActive || true);
+  
+  // Função auxiliar para padding responsivo
+  const getResponsivePadding = () => isMobile ? '16px' : '40px';
+  const getResponsiveFontSize = (desktopSize) => isMobile ? `${parseFloat(desktopSize) * 0.75}rem` : desktopSize;
   const [showCatalogModal, setShowCatalogModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [catalogForm, setCatalogForm] = useState({
