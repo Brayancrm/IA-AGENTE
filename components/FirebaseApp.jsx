@@ -2217,6 +2217,9 @@ const FirebaseApp = () => {
         usedTrials={usedTrials}
         formatTrialDuration={formatTrialDuration}
         formatTrialDurationFull={formatTrialDurationFull}
+        isMobile={isMobile}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
       />
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <PlanSelectionModal />
@@ -2288,7 +2291,10 @@ const DashboardWithFirebase = ({
   userPlanUsage,
   usedTrials = {},
   formatTrialDuration,
-  formatTrialDurationFull
+  formatTrialDurationFull,
+  isMobile = false,
+  isMobileMenuOpen = false,
+  setIsMobileMenuOpen
 }) => {
   // Garantir que usedTrials sempre seja um objeto
   const safeUsedTrials = usedTrials || {};
