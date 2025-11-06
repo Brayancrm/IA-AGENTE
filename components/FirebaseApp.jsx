@@ -5631,11 +5631,10 @@ const DashboardWithFirebase = ({
                     }}
                   >
                     {/* Nome do Plano com Badges */}
-                    <div style={{ marginBottom: '16px', position: 'relative', paddingRight: (plan.active || plan.isTrialPlan) ? '140px' : '0' }}>
+                    <div style={{ marginBottom: '16px', position: 'relative', paddingRight: plan.active ? '80px' : '0' }}>
                       {/* Badge de Status */}
-                      {(plan.active || plan.isTrialPlan) && (
-                        <div style={{ position: 'absolute', top: '0', right: '0', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end', zIndex: 1 }}>
-                        {plan.active && (
+                      {plan.active && (
+                        <div style={{ position: 'absolute', top: '0', right: '0', zIndex: 1 }}>
                           <div style={{
                             backgroundColor: '#10b981',
                             color: 'white',
@@ -5647,23 +5646,6 @@ const DashboardWithFirebase = ({
                           }}>
                             ATIVO
                           </div>
-                        )}
-                          {plan.isTrialPlan && (
-                            <div style={{
-                              backgroundColor: '#f59e0b',
-                              color: 'white',
-                              padding: '4px 12px',
-                              borderRadius: '12px',
-                              fontSize: '0.75rem',
-                              fontWeight: '700',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              whiteSpace: 'nowrap'
-                            }}>
-                              🎁 TESTE {formatTrialDuration(plan.trialDurationHours, plan.trialDurationMinutes)}{plan.oneTimeUse ? ' (ÚNICO)' : ''}
-                            </div>
-                          )}
                         </div>
                       )}
                       
