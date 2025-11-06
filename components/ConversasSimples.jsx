@@ -578,7 +578,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  backgroundImage: 'url(/whatsapp-bg.png)',
+                  backgroundImage: 'url(/whatsapp-bg.png.png)',
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   backgroundRepeat: 'no-repeat',
