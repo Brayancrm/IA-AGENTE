@@ -5526,7 +5526,7 @@ const DashboardWithFirebase = ({
                 <button
                   onClick={() => openPlanModal()}
                   style={{
-                    backgroundColor: '#8b5cf6',
+                    backgroundColor: '#10b981',
                     color: 'white',
                     padding: '14px 28px',
                     borderRadius: '12px',
@@ -5537,16 +5537,18 @@ const DashboardWithFirebase = ({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '10px',
-                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
                     transition: 'all 0.2s ease'
                   }}
                   onMouseEnter={(e) => {
                     e.target.style.transform = 'translateY(-2px)';
-                    e.target.style.boxShadow = '0 6px 16px rgba(139, 92, 246, 0.4)';
+                    e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+                    e.target.style.backgroundColor = '#059669';
                   }}
                   onMouseLeave={(e) => {
                     e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.3)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+                    e.target.style.backgroundColor = '#10b981';
                   }}
                 >
                   <Plus size={20} />
@@ -5557,7 +5559,7 @@ const DashboardWithFirebase = ({
 
             {plans.length === 0 ? (
               user?.isMaster ? (
-                <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '48px', textAlign: 'center', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+                <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '48px', textAlign: 'center', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                   <div style={{ fontSize: '64px', marginBottom: '16px' }}>💎</div>
                   <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
                     Nenhum plano cadastrado
@@ -5568,7 +5570,7 @@ const DashboardWithFirebase = ({
                   <button
                     onClick={() => openPlanModal()}
                     style={{
-                      backgroundColor: '#8b5cf6',
+                      backgroundColor: '#10b981',
                       color: 'white',
                       padding: '12px 24px',
                       borderRadius: '10px',
@@ -5576,7 +5578,16 @@ const DashboardWithFirebase = ({
                       fontWeight: '600',
                       cursor: 'pointer',
                       fontSize: '1rem',
-                      boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
+                      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = '#059669';
+                      e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = '#10b981';
+                      e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
                     }}
                   >
                     Criar Primeiro Plano
@@ -5602,19 +5613,21 @@ const DashboardWithFirebase = ({
                       backgroundColor: '#1a1f36',
                       borderRadius: '20px',
                       padding: '32px',
-                      border: plan.active ? '2px solid #8b5cf6' : '2px solid #4b5563',
-                      boxShadow: plan.active ? '0 8px 24px rgba(139, 92, 246, 0.2)' : '0 4px 12px rgba(0,0,0,0.2)',
+                      border: plan.active ? '2px solid #10b981' : '2px solid #4b5563',
+                      boxShadow: plan.active ? '0 8px 24px rgba(16, 185, 129, 0.2)' : '0 4px 12px rgba(0,0,0,0.2)',
                       transition: 'all 0.2s ease',
                       cursor: 'pointer',
                       position: 'relative'
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.boxShadow = '0 12px 32px rgba(139, 92, 246, 0.3)';
+                      e.currentTarget.style.boxShadow = '0 12px 32px rgba(16, 185, 129, 0.3)';
+                      e.currentTarget.style.borderColor = '#10b981';
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = plan.active ? '0 8px 24px rgba(139, 92, 246, 0.2)' : '0 4px 12px rgba(0,0,0,0.2)';
+                      e.currentTarget.style.boxShadow = plan.active ? '0 8px 24px rgba(16, 185, 129, 0.2)' : '0 4px 12px rgba(0,0,0,0.2)';
+                      e.currentTarget.style.borderColor = plan.active ? '#10b981' : '#4b5563';
                     }}
                   >
                     {/* Badge de Status */}
@@ -5659,7 +5672,7 @@ const DashboardWithFirebase = ({
                     </div>
 
                     {/* Preço */}
-                    <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: plan.isTrialPlan ? 'rgba(245, 158, 11, 0.1)' : 'rgba(139, 92, 246, 0.1)', borderRadius: '12px', border: `1px solid ${plan.isTrialPlan ? 'rgba(245, 158, 11, 0.3)' : 'rgba(139, 92, 246, 0.3)'}` }}>
+                    <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: plan.isTrialPlan ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', border: `1px solid ${plan.isTrialPlan ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)'}` }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
                         {plan.isTrialPlan ? (
                           <span style={{ fontSize: '2rem', fontWeight: '700', color: '#f59e0b' }}>
@@ -5667,7 +5680,7 @@ const DashboardWithFirebase = ({
                           </span>
                         ) : (
                           <>
-                        <span style={{ fontSize: '2.5rem', fontWeight: '700', color: '#a78bfa' }}>
+                        <span style={{ fontSize: '2.5rem', fontWeight: '700', color: '#10b981' }}>
                           R$ {parseFloat(plan.price || 0).toFixed(2)}
                         </span>
                         <span style={{ fontSize: '1rem', color: '#9ca3af' }}>
@@ -5720,7 +5733,7 @@ const DashboardWithFirebase = ({
                           }}
                           style={{
                             flex: 1,
-                            backgroundColor: '#6366f1',
+                            backgroundColor: '#10b981',
                             color: 'white',
                             padding: '10px 16px',
                             borderRadius: '8px',
@@ -5730,8 +5743,8 @@ const DashboardWithFirebase = ({
                             fontSize: '0.875rem',
                             transition: 'all 0.2s ease'
                           }}
-                          onMouseEnter={(e) => e.target.style.backgroundColor = '#4f46e5'}
-                          onMouseLeave={(e) => e.target.style.backgroundColor = '#6366f1'}
+                          onMouseEnter={(e) => e.target.style.backgroundColor = '#059669'}
+                          onMouseLeave={(e) => e.target.style.backgroundColor = '#10b981'}
                         >
                           <Edit size={16} />
                         </button>
