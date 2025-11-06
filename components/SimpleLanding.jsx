@@ -289,14 +289,32 @@ const SimpleLanding = ({ onLoginSuccess }) => {
     return { main: `R$ ${parts[0]}`, decimal: `,${parts[1]}` };
   };
 
-  // Função auxiliar para gerar features do plano baseado nos limites
+  // Mapeamento de IDs de funcionalidades para labels
+  const featureLabels = {
+    'dashboard': 'Dashboard',
+    'company': 'Cadastro do Usuário',
+    'catalog': 'Catálogo',
+    'agendamentos': 'Agendamentos',
+    'conversas': 'Conversas WhatsApp',
+    'crm': 'CRM',
+    'integrations': 'Integrações',
+    'whatsapp': 'Conexão WhatsApp',
+    'assistant': 'Configuração do Assistente'
+  };
+
+  // Função auxiliar para gerar features do plano baseado nas funcionalidades selecionadas
   const getPlanFeatures = (plan) => {
-    // Se o plano tem features definidas, usar elas
+    // Prioridade 1: Se o plano tem allowedFeatures (funcionalidades selecionadas), usar elas
+    if (plan.allowedFeatures && Array.isArray(plan.allowedFeatures) && plan.allowedFeatures.length > 0) {
+      return plan.allowedFeatures.map(featureId => featureLabels[featureId] || featureId);
+    }
+    
+    // Prioridade 2: Se o plano tem features definidas manualmente, usar elas
     if (plan.features && Array.isArray(plan.features) && plan.features.length > 0) {
       return plan.features;
     }
     
-    // Caso contrário, gerar features baseadas nos limites
+    // Prioridade 3: Caso contrário, gerar features baseadas nos limites (fallback)
     const features = [];
     const limits = plan.limits || {};
     
@@ -319,11 +337,13 @@ const SimpleLanding = ({ onLoginSuccess }) => {
       features.push('Catálogo ilimitado');
     }
     
-    // Features padrão
-    features.push('Catálogo de produtos');
-    features.push('Respostas automáticas');
-    features.push('Relatórios básicos');
-    features.push('Suporte por email');
+    // Features padrão apenas se não houver nenhuma funcionalidade selecionada
+    if (features.length === 0) {
+      features.push('Catálogo de produtos');
+      features.push('Respostas automáticas');
+      features.push('Relatórios básicos');
+      features.push('Suporte por email');
+    }
     
     return features.slice(0, 6); // Limitar a 6 features para manter o layout
   };
