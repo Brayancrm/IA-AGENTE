@@ -578,19 +578,12 @@ export default function ConversasSimples({ userId, backendUrl }) {
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  // Opção 1: Usar imagem de background (descomente a linha abaixo e ajuste o caminho)
-                  // backgroundImage: 'url(/whatsapp-bg.png)',
-                  // Opção 2: Usar cor sólida (descomente a linha abaixo)
-                  backgroundColor: '#0f1419',
-                  // Opção 3: Usar gradiente (descomente as linhas abaixo)
-                  // background: 'linear-gradient(135deg, #0f1419 0%, #1a1f36 100%)',
-                  // Opção 4: Usar padrão de pontos (descomente as linhas abaixo)
-                  // backgroundImage: 'radial-gradient(circle, rgba(16, 185, 129, 0.1) 1px, transparent 1px)',
-                  // backgroundSize: '20px 20px',
+                  // Usar imagem de background
+                  backgroundImage: 'url(/whatsapp-bg.png)',
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   backgroundRepeat: 'no-repeat',
-                  opacity: 1,
+                  opacity: 0.3,
                   pointerEvents: 'none',
                   zIndex: 0
                 }}></div>
