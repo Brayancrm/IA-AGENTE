@@ -486,7 +486,8 @@ export default function ConversasSimples({ userId, backendUrl }) {
           display: isMobile && showConversationList ? 'none' : 'flex', 
           flexDirection: 'column',
           backgroundColor: '#0f1419',
-          minHeight: isMobile ? '500px' : 'auto'
+          height: isMobile ? '100%' : 'auto',
+          maxHeight: isMobile ? '100vh' : 'none'
         }}>
           {!conversaSelecionada ? (
             <div style={{
@@ -565,9 +566,11 @@ export default function ConversasSimples({ userId, backendUrl }) {
 
               {/* Área de mensagens */}
               <div style={{ 
-                flex: 1, 
+                height: isMobile ? 'calc(100vh - 200px)' : '600px',
+                maxHeight: isMobile ? 'calc(100vh - 200px)' : '600px',
                 padding: '24px', 
                 overflowY: 'auto',
+                overflowX: 'hidden',
                 backgroundColor: '#0f1419',
                 position: 'relative'
               }}>
