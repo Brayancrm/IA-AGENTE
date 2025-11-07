@@ -29,6 +29,24 @@ input, textarea, [contenteditable] {
   user-select: text;
 }
 
+/* Scrollbar personalizada para navegação horizontal */
+nav::-webkit-scrollbar {
+  height: 6px;
+}
+
+nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+nav::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.3);
+  border-radius: 3px;
+}
+
+nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.5);
+}
+
 /* Estilos para placeholders em inputs com tema escuro */
 input::placeholder {
   color: #6b7280 !important;
