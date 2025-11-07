@@ -6429,13 +6429,15 @@ const DashboardWithFirebase = ({
                         }}
                       onMouseEnter={(e) => {
                         if (currentPage !== item.id && !isLocked) {
-                          e.currentTarget.style.backgroundColor = `${iconColor}15`;
-                          e.currentTarget.style.borderColor = `${iconColor}30`;
+                          // Fundo verde arredondado no hover (igual foto 1)
+                          e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+                          e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                          e.currentTarget.style.boxShadow = '0 0 12px rgba(16, 185, 129, 0.3), 0 0 20px rgba(16, 185, 129, 0.15)';
                           const iconSpan = e.currentTarget.querySelector('span:first-child');
                           if (iconSpan) {
                             iconSpan.style.opacity = '1';
-                            iconSpan.style.filter = `drop-shadow(0 0 4px ${iconColor}80) drop-shadow(0 0 8px ${iconColor}50)`;
-                            iconSpan.style.textShadow = `0 0 6px ${iconColor}80, 0 0 12px ${iconColor}40`;
+                            iconSpan.style.filter = 'drop-shadow(0 0 4px rgba(16, 185, 129, 0.8)) drop-shadow(0 0 8px rgba(16, 185, 129, 0.5))';
+                            iconSpan.style.textShadow = '0 0 6px rgba(16, 185, 129, 0.8), 0 0 12px rgba(16, 185, 129, 0.4)';
                           }
                         }
                         // Mostrar tooltip
@@ -6448,6 +6450,7 @@ const DashboardWithFirebase = ({
                         if (currentPage !== item.id && !isLocked) {
                           e.currentTarget.style.backgroundColor = 'transparent';
                           e.currentTarget.style.borderColor = 'transparent';
+                          e.currentTarget.style.boxShadow = 'none';
                           const iconSpan = e.currentTarget.querySelector('span:first-child');
                           if (iconSpan) {
                             iconSpan.style.opacity = '0.9';
