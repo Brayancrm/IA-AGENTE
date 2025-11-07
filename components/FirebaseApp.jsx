@@ -6372,9 +6372,10 @@ const DashboardWithFirebase = ({
                           }
                         }
                       }}
+                      title={item.label}
                       style={{
                         textAlign: 'center',
-                        padding: isMobile ? '10px 12px' : '8px 12px',
+                        padding: isMobile ? '10px 12px' : '8px',
                         borderRadius: '6px',
                         border: currentPage === item.id ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid transparent',
                         background: currentPage === item.id 
@@ -6388,6 +6389,7 @@ const DashboardWithFirebase = ({
                         cursor: isLocked ? 'not-allowed' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
+                        justifyContent: 'center',
                         gap: '6px',
                         fontSize: isMobile ? '12px' : '13px',
                         fontWeight: currentPage === item.id ? '600' : '500',
@@ -6396,43 +6398,106 @@ const DashboardWithFirebase = ({
                         whiteSpace: 'nowrap',
                         flexShrink: 0,
                         minHeight: isMobile ? 'auto' : '44px',
-                        boxShadow: currentPage === item.id ? '0 2px 8px rgba(16, 185, 129, 0.3)' : 'none'
+                        minWidth: isMobile ? 'auto' : '44px',
+                        width: isMobile ? 'auto' : '44px',
+                        height: isMobile ? 'auto' : '44px',
+                        padding: isMobile ? '10px 12px' : '8px',
+                        boxShadow: currentPage === item.id ? '0 2px 8px rgba(16, 185, 129, 0.3)' : 'none',
+                        position: 'relative'
                       }}
                       onMouseEnter={(e) => {
                         if (currentPage !== item.id && !isLocked) {
-                          e.target.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
-                          e.target.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-                          e.target.style.color = '#10b981';
+                          e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                          e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+                          e.currentTarget.style.color = '#10b981';
+                        }
+                        // Mostrar tooltip
+                        const tooltip = e.currentTarget.querySelector('.menu-tooltip');
+                        if (tooltip) {
+                          tooltip.style.display = 'block';
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (currentPage !== item.id && !isLocked) {
-                          e.target.style.backgroundColor = 'transparent';
-                          e.target.style.borderColor = 'transparent';
-                          e.target.style.color = '#d1d5db';
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.borderColor = 'transparent';
+                          e.currentTarget.style.color = '#d1d5db';
+                        }
+                        // Esconder tooltip
+                        const tooltip = e.currentTarget.querySelector('.menu-tooltip');
+                        if (tooltip) {
+                          tooltip.style.display = 'none';
                         }
                       }}
                     >
                       <span style={{ 
-                        fontSize: isMobile ? '16px' : '16px',
+                        fontSize: isMobile ? '16px' : '20px',
                         filter: currentPage === item.id ? 'none' : 'grayscale(0.3)',
-                        opacity: isLocked ? 0.5 : 1
+                        opacity: isLocked ? 0.5 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
                       }}>
                         {item.icon}
                       </span>
-                      <span style={{ 
-                        fontSize: isMobile ? '12px' : '13px',
-                        letterSpacing: '0.2px'
-                      }}>
-                        {item.label}
-                      </span>
+                      {/* Mostrar texto apenas em mobile */}
+                      {isMobile && (
+                        <span style={{ 
+                          fontSize: '12px',
+                          letterSpacing: '0.2px',
+                          marginLeft: '4px'
+                        }}>
+                          {item.label}
+                        </span>
+                      )}
                       {isLocked && (
                         <span style={{ 
                           fontSize: '12px', 
                           opacity: 0.6,
-                          marginLeft: '2px'
+                          position: 'absolute',
+                          top: '2px',
+                          right: '2px'
                         }}>
                           🔒
+                        </span>
+                      )}
+                      {/* Tooltip com nome do item - apenas em desktop */}
+                      {!isMobile && (
+                        <span 
+                          className="menu-tooltip"
+                          style={{
+                            display: 'none',
+                            position: 'absolute',
+                            bottom: '100%',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            marginBottom: '8px',
+                            padding: '6px 10px',
+                            backgroundColor: '#1a1f36',
+                            color: '#d1d5db',
+                            fontSize: '12px',
+                            borderRadius: '6px',
+                            whiteSpace: 'nowrap',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+                            border: '1px solid rgba(16, 185, 129, 0.2)',
+                            zIndex: 1001,
+                            pointerEvents: 'none',
+                            fontWeight: '500',
+                            letterSpacing: '0.2px'
+                          }}
+                        >
+                          {item.label}
+                          <span style={{
+                            position: 'absolute',
+                            bottom: '-4px',
+                            left: '50%',
+                            transform: 'translateX(-50%) rotate(45deg)',
+                            width: '8px',
+                            height: '8px',
+                            backgroundColor: '#1a1f36',
+                            borderRight: '1px solid rgba(16, 185, 129, 0.2)',
+                            borderBottom: '1px solid rgba(16, 185, 129, 0.2)'
+                          }}></span>
                         </span>
                       )}
                     </button>
