@@ -6650,6 +6650,47 @@ const DashboardWithFirebase = ({
           {renderContent()}
       </div>
 
+      {/* Botão flutuante de Suporte via WhatsApp */}
+      <a
+        href="https://wa.me/5561991442727?text=Ol%C3%A1%2C%20vim%20pela%20ferramenta%20DadosIA."
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          position: 'fixed',
+          bottom: isMobile ? '16px' : '24px',
+          right: isMobile ? '16px' : '24px',
+          width: isMobile ? '52px' : '60px',
+          height: isMobile ? '52px' : '60px',
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+          color: '#ffffff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: isMobile ? '22px' : '26px',
+          fontWeight: 'bold',
+          textDecoration: 'none',
+          boxShadow: '0 12px 24px rgba(16, 185, 129, 0.35)',
+          zIndex: 1100,
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+        }}
+        onMouseEnter={(e) => {
+          if (!isMobile) {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 16px 32px rgba(16, 185, 129, 0.45)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isMobile) {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 12px 24px rgba(16, 185, 129, 0.35)';
+          }
+        }}
+        title="Suporte DadosIA"
+      >
+        💬
+      </a>
+
       {/* Modal do Catálogo */}
       {showCatalogModal && (
         <div style={{
