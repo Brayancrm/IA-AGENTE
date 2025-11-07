@@ -6128,6 +6128,21 @@ const DashboardWithFirebase = ({
     }
   };
 
+  // Paleta de cores baseada no padrão verde do site - cada cor única
+  const iconColors = {
+    'dashboard': '#10b981',      // Verde principal
+    'company': '#34d399',        // Verde claro
+    'catalog': '#059669',        // Verde escuro
+    'agendamentos': '#14b8a6',   // Verde-azulado
+    'conversas': '#06b6d4',      // Azul-verde
+    'crm': '#22c55e',            // Verde vibrante
+    'integrations': '#0ea5e9',   // Azul claro
+    'whatsapp': '#3b82f6',       // Azul
+    'assistant': '#8b5cf6',      // Roxo-azulado
+    'plans': '#a855f7',          // Roxo
+    'users': '#ec4899'           // Rosa (para diferenciar do outro ícone de usuário)
+  };
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
     { id: 'company', label: 'Cadastro do Usuário', icon: '👤' },
@@ -6358,58 +6373,69 @@ const DashboardWithFirebase = ({
                   
                   const isLocked = !userHasAccess && !isMasterOnly;
 
+                  const iconColor = iconColors[item.id] || '#10b981';
+                  const isLastItem = menuItems.indexOf(item) === menuItems.length - 1;
+
                   return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        if (isLocked) {
-                          showToast('Esta funcionalidade não está disponível no seu plano atual. Faça upgrade para acessar!', 'error');
-                          setCurrentPage('plans');
-                        } else {
-                          setCurrentPage(item.id);
-                          if (isMobile) {
-                            setIsMobileMenuOpen(false);
+                    <div key={item.id} style={{ 
+                      display: 'flex', 
+                      alignItems: 'center',
+                      position: 'relative'
+                    }}>
+                      <button
+                        onClick={() => {
+                          if (isLocked) {
+                            showToast('Esta funcionalidade não está disponível no seu plano atual. Faça upgrade para acessar!', 'error');
+                            setCurrentPage('plans');
+                          } else {
+                            setCurrentPage(item.id);
+                            if (isMobile) {
+                              setIsMobileMenuOpen(false);
+                            }
                           }
-                        }
-                      }}
-                      title={item.label}
-                      style={{
-                        textAlign: 'center',
-                        padding: isMobile ? '10px 12px' : '8px',
-                        borderRadius: '6px',
-                        border: currentPage === item.id ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid transparent',
-                        background: currentPage === item.id 
-                          ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
-                          : isLocked 
-                            ? 'rgba(107, 114, 128, 0.15)' 
-                            : 'transparent',
-                        color: isLocked 
-                          ? '#6b7280' 
-                          : (currentPage === item.id ? 'white' : '#d1d5db'),
-                        cursor: isLocked ? 'not-allowed' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        fontSize: isMobile ? '12px' : '13px',
-                        fontWeight: currentPage === item.id ? '600' : '500',
-                        transition: 'all 0.2s ease',
-                        opacity: isLocked ? 0.5 : 1,
-                        whiteSpace: 'nowrap',
-                        flexShrink: 0,
-                        minHeight: isMobile ? 'auto' : '44px',
-                        minWidth: isMobile ? 'auto' : '44px',
-                        width: isMobile ? 'auto' : '44px',
-                        height: isMobile ? 'auto' : '44px',
-                        padding: isMobile ? '10px 12px' : '8px',
-                        boxShadow: currentPage === item.id ? '0 2px 8px rgba(16, 185, 129, 0.3)' : 'none',
-                        position: 'relative'
-                      }}
+                        }}
+                        title={item.label}
+                        style={{
+                          textAlign: 'center',
+                          padding: isMobile ? '10px 12px' : '8px',
+                          borderRadius: '6px',
+                          border: currentPage === item.id ? `1px solid ${iconColor}` : '1px solid transparent',
+                          background: currentPage === item.id 
+                            ? `linear-gradient(135deg, ${iconColor} 0%, ${iconColor}dd 100%)` 
+                            : isLocked 
+                              ? 'rgba(107, 114, 128, 0.15)' 
+                              : 'transparent',
+                          color: isLocked 
+                            ? '#6b7280' 
+                            : (currentPage === item.id ? 'white' : '#d1d5db'),
+                          cursor: isLocked ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          fontSize: isMobile ? '12px' : '13px',
+                          fontWeight: currentPage === item.id ? '600' : '500',
+                          transition: 'all 0.2s ease',
+                          opacity: isLocked ? 0.5 : 1,
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
+                          minHeight: isMobile ? 'auto' : '44px',
+                          minWidth: isMobile ? 'auto' : '44px',
+                          width: isMobile ? 'auto' : '44px',
+                          height: isMobile ? 'auto' : '44px',
+                          padding: isMobile ? '10px 12px' : '8px',
+                          boxShadow: currentPage === item.id ? `0 2px 8px ${iconColor}40` : 'none',
+                          position: 'relative'
+                        }}
                       onMouseEnter={(e) => {
                         if (currentPage !== item.id && !isLocked) {
-                          e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
-                          e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-                          e.currentTarget.style.color = '#10b981';
+                          e.currentTarget.style.backgroundColor = `${iconColor}15`;
+                          e.currentTarget.style.borderColor = `${iconColor}30`;
+                          const iconSpan = e.currentTarget.querySelector('span:first-child');
+                          if (iconSpan) {
+                            iconSpan.style.opacity = '1';
+                            iconSpan.style.filter = `drop-shadow(0 0 4px ${iconColor}60)`;
+                          }
                         }
                         // Mostrar tooltip
                         const tooltip = e.currentTarget.querySelector('.menu-tooltip');
@@ -6421,7 +6447,11 @@ const DashboardWithFirebase = ({
                         if (currentPage !== item.id && !isLocked) {
                           e.currentTarget.style.backgroundColor = 'transparent';
                           e.currentTarget.style.borderColor = 'transparent';
-                          e.currentTarget.style.color = '#d1d5db';
+                          const iconSpan = e.currentTarget.querySelector('span:first-child');
+                          if (iconSpan) {
+                            iconSpan.style.opacity = '0.8';
+                            iconSpan.style.filter = `drop-shadow(0 0 2px ${iconColor}40)`;
+                          }
                         }
                         // Esconder tooltip
                         const tooltip = e.currentTarget.querySelector('.menu-tooltip');
@@ -6432,11 +6462,13 @@ const DashboardWithFirebase = ({
                     >
                       <span style={{ 
                         fontSize: isMobile ? '16px' : '20px',
-                        filter: currentPage === item.id ? 'none' : 'grayscale(0.3)',
-                        opacity: isLocked ? 0.5 : 1,
+                        filter: currentPage === item.id ? 'none' : `drop-shadow(0 0 2px ${iconColor}40)`,
+                        opacity: isLocked ? 0.5 : (currentPage === item.id ? 1 : 0.8),
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        color: currentPage === item.id ? 'white' : iconColor,
+                        transition: 'all 0.2s ease'
                       }}>
                         {item.icon}
                       </span>
@@ -6501,6 +6533,17 @@ const DashboardWithFirebase = ({
                         </span>
                       )}
                     </button>
+                    {/* Divisória fina entre ícones - apenas em desktop e não no último item */}
+                    {!isMobile && !isLastItem && (
+                      <div style={{
+                        width: '1px',
+                        height: '32px',
+                        backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                        margin: '0 2px',
+                        opacity: 0.3
+                      }}></div>
+                    )}
+                  </div>
                   );
                 })}
               </nav>
