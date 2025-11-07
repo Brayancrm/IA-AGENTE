@@ -123,6 +123,94 @@ const FirebaseApp = () => {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Prevenir zoom do usuário - Bloquear todos os métodos de zoom
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Prevenir zoom com teclado (Ctrl +, Ctrl -, Ctrl 0)
+    const preventZoomKeyboard = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+        e.preventDefault();
+        return false;
+      }
+      // Prevenir Ctrl + Scroll
+      if ((e.ctrlKey || e.metaKey) && e.deltaY !== undefined) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    // Prevenir zoom com scroll + Ctrl
+    const preventZoomScroll = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    // Prevenir pinch zoom (mobile)
+    const preventPinchZoom = (e) => {
+      if (e.touches && e.touches.length > 1) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    // Prevenir zoom com gestos (double tap)
+    let lastTouchEnd = 0;
+    const preventDoubleTapZoom = (e) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+        return false;
+      }
+      lastTouchEnd = now;
+    };
+
+    // Prevenir zoom com wheel + Ctrl
+    const preventWheelZoom = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    // Adicionar event listeners
+    document.addEventListener('keydown', preventZoomKeyboard, { passive: false });
+    document.addEventListener('keyup', preventZoomKeyboard, { passive: false });
+    document.addEventListener('wheel', preventZoomScroll, { passive: false });
+    document.addEventListener('wheel', preventWheelZoom, { passive: false });
+    document.addEventListener('touchstart', preventPinchZoom, { passive: false });
+    document.addEventListener('touchmove', preventPinchZoom, { passive: false });
+    document.addEventListener('touchend', preventDoubleTapZoom, { passive: false });
+    document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+    document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
+    document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
+
+    // Forçar zoom inicial
+    const setInitialZoom = () => {
+      const viewport = document.querySelector('meta[name="viewport"]');
+      if (viewport) {
+        viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+      }
+    };
+    setInitialZoom();
+
+    // Limpar event listeners
+    return () => {
+      document.removeEventListener('keydown', preventZoomKeyboard);
+      document.removeEventListener('keyup', preventZoomKeyboard);
+      document.removeEventListener('wheel', preventZoomScroll);
+      document.removeEventListener('wheel', preventWheelZoom);
+      document.removeEventListener('touchstart', preventPinchZoom);
+      document.removeEventListener('touchmove', preventPinchZoom);
+      document.removeEventListener('touchend', preventDoubleTapZoom);
+      document.removeEventListener('gesturestart', (e) => e.preventDefault());
+      document.removeEventListener('gesturechange', (e) => e.preventDefault());
+      document.removeEventListener('gestureend', (e) => e.preventDefault());
+    };
+  }, []);
   
   // URL do backend
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
