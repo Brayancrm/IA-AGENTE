@@ -6140,248 +6140,250 @@ const DashboardWithFirebase = ({
           
         <div style={{ minHeight: '100vh', backgroundColor: '#0f1419', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', overflowX: 'hidden', maxWidth: '100vw' }}>
 
-            {/* Overlay escuro quando sidebar aberto em mobile */}
-            {isMobile && isMobileMenuOpen && (
-            <div 
-                onClick={() => setIsMobileMenuOpen(false)}
-              style={{ 
-                position: 'fixed',
-                  top: 0,
-                left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                  zIndex: 999,
-                  transition: 'opacity 0.3s ease'
-                }}
-              />
-            )}
-
-            {/* Botão Hambúrguer - apenas em mobile */}
-            {isMobile && (
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                style={{
-                  position: 'fixed',
-                  top: '16px',
-                  left: '16px',
-                  zIndex: 1001,
-                  backgroundColor: '#1a1f36',
-                  border: '2px solid rgba(16, 185, 129, 0.3)',
-                  borderRadius: '8px',
-                  padding: '10px',
-                  color: '#10b981',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '24px',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
-                }}
-              >
-                {isMobileMenuOpen ? '✕' : '☰'}
-              </button>
-            )}
-
-            {/* Sidebar Modernizada - Responsivo */}
+            {/* Menu Horizontal no Topo - Responsivo */}
             <div 
               style={{ 
                 position: 'fixed',
-                left: isMobile && !isMobileMenuOpen ? '-280px' : 0,
                 top: 0,
-                width: '280px',
-                minWidth: '280px',
-                maxWidth: '280px',
-                height: '100vh',
+                left: 0,
+                right: 0,
+                width: '100%',
+                height: isMobile && !isMobileMenuOpen ? '60px' : (isMobile ? 'auto' : '80px'),
+                minHeight: isMobile && !isMobileMenuOpen ? '60px' : (isMobile ? 'auto' : '80px'),
                 backgroundColor: '#1a1f36', 
                 color: 'white', 
-                padding: '32px 24px',
+                padding: isMobile ? '12px 16px' : '12px 24px',
                 display: 'flex',
-                flexDirection: 'column',
-                boxShadow: '2px 0 20px rgba(0,0,0,0.3)',
-                borderRight: '1px solid rgba(16, 185, 129, 0.1)',
-                overflowY: 'auto',
+                flexDirection: isMobile ? 'column' : 'row',
+                alignItems: isMobile ? 'flex-start' : 'center',
+                justifyContent: 'space-between',
+                boxShadow: '0 2px 20px rgba(0,0,0,0.3)',
+                borderBottom: '1px solid rgba(16, 185, 129, 0.1)',
                 zIndex: 1000,
-                transform: 'scale(1)',
-                transformOrigin: 'top left',
-                transition: 'left 0.3s ease'
+                gap: isMobile ? '12px' : '16px',
+                overflowX: isMobile ? 'hidden' : 'auto',
+                overflowY: isMobile ? (isMobileMenuOpen ? 'visible' : 'hidden') : 'hidden',
+                transition: 'height 0.3s ease'
               }}
             >
-          {/* Logo */}
-          <div style={{ 
-            marginBottom: '20px', 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center' 
-          }}>
-            <img 
-              src="/logo.png" 
-              alt="dadosIA Logo" 
-              style={{ 
-                width: '240px',
-                minWidth: '240px',
-                maxWidth: '240px',
-                height: '240px',
-                minHeight: '240px',
-                maxHeight: '240px',
-                objectFit: 'contain'
-              }} 
-            />
-          </div>
-
-          {/* Badge Master */}
-          {user?.isMaster && (
-            <div style={{ 
-              backgroundColor: '#fbbf24', 
-              color: '#78350f', 
-              padding: '8px 12px', 
-              borderRadius: '8px', 
-              fontSize: '12px', 
-              fontWeight: '700', 
-              marginBottom: '16px', 
-              textAlign: 'center',
-              boxShadow: '0 2px 8px rgba(251, 191, 36, 0.3)'
-            }}>
-              👑 USUÁRIO MASTER
-            </div>
-          )}
-
-          {/* Navegação */}
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
-            {menuItems.map((item) => {
-              // Verificar se a funcionalidade está disponível para o usuário
-              const isAlwaysAvailable = item.id === 'plans' || item.id === 'users';
-              const isMasterOnly = item.id === 'users';
-              const isBasicAccess = item.id === 'company'; // Cadastro do usuário sempre disponível
-              
-              // Se não tem plano ativo, só permite acesso básico e planos
-              let userHasAccess = false;
-              if (user?.isMaster) {
-                userHasAccess = true; // Master tem acesso a tudo
-              } else if (isAlwaysAvailable || isBasicAccess) {
-                userHasAccess = true; // Planos e Cadastro sempre disponíveis
-              } else if (userActivePlan?.allowedFeatures && Array.isArray(userActivePlan.allowedFeatures)) {
-                userHasAccess = userActivePlan.allowedFeatures.includes(item.id);
-              }
-              
-              const isLocked = !userHasAccess && !isMasterOnly;
-
-              return (
-              <button
-                key={item.id}
-                  onClick={() => {
-                    if (isLocked) {
-                      showToast('Esta funcionalidade não está disponível no seu plano atual. Faça upgrade para acessar!', 'error');
-                      setCurrentPage('plans');
-                    } else {
-                      setCurrentPage(item.id);
-                      // Fechar sidebar em mobile após clicar
-                      if (isMobile) {
-                        setIsMobileMenuOpen(false);
-                      }
-                    }
-                  }}
-                style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '14px 16px',
-                  borderRadius: '12px',
-                  border: 'none',
-                    backgroundColor: currentPage === item.id ? '#10b981' : isLocked ? 'rgba(107, 114, 128, 0.2)' : 'transparent',
-                    color: isLocked ? '#6b7280' : (currentPage === item.id ? 'white' : '#d1d5db'),
-                    cursor: isLocked ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  fontSize: '15px',
-                  fontWeight: currentPage === item.id ? '600' : '500',
-                  transition: 'all 0.2s ease',
-                  transform: currentPage === item.id ? 'translateX(4px)' : 'translateX(0)',
-                    opacity: isLocked ? 0.6 : 1,
-                    position: 'relative'
-                }}
-                onMouseEnter={(e) => {
-                    if (currentPage !== item.id && !isLocked) {
-                    e.target.style.backgroundColor = '#2a3142';
-                    e.target.style.color = 'white';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                    if (currentPage !== item.id && !isLocked) {
-                    e.target.style.backgroundColor = 'transparent';
-                    e.target.style.color = '#d1d5db';
-                  }
-                }}
-              >
-                <span style={{ fontSize: '20px' }}>{item.icon}</span>
-                  <span style={{ flex: 1 }}>{item.label}</span>
-                  {isLocked && (
-                    <span style={{ fontSize: '16px', opacity: 0.8 }}>🔒</span>
+              {/* Logo, Badge Master e Botão Menu Mobile - Lado Esquerdo */}
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '16px',
+                flexShrink: 0,
+                width: isMobile ? '100%' : 'auto',
+                justifyContent: isMobile ? 'space-between' : 'flex-start'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <img 
+                    src="/logo.png" 
+                    alt="dadosIA Logo" 
+                    style={{ 
+                      width: isMobile ? '50px' : '60px',
+                      height: isMobile ? '50px' : '60px',
+                      objectFit: 'contain'
+                    }} 
+                  />
+                  {user?.isMaster && (
+                    <div style={{ 
+                      backgroundColor: '#fbbf24', 
+                      color: '#78350f', 
+                      padding: '6px 10px', 
+                      borderRadius: '6px', 
+                      fontSize: '11px', 
+                      fontWeight: '700',
+                      boxShadow: '0 2px 8px rgba(251, 191, 36, 0.3)',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      👑 MASTER
+                    </div>
                   )}
-              </button>
-              );
-            })}
-          </nav>
+                </div>
+                {isMobile && (
+                  <button
+                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                    style={{
+                      backgroundColor: '#2a3142',
+                      border: '2px solid rgba(16, 185, 129, 0.3)',
+                      borderRadius: '8px',
+                      padding: '8px',
+                      color: '#10b981',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '20px',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
+                    }}
+                  >
+                    {isMobileMenuOpen ? '✕' : '☰'}
+                  </button>
+                )}
+              </div>
 
-          {/* Footer da Sidebar */}
-          <div style={{ 
-            marginTop: '24px', 
-            paddingTop: '24px', 
-            borderTop: '1px solid #2a3142' 
-          }}>
-            <p style={{ 
-              fontSize: '13px', 
-              color: '#6b7280', 
-              marginBottom: '12px',
-              fontWeight: '500'
-            }}>
-              Logado como:
-            </p>
-            <p style={{ 
-              fontSize: '14px', 
-              color: '#d1d5db',
-              marginBottom: '16px',
-              fontWeight: '600'
-            }}>
-              {user?.email}
-            </p>
-            <button
-              onClick={handleLogout}
-              style={{
-                width: '100%',
-                backgroundColor: '#ef4444',
-                color: 'white',
-                padding: '12px 16px',
-                borderRadius: '10px',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '15px',
-                fontWeight: '600',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#dc2626';
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = '#ef4444';
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 2px 8px rgba(239, 68, 68, 0.3)';
-              }}
-            >
-              Sair
-            </button>
-          </div>
-        </div>
+              {/* Navegação Horizontal - Centro */}
+              <nav style={{ 
+                display: isMobile && !isMobileMenuOpen ? 'none' : 'flex',
+                flexDirection: isMobile ? 'column' : 'row',
+                gap: isMobile ? '8px' : '8px', 
+                flex: 1,
+                overflowX: isMobile ? 'hidden' : 'auto',
+                overflowY: isMobile ? 'visible' : 'hidden',
+                justifyContent: isMobile ? 'flex-start' : 'center',
+                alignItems: 'center',
+                flexWrap: isMobile ? 'nowrap' : 'wrap',
+                maxWidth: isMobile ? '100%' : 'calc(100vw - 300px)',
+                width: isMobile ? '100%' : 'auto'
+              }}>
+                {menuItems.map((item) => {
+                  // Verificar se a funcionalidade está disponível para o usuário
+                  const isAlwaysAvailable = item.id === 'plans' || item.id === 'users';
+                  const isMasterOnly = item.id === 'users';
+                  const isBasicAccess = item.id === 'company';
+                  
+                  let userHasAccess = false;
+                  if (user?.isMaster) {
+                    userHasAccess = true;
+                  } else if (isAlwaysAvailable || isBasicAccess) {
+                    userHasAccess = true;
+                  } else if (userActivePlan?.allowedFeatures && Array.isArray(userActivePlan.allowedFeatures)) {
+                    userHasAccess = userActivePlan.allowedFeatures.includes(item.id);
+                  }
+                  
+                  const isLocked = !userHasAccess && !isMasterOnly;
+
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        if (isLocked) {
+                          showToast('Esta funcionalidade não está disponível no seu plano atual. Faça upgrade para acessar!', 'error');
+                          setCurrentPage('plans');
+                        } else {
+                          setCurrentPage(item.id);
+                          if (isMobile) {
+                            setIsMobileMenuOpen(false);
+                          }
+                        }
+                      }}
+                      style={{
+                        textAlign: 'center',
+                        padding: isMobile ? '10px 12px' : '10px 14px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        backgroundColor: currentPage === item.id ? '#10b981' : isLocked ? 'rgba(107, 114, 128, 0.2)' : 'transparent',
+                        color: isLocked ? '#6b7280' : (currentPage === item.id ? 'white' : '#d1d5db'),
+                        cursor: isLocked ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: isMobile ? '13px' : '14px',
+                        fontWeight: currentPage === item.id ? '600' : '500',
+                        transition: 'all 0.2s ease',
+                        opacity: isLocked ? 0.6 : 1,
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentPage !== item.id && !isLocked) {
+                          e.target.style.backgroundColor = '#2a3142';
+                          e.target.style.color = 'white';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (currentPage !== item.id && !isLocked) {
+                          e.target.style.backgroundColor = 'transparent';
+                          e.target.style.color = '#d1d5db';
+                        }
+                      }}
+                    >
+                      <span style={{ fontSize: isMobile ? '16px' : '18px' }}>{item.icon}</span>
+                      <span>{item.label}</span>
+                      {isLocked && (
+                        <span style={{ fontSize: '14px', opacity: 0.8 }}>🔒</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+
+              {/* Usuário e Logout - Lado Direito */}
+              <div style={{ 
+                display: isMobile && !isMobileMenuOpen ? 'none' : 'flex',
+                alignItems: 'center', 
+                gap: '12px',
+                flexShrink: 0,
+                flexDirection: isMobile ? 'column' : 'row',
+                width: isMobile ? '100%' : 'auto'
+              }}>
+                {!isMobile && (
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'flex-end',
+                    marginRight: '8px'
+                  }}>
+                    <p style={{ 
+                      fontSize: '11px', 
+                      color: '#6b7280', 
+                      margin: 0,
+                      fontWeight: '500'
+                    }}>
+                      {user?.email?.split('@')[0]}
+                    </p>
+                  </div>
+                )}
+                {isMobile && (
+                  <div style={{ 
+                    fontSize: '12px', 
+                    color: '#6b7280', 
+                    marginBottom: '8px',
+                    fontWeight: '500',
+                    width: '100%',
+                    textAlign: 'left'
+                  }}>
+                    {user?.email}
+                  </div>
+                )}
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    padding: isMobile ? '10px 16px' : '10px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: isMobile ? '13px' : '14px',
+                    fontWeight: '600',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)',
+                    whiteSpace: 'nowrap',
+                    width: isMobile ? '100%' : 'auto'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#dc2626';
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = '#ef4444';
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 2px 8px rgba(239, 68, 68, 0.3)';
+                  }}
+                >
+                  {isMobile ? '🚪 Sair' : 'Sair'}
+                </button>
+              </div>
+            </div>
 
             {/* Main Content - Responsivo */}
             <div 
               className="main-content"
               style={{ 
-                marginLeft: isMobile ? '0' : '280px',
-                paddingTop: isMobile ? '60px' : '0',
+                marginLeft: '0',
+                paddingTop: isMobile ? (isMobileMenuOpen ? '400px' : '60px') : '80px',
                 minHeight: '100vh',
                 backgroundColor: '#0f1419',
                 overflowY: 'auto',
