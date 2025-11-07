@@ -1126,51 +1126,102 @@ const FirebaseApp = () => {
     }
   };
 
-  const saveCatalogItem = async (itemData) => {
+  const saveCatalogItem = async (itemData, editingItemId = null) => {
     if (!user || !database) return;
     
     console.log('🔄 [SYNC] Iniciando salvamento de item...');
     console.log('🔄 [SYNC] Dados recebidos:', itemData);
+    console.log('🔄 [SYNC] Editando item ID:', editingItemId);
     
     try {
+      const isEditing = !!editingItemId;
+      const now = new Date().toISOString();
+      
       const data = {
         ...itemData,
         price: parseFloat(itemData.price) || 0,
         stockQuantity: parseInt(itemData.stockQuantity) || 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: now
       };
       
-      // 1️⃣ Salvar em catalog_items (para exibição no dashboard)
-      const catalogRef = ref(database, `users/data/${user.uid}/catalog_items`);
-      const newItemRef = push(catalogRef);
-      await set(newItemRef, data);
-      const itemId = newItemRef.key;
+      // Se estiver editando, preservar a data de criação original
+      if (!isEditing) {
+        data.createdAt = now;
+      }
       
-      console.log('✅ [SYNC] Item salvo em catalog_items com ID:', itemId);
+      let itemId;
       
-      // 2️⃣ SINCRONIZAR COM products/ (para o backend usar)
-      console.log('🔄 [SYNC] Sincronizando com products/...');
-      const productRef = ref(database, `products/${user.uid}/${itemId}`);
-      const productData = {
-        id: itemId,
-        name: data.name,
-        description: data.description || '',
-        price: data.price,
-        stock: data.stockQuantity,
-        category: data.category || '',
-        image: data.image || '',
-        type: data.type || 'product',
-        active: true,
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt
-      };
-      
-      await set(productRef, productData);
-      console.log('✅ [SYNC] Item sincronizado em products/' + user.uid + '/' + itemId);
-      
-      const itemType = data.type === 'service' ? 'Serviço' : 'Produto';
-      showToast(`${itemType} adicionado e sincronizado com sucesso!`);
+      if (isEditing) {
+        // ATUALIZAR item existente
+        itemId = editingItemId;
+        
+        // Buscar data de criação original do item
+        const catalogRef = ref(database, `users/data/${user.uid}/catalog_items/${itemId}`);
+        const snapshot = await get(catalogRef);
+        const existingData = snapshot.val();
+        const originalCreatedAt = existingData?.createdAt || now;
+        
+        // Preservar data de criação original
+        data.createdAt = originalCreatedAt;
+        
+        // 1️⃣ Atualizar em catalog_items
+        await set(catalogRef, data);
+        console.log('✅ [SYNC] Item atualizado em catalog_items com ID:', itemId);
+        
+        // 2️⃣ Atualizar em products/ (para o backend usar)
+        const productRef = ref(database, `products/${user.uid}/${itemId}`);
+        const productData = {
+          id: itemId,
+          name: data.name,
+          description: data.description || '',
+          price: data.price,
+          stock: data.stockQuantity,
+          category: data.category || '',
+          image: data.image || '',
+          type: data.type || 'product',
+          active: true,
+          createdAt: originalCreatedAt,
+          updatedAt: data.updatedAt
+        };
+        
+        await set(productRef, productData);
+        console.log('✅ [SYNC] Item atualizado em products/' + user.uid + '/' + itemId);
+        
+        const itemType = data.type === 'service' ? 'Serviço' : 'Produto';
+        showToast(`${itemType} atualizado com sucesso!`);
+      } else {
+        // CRIAR novo item
+        // 1️⃣ Salvar em catalog_items (para exibição no dashboard)
+        const catalogRef = ref(database, `users/data/${user.uid}/catalog_items`);
+        const newItemRef = push(catalogRef);
+        await set(newItemRef, data);
+        itemId = newItemRef.key;
+        
+        console.log('✅ [SYNC] Item salvo em catalog_items com ID:', itemId);
+        
+        // 2️⃣ SINCRONIZAR COM products/ (para o backend usar)
+        console.log('🔄 [SYNC] Sincronizando com products/...');
+        const productRef = ref(database, `products/${user.uid}/${itemId}`);
+        const productData = {
+          id: itemId,
+          name: data.name,
+          description: data.description || '',
+          price: data.price,
+          stock: data.stockQuantity,
+          category: data.category || '',
+          image: data.image || '',
+          type: data.type || 'product',
+          active: true,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt
+        };
+        
+        await set(productRef, productData);
+        console.log('✅ [SYNC] Item sincronizado em products/' + user.uid + '/' + itemId);
+        
+        const itemType = data.type === 'service' ? 'Serviço' : 'Produto';
+        showToast(`${itemType} adicionado e sincronizado com sucesso!`);
+      }
     } catch (error) {
       console.error('❌ [SYNC] Erro ao salvar item:', error);
       showToast('Erro ao salvar item: ' + error.message, 'error');
@@ -2564,8 +2615,9 @@ const DashboardWithFirebase = ({
 
   const handleCatalogSubmit = (e) => {
     e.preventDefault();
-    saveCatalogItem(catalogForm);
+    saveCatalogItem(catalogForm, editingItem?.id || null);
     setShowCatalogModal(false);
+    setEditingItem(null);
   };
 
   // Handlers para formulários
