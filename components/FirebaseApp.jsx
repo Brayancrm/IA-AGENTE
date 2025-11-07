@@ -6434,7 +6434,8 @@ const DashboardWithFirebase = ({
                           const iconSpan = e.currentTarget.querySelector('span:first-child');
                           if (iconSpan) {
                             iconSpan.style.opacity = '1';
-                            iconSpan.style.filter = `drop-shadow(0 0 4px ${iconColor}60)`;
+                            iconSpan.style.filter = `drop-shadow(0 0 4px ${iconColor}80) drop-shadow(0 0 8px ${iconColor}50)`;
+                            iconSpan.style.textShadow = `0 0 6px ${iconColor}80, 0 0 12px ${iconColor}40`;
                           }
                         }
                         // Mostrar tooltip
@@ -6449,8 +6450,9 @@ const DashboardWithFirebase = ({
                           e.currentTarget.style.borderColor = 'transparent';
                           const iconSpan = e.currentTarget.querySelector('span:first-child');
                           if (iconSpan) {
-                            iconSpan.style.opacity = '0.8';
-                            iconSpan.style.filter = `drop-shadow(0 0 2px ${iconColor}40)`;
+                            iconSpan.style.opacity = '0.9';
+                            iconSpan.style.filter = `drop-shadow(0 0 3px ${iconColor}80) drop-shadow(0 0 6px ${iconColor}40)`;
+                            iconSpan.style.textShadow = `0 0 4px ${iconColor}60, 0 0 8px ${iconColor}30`;
                           }
                         }
                         // Esconder tooltip
@@ -6462,13 +6464,17 @@ const DashboardWithFirebase = ({
                     >
                       <span style={{ 
                         fontSize: isMobile ? '16px' : '20px',
-                        filter: currentPage === item.id ? 'none' : `drop-shadow(0 0 2px ${iconColor}40)`,
-                        opacity: isLocked ? 0.5 : (currentPage === item.id ? 1 : 0.8),
+                        filter: currentPage === item.id 
+                          ? 'none' 
+                          : `drop-shadow(0 0 3px ${iconColor}80) drop-shadow(0 0 6px ${iconColor}40)`,
+                        opacity: isLocked ? 0.5 : (currentPage === item.id ? 1 : 0.9),
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: currentPage === item.id ? 'white' : iconColor,
-                        transition: 'all 0.2s ease'
+                        transition: 'all 0.2s ease',
+                        textShadow: currentPage === item.id 
+                          ? 'none' 
+                          : `0 0 4px ${iconColor}60, 0 0 8px ${iconColor}30`
                       }}>
                         {item.icon}
                       </span>
@@ -6538,9 +6544,9 @@ const DashboardWithFirebase = ({
                       <div style={{
                         width: '1px',
                         height: '32px',
-                        backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                        margin: '0 2px',
-                        opacity: 0.3
+                        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                        margin: '0 4px',
+                        opacity: 0.4
                       }}></div>
                     )}
                   </div>
