@@ -6286,44 +6286,23 @@ const DashboardWithFirebase = ({
               {/* Header do Sidebar - Logo e Badge Master */}
               <div style={{ 
                 display: 'flex', 
-                alignItems: 'center', 
-                gap: '12px',
-                padding: '20px',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                gap: '8px',
+                padding: '24px 16px',
                 borderBottom: '1px solid rgba(16, 185, 129, 0.1)',
-                flexShrink: 0
+                flexShrink: 0,
+                position: 'relative',
+                minHeight: '180px'
               }}>
-                <img 
-                  src="/logo.png" 
-                  alt="dadosIA Logo" 
-                  style={{ 
-                    width: '48px',
-                    height: '48px',
-                    objectFit: 'contain'
-                  }} 
-                />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#10b981' }}>dadosIA</div>
-                  {user?.isMaster && (
-                    <div style={{ 
-                      background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                      color: '#78350f', 
-                      padding: '2px 6px', 
-                      borderRadius: '4px', 
-                      fontSize: '9px', 
-                      fontWeight: '700',
-                      boxShadow: '0 2px 6px rgba(251, 191, 36, 0.4)',
-                      whiteSpace: 'nowrap',
-                      letterSpacing: '0.5px',
-                      width: 'fit-content'
-                    }}>
-                      👑 MASTER
-                    </div>
-                  )}
-                </div>
                 {isMobile && (
                   <button
                     onClick={() => setIsMobileMenuOpen(false)}
                     style={{
+                      position: 'absolute',
+                      top: '12px',
+                      right: '12px',
                       backgroundColor: 'transparent',
                       border: 'none',
                       color: '#9ca3af',
@@ -6333,7 +6312,8 @@ const DashboardWithFirebase = ({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      transition: 'all 0.2s ease'
+                      transition: 'all 0.2s ease',
+                      zIndex: 10
                     }}
                     onMouseEnter={(e) => {
                       e.target.style.color = '#10b981';
@@ -6344,6 +6324,49 @@ const DashboardWithFirebase = ({
                   >
                     ✕
                   </button>
+                )}
+                <img 
+                  src="/logo.png" 
+                  alt="dadosIA Logo" 
+                  style={{ 
+                    width: '56px',
+                    height: '56px',
+                    objectFit: 'contain',
+                    marginBottom: '4px'
+                  }} 
+                />
+                <div style={{ 
+                  fontSize: isMobile ? '54px' : '90px', 
+                  fontWeight: '900', 
+                  color: '#10b981',
+                  lineHeight: '0.9',
+                  textAlign: 'center',
+                  letterSpacing: '-4px',
+                  whiteSpace: 'nowrap',
+                  width: '100%',
+                  overflow: 'visible',
+                  textShadow: '0 0 20px rgba(16, 185, 129, 0.5)',
+                  marginTop: '4px',
+                  marginBottom: '4px'
+                }}>
+                  dadosIA
+                </div>
+                {user?.isMaster && (
+                  <div style={{ 
+                    background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                    color: '#78350f', 
+                    padding: '4px 10px', 
+                    borderRadius: '6px', 
+                    fontSize: '11px', 
+                    fontWeight: '700',
+                    boxShadow: '0 2px 6px rgba(251, 191, 36, 0.4)',
+                    whiteSpace: 'nowrap',
+                    letterSpacing: '0.5px',
+                    width: 'fit-content',
+                    marginTop: '4px'
+                  }}>
+                    👑 MASTER
+                  </div>
                 )}
               </div>
 
