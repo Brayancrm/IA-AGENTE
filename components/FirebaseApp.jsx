@@ -3221,9 +3221,10 @@ const DashboardWithFirebase = ({
         <div style={{ marginBottom: '32px' }}>
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: '16px', gap: isMobile ? '16px' : '0' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
-              📅 Agendamentos
-            </h2>
+              <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: isMobile ? '2rem' : '2.5rem' }}>📅</span>
+                Agendamentos
+              </h2>
               <p style={{ fontSize: isMobile ? '0.875rem' : '1rem', color: '#9ca3af' }}>
                 Gerencie todos os agendamentos e compromissos
               </p>
@@ -3800,9 +3801,10 @@ const DashboardWithFirebase = ({
           <div style={{ padding: getResponsivePadding(), maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
-              Dashboard
-            </h2>
+              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: isMobile ? '2rem' : '2.5rem' }}>🏠</span>
+                Dashboard
+              </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
                 Visão geral do seu sistema de vendas com IA
               </p>
@@ -4219,9 +4221,10 @@ const DashboardWithFirebase = ({
           <div style={{ padding: getResponsivePadding(), maxWidth: '900px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
-              Cadastro do Usuário
-            </h2>
+              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: isMobile ? '2rem' : '2.5rem' }}>👤</span>
+                Cadastro do Usuário
+              </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
                 Configure seus dados para personalizar o atendimento
               </p>
@@ -4434,9 +4437,10 @@ const DashboardWithFirebase = ({
           <div style={{ padding: getResponsivePadding(), maxWidth: '1000px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
-              Integrações
-            </h2>
+              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: isMobile ? '2rem' : '2.5rem' }}>⚙️</span>
+                Integrações
+              </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
                 Configure as integrações com serviços externos
               </p>
@@ -5653,8 +5657,9 @@ const DashboardWithFirebase = ({
         return (
           <div style={{ padding: getResponsivePadding(), maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
-                💎 Planos e Assinaturas
+              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: isMobile ? '2rem' : '2.5rem' }}>💎</span>
+                Planos e Assinaturas
               </h2>
               <p style={{ fontSize: '1.125rem', color: '#9ca3af' }}>
                 {user?.isMaster ? 'Gerencie os planos disponíveis para seus clientes' : 'Escolha o plano ideal para sua empresa'}
@@ -5959,7 +5964,8 @@ const DashboardWithFirebase = ({
         return (
           <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: '24px', gap: isMobile ? '16px' : '0' }}>
-              <h2 style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 'bold', color: '#ffffff' }}>
+              <h2 style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 'bold', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: isMobile ? '1.75rem' : '2.25rem' }}>👤</span>
                 Gerenciar Usuários
               </h2>
               <button
