@@ -6417,11 +6417,9 @@ const DashboardWithFirebase = ({
                         fontSize: '24px',
                         position: 'relative',
                         filter: isLocked 
-                          ? 'brightness(0) invert(1) opacity(0.4) drop-shadow(0 0 2px rgba(255, 255, 255, 0.2))' 
-                          : currentPage === item.id 
-                            ? `brightness(0) invert(1) drop-shadow(0 0 3px ${iconColor}90) drop-shadow(0 0 6px ${iconColor}70) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6)) drop-shadow(0 4px 8px ${iconColor}50) drop-shadow(0 0 12px ${iconColor}40)` 
-                            : `brightness(0) invert(1) drop-shadow(0 0 2px ${iconColor}70) drop-shadow(0 0 4px ${iconColor}50) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)) drop-shadow(0 2px 4px ${iconColor}30) drop-shadow(0 0 8px ${iconColor}20)`,
-                        opacity: isLocked ? 0.4 : (currentPage === item.id ? 1 : 0.95),
+                          ? 'brightness(0) invert(1) opacity(0.4)' 
+                          : 'brightness(0) invert(1)',
+                        opacity: isLocked ? 0.4 : (currentPage === item.id ? 1 : 0.9),
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -6429,8 +6427,8 @@ const DashboardWithFirebase = ({
                         width: '28px',
                         flexShrink: 0,
                         textShadow: currentPage === item.id 
-                          ? `0 0 8px ${iconColor}80, 0 0 16px ${iconColor}60, 0 2px 4px rgba(0, 0, 0, 0.5), 0 4px 8px ${iconColor}40` 
-                          : `0 0 4px ${iconColor}60, 0 0 8px ${iconColor}40, 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 4px ${iconColor}30`
+                          ? '-1px -1px 0 rgba(0, 0, 0, 0.3), 1px -1px 0 rgba(0, 0, 0, 0.3), -1px 1px 0 rgba(0, 0, 0, 0.3), 1px 1px 0 rgba(0, 0, 0, 0.3), 0 0 2px rgba(0, 0, 0, 0.2)' 
+                          : '-1px -1px 0 rgba(0, 0, 0, 0.2), 1px -1px 0 rgba(0, 0, 0, 0.2), -1px 1px 0 rgba(0, 0, 0, 0.2), 1px 1px 0 rgba(0, 0, 0, 0.2), 0 0 1px rgba(0, 0, 0, 0.15)'
                       }}>
                         {item.icon}
                       </span>
