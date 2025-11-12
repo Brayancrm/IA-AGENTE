@@ -6414,16 +6414,18 @@ const DashboardWithFirebase = ({
                       }}
                     >
                       <span style={{ 
-                        fontSize: '20px',
+                        fontSize: '24px',
                         filter: isLocked 
-                          ? 'brightness(0) invert(1) opacity(0.3)' 
-                          : 'brightness(0) invert(1)',
-                        opacity: isLocked ? 0.3 : (currentPage === item.id ? 1 : 0.8),
+                          ? 'brightness(0) invert(1) opacity(0.4) drop-shadow(0 0 1px rgba(255, 255, 255, 0.2))' 
+                          : currentPage === item.id 
+                            ? 'brightness(0) invert(1) drop-shadow(0 0 2px rgba(255, 255, 255, 0.5)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4))' 
+                            : 'brightness(0) invert(1) drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.4)) drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.3))',
+                        opacity: isLocked ? 0.4 : (currentPage === item.id ? 1 : 0.95),
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         transition: 'all 0.2s ease',
-                        width: '24px',
+                        width: '28px',
                         flexShrink: 0
                       }}>
                         {item.icon}
