@@ -6289,12 +6289,11 @@ const DashboardWithFirebase = ({
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'flex-start',
-                gap: '8px',
+                gap: '12px',
                 padding: '24px 16px',
                 borderBottom: '1px solid rgba(16, 185, 129, 0.1)',
                 flexShrink: 0,
-                position: 'relative',
-                minHeight: '180px'
+                position: 'relative'
               }}>
                 {isMobile && (
                   <button
@@ -6329,28 +6328,11 @@ const DashboardWithFirebase = ({
                   src="/logo.png" 
                   alt="dadosIA Logo" 
                   style={{ 
-                    width: '56px',
-                    height: '56px',
-                    objectFit: 'contain',
-                    marginBottom: '4px'
+                    width: isMobile ? '120px' : '160px',
+                    height: isMobile ? '120px' : '160px',
+                    objectFit: 'contain'
                   }} 
                 />
-                <div style={{ 
-                  fontSize: isMobile ? '54px' : '90px', 
-                  fontWeight: '900', 
-                  color: '#10b981',
-                  lineHeight: '0.9',
-                  textAlign: 'center',
-                  letterSpacing: '-4px',
-                  whiteSpace: 'nowrap',
-                  width: '100%',
-                  overflow: 'visible',
-                  textShadow: '0 0 20px rgba(16, 185, 129, 0.5)',
-                  marginTop: '4px',
-                  marginBottom: '4px'
-                }}>
-                  dadosIA
-                </div>
                 {user?.isMaster && (
                   <div style={{ 
                     background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
