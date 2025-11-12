@@ -6385,12 +6385,8 @@ const DashboardWithFirebase = ({
                         textAlign: 'left',
                         padding: '12px 16px',
                         borderRadius: '8px',
-                        border: currentPage === item.id ? `2px solid ${iconColor}` : '2px solid transparent',
-                        background: currentPage === item.id 
-                          ? `linear-gradient(135deg, ${iconColor}20 0%, ${iconColor}10 100%)` 
-                          : isLocked 
-                            ? 'rgba(107, 114, 128, 0.1)' 
-                            : 'transparent',
+                        border: 'none',
+                        background: isLocked ? 'rgba(107, 114, 128, 0.1)' : 'transparent',
                         color: isLocked 
                           ? '#6b7280' 
                           : (currentPage === item.id ? '#ffffff' : '#d1d5db'),
@@ -6403,37 +6399,30 @@ const DashboardWithFirebase = ({
                         transition: 'all 0.2s ease',
                         opacity: isLocked ? 0.5 : 1,
                         width: '100%',
-                        boxShadow: currentPage === item.id ? `0 2px 8px ${iconColor}30` : 'none',
+                        boxShadow: 'none',
                         position: 'relative'
                       }}
                       onMouseEnter={(e) => {
                         if (currentPage !== item.id && !isLocked) {
-                          e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
-                          e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (currentPage !== item.id && !isLocked) {
                           e.currentTarget.style.backgroundColor = 'transparent';
-                          e.currentTarget.style.borderColor = 'transparent';
                         }
                       }}
                     >
                       <span style={{ 
                         fontSize: '20px',
                         filter: isLocked 
-                          ? 'grayscale(100%) brightness(0) invert(1) opacity(0.3)' 
-                          : currentPage === item.id 
-                            ? 'brightness(0) invert(1) drop-shadow(0 0 4px rgba(16, 185, 129, 0.9)) drop-shadow(0 0 8px rgba(16, 185, 129, 0.6)) drop-shadow(0 0 12px rgba(16, 185, 129, 0.4))' 
-                            : `brightness(0) invert(1) drop-shadow(0 0 3px ${iconColor}90) drop-shadow(0 0 6px ${iconColor}60) drop-shadow(0 0 9px ${iconColor}30)`,
-                        opacity: isLocked ? 0.3 : (currentPage === item.id ? 1 : 0.9),
+                          ? 'brightness(0) invert(1) opacity(0.3)' 
+                          : 'brightness(0) invert(1)',
+                        opacity: isLocked ? 0.3 : (currentPage === item.id ? 1 : 0.8),
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         transition: 'all 0.2s ease',
-                        textShadow: currentPage === item.id 
-                          ? `0 0 8px ${iconColor}90, 0 0 16px ${iconColor}60, 0 0 24px ${iconColor}30` 
-                          : `0 0 5px ${iconColor}70, 0 0 10px ${iconColor}40, 0 0 15px ${iconColor}20`,
                         width: '24px',
                         flexShrink: 0
                       }}>
@@ -6453,19 +6442,6 @@ const DashboardWithFirebase = ({
                         }}>
                           🔒
                         </span>
-                      )}
-                      {currentPage === item.id && (
-                        <div style={{
-                          position: 'absolute',
-                          left: 0,
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          width: '4px',
-                          height: '60%',
-                          backgroundColor: iconColor,
-                          borderRadius: '0 2px 2px 0',
-                          boxShadow: `0 0 8px ${iconColor}60`
-                        }} />
                       )}
                     </button>
                   );
