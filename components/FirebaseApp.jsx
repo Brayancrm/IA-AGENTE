@@ -6128,20 +6128,8 @@ const DashboardWithFirebase = ({
     }
   };
 
-  // Paleta de cores baseada no padrão verde do site - cada cor única
-  const iconColors = {
-    'dashboard': '#10b981',      // Verde principal
-    'company': '#34d399',        // Verde claro
-    'catalog': '#059669',        // Verde escuro
-    'agendamentos': '#14b8a6',   // Verde-azulado
-    'conversas': '#06b6d4',      // Azul-verde
-    'crm': '#22c55e',            // Verde vibrante
-    'integrations': '#0ea5e9',   // Azul claro
-    'whatsapp': '#3b82f6',       // Azul
-    'assistant': '#8b5cf6',      // Roxo-azulado
-    'plans': '#a855f7',          // Roxo
-    'users': '#ec4899'           // Rosa (para diferenciar do outro ícone de usuário)
-  };
+  // Cor padrão verde do site para todos os ícones
+  const iconColor = '#10b981';
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
@@ -6379,8 +6367,6 @@ const DashboardWithFirebase = ({
                   
                   const isLocked = !userHasAccess && !isMasterOnly;
 
-                  const iconColor = iconColors[item.id] || '#10b981';
-
                   return (
                     <button
                       key={item.id}
@@ -6435,17 +6421,19 @@ const DashboardWithFirebase = ({
                     >
                       <span style={{ 
                         fontSize: '20px',
-                        filter: currentPage === item.id 
-                          ? 'none' 
-                          : `drop-shadow(0 0 3px ${iconColor}80) drop-shadow(0 0 6px ${iconColor}40)`,
-                        opacity: isLocked ? 0.5 : (currentPage === item.id ? 1 : 0.9),
+                        filter: isLocked 
+                          ? 'grayscale(100%) opacity(0.5)' 
+                          : currentPage === item.id 
+                            ? 'brightness(1.15) saturate(1.4) drop-shadow(0 0 4px rgba(16, 185, 129, 0.9)) drop-shadow(0 0 8px rgba(16, 185, 129, 0.6))' 
+                            : `brightness(1.1) saturate(1.2) drop-shadow(0 0 3px ${iconColor}90) drop-shadow(0 0 6px ${iconColor}60) drop-shadow(0 0 9px ${iconColor}30)`,
+                        opacity: isLocked ? 0.5 : (currentPage === item.id ? 1 : 0.95),
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         transition: 'all 0.2s ease',
                         textShadow: currentPage === item.id 
-                          ? 'none' 
-                          : `0 0 4px ${iconColor}60, 0 0 8px ${iconColor}30`,
+                          ? `0 0 8px ${iconColor}90, 0 0 16px ${iconColor}60, 0 0 24px ${iconColor}30` 
+                          : `0 0 5px ${iconColor}70, 0 0 10px ${iconColor}40, 0 0 15px ${iconColor}20`,
                         width: '24px',
                         flexShrink: 0
                       }}>
