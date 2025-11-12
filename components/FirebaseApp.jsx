@@ -6421,7 +6421,8 @@ const DashboardWithFirebase = ({
                         opacity: isLocked ? 0.5 : 1,
                         width: '100%',
                         boxShadow: 'none',
-                        position: 'relative'
+                        position: 'relative',
+                        minHeight: '44px'
                       }}
                       onMouseEnter={(e) => {
                         if (currentPage !== item.id && !isLocked) {
@@ -6434,45 +6435,57 @@ const DashboardWithFirebase = ({
                         }
                       }}
                     >
-                      {item.icon === 'whatsapp' ? (
-                        <span style={{ 
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '28px',
-                          height: '28px',
-                          flexShrink: 0,
-                          color: isLocked 
-                            ? '#6b7280' 
-                            : '#25D366',
-                          opacity: isLocked ? 0.4 : (currentPage === item.id ? 1 : 0.9),
-                          transition: 'all 0.2s ease'
-                        }}>
-                          <WhatsAppIcon size={24} />
-                        </span>
-                      ) : (
-                        <span style={{ 
-                          fontSize: '24px',
-                          position: 'relative',
-                          filter: isLocked 
-                            ? (shouldBeColored ? 'opacity(0.4)' : 'brightness(0) invert(1) opacity(0.4)')
-                            : (shouldBeColored ? 'none' : 'brightness(0) invert(1)'),
-                          opacity: isLocked ? 0.4 : (currentPage === item.id ? 1 : 0.9),
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          transition: 'all 0.2s ease',
-                          width: '28px',
-                          flexShrink: 0,
-                          textShadow: shouldBeColored 
-                            ? 'none'
-                            : (currentPage === item.id 
-                              ? '-1px -1px 0 rgba(0, 0, 0, 0.3), 1px -1px 0 rgba(0, 0, 0, 0.3), -1px 1px 0 rgba(0, 0, 0, 0.3), 1px 1px 0 rgba(0, 0, 0, 0.3), 0 0 2px rgba(0, 0, 0, 0.2)' 
-                              : '-1px -1px 0 rgba(0, 0, 0, 0.2), 1px -1px 0 rgba(0, 0, 0, 0.2), -1px 1px 0 rgba(0, 0, 0, 0.2), 1px 1px 0 rgba(0, 0, 0, 0.2), 0 0 1px rgba(0, 0, 0, 0.15)')
-                        }}>
-                          {item.icon}
-                        </span>
-                      )}
+                      <span style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '28px',
+                        minWidth: '28px',
+                        maxWidth: '28px',
+                        height: '28px',
+                        minHeight: '28px',
+                        flexShrink: 0,
+                        flexGrow: 0,
+                        position: 'relative',
+                        zIndex: 2,
+                        visibility: 'visible',
+                        opacity: 1
+                      }}>
+                        {item.icon === 'whatsapp' ? (
+                          <WhatsAppIcon 
+                            size={24} 
+                            color={isLocked ? '#6b7280' : '#25D366'}
+                            style={{ 
+                              opacity: isLocked ? 0.4 : 1,
+                              display: 'block',
+                              visibility: 'visible'
+                            }}
+                          />
+                        ) : (
+                          <span style={{ 
+                            fontSize: '24px',
+                            lineHeight: '24px',
+                            height: '24px',
+                            width: '24px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            filter: isLocked 
+                              ? (shouldBeColored ? 'opacity(0.4)' : 'brightness(0) invert(1) opacity(0.4)')
+                              : (shouldBeColored ? 'none' : 'brightness(0) invert(1)'),
+                            opacity: isLocked ? 0.4 : 1,
+                            transition: 'all 0.2s ease',
+                            visibility: 'visible',
+                            textShadow: shouldBeColored 
+                              ? 'none'
+                              : (currentPage === item.id 
+                                ? '-1px -1px 0 rgba(0, 0, 0, 0.3), 1px -1px 0 rgba(0, 0, 0, 0.3), -1px 1px 0 rgba(0, 0, 0, 0.3), 1px 1px 0 rgba(0, 0, 0, 0.3), 0 0 2px rgba(0, 0, 0, 0.2)' 
+                                : '-1px -1px 0 rgba(0, 0, 0, 0.2), 1px -1px 0 rgba(0, 0, 0, 0.2), -1px 1px 0 rgba(0, 0, 0, 0.2), 1px 1px 0 rgba(0, 0, 0, 0.2), 0 0 1px rgba(0, 0, 0, 0.15)')
+                          }}>
+                            {item.icon}
+                          </span>
+                        )}
+                      </span>
                       <span style={{ 
                         flex: 1,
                         fontSize: '14px',
