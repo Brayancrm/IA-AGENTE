@@ -6367,6 +6367,10 @@ const DashboardWithFirebase = ({
                   
                   const isLocked = !userHasAccess && !isMasterOnly;
 
+                  // Ícones que devem manter suas cores originais
+                  const coloredIcons = ['dashboard', 'catalog', 'agendamentos', 'whatsapp', 'assistant', 'plans'];
+                  const shouldBeColored = coloredIcons.includes(item.id);
+
                   return (
                     <button
                       key={item.id}
@@ -6417,8 +6421,8 @@ const DashboardWithFirebase = ({
                         fontSize: '24px',
                         position: 'relative',
                         filter: isLocked 
-                          ? 'brightness(0) invert(1) opacity(0.4)' 
-                          : 'brightness(0) invert(1)',
+                          ? (shouldBeColored ? 'opacity(0.4)' : 'brightness(0) invert(1) opacity(0.4)')
+                          : (shouldBeColored ? 'none' : 'brightness(0) invert(1)'),
                         opacity: isLocked ? 0.4 : (currentPage === item.id ? 1 : 0.9),
                         display: 'flex',
                         alignItems: 'center',
@@ -6426,9 +6430,11 @@ const DashboardWithFirebase = ({
                         transition: 'all 0.2s ease',
                         width: '28px',
                         flexShrink: 0,
-                        textShadow: currentPage === item.id 
-                          ? '-1px -1px 0 rgba(0, 0, 0, 0.3), 1px -1px 0 rgba(0, 0, 0, 0.3), -1px 1px 0 rgba(0, 0, 0, 0.3), 1px 1px 0 rgba(0, 0, 0, 0.3), 0 0 2px rgba(0, 0, 0, 0.2)' 
-                          : '-1px -1px 0 rgba(0, 0, 0, 0.2), 1px -1px 0 rgba(0, 0, 0, 0.2), -1px 1px 0 rgba(0, 0, 0, 0.2), 1px 1px 0 rgba(0, 0, 0, 0.2), 0 0 1px rgba(0, 0, 0, 0.15)'
+                        textShadow: shouldBeColored 
+                          ? 'none'
+                          : (currentPage === item.id 
+                            ? '-1px -1px 0 rgba(0, 0, 0, 0.3), 1px -1px 0 rgba(0, 0, 0, 0.3), -1px 1px 0 rgba(0, 0, 0, 0.3), 1px 1px 0 rgba(0, 0, 0, 0.3), 0 0 2px rgba(0, 0, 0, 0.2)' 
+                            : '-1px -1px 0 rgba(0, 0, 0, 0.2), 1px -1px 0 rgba(0, 0, 0, 0.2), -1px 1px 0 rgba(0, 0, 0, 0.2), 1px 1px 0 rgba(0, 0, 0, 0.2), 0 0 1px rgba(0, 0, 0, 0.15)')
                       }}>
                         {item.icon}
                       </span>
