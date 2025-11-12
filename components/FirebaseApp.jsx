@@ -6422,11 +6422,11 @@ const DashboardWithFirebase = ({
                       <span style={{ 
                         fontSize: '20px',
                         filter: isLocked 
-                          ? 'grayscale(100%) opacity(0.5)' 
+                          ? 'grayscale(100%) brightness(0) invert(1) opacity(0.3)' 
                           : currentPage === item.id 
-                            ? 'brightness(1.15) saturate(1.4) drop-shadow(0 0 4px rgba(16, 185, 129, 0.9)) drop-shadow(0 0 8px rgba(16, 185, 129, 0.6))' 
-                            : `brightness(1.1) saturate(1.2) drop-shadow(0 0 3px ${iconColor}90) drop-shadow(0 0 6px ${iconColor}60) drop-shadow(0 0 9px ${iconColor}30)`,
-                        opacity: isLocked ? 0.5 : (currentPage === item.id ? 1 : 0.95),
+                            ? 'brightness(0) invert(1) drop-shadow(0 0 4px rgba(16, 185, 129, 0.9)) drop-shadow(0 0 8px rgba(16, 185, 129, 0.6)) drop-shadow(0 0 12px rgba(16, 185, 129, 0.4))' 
+                            : `brightness(0) invert(1) drop-shadow(0 0 3px ${iconColor}90) drop-shadow(0 0 6px ${iconColor}60) drop-shadow(0 0 9px ${iconColor}30)`,
+                        opacity: isLocked ? 0.3 : (currentPage === item.id ? 1 : 0.9),
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
