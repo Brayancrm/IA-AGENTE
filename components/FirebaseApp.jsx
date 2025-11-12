@@ -6173,10 +6173,13 @@ const DashboardWithFirebase = ({
             /* Estilos responsivos para mobile */
             @media (max-width: 768px) {
               .main-content {
+                margin-left: 0 !important;
                 padding-left: 0 !important;
                 padding-right: 0 !important;
+                padding-top: 0 !important;
                 overflow-x: hidden !important;
                 max-width: 100vw !important;
+                width: 100% !important;
               }
               
               /* Reduzir padding geral */
@@ -6241,67 +6244,77 @@ const DashboardWithFirebase = ({
             }
           `}</style>
           
-        <div style={{ minHeight: '100vh', backgroundColor: '#0f1419', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', overflowX: 'hidden', maxWidth: '100vw' }}>
+        <div style={{ minHeight: '100vh', backgroundColor: '#0f1419', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', overflowX: 'hidden', maxWidth: '100vw', display: 'flex' }}>
 
-            {/* Menu Horizontal no Topo - Responsivo */}
+            {/* Overlay para mobile quando sidebar está aberto */}
+            {isMobile && isMobileMenuOpen && (
+              <div
+                onClick={() => setIsMobileMenuOpen(false)}
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  zIndex: 999,
+                  transition: 'opacity 0.3s ease'
+                }}
+              />
+            )}
+
+            {/* Sidebar Lateral Esquerdo */}
             <div 
               style={{ 
                 position: 'fixed',
                 top: 0,
-                left: 0,
-                right: 0,
-                width: '100%',
-                height: isMobile && !isMobileMenuOpen ? '64px' : (isMobile ? 'auto' : '72px'),
-                minHeight: isMobile && !isMobileMenuOpen ? '64px' : (isMobile ? 'auto' : '72px'),
+                left: isMobile ? (isMobileMenuOpen ? '0' : '-280px') : '0',
+                width: '280px',
+                height: '100vh',
                 backgroundColor: '#1a1f36', 
                 color: 'white', 
-                padding: isMobile ? '12px 16px' : '0',
                 display: 'flex',
-                flexDirection: isMobile ? 'column' : 'row',
-                alignItems: isMobile ? 'flex-start' : 'center',
-                justifyContent: 'space-between',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-                borderBottom: '2px solid rgba(16, 185, 129, 0.2)',
+                flexDirection: 'column',
+                boxShadow: '4px 0 12px rgba(0,0,0,0.4)',
+                borderRight: '2px solid rgba(16, 185, 129, 0.2)',
                 zIndex: 1000,
-                gap: 0,
-                overflowX: isMobile ? 'hidden' : 'auto',
-                overflowY: isMobile ? (isMobileMenuOpen ? 'visible' : 'hidden') : 'hidden',
-                transition: 'height 0.3s ease'
+                transition: 'left 0.3s ease',
+                overflowY: 'auto',
+                overflowX: 'hidden'
               }}
             >
-              {/* Logo, Badge Master e Botão Menu Mobile - Lado Esquerdo */}
+              {/* Header do Sidebar - Logo e Badge Master */}
               <div style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
                 gap: '12px',
-                flexShrink: 0,
-                width: isMobile ? '100%' : 'auto',
-                justifyContent: isMobile ? 'space-between' : 'flex-start',
-                padding: isMobile ? '0' : '0 24px',
-                height: isMobile ? 'auto' : '72px',
-                borderRight: isMobile ? 'none' : '1px solid rgba(16, 185, 129, 0.1)'
+                padding: '20px',
+                borderBottom: '1px solid rgba(16, 185, 129, 0.1)',
+                flexShrink: 0
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <img 
-                    src="/logo.png" 
-                    alt="dadosIA Logo" 
-                    style={{ 
-                      width: isMobile ? '48px' : '52px',
-                      height: isMobile ? '48px' : '52px',
-                      objectFit: 'contain'
-                    }} 
-                  />
+                <img 
+                  src="/logo.png" 
+                  alt="dadosIA Logo" 
+                  style={{ 
+                    width: '48px',
+                    height: '48px',
+                    objectFit: 'contain'
+                  }} 
+                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#10b981' }}>dadosIA</div>
                   {user?.isMaster && (
                     <div style={{ 
                       background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
                       color: '#78350f', 
-                      padding: '4px 8px', 
-                      borderRadius: '6px', 
-                      fontSize: '10px', 
+                      padding: '2px 6px', 
+                      borderRadius: '4px', 
+                      fontSize: '9px', 
                       fontWeight: '700',
                       boxShadow: '0 2px 6px rgba(251, 191, 36, 0.4)',
                       whiteSpace: 'nowrap',
-                      letterSpacing: '0.5px'
+                      letterSpacing: '0.5px',
+                      width: 'fit-content'
                     }}>
                       👑 MASTER
                     </div>
@@ -6309,52 +6322,40 @@ const DashboardWithFirebase = ({
                 </div>
                 {isMobile && (
                   <button
-                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                    onClick={() => setIsMobileMenuOpen(false)}
                     style={{
-                      backgroundColor: '#2a3142',
-                      border: '1px solid rgba(16, 185, 129, 0.3)',
-                      borderRadius: '6px',
-                      padding: '8px 12px',
-                      color: '#10b981',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      color: '#9ca3af',
                       cursor: 'pointer',
+                      fontSize: '24px',
+                      padding: '4px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '18px',
-                      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.3)',
                       transition: 'all 0.2s ease'
                     }}
                     onMouseEnter={(e) => {
-                      e.target.style.backgroundColor = '#10b981';
-                      e.target.style.color = 'white';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.backgroundColor = '#2a3142';
                       e.target.style.color = '#10b981';
                     }}
+                    onMouseLeave={(e) => {
+                      e.target.style.color = '#9ca3af';
+                    }}
                   >
-                    {isMobileMenuOpen ? '✕' : '☰'}
+                    ✕
                   </button>
                 )}
               </div>
 
-              {/* Navegação Horizontal - Centro */}
+              {/* Navegação Vertical */}
               <nav style={{ 
-                display: isMobile && !isMobileMenuOpen ? 'none' : 'flex',
-                flexDirection: isMobile ? 'column' : 'row',
-                gap: isMobile ? '6px' : '0', 
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px', 
                 flex: 1,
-                overflowX: isMobile ? 'hidden' : 'hidden',
-                overflowY: isMobile ? 'visible' : 'hidden',
-                justifyContent: isMobile ? 'flex-start' : 'space-evenly',
-                alignItems: 'center',
-                flexWrap: 'nowrap',
-                maxWidth: isMobile ? '100%' : 'calc(100vw - 280px)',
-                width: isMobile ? '100%' : '100%',
-                padding: isMobile ? '12px 0' : '0',
-                height: isMobile ? 'auto' : '72px',
-                scrollbarWidth: 'thin',
-                scrollbarColor: 'rgba(16, 185, 129, 0.3) transparent'
+                padding: '16px 12px',
+                overflowY: 'auto',
+                overflowX: 'hidden'
               }}>
                 {menuItems.map((item) => {
                   // Verificar se a funcionalidade está disponível para o usuário
@@ -6374,99 +6375,61 @@ const DashboardWithFirebase = ({
                   const isLocked = !userHasAccess && !isMasterOnly;
 
                   const iconColor = iconColors[item.id] || '#10b981';
-                  const isLastItem = menuItems.indexOf(item) === menuItems.length - 1;
 
                   return (
-                    <div key={item.id} style={{ 
-                      display: 'flex', 
-                      alignItems: 'center',
-                      position: 'relative'
-                    }}>
-                      <button
-                        onClick={() => {
-                          if (isLocked) {
-                            showToast('Esta funcionalidade não está disponível no seu plano atual. Faça upgrade para acessar!', 'error');
-                            setCurrentPage('plans');
-                          } else {
-                            setCurrentPage(item.id);
-                            if (isMobile) {
-                              setIsMobileMenuOpen(false);
-                            }
-                          }
-                        }}
-                        title={item.label}
-                        style={{
-                          textAlign: 'center',
-                          padding: isMobile ? '10px 12px' : '8px',
-                          borderRadius: '6px',
-                          border: currentPage === item.id ? `1px solid ${iconColor}` : '1px solid transparent',
-                          background: currentPage === item.id 
-                            ? `linear-gradient(135deg, ${iconColor} 0%, ${iconColor}dd 100%)` 
-                            : isLocked 
-                              ? 'rgba(107, 114, 128, 0.15)' 
-                              : 'transparent',
-                          color: isLocked 
-                            ? '#6b7280' 
-                            : (currentPage === item.id ? 'white' : '#d1d5db'),
-                          cursor: isLocked ? 'not-allowed' : 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          fontSize: isMobile ? '12px' : '13px',
-                          fontWeight: currentPage === item.id ? '600' : '500',
-                          transition: 'all 0.2s ease',
-                          opacity: isLocked ? 0.5 : 1,
-                          whiteSpace: 'nowrap',
-                          flexShrink: 0,
-                          minHeight: isMobile ? 'auto' : '44px',
-                          minWidth: isMobile ? 'auto' : '44px',
-                          width: isMobile ? 'auto' : '44px',
-                          height: isMobile ? 'auto' : '44px',
-                          padding: isMobile ? '10px 12px' : '8px',
-                          boxShadow: currentPage === item.id ? `0 2px 8px ${iconColor}40` : 'none',
-                          position: 'relative'
-                        }}
-                      onMouseEnter={(e) => {
-                        if (currentPage !== item.id && !isLocked) {
-                          // Fundo verde arredondado no hover (igual foto 1)
-                          e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
-                          e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.3)';
-                          e.currentTarget.style.boxShadow = '0 0 12px rgba(16, 185, 129, 0.3), 0 0 20px rgba(16, 185, 129, 0.15)';
-                          const iconSpan = e.currentTarget.querySelector('span:first-child');
-                          if (iconSpan) {
-                            iconSpan.style.opacity = '1';
-                            iconSpan.style.filter = 'drop-shadow(0 0 4px rgba(16, 185, 129, 0.8)) drop-shadow(0 0 8px rgba(16, 185, 129, 0.5))';
-                            iconSpan.style.textShadow = '0 0 6px rgba(16, 185, 129, 0.8), 0 0 12px rgba(16, 185, 129, 0.4)';
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        if (isLocked) {
+                          showToast('Esta funcionalidade não está disponível no seu plano atual. Faça upgrade para acessar!', 'error');
+                          setCurrentPage('plans');
+                        } else {
+                          setCurrentPage(item.id);
+                          if (isMobile) {
+                            setIsMobileMenuOpen(false);
                           }
                         }
-                        // Mostrar tooltip
-                        const tooltip = e.currentTarget.querySelector('.menu-tooltip');
-                        if (tooltip) {
-                          tooltip.style.display = 'block';
+                      }}
+                      style={{
+                        textAlign: 'left',
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        border: currentPage === item.id ? `2px solid ${iconColor}` : '2px solid transparent',
+                        background: currentPage === item.id 
+                          ? `linear-gradient(135deg, ${iconColor}20 0%, ${iconColor}10 100%)` 
+                          : isLocked 
+                            ? 'rgba(107, 114, 128, 0.1)' 
+                            : 'transparent',
+                        color: isLocked 
+                          ? '#6b7280' 
+                          : (currentPage === item.id ? '#ffffff' : '#d1d5db'),
+                        cursor: isLocked ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        fontSize: '14px',
+                        fontWeight: currentPage === item.id ? '600' : '500',
+                        transition: 'all 0.2s ease',
+                        opacity: isLocked ? 0.5 : 1,
+                        width: '100%',
+                        boxShadow: currentPage === item.id ? `0 2px 8px ${iconColor}30` : 'none',
+                        position: 'relative'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentPage !== item.id && !isLocked) {
+                          e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                          e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.3)';
                         }
                       }}
                       onMouseLeave={(e) => {
                         if (currentPage !== item.id && !isLocked) {
                           e.currentTarget.style.backgroundColor = 'transparent';
                           e.currentTarget.style.borderColor = 'transparent';
-                          e.currentTarget.style.boxShadow = 'none';
-                          const iconSpan = e.currentTarget.querySelector('span:first-child');
-                          if (iconSpan) {
-                            iconSpan.style.opacity = '0.9';
-                            iconSpan.style.filter = `drop-shadow(0 0 3px ${iconColor}80) drop-shadow(0 0 6px ${iconColor}40)`;
-                            iconSpan.style.textShadow = `0 0 4px ${iconColor}60, 0 0 8px ${iconColor}30`;
-                          }
-                        }
-                        // Esconder tooltip
-                        const tooltip = e.currentTarget.querySelector('.menu-tooltip');
-                        if (tooltip) {
-                          tooltip.style.display = 'none';
                         }
                       }}
                     >
                       <span style={{ 
-                        fontSize: isMobile ? '16px' : '20px',
+                        fontSize: '20px',
                         filter: currentPage === item.id 
                           ? 'none' 
                           : `drop-shadow(0 0 3px ${iconColor}80) drop-shadow(0 0 6px ${iconColor}40)`,
@@ -6477,174 +6440,171 @@ const DashboardWithFirebase = ({
                         transition: 'all 0.2s ease',
                         textShadow: currentPage === item.id 
                           ? 'none' 
-                          : `0 0 4px ${iconColor}60, 0 0 8px ${iconColor}30`
+                          : `0 0 4px ${iconColor}60, 0 0 8px ${iconColor}30`,
+                        width: '24px',
+                        flexShrink: 0
                       }}>
                         {item.icon}
                       </span>
-                      {/* Mostrar texto apenas em mobile */}
-                      {isMobile && (
-                        <span style={{ 
-                          fontSize: '12px',
-                          letterSpacing: '0.2px',
-                          marginLeft: '4px'
-                        }}>
-                          {item.label}
-                        </span>
-                      )}
+                      <span style={{ 
+                        flex: 1,
+                        fontSize: '14px',
+                        letterSpacing: '0.2px'
+                      }}>
+                        {item.label}
+                      </span>
                       {isLocked && (
                         <span style={{ 
-                          fontSize: '12px', 
-                          opacity: 0.6,
-                          position: 'absolute',
-                          top: '2px',
-                          right: '2px'
+                          fontSize: '14px', 
+                          opacity: 0.6
                         }}>
                           🔒
                         </span>
                       )}
-                      {/* Tooltip com nome do item - apenas em desktop */}
-                      {!isMobile && (
-                        <span 
-                          className="menu-tooltip"
-                          style={{
-                            display: 'none',
-                            position: 'absolute',
-                            bottom: '100%',
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            marginBottom: '8px',
-                            padding: '6px 10px',
-                            backgroundColor: '#1a1f36',
-                            color: '#d1d5db',
-                            fontSize: '12px',
-                            borderRadius: '6px',
-                            whiteSpace: 'nowrap',
-                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
-                            border: '1px solid rgba(16, 185, 129, 0.2)',
-                            zIndex: 1001,
-                            pointerEvents: 'none',
-                            fontWeight: '500',
-                            letterSpacing: '0.2px'
-                          }}
-                        >
-                          {item.label}
-                          <span style={{
-                            position: 'absolute',
-                            bottom: '-4px',
-                            left: '50%',
-                            transform: 'translateX(-50%) rotate(45deg)',
-                            width: '8px',
-                            height: '8px',
-                            backgroundColor: '#1a1f36',
-                            borderRight: '1px solid rgba(16, 185, 129, 0.2)',
-                            borderBottom: '1px solid rgba(16, 185, 129, 0.2)'
-                          }}></span>
-                        </span>
+                      {currentPage === item.id && (
+                        <div style={{
+                          position: 'absolute',
+                          left: 0,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          width: '4px',
+                          height: '60%',
+                          backgroundColor: iconColor,
+                          borderRadius: '0 2px 2px 0',
+                          boxShadow: `0 0 8px ${iconColor}60`
+                        }} />
                       )}
                     </button>
-                    {/* Divisória fina entre ícones - apenas em desktop e não no último item */}
-                    {!isMobile && !isLastItem && (
-                      <div style={{
-                        width: '1px',
-                        height: '32px',
-                        backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                        margin: '0 4px',
-                        opacity: 0.4
-                      }}></div>
-                    )}
-                  </div>
                   );
                 })}
               </nav>
 
-              {/* Usuário e Logout - Lado Direito */}
+              {/* Footer do Sidebar - Usuário e Logout */}
               <div style={{ 
-                display: isMobile && !isMobileMenuOpen ? 'none' : 'flex',
-                alignItems: 'center', 
+                padding: '16px',
+                borderTop: '1px solid rgba(16, 185, 129, 0.1)',
+                display: 'flex',
+                flexDirection: 'column',
                 gap: '12px',
-                flexShrink: 0,
-                flexDirection: isMobile ? 'column' : 'row',
-                width: isMobile ? '100%' : 'auto',
-                padding: isMobile ? '12px 0' : '0 24px',
-                height: isMobile ? 'auto' : '72px',
-                borderLeft: isMobile ? 'none' : '1px solid rgba(16, 185, 129, 0.1)'
+                flexShrink: 0
               }}>
-                {!isMobile && (
-                  <div style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    alignItems: 'flex-end',
-                    marginRight: '12px'
-                  }}>
-                    <p style={{ 
-                      fontSize: '11px', 
-                      color: '#9ca3af', 
-                      margin: 0,
-                      fontWeight: '500',
-                      letterSpacing: '0.3px'
-                    }}>
-                      {user?.email?.split('@')[0]}
-                    </p>
-                  </div>
-                )}
-                {isMobile && (
-                  <div style={{ 
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '4px'
+                }}>
+                  <p style={{ 
                     fontSize: '12px', 
                     color: '#9ca3af', 
-                    marginBottom: '8px',
+                    margin: 0,
                     fontWeight: '500',
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '0 4px'
+                    letterSpacing: '0.3px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
                   }}>
-                    {user?.email}
-                  </div>
-                )}
+                    {user?.email?.split('@')[0] || user?.email}
+                  </p>
+                  {user?.email && user?.email?.split('@')[0] !== user?.email && (
+                    <p style={{ 
+                      fontSize: '10px', 
+                      color: '#6b7280', 
+                      margin: 0,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {user?.email}
+                    </p>
+                  )}
+                </div>
                 <button
                   onClick={handleLogout}
                   style={{
                     background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                     color: 'white',
-                    padding: isMobile ? '10px 16px' : '8px 16px',
-                    borderRadius: '6px',
+                    padding: '10px 16px',
+                    borderRadius: '8px',
                     border: '1px solid rgba(239, 68, 68, 0.3)',
                     cursor: 'pointer',
-                    fontSize: isMobile ? '12px' : '13px',
+                    fontSize: '13px',
                     fontWeight: '600',
                     transition: 'all 0.2s ease',
                     boxShadow: '0 2px 6px rgba(239, 68, 68, 0.3)',
-                    whiteSpace: 'nowrap',
-                    width: isMobile ? '100%' : 'auto',
-                    letterSpacing: '0.3px'
+                    width: '100%',
+                    letterSpacing: '0.3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.background = 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)';
-                    e.target.style.transform = 'translateY(-1px)';
-                    e.target.style.boxShadow = '0 4px 10px rgba(239, 68, 68, 0.4)';
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 10px rgba(239, 68, 68, 0.4)';
                   }}
                   onMouseLeave={(e) => {
-                    e.target.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
-                    e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 2px 6px rgba(239, 68, 68, 0.3)';
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(239, 68, 68, 0.3)';
                   }}
                 >
-                  {isMobile ? '🚪 Sair' : 'Sair'}
+                  <span>🚪</span>
+                  <span>Sair</span>
                 </button>
               </div>
             </div>
+
+            {/* Botão para abrir menu em mobile (quando fechado) */}
+            {isMobile && !isMobileMenuOpen && (
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                style={{
+                  position: 'fixed',
+                  top: '16px',
+                  left: '16px',
+                  backgroundColor: '#1a1f36',
+                  border: '2px solid rgba(16, 185, 129, 0.3)',
+                  borderRadius: '8px',
+                  padding: '10px 12px',
+                  color: '#10b981',
+                  cursor: 'pointer',
+                  fontSize: '20px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+                  zIndex: 999,
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#10b981';
+                  e.target.style.color = 'white';
+                  e.target.style.borderColor = '#10b981';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = '#1a1f36';
+                  e.target.style.color = '#10b981';
+                  e.target.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                }}
+              >
+                ☰
+              </button>
+            )}
 
             {/* Main Content - Responsivo */}
             <div 
               className="main-content"
               style={{ 
-                marginLeft: '0',
-                paddingTop: isMobile ? (isMobileMenuOpen ? '400px' : '64px') : '72px',
+                marginLeft: isMobile ? '0' : '280px',
+                paddingTop: '0',
                 minHeight: '100vh',
                 backgroundColor: '#0f1419',
                 overflowY: 'auto',
                 overflowX: 'hidden',
-                maxWidth: '100vw',
-                transition: 'margin-left 0.3s ease'
+                width: isMobile ? '100%' : 'calc(100% - 280px)',
+                transition: 'margin-left 0.3s ease, width 0.3s ease',
+                flex: 1
               }}
             >
           {renderContent()}
