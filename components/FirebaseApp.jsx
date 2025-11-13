@@ -6128,6 +6128,446 @@ const DashboardWithFirebase = ({
           </div>
         );
 
+      case 'tutorials':
+        return (
+          <div style={{ padding: getResponsivePadding(), maxWidth: '1200px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+            {/* Header */}
+            <div style={{ marginBottom: '32px' }}>
+              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {renderPageIcon('tutorials')}
+                Tutorias
+              </h2>
+              <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
+                Guia completo de como usar o dadosIA na ordem correta
+              </p>
+            </div>
+
+            {/* Conteúdo dos Tutorias */}
+            <div style={{ 
+              backgroundColor: '#1a1f36', 
+              borderRadius: '20px', 
+              padding: getResponsivePadding(), 
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)', 
+              border: '1px solid rgba(16, 185, 129, 0.2)',
+              marginBottom: '24px'
+            }}>
+              {/* Introdução */}
+              <div style={{ marginBottom: '32px' }}>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '1.75rem' }}>👋</span>
+                  Bem-vindo ao dadosIA
+                </h3>
+                <p style={{ fontSize: '1rem', color: '#d1d5db', lineHeight: '1.6', marginBottom: '16px' }}>
+                  O dadosIA é uma plataforma completa de automação de vendas com IA. Este guia irá te ajudar a configurar e usar todas as funcionalidades na ordem correta para obter o máximo desempenho.
+                </p>
+              </div>
+
+              {/* Ordem de Configuração */}
+              <div style={{ marginBottom: '32px' }}>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '1.75rem' }}>📋</span>
+                  Ordem Correta de Configuração
+                </h3>
+                
+                {/* Passo 1 */}
+                <div style={{ 
+                  marginBottom: '24px', 
+                  padding: '20px', 
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)', 
+                  borderRadius: '12px',
+                  border: '2px solid rgba(16, 185, 129, 0.3)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '12px' }}>
+                    <div style={{
+                      minWidth: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      backgroundColor: '#10b981',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: '700',
+                      fontSize: '1rem',
+                      flexShrink: 0
+                    }}>
+                      1
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
+                        Cadastro do Usuário
+                      </h4>
+                      <p style={{ fontSize: '0.9375rem', color: '#d1d5db', lineHeight: '1.6', marginBottom: '12px' }}>
+                        Configure seus dados pessoais e da empresa. Este é o primeiro passo obrigatório.
+                      </p>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          Preencha o nome ou razão social
+                        </li>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          Adicione CPF/CNPJ (obrigatório para planos pagos)
+                        </li>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          Configure seu número do WhatsApp
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Passo 2 */}
+                <div style={{ 
+                  marginBottom: '24px', 
+                  padding: '20px', 
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)', 
+                  borderRadius: '12px',
+                  border: '2px solid rgba(16, 185, 129, 0.3)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '12px' }}>
+                    <div style={{
+                      minWidth: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      backgroundColor: '#10b981',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: '700',
+                      fontSize: '1rem',
+                      flexShrink: 0
+                    }}>
+                      2
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
+                        Conexão WhatsApp
+                      </h4>
+                      <p style={{ fontSize: '0.9375rem', color: '#d1d5db', lineHeight: '1.6', marginBottom: '12px' }}>
+                        Conecte seu WhatsApp para ativar o assistente automático. Sem isso, o sistema não funcionará.
+                      </p>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          Clique em "Conectar WhatsApp"
+                        </li>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          Escaneie o QR Code com seu WhatsApp
+                        </li>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          Aguarde a confirmação de conexão
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Passo 3 */}
+                <div style={{ 
+                  marginBottom: '24px', 
+                  padding: '20px', 
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)', 
+                  borderRadius: '12px',
+                  border: '2px solid rgba(16, 185, 129, 0.3)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '12px' }}>
+                    <div style={{
+                      minWidth: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      backgroundColor: '#10b981',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: '700',
+                      fontSize: '1rem',
+                      flexShrink: 0
+                    }}>
+                      3
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
+                        Catálogo de Produtos/Serviços
+                      </h4>
+                      <p style={{ fontSize: '0.9375rem', color: '#d1d5db', lineHeight: '1.6', marginBottom: '12px' }}>
+                        Adicione seus produtos ou serviços para que o assistente possa apresentá-los aos clientes.
+                      </p>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          Adicione produtos individualmente ou importe em lote
+                        </li>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          Inclua nome, descrição, preço e imagem
+                        </li>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          Organize por categorias
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Passo 4 */}
+                <div style={{ 
+                  marginBottom: '24px', 
+                  padding: '20px', 
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)', 
+                  borderRadius: '12px',
+                  border: '2px solid rgba(16, 185, 129, 0.3)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '12px' }}>
+                    <div style={{
+                      minWidth: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      backgroundColor: '#10b981',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: '700',
+                      fontSize: '1rem',
+                      flexShrink: 0
+                    }}>
+                      4
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
+                        Integrações
+                      </h4>
+                      <p style={{ fontSize: '0.9375rem', color: '#d1d5db', lineHeight: '1.6', marginBottom: '12px' }}>
+                        Configure as integrações necessárias, especialmente a API da OpenAI para respostas inteligentes.
+                      </p>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          Adicione sua chave da API OpenAI
+                        </li>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          Configure integrações fiscais (se necessário)
+                        </li>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          Configure outras integrações conforme sua necessidade
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Passo 5 */}
+                <div style={{ 
+                  marginBottom: '24px', 
+                  padding: '20px', 
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)', 
+                  borderRadius: '12px',
+                  border: '2px solid rgba(16, 185, 129, 0.3)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '12px' }}>
+                    <div style={{
+                      minWidth: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      backgroundColor: '#10b981',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: '700',
+                      fontSize: '1rem',
+                      flexShrink: 0
+                    }}>
+                      5
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
+                        Configuração do Assistente
+                      </h4>
+                      <p style={{ fontSize: '0.9375rem', color: '#d1d5db', lineHeight: '1.6', marginBottom: '12px' }}>
+                        Configure o comportamento do assistente de IA, incluindo personalidade, fluxo de conversa e regras de negócio.
+                      </p>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          Defina a personalidade do assistente
+                        </li>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          Configure o fluxo de atendimento
+                        </li>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          Adicione regras e condições específicas
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Passo 6 */}
+                <div style={{ 
+                  marginBottom: '24px', 
+                  padding: '20px', 
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)', 
+                  borderRadius: '12px',
+                  border: '2px solid rgba(16, 185, 129, 0.3)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '12px' }}>
+                    <div style={{
+                      minWidth: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      backgroundColor: '#10b981',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: '700',
+                      fontSize: '1rem',
+                      flexShrink: 0
+                    }}>
+                      6
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
+                        Ativar o Assistente
+                      </h4>
+                      <p style={{ fontSize: '0.9375rem', color: '#d1d5db', lineHeight: '1.6', marginBottom: '12px' }}>
+                        Após configurar tudo, ative o assistente no Dashboard para começar a receber e responder mensagens automaticamente.
+                      </p>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          Vá para o Dashboard
+                        </li>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          Ative o toggle "Assistente Ativo"
+                        </li>
+                        <li style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '8px', paddingLeft: '20px', position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 0 }}>✓</span>
+                          O assistente começará a responder automaticamente
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Funcionalidades Adicionais */}
+              <div style={{ marginBottom: '32px' }}>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '1.75rem' }}>🚀</span>
+                  Funcionalidades Adicionais
+                </h3>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '16px' }}>
+                  <div style={{ 
+                    padding: '20px', 
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                  }}>
+                    <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
+                      📅 Agendamentos
+                    </h4>
+                    <p style={{ fontSize: '0.875rem', color: '#9ca3af', lineHeight: '1.5' }}>
+                      Gerencie compromissos e agendamentos dos seus clientes. O assistente pode agendar automaticamente.
+                    </p>
+                  </div>
+
+                  <div style={{ 
+                    padding: '20px', 
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                  }}>
+                    <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
+                      💬 Conversas WhatsApp
+                    </h4>
+                    <p style={{ fontSize: '0.875rem', color: '#9ca3af', lineHeight: '1.5' }}>
+                      Acompanhe todas as conversas em tempo real. Veja o histórico completo de interações.
+                    </p>
+                  </div>
+
+                  <div style={{ 
+                    padding: '20px', 
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                  }}>
+                    <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
+                      🎯 CRM
+                    </h4>
+                    <p style={{ fontSize: '0.875rem', color: '#9ca3af', lineHeight: '1.5' }}>
+                      Gerencie clientes, pedidos e oportunidades de vendas. Visualize métricas e funil de vendas.
+                    </p>
+                  </div>
+
+                  <div style={{ 
+                    padding: '20px', 
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                  }}>
+                    <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
+                      💎 Planos e Assinaturas
+                    </h4>
+                    <p style={{ fontSize: '0.875rem', color: '#9ca3af', lineHeight: '1.5' }}>
+                      Escolha o plano ideal para sua empresa. Faça upgrade conforme sua necessidade cresce.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dicas Importantes */}
+              <div style={{ 
+                padding: '24px', 
+                backgroundColor: 'rgba(251, 191, 36, 0.1)', 
+                borderRadius: '12px',
+                border: '2px solid rgba(251, 191, 36, 0.3)'
+              }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#fbbf24', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '1.5rem' }}>💡</span>
+                  Dicas Importantes
+                </h3>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  <li style={{ fontSize: '0.9375rem', color: '#d1d5db', marginBottom: '12px', paddingLeft: '24px', position: 'relative', lineHeight: '1.6' }}>
+                    <span style={{ position: 'absolute', left: 0, fontSize: '1.25rem' }}>•</span>
+                    Siga a ordem de configuração para evitar problemas
+                  </li>
+                  <li style={{ fontSize: '0.9375rem', color: '#d1d5db', marginBottom: '12px', paddingLeft: '24px', position: 'relative', lineHeight: '1.6' }}>
+                    <span style={{ position: 'absolute', left: 0, fontSize: '1.25rem' }}>•</span>
+                    Mantenha seu WhatsApp conectado para o sistema funcionar
+                  </li>
+                  <li style={{ fontSize: '0.9375rem', color: '#d1d5db', marginBottom: '12px', paddingLeft: '24px', position: 'relative', lineHeight: '1.6' }}>
+                    <span style={{ position: 'absolute', left: 0, fontSize: '1.25rem' }}>•</span>
+                    Atualize seu catálogo regularmente com novos produtos
+                  </li>
+                  <li style={{ fontSize: '0.9375rem', color: '#d1d5db', marginBottom: '12px', paddingLeft: '24px', position: 'relative', lineHeight: '1.6' }}>
+                    <span style={{ position: 'absolute', left: 0, fontSize: '1.25rem' }}>•</span>
+                    Monitore as conversas para melhorar o assistente
+                  </li>
+                  <li style={{ fontSize: '0.9375rem', color: '#d1d5db', marginBottom: '12px', paddingLeft: '24px', position: 'relative', lineHeight: '1.6' }}>
+                    <span style={{ position: 'absolute', left: 0, fontSize: '1.25rem' }}>•</span>
+                    Teste o assistente antes de ativar completamente
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        );
+
       default:
         return (
           <div style={{ padding: '24px' }}>
@@ -6173,12 +6613,13 @@ const DashboardWithFirebase = ({
     { id: 'whatsapp', label: 'Conexão WhatsApp', icon: '📱' },
     { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' },
     { id: 'plans', label: 'Planos e Assinaturas', icon: '💎' },
+    { id: 'tutorials', label: 'Tutorias', icon: '📚' },
     ...(user?.isMaster ? [{ id: 'users', label: 'Gerenciar Usuários', icon: '👤' }] : [])
   ];
 
   // Função helper para renderizar ícones de página (mesma lógica do sidebar)
   const renderPageIcon = (pageId, customSize = null) => {
-    const coloredIcons = ['dashboard', 'catalog', 'agendamentos', 'conversas', 'whatsapp', 'assistant', 'plans'];
+    const coloredIcons = ['dashboard', 'catalog', 'agendamentos', 'conversas', 'whatsapp', 'assistant', 'plans', 'tutorials'];
     const shouldBeColored = coloredIcons.includes(pageId);
     const menuItem = menuItems.find(item => item.id === pageId);
     
@@ -6464,7 +6905,7 @@ const DashboardWithFirebase = ({
                   const isLocked = !userHasAccess && !isMasterOnly;
 
                   // Ícones que devem manter suas cores originais
-                  const coloredIcons = ['dashboard', 'catalog', 'agendamentos', 'conversas', 'whatsapp', 'assistant', 'plans'];
+                  const coloredIcons = ['dashboard', 'catalog', 'agendamentos', 'conversas', 'whatsapp', 'assistant', 'plans', 'tutorials'];
                   const shouldBeColored = coloredIcons.includes(item.id);
 
                   return (
