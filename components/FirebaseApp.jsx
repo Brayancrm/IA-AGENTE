@@ -29,7 +29,8 @@ import {
   Download,
   Tag,
   ShoppingCart,
-  DollarSign
+  DollarSign,
+  Target
 } from 'lucide-react';
 
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsappsalesagent';
@@ -6162,7 +6163,7 @@ const DashboardWithFirebase = ({
     { id: 'catalog', label: 'Catálogo', icon: '📦' },
     { id: 'agendamentos', label: 'Agendamentos', icon: '📅' },
     { id: 'conversas', label: 'Conversas WhatsApp', icon: 'whatsapp' },
-    { id: 'crm', label: 'CRM', icon: '👥' },
+    { id: 'crm', label: 'CRM', icon: 'target' },
     { id: 'integrations', label: 'Integrações', icon: '⚙️' },
     { id: 'whatsapp', label: 'Conexão WhatsApp', icon: '📱' },
     { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' },
@@ -6195,6 +6196,19 @@ const DashboardWithFirebase = ({
           <WhatsAppIcon 
             size={iconPxSize} 
             color="#25D366"
+            style={{ display: 'block' }}
+          />
+        </span>
+      );
+    }
+    
+    if (menuItem.icon === 'target') {
+      const iconPxSize = remToPx(iconSize);
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: iconSize, height: iconSize }}>
+          <Target 
+            size={iconPxSize} 
+            color="#ffffff"
             style={{ display: 'block' }}
           />
         </span>
@@ -6519,6 +6533,19 @@ const DashboardWithFirebase = ({
                               opacity: isLocked ? 0.4 : 1,
                               display: 'block',
                               visibility: 'visible'
+                            }}
+                          />
+                        ) : item.icon === 'target' ? (
+                          <Target 
+                            size={24} 
+                            color={isLocked ? '#6b7280' : (currentPage === item.id ? '#ffffff' : '#d1d5db')}
+                            style={{ 
+                              opacity: isLocked ? 0.4 : 1,
+                              display: 'block',
+                              visibility: 'visible',
+                              filter: currentPage === item.id 
+                                ? 'drop-shadow(-1px -1px 0 rgba(0, 0, 0, 0.3)) drop-shadow(1px -1px 0 rgba(0, 0, 0, 0.3)) drop-shadow(-1px 1px 0 rgba(0, 0, 0, 0.3)) drop-shadow(1px 1px 0 rgba(0, 0, 0, 0.3))'
+                                : 'drop-shadow(-1px -1px 0 rgba(0, 0, 0, 0.2)) drop-shadow(1px -1px 0 rgba(0, 0, 0, 0.2)) drop-shadow(-1px 1px 0 rgba(0, 0, 0, 0.2)) drop-shadow(1px 1px 0 rgba(0, 0, 0, 0.2))'
                             }}
                           />
                         ) : (
@@ -7840,7 +7867,7 @@ const DashboardWithFirebase = ({
                     { id: 'catalog', label: 'Catálogo', icon: '📦' },
                     { id: 'agendamentos', label: 'Agendamentos', icon: '📅' },
                     { id: 'conversas', label: 'Conversas WhatsApp', icon: '💬' },
-                    { id: 'crm', label: 'CRM', icon: '👥' },
+                    { id: 'crm', label: 'CRM', icon: 'target' },
                     { id: 'integrations', label: 'Integrações', icon: '⚙️' },
                     { id: 'whatsapp', label: 'Conexão WhatsApp', icon: '📱' },
                     { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' }
