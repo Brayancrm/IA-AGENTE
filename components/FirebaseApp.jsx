@@ -996,6 +996,50 @@ const FirebaseApp = () => {
         // Atualizar plano existente
         const planRef = ref(database, `plans/${editingPlan.id}`);
         await set(planRef, data);
+        
+        // Atualizar planos ativos de todos os usuários que têm este plano
+        try {
+          const usersRef = ref(database, 'users/registered');
+          const usersSnapshot = await get(usersRef);
+          
+          if (usersSnapshot.exists()) {
+            const usersData = usersSnapshot.val();
+            const updatePromises = [];
+            
+            for (const userId of Object.keys(usersData)) {
+              const userData = usersData[userId];
+              if (userData.uid) {
+                const activePlanRef = ref(database, `users/data/${userData.uid}/activePlan`);
+                const activePlanSnapshot = await get(activePlanRef);
+                
+                if (activePlanSnapshot.exists()) {
+                  const activePlan = activePlanSnapshot.val();
+                  // Verificar se o plano ativo do usuário corresponde ao plano editado
+                  // Comparando pelo ID do plano ou pelo nome do plano
+                  if (activePlan.planId === editingPlan.id || activePlan.planName === editingPlan.name) {
+                    // Atualizar allowedFeatures e limits do plano ativo do usuário
+                    const updatedActivePlan = {
+                      ...activePlan,
+                      allowedFeatures: data.allowedFeatures || [],
+                      limits: data.limits || activePlan.limits,
+                      updatedAt: new Date().toISOString()
+                    };
+                    updatePromises.push(set(activePlanRef, updatedActivePlan));
+                  }
+                }
+              }
+            }
+            
+            if (updatePromises.length > 0) {
+              await Promise.all(updatePromises);
+              console.log(`✅ Planos ativos atualizados para ${updatePromises.length} usuário(s)`);
+            }
+          }
+        } catch (updateError) {
+          console.error('Erro ao atualizar planos ativos dos usuários:', updateError);
+          // Não bloquear o salvamento do plano se houver erro ao atualizar planos ativos
+        }
+        
         showToast('Plano atualizado com sucesso!');
       } else {
         // Criar novo plano
@@ -6889,7 +6933,7 @@ const DashboardWithFirebase = ({
               }}>
                 {menuItems.map((item) => {
                   // Verificar se a funcionalidade está disponível para o usuário
-                  const isAlwaysAvailable = item.id === 'plans' || item.id === 'users' || item.id === 'tutorials';
+                  const isAlwaysAvailable = item.id === 'plans' || item.id === 'users';
                   const isMasterOnly = item.id === 'users';
                   const isBasicAccess = item.id === 'company';
                   
