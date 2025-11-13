@@ -12,3 +12,12 @@ backend/
 Thumbs.db
 .vscode
 .idea
+
+# Ignorar arquivos de configuração de deploy do backend
+**/nixpacks.toml
+**/railway.json
+**/ecosystem.config.js
+**/server.js
+**/start-backend.bat
+**/stop-backend.bat
+**/status-backend.bat
