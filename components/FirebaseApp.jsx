@@ -1041,17 +1041,19 @@ const FirebaseApp = () => {
             if (updatePromises.length > 0) {
               await Promise.all(updatePromises);
               console.log(`✅ Planos ativos atualizados para ${updatePromises.length} usuário(s)`);
-              showToast(`Plano atualizado! ${updatePromises.length} usuário(s) tiveram seus planos atualizados automaticamente.`, 'success');
+              showToast(`Plano atualizado com sucesso! ${updatePromises.length} usuário(s) tiveram seus planos atualizados automaticamente.`, 'success');
             } else {
               console.log(`ℹ️ Nenhum plano ativo encontrado para atualizar`);
+              showToast('Plano atualizado com sucesso!');
             }
+          } else {
+            showToast('Plano atualizado com sucesso!');
           }
         } catch (updateError) {
           console.error('❌ Erro ao atualizar planos ativos dos usuários:', updateError);
           // Não bloquear o salvamento do plano se houver erro ao atualizar planos ativos
+          showToast('Plano atualizado com sucesso! (Aviso: Alguns planos ativos podem não ter sido atualizados)');
         }
-        
-        showToast('Plano atualizado com sucesso!');
       } else {
         // Criar novo plano
         const plansRef = ref(database, 'plans');
