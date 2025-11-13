@@ -999,12 +999,14 @@ const FirebaseApp = () => {
         
         // Atualizar planos ativos de todos os usuários que têm este plano
         try {
+          console.log(`🔄 Atualizando planos ativos para plano editado: ${editingPlan.id} (${editingPlan.name})`);
           const usersRef = ref(database, 'users/registered');
           const usersSnapshot = await get(usersRef);
           
           if (usersSnapshot.exists()) {
             const usersData = usersSnapshot.val();
             const updatePromises = [];
+            let foundCount = 0;
             
             for (const userId of Object.keys(usersData)) {
               const userData = usersData[userId];
@@ -1015,8 +1017,13 @@ const FirebaseApp = () => {
                 if (activePlanSnapshot.exists()) {
                   const activePlan = activePlanSnapshot.val();
                   // Verificar se o plano ativo do usuário corresponde ao plano editado
-                  // Comparando pelo ID do plano ou pelo nome do plano
-                  if (activePlan.planId === editingPlan.id || activePlan.planName === editingPlan.name) {
+                  // Comparando pelo ID do plano (mais confiável)
+                  const matchesById = activePlan.planId === editingPlan.id;
+                  const matchesByName = activePlan.planName === editingPlan.name;
+                  
+                  if (matchesById || matchesByName) {
+                    foundCount++;
+                    console.log(`  ✓ Encontrado plano ativo para usuário ${userData.uid}: ${activePlan.planName} (planId: ${activePlan.planId})`);
                     // Atualizar allowedFeatures e limits do plano ativo do usuário
                     const updatedActivePlan = {
                       ...activePlan,
@@ -1025,6 +1032,7 @@ const FirebaseApp = () => {
                       updatedAt: new Date().toISOString()
                     };
                     updatePromises.push(set(activePlanRef, updatedActivePlan));
+                    console.log(`  ✓ Atualizando allowedFeatures:`, updatedActivePlan.allowedFeatures);
                   }
                 }
               }
@@ -1033,10 +1041,13 @@ const FirebaseApp = () => {
             if (updatePromises.length > 0) {
               await Promise.all(updatePromises);
               console.log(`✅ Planos ativos atualizados para ${updatePromises.length} usuário(s)`);
+              showToast(`Plano atualizado! ${updatePromises.length} usuário(s) tiveram seus planos atualizados automaticamente.`, 'success');
+            } else {
+              console.log(`ℹ️ Nenhum plano ativo encontrado para atualizar`);
             }
           }
         } catch (updateError) {
-          console.error('Erro ao atualizar planos ativos dos usuários:', updateError);
+          console.error('❌ Erro ao atualizar planos ativos dos usuários:', updateError);
           // Não bloquear o salvamento do plano se houver erro ao atualizar planos ativos
         }
         
