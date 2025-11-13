@@ -2776,8 +2776,10 @@ const DashboardWithFirebase = ({
         <div className="mb-8">
           <div className={`flex ${isMobile ? 'flex-col' : 'justify-between'} items-start mb-2`} style={{ gap: isMobile ? '16px' : '0' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <h2 className={`${isMobile ? 'text-2xl' : 'text-4xl'} font-bold text-white mb-2 flex items-center gap-3`}>
-                <span className={isMobile ? 'text-3xl' : 'text-5xl'}>📦</span>
+              <h2 className={`${isMobile ? 'text-2xl' : 'text-4xl'} font-bold text-white mb-2 flex items-center gap-3`} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ display: 'inline-block', lineHeight: '1' }}>
+                  {renderPageIcon('catalog', isMobile ? '1.875rem' : '2.25rem')}
+                </span>
                 Catálogo
               </h2>
               <p className={`${isMobile ? 'text-sm' : 'text-base'} text-gray-400`}>
@@ -3222,7 +3224,7 @@ const DashboardWithFirebase = ({
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: '16px', gap: isMobile ? '16px' : '0' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: isMobile ? '2rem' : '2.5rem' }}>📅</span>
+                {renderPageIcon('agendamentos')}
                 Agendamentos
               </h2>
               <p style={{ fontSize: isMobile ? '0.875rem' : '1rem', color: '#9ca3af' }}>
@@ -3802,7 +3804,7 @@ const DashboardWithFirebase = ({
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: isMobile ? '2rem' : '2.5rem' }}>🏠</span>
+                {renderPageIcon('dashboard')}
                 Dashboard
               </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
@@ -4222,7 +4224,7 @@ const DashboardWithFirebase = ({
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: isMobile ? '2rem' : '2.5rem' }}>👤</span>
+                {renderPageIcon('company')}
                 Cadastro do Usuário
               </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
@@ -4438,7 +4440,7 @@ const DashboardWithFirebase = ({
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: isMobile ? '2rem' : '2.5rem' }}>⚙️</span>
+                {renderPageIcon('integrations')}
                 Integrações
               </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
@@ -4949,7 +4951,7 @@ const DashboardWithFirebase = ({
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '2.5rem' }}>📱</span>
+                {renderPageIcon('whatsapp')}
                 Conexão WhatsApp
             </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
@@ -5308,7 +5310,7 @@ const DashboardWithFirebase = ({
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '2.5rem' }}>🤖</span>
+                {renderPageIcon('assistant')}
                 Configuração do Assistente
             </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
@@ -5658,7 +5660,7 @@ const DashboardWithFirebase = ({
           <div style={{ padding: getResponsivePadding(), maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: isMobile ? '2rem' : '2.5rem' }}>💎</span>
+                {renderPageIcon('plans')}
                 Planos e Assinaturas
               </h2>
               <p style={{ fontSize: '1.125rem', color: '#9ca3af' }}>
@@ -5965,7 +5967,7 @@ const DashboardWithFirebase = ({
           <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: '24px', gap: isMobile ? '16px' : '0' }}>
               <h2 style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 'bold', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: isMobile ? '1.75rem' : '2.25rem' }}>👤</span>
+                {renderPageIcon('users', isMobile ? '1.75rem' : '2.25rem')}
                 Gerenciar Usuários
               </h2>
               <button
@@ -6167,6 +6169,58 @@ const DashboardWithFirebase = ({
     { id: 'plans', label: 'Planos e Assinaturas', icon: '💎' },
     ...(user?.isMaster ? [{ id: 'users', label: 'Gerenciar Usuários', icon: '👤' }] : [])
   ];
+
+  // Função helper para renderizar ícones de página (mesma lógica do sidebar)
+  const renderPageIcon = (pageId, customSize = null) => {
+    const coloredIcons = ['dashboard', 'catalog', 'agendamentos', 'conversas', 'whatsapp', 'assistant', 'plans'];
+    const shouldBeColored = coloredIcons.includes(pageId);
+    const menuItem = menuItems.find(item => item.id === pageId);
+    
+    if (!menuItem) return null;
+    
+    // Tamanho padrão: 2.5rem no desktop, 2rem no mobile (ou tamanho customizado)
+    const defaultSize = isMobile ? '2rem' : '2.5rem';
+    const iconSize = customSize || defaultSize;
+    
+    // Converter rem para pixels para o WhatsAppIcon (1rem ≈ 16px)
+    const remToPx = (rem) => {
+      const remValue = parseFloat(rem);
+      return Math.round(remValue * 16);
+    };
+    
+    if (menuItem.icon === 'whatsapp') {
+      const iconPxSize = remToPx(iconSize);
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: iconSize, height: iconSize }}>
+          <WhatsAppIcon 
+            size={iconPxSize} 
+            color="#25D366"
+            style={{ display: 'block' }}
+          />
+        </span>
+      );
+    }
+    
+    if (shouldBeColored) {
+      return (
+        <span style={{ fontSize: iconSize, display: 'inline-block', lineHeight: '1' }}>
+          {menuItem.icon}
+        </span>
+      );
+    } else {
+      return (
+        <span style={{ 
+          fontSize: iconSize, 
+          display: 'inline-block',
+          lineHeight: '1',
+          filter: 'brightness(0) invert(1)',
+          textShadow: '-1px -1px 0 rgba(0, 0, 0, 0.3), 1px -1px 0 rgba(0, 0, 0, 0.3), -1px 1px 0 rgba(0, 0, 0, 0.3), 1px 1px 0 rgba(0, 0, 0, 0.3), 0 0 2px rgba(0, 0, 0, 0.2)'
+        }}>
+          {menuItem.icon}
+        </span>
+      );
+    }
+  };
 
   return (
         <>
