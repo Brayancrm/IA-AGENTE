@@ -6661,6 +6661,7 @@ const DashboardWithFirebase = ({
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
+    { id: 'tutorials', label: 'Tutoriais', icon: '📚' },
     { id: 'company', label: 'Cadastro do Usuário', icon: '👤' },
     { id: 'catalog', label: 'Catálogo', icon: '📦' },
     { id: 'agendamentos', label: 'Agendamentos', icon: '📅' },
@@ -6670,7 +6671,6 @@ const DashboardWithFirebase = ({
     { id: 'whatsapp', label: 'Conexão WhatsApp', icon: '📱' },
     { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' },
     { id: 'plans', label: 'Planos e Assinaturas', icon: '💎' },
-    { id: 'tutorials', label: 'Tutoriais', icon: '📚' },
     ...(user?.isMaster ? [{ id: 'users', label: 'Gerenciar Usuários', icon: '👤' }] : [])
   ];
 
