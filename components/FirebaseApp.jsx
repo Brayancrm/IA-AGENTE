@@ -4252,7 +4252,12 @@ const DashboardWithFirebase = ({
                     color: '#ffffff',
                     fontSize: '0.9375rem'
                   }}>
-                    <span style={{ fontSize: '1.25rem' }}>👤</span>
+                    <span style={{ 
+                      fontSize: '1.25rem', 
+                      display: 'inline-block',
+                      filter: 'brightness(0) invert(1)',
+                      lineHeight: '1'
+                    }}>👤</span>
                     Nome do Cliente/Razão Social
                   </label>
                   <input
