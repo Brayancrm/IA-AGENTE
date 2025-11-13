@@ -1,12 +1,35 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { PWARegister } from '../components/PWARegister'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'WhatsApp Sales Agent Builder',
   description: 'Painel de controle para configurar um assistente de vendas e suporte virtual para WhatsApp',
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/icon-192x192.png',
+    apple: '/icon-192x192.png',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'WPP Sales',
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  openGraph: {
+    type: 'website',
+    siteName: 'WhatsApp Sales Agent',
+    title: 'WhatsApp Sales Agent Builder',
+    description: 'Painel de controle para configurar um assistente de vendas e suporte virtual para WhatsApp',
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
 }
 
 export const viewport: Viewport = {
@@ -15,6 +38,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
+  themeColor: '#25D366',
 }
 
 export default function RootLayout({
@@ -24,7 +48,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <PWARegister />
+        {children}
+      </body>
     </html>
   )
 }
