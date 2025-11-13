@@ -6,7 +6,7 @@ import { PWARegister } from '../components/PWARegister'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'WhatsApp Sales Agent Builder',
+  title: 'dadosIA Builder',
   description: 'Painel de controle para configurar um assistente de vendas e suporte virtual para WhatsApp',
   manifest: '/manifest.json',
   icons: {
@@ -16,15 +16,15 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'WPP Sales',
+    title: 'dadosIA',
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
     type: 'website',
-    siteName: 'WhatsApp Sales Agent',
-    title: 'WhatsApp Sales Agent Builder',
+    siteName: 'dadosIA',
+    title: 'dadosIA Builder',
     description: 'Painel de controle para configurar um assistente de vendas e suporte virtual para WhatsApp',
   },
   other: {

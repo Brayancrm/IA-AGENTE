@@ -25,7 +25,7 @@ const LandingPageSimple = ({ onLoginSuccess }) => {
             marginBottom: '24px',
             textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
           }}>
-            WhatsApp Sales Agent
+            dadosIA
           </h1>
           <p style={{
             fontSize: '1.25rem',

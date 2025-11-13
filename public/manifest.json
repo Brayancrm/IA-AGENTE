@@ -1,6 +1,6 @@
 {
-  "name": "WhatsApp Sales Agent",
-  "short_name": "WPP Sales",
+  "name": "dadosIA",
+  "short_name": "dadosIA",
   "description": "Painel de controle para configurar um assistente de vendas e suporte virtual para WhatsApp",
   "start_url": "/",
   "display": "standalone",

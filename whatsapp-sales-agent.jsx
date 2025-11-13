@@ -756,7 +756,7 @@ const WhatsAppSalesAgent = () => {
       <div className="w-64 bg-indigo-900 text-white min-h-screen fixed left-0 top-0 overflow-y-auto">
         <div className="p-6">
           <div className="mb-6">
-            <h1 className="text-xl font-bold mb-2">WhatsApp Sales Agent</h1>
+            <h1 className="text-xl font-bold mb-2">dadosIA</h1>
             {user?.isMaster && (
               <div className="bg-yellow-500 text-yellow-900 px-2 py-1 rounded-lg text-xs font-bold">
                 👑 USUÁRIO MASTER

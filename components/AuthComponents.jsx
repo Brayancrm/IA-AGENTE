@@ -112,7 +112,7 @@ export const LoginForm = ({ onLoginSuccess, onSwitchToRegister }) => {
       <div className="bg-white rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-800 mb-2">Entrar</h2>
-          <p className="text-gray-600">Acesse sua conta do WhatsApp Sales Agent</p>
+          <p className="text-gray-600">Acesse sua conta do dadosIA</p>
         </div>
 
         {error && (
@@ -465,7 +465,7 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
       <div className="bg-white rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-800 mb-2">Criar Conta</h2>
-          <p className="text-gray-600">Comece a usar o WhatsApp Sales Agent</p>
+          <p className="text-gray-600">Comece a usar o dadosIA</p>
         </div>
 
         {error && (

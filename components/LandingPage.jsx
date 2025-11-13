@@ -57,7 +57,7 @@ export const LandingPage = ({ onLoginSuccess }) => {
                 <Bot className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-800">WhatsApp Sales Agent</h1>
+                <h1 className="text-2xl font-bold text-gray-800">dadosIA</h1>
                 <p className="text-sm text-gray-600">Inteligência Artificial para Vendas</p>
               </div>
             </div>
@@ -214,10 +214,10 @@ export const LandingPage = ({ onLoginSuccess }) => {
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
               <Bot className="w-5 h-5 text-white" />
             </div>
-            <span className="text-lg font-semibold">WhatsApp Sales Agent</span>
+            <span className="text-lg font-semibold">dadosIA</span>
           </div>
           <p className="text-gray-400">
-            © 2024 WhatsApp Sales Agent. Todos os direitos reservados.
+            © 2024 dadosIA. Todos os direitos reservados.
           </p>
         </div>
       </footer>

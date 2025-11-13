@@ -1101,7 +1101,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
         borderTop: '1px solid rgba(16, 185, 129, 0.2)',
         color: '#9ca3af'
       }}>
-        <p>© 2025 WhatsApp Sales Agent. Todos os direitos reservados.</p>
+        <p>© 2025 dadosIA. Todos os direitos reservados.</p>
       </footer>
 
       {/* Modal de Login/Registro */}

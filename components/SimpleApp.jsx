@@ -217,7 +217,7 @@ const SimpleApp = () => {
         {/* Sidebar */}
         <div style={{ width: '256px', backgroundColor: '#1e3a8a', color: 'white', padding: '24px' }}>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '24px' }}>
-            WhatsApp Sales Agent
+            dadosIA
           </h1>
           <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {menuItems.map((item) => (
