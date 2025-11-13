@@ -6213,7 +6213,7 @@ const DashboardWithFirebase = ({
         <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: iconSize, height: iconSize }}>
           <Target 
             size={iconPxSize} 
-            color="#ffffff"
+            color="#FF9800"
             style={{ display: 'block' }}
           />
         </span>
@@ -6543,14 +6543,11 @@ const DashboardWithFirebase = ({
                         ) : item.icon === 'target' ? (
                           <Target 
                             size={24} 
-                            color={isLocked ? '#6b7280' : (currentPage === item.id ? '#ffffff' : '#d1d5db')}
+                            color={isLocked ? '#6b7280' : '#FF9800'}
                             style={{ 
-                              opacity: isLocked ? 0.4 : 1,
+                              opacity: isLocked ? 0.4 : (currentPage === item.id ? 1 : 0.9),
                               display: 'block',
-                              visibility: 'visible',
-                              filter: currentPage === item.id 
-                                ? 'drop-shadow(-1px -1px 0 rgba(0, 0, 0, 0.3)) drop-shadow(1px -1px 0 rgba(0, 0, 0, 0.3)) drop-shadow(-1px 1px 0 rgba(0, 0, 0, 0.3)) drop-shadow(1px 1px 0 rgba(0, 0, 0, 0.3))'
-                                : 'drop-shadow(-1px -1px 0 rgba(0, 0, 0, 0.2)) drop-shadow(1px -1px 0 rgba(0, 0, 0, 0.2)) drop-shadow(-1px 1px 0 rgba(0, 0, 0, 0.2)) drop-shadow(1px 1px 0 rgba(0, 0, 0, 0.2))'
+                              visibility: 'visible'
                             }}
                           />
                         ) : (

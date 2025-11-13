@@ -1512,7 +1512,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
           alignItems: 'center',
           gap: '12px'
         }}>
-          <Target size={32} color="#10b981" />
+          <Target size={32} color="#FF9800" />
           CRM - Customer Relationship Management
         </h1>
         <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
@@ -1698,7 +1698,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
           {/* Header do Pipeline */}
           <div style={{ marginBottom: '32px' }}>
             <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <Target size={24} color="#10b981" />
+              <Target size={24} color="#FF9800" />
               Pipeline de Vendas
             </h2>
             <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
@@ -1945,7 +1945,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}>
-                  <Target size={24} color="#fff" />
+                  <Target size={24} color="#FF9800" />
                 </div>
                 <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#9ca3af' }}>
                   Taxa de Conversão
