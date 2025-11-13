@@ -107,6 +107,13 @@ const FirebaseApp = () => {
     return false;
   });
 
+  // Definir título da página
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.title = 'dadosIA';
+    }
+  }, []);
+
   // Detectar se está em mobile
   useEffect(() => {
     if (typeof window === 'undefined') return;
