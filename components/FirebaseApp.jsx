@@ -6133,9 +6133,9 @@ const DashboardWithFirebase = ({
           <div style={{ padding: getResponsivePadding(), maxWidth: '1200px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('tutorials')}
-                Tutorias
+                Tutoriais
               </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
                 Guia completo de como usar o dadosIA na ordem correta
@@ -6613,7 +6613,7 @@ const DashboardWithFirebase = ({
     { id: 'whatsapp', label: 'Conexão WhatsApp', icon: '📱' },
     { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' },
     { id: 'plans', label: 'Planos e Assinaturas', icon: '💎' },
-    { id: 'tutorials', label: 'Tutorias', icon: '📚' },
+    { id: 'tutorials', label: 'Tutoriais', icon: '📚' },
     ...(user?.isMaster ? [{ id: 'users', label: 'Gerenciar Usuários', icon: '👤' }] : [])
   ];
 
@@ -8305,15 +8305,16 @@ const DashboardWithFirebase = ({
                 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
                   {[
-                    { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
-                    { id: 'company', label: 'Cadastro do Usuário', icon: '👤' },
-                    { id: 'catalog', label: 'Catálogo', icon: '📦' },
-                    { id: 'agendamentos', label: 'Agendamentos', icon: '📅' },
-                    { id: 'conversas', label: 'Conversas WhatsApp', icon: '💬' },
-                    { id: 'crm', label: 'CRM', icon: 'target' },
-                    { id: 'integrations', label: 'Integrações', icon: '⚙️' },
-                    { id: 'whatsapp', label: 'Conexão WhatsApp', icon: '📱' },
-                    { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' }
+                    { id: 'dashboard', label: 'Dashboard', icon: '🏠', iconType: 'emoji' },
+                    { id: 'company', label: 'Cadastro do Usuário', icon: '👤', iconType: 'emoji' },
+                    { id: 'catalog', label: 'Catálogo', icon: '📦', iconType: 'emoji' },
+                    { id: 'agendamentos', label: 'Agendamentos', icon: '📅', iconType: 'emoji' },
+                    { id: 'conversas', label: 'Conversas WhatsApp', icon: 'whatsapp', iconType: 'whatsapp' },
+                    { id: 'crm', label: 'CRM', icon: 'target', iconType: 'target' },
+                    { id: 'integrations', label: 'Integrações', icon: '⚙️', iconType: 'emoji' },
+                    { id: 'whatsapp', label: 'Conexão WhatsApp', icon: '📱', iconType: 'emoji' },
+                    { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖', iconType: 'emoji' },
+                    { id: 'tutorials', label: 'Tutoriais', icon: '📚', iconType: 'emoji' }
                   ].map((feature) => (
                     <label
                       key={feature.id}
@@ -8357,10 +8358,26 @@ const DashboardWithFirebase = ({
                             }));
                           }
                         }}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer', flexShrink: 0 }}
                       />
-                      <span style={{ fontSize: '16px' }}>{feature.icon}</span>
-                      <span style={{ fontSize: '0.875rem', color: '#ffffff', fontWeight: '500' }}>
+                      <span style={{ 
+                        fontSize: '16px', 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        width: '20px',
+                        height: '20px',
+                        flexShrink: 0
+                      }}>
+                        {feature.iconType === 'whatsapp' ? (
+                          <WhatsAppIcon size={16} color="#25D366" />
+                        ) : feature.iconType === 'target' ? (
+                          <Target size={16} color="#FF9800" />
+                        ) : (
+                          feature.icon
+                        )}
+                      </span>
+                      <span style={{ fontSize: '0.875rem', color: '#ffffff', fontWeight: '500', flex: 1 }}>
                         {feature.label}
                       </span>
                     </label>
