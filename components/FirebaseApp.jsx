@@ -6889,7 +6889,7 @@ const DashboardWithFirebase = ({
               }}>
                 {menuItems.map((item) => {
                   // Verificar se a funcionalidade está disponível para o usuário
-                  const isAlwaysAvailable = item.id === 'plans' || item.id === 'users';
+                  const isAlwaysAvailable = item.id === 'plans' || item.id === 'users' || item.id === 'tutorials';
                   const isMasterOnly = item.id === 'users';
                   const isBasicAccess = item.id === 'company';
                   
