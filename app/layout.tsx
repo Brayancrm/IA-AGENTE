@@ -6,7 +6,7 @@ import { PWARegister } from '../components/PWARegister'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'dadosIA Builder',
+  title: 'dadosIA',
   description: 'Painel de controle para configurar um assistente de vendas e suporte virtual para WhatsApp',
   manifest: '/manifest.json',
   icons: {
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'dadosIA',
-    title: 'dadosIA Builder',
+    title: 'dadosIA',
     description: 'Painel de controle para configurar um assistente de vendas e suporte virtual para WhatsApp',
   },
   other: {
