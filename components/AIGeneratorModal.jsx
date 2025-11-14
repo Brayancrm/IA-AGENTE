@@ -24,8 +24,6 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  if (!isOpen) return null;
-
   const catalogOptions = useMemo(() => {
     if (!catalogItems || catalogItems.length === 0) return [];
     return catalogItems
@@ -608,6 +606,8 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
       </>
     );
   };
+
+  if (!isOpen) return null;
 
   return (
     <div
