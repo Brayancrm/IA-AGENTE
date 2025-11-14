@@ -5551,6 +5551,7 @@ const DashboardWithFirebase = ({
                   <FlowBuilder 
                     initialSteps={assistantForm.flowSteps || []}
                     catalogItems={catalogItems}
+                    agendamentos={agendamentos}
                     onChange={(newSteps) => {
                       // Buscar step de agendamento para sincronizar configuração global
                       const appointmentStep = newSteps.find(step => step.type === 'create_appointment' && step.appointmentEnabled);

@@ -12,7 +12,7 @@ import AIGeneratorModal from './AIGeneratorModal';
  * - Reordenar via drag & drop
  * - Gerar prompt automaticamente
  */
-export default function FlowBuilder({ initialSteps = [], catalogItems = [], onChange, onPromptChange }) {
+export default function FlowBuilder({ initialSteps = [], catalogItems = [], agendamentos = [], onChange, onPromptChange }) {
   const [steps, setSteps] = useState(initialSteps);
   const [editingIndex, setEditingIndex] = useState(null);
   const [editingStep, setEditingStep] = useState(null);
@@ -1128,6 +1128,8 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], onCh
         isOpen={showAIModal}
         onClose={() => setShowAIModal(false)}
         onGenerate={applyAITemplate}
+        catalogItems={catalogItems}
+        agendamentos={agendamentos}
       />
 
       {/* Quick Test Modal */}
