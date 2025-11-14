@@ -1,19 +1,98 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { X, Sparkles, Loader } from 'lucide-react';
 
 /**
  * Modal para gerar template de fluxo usando IA
  */
+const initialGuidedAnswers = {
+  segment: '',
+  audience: '',
+  mainGoal: '',
+  offerings: '',
+  workflows: '',
+  tone: 'Amigável e profissional',
+  integrations: '',
+  extras: ''
+};
+
 export default function AIGeneratorModal({ isOpen, onClose, onGenerate }) {
   const [description, setDescription] = useState('');
+  const [mode, setMode] = useState('guided');
+  const [guidedAnswers, setGuidedAnswers] = useState(initialGuidedAnswers);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const guidedPrompt = useMemo(() => {
+    const parts = [];
+
+    if (guidedAnswers.segment.trim()) {
+      parts.push(`Quero um agente para ${guidedAnswers.segment.trim()}`);
+    }
+
+    if (guidedAnswers.audience.trim()) {
+      parts.push(`Atenda principalmente ${guidedAnswers.audience.trim()}`);
+    }
+
+    if (guidedAnswers.mainGoal.trim()) {
+      parts.push(`O objetivo principal é ${guidedAnswers.mainGoal.trim()}`);
+    }
+
+    if (guidedAnswers.offerings.trim()) {
+      parts.push(`Ele deve apresentar ou vender ${guidedAnswers.offerings.trim()}`);
+    }
+
+    if (guidedAnswers.workflows.trim()) {
+      parts.push(`Fluxos obrigatórios: ${guidedAnswers.workflows.trim()}`);
+    }
+
+    if (guidedAnswers.integrations.trim()) {
+      parts.push(`Considere integrações ou recursos como ${guidedAnswers.integrations.trim()}`);
+    }
+
+    if (guidedAnswers.tone.trim()) {
+      parts.push(`Use um tom ${guidedAnswers.tone.trim()}`);
+    }
+
+    if (guidedAnswers.extras.trim()) {
+      parts.push(`Detalhes adicionais: ${guidedAnswers.extras.trim()}`);
+    }
+
+    return parts.length ? `${parts.join('. ')}.` : '';
+  }, [guidedAnswers]);
+
+  const handleModeChange = (nextMode) => {
+    if (nextMode === mode) return;
+    setMode(nextMode);
+    setError('');
+
+    if (nextMode === 'manual' && !description.trim() && guidedPrompt.trim()) {
+      setDescription(guidedPrompt.trim());
+    }
+  };
+
+  const handleGuidedChange = (field, value) => {
+    setGuidedAnswers((prev) => ({
+      ...prev,
+      [field]: value
+    }));
+    setError('');
+  };
+
+  const requiredGuidedMissing = ['segment', 'mainGoal'].filter(
+    (field) => !guidedAnswers[field].trim()
+  );
 
   if (!isOpen) return null;
 
   const handleGenerate = async () => {
-    if (!description.trim()) {
-      setError('Por favor, descreva o que você quer que o agente faça.');
+    const promptToSend = mode === 'guided' ? guidedPrompt.trim() : description.trim();
+
+    if (!promptToSend) {
+      setError(
+        mode === 'guided'
+          ? 'Responda pelo menos o tipo de negócio e o objetivo principal para gerar o prompt.'
+          : 'Por favor, descreva o que você quer que o agente faça.'
+      );
       return;
     }
 
@@ -33,7 +112,7 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          description: description.trim()
+          description: promptToSend
         })
       });
 
@@ -60,6 +139,8 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate }) {
       
       // Fechar modal
       setDescription('');
+      setGuidedAnswers(initialGuidedAnswers);
+      setMode('guided');
       onClose();
     } catch (err) {
       console.error('❌ Erro completo:', err);
@@ -88,6 +169,8 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate }) {
     if (!loading) {
       setDescription('');
       setError('');
+      setGuidedAnswers(initialGuidedAnswers);
+      setMode('guided');
       onClose();
     }
   };
@@ -189,93 +272,258 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate }) {
           overflow: 'auto',
           padding: '24px'
         }}>
-          {/* Textarea de Descrição */}
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
-              fontWeight: '600',
-              color: '#374151',
-              marginBottom: '8px',
-              fontSize: '14px'
-            }}>
-              Descreva o que você quer que o agente faça:
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => {
-                setDescription(e.target.value);
-                setError('');
-              }}
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            marginBottom: '20px'
+          }}>
+            <button
+              onClick={() => handleModeChange('guided')}
               disabled={loading}
-              placeholder="Ex: Quero um agente que atenda clientes de uma loja de roupas, mostre produtos, processe pedidos e solicite pagamento..."
               style={{
-                width: '100%',
-                minHeight: '150px',
-                padding: '12px',
-                borderRadius: '8px',
-                border: error ? '2px solid #ef4444' : '1px solid #d1d5db',
-                fontSize: '14px',
-                fontFamily: 'inherit',
-                resize: 'vertical',
-                background: loading ? '#f9fafb' : 'white',
-                cursor: loading ? 'not-allowed' : 'text'
+                flex: 1,
+                padding: '10px 16px',
+                borderRadius: '10px',
+                border: '1px solid',
+                borderColor: mode === 'guided' ? '#6366f1' : '#d1d5db',
+                background: mode === 'guided' ? 'rgba(99, 102, 241, 0.12)' : 'white',
+                color: mode === 'guided' ? '#4338ca' : '#374151',
+                fontWeight: '600',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s'
               }}
-              onFocus={(e) => !error && (e.target.style.borderColor = '#667eea')}
-              onBlur={(e) => !error && (e.target.style.borderColor = '#d1d5db')}
-            />
-            {error && (
-              <p style={{
-                color: '#ef4444',
-                fontSize: '13px',
-                marginTop: '8px',
-                margin: '8px 0 0 0'
-              }}>
-                ⚠️ {error}
-              </p>
-            )}
+            >
+              Modo guiado
+            </button>
+            <button
+              onClick={() => handleModeChange('manual')}
+              disabled={loading}
+              style={{
+                flex: 1,
+                padding: '10px 16px',
+                borderRadius: '10px',
+                border: '1px solid',
+                borderColor: mode === 'manual' ? '#6366f1' : '#d1d5db',
+                background: mode === 'manual' ? 'rgba(99, 102, 241, 0.12)' : 'white',
+                color: mode === 'manual' ? '#4338ca' : '#374151',
+                fontWeight: '600',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              Modo livre
+            </button>
           </div>
 
-          {/* Exemplos */}
-          <div style={{
-            background: '#f9fafb',
-            borderRadius: '8px',
-            padding: '16px',
-            border: '1px solid #e5e7eb'
-          }}>
-            <h4 style={{
-              fontSize: '13px',
-              fontWeight: '600',
-              color: '#374151',
-              margin: '0 0 12px 0'
-            }}>
-              💡 Exemplos de descrições:
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {examples.map((example, index) => (
-                <button
-                  key={index}
-                  onClick={() => !loading && setDescription(example)}
-                  disabled={loading}
+          {mode === 'guided' ? (
+            <>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '16px',
+                marginBottom: '20px'
+              }}>
+                {[
+                  {
+                    id: 'segment',
+                    label: 'Qual é o negócio/segmento?',
+                    placeholder: 'Ex: clínica odontológica em SP',
+                    required: true
+                  },
+                  {
+                    id: 'audience',
+                    label: 'Quem o agente atende?',
+                    placeholder: 'Ex: pacientes novos e recorrentes'
+                  },
+                  {
+                    id: 'mainGoal',
+                    label: 'Objetivo principal',
+                    placeholder: 'Ex: qualificar leads e marcar consultas',
+                    required: true
+                  },
+                  {
+                    id: 'offerings',
+                    label: 'Produtos ou serviços',
+                    placeholder: 'Ex: limpeza, clareamento, planos mensais'
+                  },
+                  {
+                    id: 'workflows',
+                    label: 'Fluxos/etapas que o agente deve seguir',
+                    placeholder: 'Ex: coletar dados, enviar orçamento, confirmar pagamento'
+                  },
+                  {
+                    id: 'integrations',
+                    label: 'Recursos extras',
+                    placeholder: 'Ex: agenda, catálogo, emissão de boletos'
+                  },
+                  {
+                    id: 'tone',
+                    label: 'Tom da conversa',
+                    placeholder: 'Ex: acolhedor e objetivo'
+                  },
+                  {
+                    id: 'extras',
+                    label: 'Observações finais',
+                    placeholder: 'Regras, gatilhos, políticas...'
+                  }
+                ].map((field) => (
+                  <div key={field.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>
+                      {field.label} {field.required && <span style={{ color: '#ef4444' }}>*</span>}
+                    </label>
+                    <input
+                      type="text"
+                      value={guidedAnswers[field.id]}
+                      onChange={(e) => handleGuidedChange(field.id, e.target.value)}
+                      disabled={loading}
+                      placeholder={field.placeholder}
+                      style={{
+                        padding: '10px',
+                        borderRadius: '8px',
+                        border: requiredGuidedMissing.includes(field.id) && error
+                          ? '2px solid #ef4444'
+                          : '1px solid #d1d5db',
+                        fontSize: '13px',
+                        background: loading ? '#f3f4f6' : 'white',
+                        color: '#111827'
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div style={{
+                background: '#f9fafb',
+                borderRadius: '10px',
+                border: '1px solid #e5e7eb',
+                padding: '16px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>
+                    Prompt sendo montado
+                  </h4>
+                  <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                    Atualizado conforme você responde
+                  </span>
+                </div>
+                <textarea
+                  value={guidedPrompt}
+                  readOnly
+                  placeholder="Responda às perguntas acima e veja aqui o prompt completo..."
                   style={{
-                    background: 'white',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    padding: '10px 12px',
-                    fontSize: '12px',
-                    color: '#6b7280',
-                    textAlign: 'left',
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s',
-                    opacity: loading ? 0.5 : 1
+                    width: '100%',
+                    minHeight: '140px',
+                    borderRadius: '10px',
+                    border: '1px dashed #94a3b8',
+                    padding: '12px',
+                    fontSize: '13px',
+                    color: guidedPrompt ? '#111827' : '#9ca3af',
+                    background: '#fff'
                   }}
-                  onMouseEnter={(e) => !loading && (e.target.style.borderColor = '#667eea', e.target.style.color = '#667eea')}
-                  onMouseLeave={(e) => (e.target.style.borderColor = '#d1d5db', e.target.style.color = '#6b7280')}
-                >
-                  "{example}"
-                </button>
-              ))}
-            </div>
-          </div>
+                />
+                <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px' }}>
+                  Este texto será enviado para a IA. Você pode alternar para o modo livre se quiser editar manualmente.
+                </p>
+              </div>
+              {error && (
+                <p style={{
+                  color: '#ef4444',
+                  fontSize: '13px',
+                  marginTop: '12px'
+                }}>
+                  ⚠️ {error}
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '8px',
+                  fontSize: '14px'
+                }}>
+                  Descreva o que você quer que o agente faça:
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    setError('');
+                  }}
+                  disabled={loading}
+                  placeholder="Ex: Quero um agente que atenda clientes de uma loja de roupas, mostre produtos, processe pedidos e solicite pagamento..."
+                  style={{
+                    width: '100%',
+                    minHeight: '150px',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: error ? '2px solid #ef4444' : '1px solid #d1d5db',
+                    fontSize: '14px',
+                    fontFamily: 'inherit',
+                    resize: 'vertical',
+                    background: loading ? '#f9fafb' : 'white',
+                    cursor: loading ? 'not-allowed' : 'text'
+                  }}
+                  onFocus={(e) => !error && (e.target.style.borderColor = '#667eea')}
+                  onBlur={(e) => !error && (e.target.style.borderColor = '#d1d5db')}
+                />
+                {error && (
+                  <p style={{
+                    color: '#ef4444',
+                    fontSize: '13px',
+                    marginTop: '8px',
+                    margin: '8px 0 0 0'
+                  }}>
+                    ⚠️ {error}
+                  </p>
+                )}
+              </div>
+
+              <div style={{
+                background: '#f9fafb',
+                borderRadius: '8px',
+                padding: '16px',
+                border: '1px solid #e5e7eb'
+              }}>
+                <h4 style={{
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#374151',
+                  margin: '0 0 12px 0'
+                }}>
+                  💡 Exemplos de descrições:
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {examples.map((example, index) => (
+                    <button
+                      key={index}
+                      onClick={() => !loading && setDescription(example)}
+                      disabled={loading}
+                      style={{
+                        background: 'white',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        padding: '10px 12px',
+                        fontSize: '12px',
+                        color: '#6b7280',
+                        textAlign: 'left',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.2s',
+                        opacity: loading ? 0.5 : 1
+                      }}
+                      onMouseEnter={(e) => !loading && (e.target.style.borderColor = '#667eea', e.target.style.color = '#667eea')}
+                      onMouseLeave={(e) => (e.target.style.borderColor = '#d1d5db', e.target.style.color = '#6b7280')}
+                    >
+                      "{example}"
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Loading State */}
           {loading && (
