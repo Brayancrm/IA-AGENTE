@@ -99,7 +99,10 @@ async function createSession(userId) {
     // 🔥 NOVO: Verificar se existe sessão salva nos arquivos do WPPConnect
     const fs = require('fs');
     const path = require('path');
-    const tokenDir = `/tokens/user_${userId}`;
+    const os = require('os');
+    // 🔥 CORRIGIDO: Caminho compatível com Windows e Linux
+    const tokensBaseDir = path.join(process.cwd(), 'tokens');
+    const tokenDir = path.join(tokensBaseDir, `user_${userId}`);
     
     if (fs.existsSync(tokenDir)) {
       const files = fs.readdirSync(tokenDir);
@@ -112,7 +115,7 @@ async function createSession(userId) {
     }
     
     // 🔥 Limpar arquivos de lock do Chromium antes de iniciar
-    const profileDir = `/tokens/chrome_profile_${userId}`;
+    const profileDir = path.join(tokensBaseDir, `chrome_profile_${userId}`);
     const lockFile = path.join(profileDir, 'SingletonLock');
     
     try {
@@ -129,9 +132,9 @@ async function createSession(userId) {
     // O WPPConnect gerencia automaticamente a persistência via tokenStore: 'file'
     const clientOptions = {
       session: `user_${userId}`,
-      // 🔥 NOVO: Habilitar persistência de sessão
+      // 🔥 NOVO: Habilitar persistência de sessão (caminho compatível com Windows e Linux)
       tokenStore: 'file',
-      folderNameToken: '/tokens',
+      folderNameToken: path.join(process.cwd(), 'tokens'),
       // 🔥 CRÍTICO: Flags adicionais para evitar conflitos de perfil
       disableWelcome: true,
       updatesLog: false,
@@ -212,9 +215,10 @@ async function createSession(userId) {
       autoClose: 180000, // 180 segundos (3 minutos)
       puppeteerOptions: {
         headless: true,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || '/nix/store/chromium/bin/chromium',
-        // 🔥 SOLUÇÃO RADICAL: UserDataDir único POR TENTATIVA para evitar QUALQUER conflito
-        userDataDir: `/tmp/wpp_${userId}_${Date.now()}`,
+        // 🔥 CORRIGIDO: Removido caminho hardcoded do NixOS. Deixa Puppeteer detectar automaticamente ou usa variável de ambiente
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || undefined,
+        // 🔥 SOLUÇÃO RADICAL: UserDataDir único POR TENTATIVA para evitar QUALQUER conflito (compatível com Windows e Linux)
+        userDataDir: path.join(os.tmpdir(), `wpp_${userId}_${Date.now()}`),
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
