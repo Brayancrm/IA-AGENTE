@@ -1497,6 +1497,8 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
           </button>
         </div>
       )}
+        </>
+      )}
 
       {/* Empty State */}
       {steps.length === 0 && (
