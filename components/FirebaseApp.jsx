@@ -5532,9 +5532,6 @@ const DashboardWithFirebase = ({
 
                 {/* Flow Builder Visual */}
                 <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '12px', color: '#ffffff' }}>
-                    🎯 Fluxo de Atendimento
-                  </label>
                   <FlowBuilder 
                     initialSteps={assistantForm.flowSteps || []}
                     catalogItems={catalogItems}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Plus, Trash2, GripVertical, Edit2, Save, X, FileText, Sparkles, Play, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Edit2, Save, X, FileText, Sparkles, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import TemplateModal from './TemplateModal';
 import AIGeneratorModal from './AIGeneratorModal';
 
@@ -25,9 +25,6 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
   const [editingStep, setEditingStep] = useState(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
-  const [showQuickTest, setShowQuickTest] = useState(false);
-  const [testMessage, setTestMessage] = useState('');
-  const [testResponse, setTestResponse] = useState('');
   const [showDemoConversation, setShowDemoConversation] = useState(false);
   const [demoConversation, setDemoConversation] = useState(null);
   const [generatingDemo, setGeneratingDemo] = useState(false);
@@ -160,43 +157,6 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
     applyTemplate(template);
   };
 
-  // Testar prompt rapidamente
-  const handleQuickTest = async () => {
-    if (!testMessage.trim()) {
-      alert('Digite uma mensagem para testar!');
-      return;
-    }
-
-    const prompt = generatePrompt();
-    if (!prompt) {
-      alert('Configure pelo menos um passo antes de testar!');
-      return;
-    }
-
-    setTestResponse('⏳ Gerando resposta...');
-
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://ia-agente-production.up.railway.app'}/api/test-prompt`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          systemPrompt: prompt,
-          userMessage: testMessage
-        })
-      });
-
-      const data = await response.json();
-      if (data.response) {
-        setTestResponse(data.response);
-      } else {
-        setTestResponse('❌ Erro ao gerar resposta: ' + (data.error || 'Erro desconhecido'));
-      }
-    } catch (error) {
-      setTestResponse('❌ Erro ao conectar: ' + error.message);
-    }
-  };
 
   // Gerar conversa demonstração
   const handleGenerateDemo = async () => {
@@ -493,16 +453,6 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
             )}
             {steps.length > 0 && (
               <>
-                <button
-                  type="button"
-                  onClick={() => setShowQuickTest(true)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#10b981', color: 'white', padding: '10px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
-                >
-                  <Play size={20} />
-                  Testar
-                </button>
                 <button
                   type="button"
                   onClick={openDemoConversation}
@@ -1531,109 +1481,6 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
         catalogItems={catalogItems}
         agendamentos={agendamentos}
       />
-
-      {/* Quick Test Modal */}
-      {showQuickTest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div style={{ backgroundColor: '#1a1f36', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)', padding: '24px', width: '100%', maxWidth: '42rem', maxHeight: '90vh', overflowY: 'auto', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-            <div className="flex justify-between items-center mb-4">
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#ffffff' }}>
-                🧪 Teste Rápido do Agente
-              </h3>
-              <button
-                onClick={() => {
-                  setShowQuickTest(false);
-                  setTestMessage('');
-                  setTestResponse('');
-                }}
-                style={{ color: '#9ca3af', cursor: 'pointer', transition: 'all 0.2s' }}
-                onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
-                onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {/* Input da mensagem */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
-                  Digite uma mensagem para testar:
-                </label>
-                <textarea
-                  value={testMessage}
-                  onChange={(e) => setTestMessage(e.target.value)}
-                  placeholder="Ex: Olá, quero comprar um produto"
-                  rows={3}
-                  style={{
-                    width: '100%',
-                    padding: '10px 16px',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    backgroundColor: '#0f1419',
-                    color: '#ffffff',
-                    outline: 'none',
-                    resize: 'vertical'
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = '#10b981';
-                    e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                    e.target.style.boxShadow = 'none';
-                  }}
-                />
-              </div>
-
-              {/* Botão testar */}
-              <button
-                onClick={handleQuickTest}
-                style={{
-                  width: '100%',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  padding: '12px 16px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
-              >
-                <Play size={20} />
-                Enviar Teste
-              </button>
-
-              {/* Resposta */}
-              {testResponse && (
-                <div className="mt-4">
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
-                    Resposta do Agente:
-                  </label>
-                  <div style={{ backgroundColor: '#0f1419', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '16px', minHeight: '150px' }}>
-                    <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.875rem', color: '#ffffff', margin: 0 }}>
-                      {testResponse}
-                    </pre>
-                  </div>
-                </div>
-              )}
-
-              {/* Dica */}
-              <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '8px', padding: '12px' }}>
-                <p style={{ fontSize: '0.75rem', color: '#10b981' }}>
-                  💡 <strong>Teste Interativo:</strong> Digite diferentes mensagens para ver como o agente responde baseado no fluxo configurado.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal de Conversa Demonstração */}
       {showDemoConversation && (
