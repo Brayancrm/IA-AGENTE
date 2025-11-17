@@ -3456,6 +3456,13 @@ const DashboardWithFirebase = ({
       return matchStatus && matchType;
     });
 
+    // Paginação para agendamentos em lista - máximo 2 por página
+    const agendamentosPerPage = 2;
+    const agendamentosTotalPages = Math.ceil(agendamentosFiltrados.length / agendamentosPerPage);
+    const agendamentosStartIndex = (agendamentoCurrentPage || 0) * agendamentosPerPage;
+    const agendamentosEndIndex = agendamentosStartIndex + agendamentosPerPage;
+    const agendamentosPaginated = agendamentosFiltrados.slice(agendamentosStartIndex, agendamentosEndIndex);
+
     // Estatísticas
     const stats = {
       total: agendamentosAtual.length,

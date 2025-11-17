@@ -1,5 +1,5 @@
 # Force Vercel rebuild
-# Timestamp: 2025-11-17T16:20:00Z
+# Timestamp: 2025-11-17T16:25:00Z
 # This file forces Vercel to rebuild completely from scratch
-REBUILD_ID=fix-jsx-structure-catalog-list-pagination
+REBUILD_ID=fix-agendamentosPaginated-not-defined
 
