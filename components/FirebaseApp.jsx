@@ -3205,22 +3205,23 @@ const DashboardWithFirebase = ({
           )}
           </div>
         ) : (
-          <div className="bg-gray-800 rounded-2xl shadow-lg border border-gray-700 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-900">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Produto</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">SKU</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Categoria</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Preço</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Estoque</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Status</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-700">
-                  {catalogPaginatedItems.map((item) => (
+          <div>
+            <div className="bg-gray-800 rounded-2xl shadow-lg border border-gray-700 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-900">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Produto</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">SKU</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Categoria</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Preço</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Estoque</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Status</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-300">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-700">
+                    {catalogPaginatedItems.map((item) => (
                     <tr key={item.id} className="hover:bg-gray-900">
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
@@ -3300,12 +3301,12 @@ const DashboardWithFirebase = ({
                       </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-          {/* Navegação de Páginas - Catálogo (Lista) */}
-          {filteredItems.length > catalogItemsPerPage && (
+            {/* Navegação de Páginas - Catálogo (Lista) */}
+            {filteredItems.length > catalogItemsPerPage && (
             <div style={{
               display: 'flex',
               justifyContent: 'center',
@@ -3399,7 +3400,8 @@ const DashboardWithFirebase = ({
                 <ChevronRight size={20} />
               </button>
             </div>
-          )}
+            )}
+          </div>
         )}
       </div>
     );
