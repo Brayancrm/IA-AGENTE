@@ -237,7 +237,18 @@ async function createSession(userId) {
           '--disable-background-networking',
           '--disable-sync',
           '--metrics-recording-only',
-          '--mute-audio'
+          '--mute-audio',
+          // 🔥 NOVO: Flags para reduzir dependências de bibliotecas do sistema (libglib, etc)
+          '--disable-gpu-sandbox',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+          '--disable-features=TranslateUI',
+          '--disable-ipc-flooding-protection',
+          '--single-process', // 🔥 CRÍTICO: Executa em processo único, reduz dependências
+          '--disable-breakpad',
+          '--disable-crash-reporter',
+          '--disable-crashpad'
         ]
       }
     };
