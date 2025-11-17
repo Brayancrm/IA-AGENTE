@@ -1337,18 +1337,6 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
         </div>
       )}
 
-      {/* Preview do Prompt Gerado */}
-      {steps.length > 0 && (
-        <div style={{ backgroundColor: '#1a1f36', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.1)', padding: '24px', marginTop: '16px' }}>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#ffffff', marginBottom: '16px' }}>
-            📝 Preview do Prompt Gerado
-          </h3>
-          <pre style={{ backgroundColor: '#0f1419', padding: '16px', borderRadius: '8px', fontSize: '0.875rem', color: '#ffffff', overflowX: 'auto', whiteSpace: 'pre-wrap', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-            {generatePrompt()}
-          </pre>
-        </div>
-      )}
-
       {/* Template Modal */}
       <TemplateModal
         isOpen={showTemplateModal}

@@ -5708,25 +5708,6 @@ const DashboardWithFirebase = ({
               </form>
             </div>
 
-            {/* Estatísticas */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-              <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#8b5cf6' }}>0</div>
-                <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '4px' }}>Conversas Ativas</div>
-              </div>
-              <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#10b981' }}>0</div>
-                <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '4px' }}>Mensagens Hoje</div>
-              </div>
-              <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#f59e0b' }}>-</div>
-                <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '4px' }}>Tempo Médio</div>
-              </div>
-              <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#ef4444' }}>-</div>
-                <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '4px' }}>Taxa de Satisfação</div>
-              </div>
-            </div>
           </div>
         );
 
