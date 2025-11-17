@@ -806,8 +806,8 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
               onClick={() => handleOptionSelect(question, option.value)}
               style={{
                 border: '1px solid',
-                borderColor: isSelected ? '#6366f1' : '#e5e7eb',
-                background: isSelected ? 'rgba(99, 102, 241, 0.1)' : 'white',
+                borderColor: isSelected ? '#10b981' : 'rgba(255, 255, 255, 0.1)',
+                background: isSelected ? 'rgba(16, 185, 129, 0.2)' : '#0f1419',
                 borderRadius: '10px',
                 padding: '12px 14px',
                 textAlign: 'left',
@@ -818,12 +818,12 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                 gap: '4px'
               }}
             >
-              <span style={{ fontWeight: 600, color: '#111827' }}>{option.label}</span>
+              <span style={{ fontWeight: 600, color: '#ffffff' }}>{option.label}</span>
               {option.description && (
-                <span style={{ fontSize: '12px', color: '#6b7280' }}>{option.description}</span>
+                <span style={{ fontSize: '12px', color: '#9ca3af' }}>{option.description}</span>
               )}
               {option.meta && (
-                <span style={{ fontSize: '12px', color: '#4338ca' }}>{option.meta}</span>
+                <span style={{ fontSize: '12px', color: '#10b981' }}>{option.meta}</span>
               )}
             </button>
           );
@@ -842,12 +842,12 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
             type="button"
             onClick={() => updateGuidedAnswers(question.id, suggestion)}
             style={{
-              border: '1px solid #d1d5db',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
               borderRadius: '999px',
               padding: '6px 12px',
               fontSize: '12px',
-              background: 'white',
-              color: '#4b5563',
+              background: '#0f1419',
+              color: '#9ca3af',
               cursor: 'pointer'
             }}
           >
@@ -875,10 +875,12 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                 width: '100%',
                 minHeight: '100px',
                 borderRadius: '10px',
-                border: '1px solid #d1d5db',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
                 padding: '12px',
                 fontSize: '14px',
-                resize: 'vertical'
+                resize: 'vertical',
+                backgroundColor: '#0f1419',
+                color: '#ffffff'
               }}
             />
             {renderSuggestions(currentQuestion)}
@@ -896,8 +898,10 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                   flex: '1 1 200px',
                   padding: '10px 12px',
                   borderRadius: '8px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '13px'
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  fontSize: '13px',
+                  backgroundColor: '#0f1419',
+                  color: '#ffffff'
                 }}
               />
               <button
@@ -907,7 +911,7 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                   padding: '10px 18px',
                   borderRadius: '8px',
                   border: 'none',
-                  backgroundColor: '#6366f1',
+                  backgroundColor: '#10b981',
                   color: 'white',
                   fontWeight: 600,
                   cursor: customValue.trim() ? 'pointer' : 'not-allowed',
@@ -921,7 +925,7 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
             {currentQuestion.type === 'multi_select' && (guidedAnswers[currentQuestion.id] || []).length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', fontSize: '12px' }}>
                 {(guidedAnswers[currentQuestion.id] || []).map((item) => (
-                  <span key={item} style={{ background: '#eef2ff', color: '#4338ca', padding: '4px 10px', borderRadius: '999px' }}>
+                  <span key={item} style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '4px 10px', borderRadius: '999px' }}>
                     {item}
                   </span>
                 ))}
@@ -930,7 +934,7 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
           </>
         )}
         {currentQuestion.helperText && (
-          <p style={{ fontSize: '12px', color: '#0f172a', marginTop: '12px' }}>
+          <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '12px' }}>
             {currentQuestion.helperText}
           </p>
         )}
@@ -959,7 +963,7 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
     >
       <div
         style={{
-          backgroundColor: 'white',
+          backgroundColor: '#1a1f36',
           borderRadius: '16px',
           width: '100%',
           maxWidth: '780px',
@@ -967,17 +971,18 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+          border: '1px solid rgba(16, 185, 129, 0.2)'
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{
           padding: '24px',
-          borderBottom: '1px solid #e5e7eb',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
         }}>
           <div>
             <h2 style={{
@@ -1029,9 +1034,9 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                 padding: '10px 16px',
                 borderRadius: '10px',
                 border: '1px solid',
-                borderColor: mode === 'guided' ? '#6366f1' : '#d1d5db',
-                background: mode === 'guided' ? 'rgba(99, 102, 241, 0.12)' : 'white',
-                color: mode === 'guided' ? '#4338ca' : '#374151',
+                borderColor: mode === 'guided' ? '#10b981' : 'rgba(255, 255, 255, 0.1)',
+                background: mode === 'guided' ? 'rgba(16, 185, 129, 0.2)' : '#0f1419',
+                color: mode === 'guided' ? '#10b981' : '#ffffff',
                 fontWeight: '600',
                 cursor: loading ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s'
@@ -1047,9 +1052,9 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                 padding: '10px 16px',
                 borderRadius: '10px',
                 border: '1px solid',
-                borderColor: mode === 'manual' ? '#6366f1' : '#d1d5db',
-                background: mode === 'manual' ? 'rgba(99, 102, 241, 0.12)' : 'white',
-                color: mode === 'manual' ? '#4338ca' : '#374151',
+                borderColor: mode === 'manual' ? '#10b981' : 'rgba(255, 255, 255, 0.1)',
+                background: mode === 'manual' ? 'rgba(16, 185, 129, 0.2)' : '#0f1419',
+                color: mode === 'manual' ? '#10b981' : '#ffffff',
                 fontWeight: '600',
                 cursor: loading ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s'
@@ -1065,8 +1070,8 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                 marginBottom: '16px',
                 padding: '12px 16px',
                 borderRadius: '10px',
-                background: '#eef2ff',
-                color: '#4338ca',
+                background: 'rgba(16, 185, 129, 0.1)',
+                color: '#10b981',
                 display: 'flex',
                 justifyContent: 'space-between',
                 fontSize: '13px'
@@ -1076,19 +1081,19 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
               </div>
 
               <div style={{
-                border: '1px solid #e5e7eb',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
                 borderRadius: '14px',
                 padding: '20px',
                 marginBottom: '20px',
-                background: '#fff'
+                background: '#0f1419'
               }}>
                 {currentQuestion && (
                   <>
-                    <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#111827' }}>
+                    <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#ffffff' }}>
                       {currentQuestion.title}
                     </h3>
                     {currentQuestion.description && (
-                      <p style={{ margin: '0 0 16px 0', color: '#6b7280', fontSize: '14px' }}>
+                      <p style={{ margin: '0 0 16px 0', color: '#9ca3af', fontSize: '14px' }}>
                         {currentQuestion.description}
                       </p>
                     )}
@@ -1106,9 +1111,9 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                     flex: 1,
                     padding: '12px 16px',
                     borderRadius: '10px',
-                    border: '1px solid #d1d5db',
-                    background: 'white',
-                    color: '#374151',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    background: '#0f1419',
+                    color: '#ffffff',
                     cursor: currentQuestionIndex === 0 ? 'not-allowed' : 'pointer',
                     opacity: currentQuestionIndex === 0 ? 0.6 : 1,
                     fontWeight: 600
@@ -1125,7 +1130,7 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                     padding: '12px 16px',
                     borderRadius: '10px',
                     border: 'none',
-                    background: currentQuestionIndex === visibleQuestions.length - 1 ? '#c7d2fe' : '#6366f1',
+                    background: currentQuestionIndex === visibleQuestions.length - 1 ? 'rgba(16, 185, 129, 0.3)' : '#10b981',
                     color: 'white',
                     cursor: currentQuestionIndex === visibleQuestions.length - 1 ? 'not-allowed' : 'pointer',
                     fontWeight: 600
@@ -1136,16 +1141,16 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
               </div>
 
               <div style={{
-                background: '#f9fafb',
+                background: '#0f1419',
                 borderRadius: '12px',
-                border: '1px solid #e2e8f0',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
                 padding: '16px'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#1f2937' }}>
+                  <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#ffffff' }}>
                     Prompt sendo montado
                   </h4>
-                  <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                  <span style={{ fontSize: '12px', color: '#9ca3af' }}>
                     Atualizado conforme você responde
                   </span>
                 </div>
@@ -1157,14 +1162,14 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                     width: '100%',
                     minHeight: '150px',
                     borderRadius: '10px',
-                    border: '1px dashed #94a3b8',
+                    border: '1px dashed rgba(255, 255, 255, 0.2)',
                     padding: '12px',
                     fontSize: '13px',
-                    color: guidedPrompt ? '#111827' : '#94a3b8',
-                    background: '#fff'
+                    color: guidedPrompt ? '#ffffff' : '#9ca3af',
+                    background: '#1a1f36'
                   }}
                 />
-                <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px' }}>
+                <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '8px' }}>
                   Este texto será enviado para a IA. Você pode alternar para o modo livre se quiser editar manualmente.
                 </p>
               </div>
@@ -1180,7 +1185,7 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                 <label style={{
                   display: 'block',
                   fontWeight: '600',
-                  color: '#374151',
+                  color: '#ffffff',
                   marginBottom: '8px',
                   fontSize: '14px'
                 }}>
@@ -1199,11 +1204,12 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                     minHeight: '150px',
                     padding: '12px',
                     borderRadius: '8px',
-                    border: error ? '2px solid #ef4444' : '1px solid #d1d5db',
+                    border: error ? '2px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.1)',
                     fontSize: '14px',
                     fontFamily: 'inherit',
                     resize: 'vertical',
-                    background: loading ? '#f9fafb' : 'white',
+                    background: loading ? '#0f1419' : '#0f1419',
+                    color: '#ffffff',
                     cursor: loading ? 'not-allowed' : 'text'
                   }}
                 />
@@ -1215,15 +1221,15 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
               </div>
 
               <div style={{
-                background: '#f9fafb',
+                background: '#0f1419',
                 borderRadius: '8px',
                 padding: '16px',
-                border: '1px solid #e5e7eb'
+                border: '1px solid rgba(255, 255, 255, 0.1)'
               }}>
                 <h4 style={{
                   fontSize: '13px',
                   fontWeight: '600',
-                  color: '#374151',
+                  color: '#ffffff',
                   margin: '0 0 12px 0'
                 }}>
                   💡 Exemplos de descrições:
@@ -1235,12 +1241,12 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                       onClick={() => !loading && setDescription(example)}
                       disabled={loading}
                       style={{
-                        background: 'white',
-                        border: '1px solid #d1d5db',
+                        background: '#1a1f36',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
                         borderRadius: '6px',
                         padding: '10px 12px',
                         fontSize: '12px',
-                        color: '#6b7280',
+                        color: '#9ca3af',
                         textAlign: 'left',
                         cursor: loading ? 'not-allowed' : 'pointer',
                         transition: 'all 0.2s',
@@ -1281,11 +1287,11 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
 
         <div style={{
           padding: '20px 24px',
-          borderTop: '1px solid #e5e7eb',
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
           display: 'flex',
           justifyContent: 'flex-end',
           gap: '12px',
-          background: '#f9fafb'
+          background: '#1a1f36'
         }}>
           <button
             onClick={handleClose}
@@ -1293,9 +1299,9 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
             style={{
               padding: '10px 20px',
               borderRadius: '8px',
-              border: '1px solid #d1d5db',
-              background: 'white',
-              color: '#374151',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              background: '#0f1419',
+              color: '#ffffff',
               fontWeight: '500',
               cursor: loading ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s',
@@ -1312,7 +1318,7 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
               padding: '10px 24px',
               borderRadius: '8px',
               border: 'none',
-              background: loading || !canGenerate ? '#d1d5db' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: loading || !canGenerate ? 'rgba(255, 255, 255, 0.1)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               color: 'white',
               fontWeight: '600',
               cursor: loading || !canGenerate ? 'not-allowed' : 'pointer',

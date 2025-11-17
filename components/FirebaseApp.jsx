@@ -5424,7 +5424,7 @@ const DashboardWithFirebase = ({
                         gap: '8px',
                         fontWeight: '600', 
                         marginBottom: '10px', 
-                        color: '#111827',
+                        color: '#ffffff',
                         fontSize: '0.9375rem'
                       }}>
                         <span style={{ fontSize: '1.25rem' }}>⚙️</span>
@@ -5437,18 +5437,19 @@ const DashboardWithFirebase = ({
                           width: '100%',
                           padding: '14px 16px',
                           borderRadius: '12px',
-                          border: '2px solid #e5e7eb',
+                          border: '2px solid rgba(255, 255, 255, 0.1)',
                           fontSize: '1rem',
                           transition: 'all 0.2s ease',
                           outline: 'none',
-                          backgroundColor: 'white'
+                          backgroundColor: '#0f1419',
+                          color: '#ffffff'
                         }}
                         onFocus={(e) => {
-                          e.target.style.borderColor = '#8b5cf6';
-                          e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.1)';
+                          e.target.style.borderColor = '#10b981';
+                          e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
                         }}
                         onBlur={(e) => {
-                          e.target.style.borderColor = '#e5e7eb';
+                          e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                           e.target.style.boxShadow = 'none';
                         }}
                       >
@@ -5465,7 +5466,7 @@ const DashboardWithFirebase = ({
                         gap: '8px',
                         fontWeight: '600', 
                         marginBottom: '10px', 
-                        color: '#111827',
+                        color: '#ffffff',
                         fontSize: '0.9375rem'
                       }}>
                         <span style={{ fontSize: '1.25rem' }}>🔑</span>
@@ -5479,23 +5480,24 @@ const DashboardWithFirebase = ({
                           width: '100%',
                           padding: '14px 16px',
                           borderRadius: '12px',
-                          border: '2px solid #e5e7eb',
+                          border: '2px solid rgba(255, 255, 255, 0.1)',
                           fontSize: '1rem',
                           transition: 'all 0.2s ease',
                           outline: 'none',
-                          backgroundColor: 'white'
+                          backgroundColor: '#0f1419',
+                          color: '#ffffff'
                         }}
                         placeholder="sk-..."
                         onFocus={(e) => {
-                          e.target.style.borderColor = '#8b5cf6';
-                          e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.1)';
+                          e.target.style.borderColor = '#10b981';
+                          e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
                         }}
                         onBlur={(e) => {
-                          e.target.style.borderColor = '#e5e7eb';
+                          e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                           e.target.style.boxShadow = 'none';
                         }}
                       />
-                      <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span>🔒</span>
                         Sua chave API será criptografada e armazenada com segurança
                       </p>
@@ -5507,7 +5509,7 @@ const DashboardWithFirebase = ({
                         gap: '8px',
                         fontWeight: '600', 
                         marginBottom: '10px', 
-                        color: '#111827',
+                        color: '#ffffff',
                         fontSize: '0.9375rem'
                       }}>
                         <span style={{ fontSize: '1.25rem' }}>🎯</span>
@@ -5520,18 +5522,19 @@ const DashboardWithFirebase = ({
                           width: '100%',
                           padding: '14px 16px',
                           borderRadius: '12px',
-                          border: '2px solid #e5e7eb',
+                          border: '2px solid rgba(255, 255, 255, 0.1)',
                           fontSize: '1rem',
                           transition: 'all 0.2s ease',
                           outline: 'none',
-                          backgroundColor: 'white'
+                          backgroundColor: '#0f1419',
+                          color: '#ffffff'
                         }}
                         onFocus={(e) => {
-                          e.target.style.borderColor = '#8b5cf6';
-                          e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.1)';
+                          e.target.style.borderColor = '#10b981';
+                          e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
                         }}
                         onBlur={(e) => {
-                          e.target.style.borderColor = '#e5e7eb';
+                          e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                           e.target.style.boxShadow = 'none';
                         }}
                       >
@@ -5545,7 +5548,7 @@ const DashboardWithFirebase = ({
 
                 {/* Flow Builder Visual */}
                 <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '12px', color: '#374151' }}>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '12px', color: '#ffffff' }}>
                     🎯 Fluxo de Atendimento
                   </label>
                   <FlowBuilder 
@@ -5588,8 +5591,8 @@ const DashboardWithFirebase = ({
 
                 {/* Dica sobre Configuração de Agendamentos */}
                 <div style={{ 
-                  backgroundColor: '#e0f2fe', 
-                  border: '2px solid #0ea5e9', 
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)', 
+                  border: '2px solid rgba(16, 185, 129, 0.3)', 
                   borderRadius: '12px', 
                   padding: '20px',
                   marginTop: '24px'
@@ -5597,10 +5600,10 @@ const DashboardWithFirebase = ({
                   <div style={{ display: 'flex', alignItems: 'start', gap: '12px' }}>
                     <span style={{ fontSize: '24px' }}>💡</span>
                     <div>
-                      <p style={{ fontSize: '0.9375rem', fontWeight: 'bold', color: '#0c4a6e', margin: '0 0 8px 0' }}>
+                      <p style={{ fontSize: '0.9375rem', fontWeight: 'bold', color: '#10b981', margin: '0 0 8px 0' }}>
                         Configuração de Agendamentos e Catálogo
                       </p>
-                      <p style={{ fontSize: '0.875rem', color: '#075985', margin: 0 }}>
+                      <p style={{ fontSize: '0.875rem', color: '#9ca3af', margin: 0 }}>
                         Para habilitar agendamentos ou exibir catálogo, adicione um passo do tipo <strong>"Criar Agendamento"</strong> ou <strong>"Mostrar Produtos/Serviços"</strong> no Fluxo de Atendimento acima. 
                         As configurações serão sincronizadas automaticamente.
                       </p>
@@ -5612,21 +5615,21 @@ const DashboardWithFirebase = ({
                 {assistantForm.flowSteps && assistantForm.flowSteps.length > 0 && (
                   <div style={{ marginTop: '24px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <label style={{ display: 'block', fontWeight: 'bold', color: '#374151' }}>
+                      <label style={{ display: 'block', fontWeight: 'bold', color: '#ffffff' }}>
                         📝 Prompt Final Gerado (Edição Opcional)
                       </label>
-                      <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
                         {assistantForm.systemPrompt?.length || 0} caracteres
                       </span>
                     </div>
                     <div style={{ 
-                      background: '#f0f9ff', 
-                      border: '1px solid #3b82f6', 
+                      background: 'rgba(16, 185, 129, 0.1)', 
+                      border: '1px solid rgba(16, 185, 129, 0.3)', 
                       borderRadius: '8px', 
                       padding: '12px',
                       marginBottom: '12px'
                     }}>
-                      <p style={{ fontSize: '0.875rem', color: '#1e40af', margin: 0 }}>
+                      <p style={{ fontSize: '0.875rem', color: '#10b981', margin: 0 }}>
                         💡 <strong>Preview em Tempo Real:</strong> Este prompt é gerado automaticamente dos steps. 
                         Edite manualmente apenas se precisar ajustes específicos.
                       </p>
@@ -5638,24 +5641,25 @@ const DashboardWithFirebase = ({
                         width: '100%',
                         padding: '12px',
                         borderRadius: '8px',
-                        border: '1px solid #d1d5db',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
                         fontSize: '0.875rem',
                         minHeight: '300px',
                         fontFamily: 'monospace',
                         resize: 'vertical',
-                        background: '#f9fafb'
+                        background: '#0f1419',
+                        color: '#ffffff'
                       }}
                       placeholder="O prompt será gerado automaticamente quando você adicionar steps..."
                     />
                     {assistantForm.systemPrompt && assistantForm.systemPrompt.length > 4000 && (
                       <div style={{ 
-                        background: '#fef3c7', 
-                        border: '1px solid #f59e0b', 
+                        background: 'rgba(245, 158, 11, 0.1)', 
+                        border: '1px solid rgba(245, 158, 11, 0.3)', 
                         borderRadius: '8px', 
                         padding: '8px',
                         marginTop: '8px'
                       }}>
-                        <p style={{ fontSize: '0.875rem', color: '#92400e', margin: 0 }}>
+                        <p style={{ fontSize: '0.875rem', color: '#f59e0b', margin: 0 }}>
                           ⚠️ Prompt muito longo ({assistantForm.systemPrompt.length} caracteres). Considere simplificar para melhor performance.
                         </p>
                       </div>
@@ -5667,14 +5671,14 @@ const DashboardWithFirebase = ({
                 <div style={{ 
                   marginTop: '16px',
                   paddingTop: '32px',
-                  borderTop: '2px solid #e5e7eb',
+                  borderTop: '2px solid rgba(255, 255, 255, 0.1)',
                   display: 'flex',
                   justifyContent: 'flex-end'
                 }}>
                 <button
                   type="submit"
                   style={{
-                      background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                     color: 'white',
                       padding: '16px 40px',
                       borderRadius: '12px',
@@ -5683,18 +5687,18 @@ const DashboardWithFirebase = ({
                       fontSize: '1.0625rem',
                     cursor: 'pointer',
                       transition: 'all 0.2s ease',
-                      boxShadow: '0 4px 16px rgba(139, 92, 246, 0.3)',
+                      boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '10px'
                     }}
                     onMouseEnter={(e) => {
                       e.target.style.transform = 'translateY(-2px)';
-                      e.target.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.4)';
+                      e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.4)';
                     }}
                     onMouseLeave={(e) => {
                       e.target.style.transform = 'translateY(0)';
-                      e.target.style.boxShadow = '0 4px 16px rgba(139, 92, 246, 0.3)';
+                      e.target.style.boxShadow = '0 4px 16px rgba(16, 185, 129, 0.3)';
                     }}
                   >
                     <span style={{ fontSize: '1.5rem' }}>💾</span>
@@ -5706,21 +5710,21 @@ const DashboardWithFirebase = ({
 
             {/* Estatísticas */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-              <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
-                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#4f46e5' }}>0</div>
-                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '4px' }}>Conversas Ativas</div>
+              <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#8b5cf6' }}>0</div>
+                <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '4px' }}>Conversas Ativas</div>
               </div>
-              <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
+              <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                 <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#10b981' }}>0</div>
-                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '4px' }}>Mensagens Hoje</div>
+                <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '4px' }}>Mensagens Hoje</div>
               </div>
-              <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
+              <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
                 <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#f59e0b' }}>-</div>
-                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '4px' }}>Tempo Médio</div>
+                <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '4px' }}>Tempo Médio</div>
               </div>
-              <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
+              <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
                 <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#ef4444' }}>-</div>
-                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '4px' }}>Taxa de Satisfação</div>
+                <div style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '4px' }}>Taxa de Satisfação</div>
               </div>
             </div>
           </div>
