@@ -377,22 +377,22 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
   return (
     <div className="w-full max-w-4xl mx-auto">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm p-6 mb-4">
+      <div style={{ backgroundColor: '#1a1f36', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '24px', marginBottom: '16px' }}>
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff' }}>
               🎯 Fluxo do Agente
             </h2>
-            <p className="text-gray-600 mt-1">
+            <p style={{ color: '#9ca3af', marginTop: '8px' }}>
               Configure o fluxo de conversa do seu agente em passos
             </p>
             {steps.length > 0 && (
               <div className="flex gap-4 mt-2">
-                <span className="text-sm text-gray-600">
+                <span style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
                   ✅ {completedSteps}/{steps.length} passos configurados
                 </span>
                 {!hasAgentProfile && (
-                  <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                  <span style={{ fontSize: '0.75rem', color: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
                     ⚠️ Adicione um perfil do agente
                   </span>
                 )}
@@ -405,7 +405,9 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                 <button
                   type="button"
                   onClick={() => setShowQuickTest(true)}
-                  className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#10b981', color: 'white', padding: '10px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
                 >
                   <Play size={20} />
                   Testar
@@ -413,14 +415,18 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                 <button
                   type="button"
                   onClick={openDemoConversation}
-                  className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#10b981', color: 'white', padding: '10px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
                 >
                   💬 Demonstração
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowPromptImprover(true)}
-                  className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition"
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#f59e0b', color: 'white', padding: '10px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d97706'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f59e0b'}
                 >
                   ✨ Melhorar
                 </button>
@@ -429,18 +435,26 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
             <button
               type="button"
               onClick={() => setShowAIModal(true)}
-              className="flex items-center gap-2 text-white px-4 py-2 rounded-lg transition"
               style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: 'white',
+                padding: '10px 16px',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                transition: 'all 0.2s'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
               }}
             >
               <Sparkles size={20} />
@@ -449,7 +463,9 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
             <button
               type="button"
               onClick={() => setShowTemplateModal(true)}
-              className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#10b981', color: 'white', padding: '10px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
             >
               <FileText size={20} />
               Template
@@ -457,7 +473,9 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
             <button
               type="button"
               onClick={addStep}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#10b981', color: 'white', padding: '10px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
             >
               <Plus size={20} />
               Adicionar Passo
@@ -485,11 +503,13 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                     <div
                       ref={provided.innerRef}
                       {...provided.draggableProps}
-                      className={`bg-white rounded-lg shadow-sm border-2 transition ${
-                        snapshot.isDragging
-                          ? 'border-blue-500 shadow-lg'
-                          : 'border-gray-200'
-                      }`}
+                      style={{
+                        backgroundColor: '#1a1f36',
+                        borderRadius: '12px',
+                        boxShadow: snapshot.isDragging ? '0 8px 24px rgba(16, 185, 129, 0.4)' : '0 4px 12px rgba(0,0,0,0.3)',
+                        border: `2px solid ${snapshot.isDragging ? '#10b981' : 'rgba(255, 255, 255, 0.1)'}`,
+                        transition: 'all 0.2s'
+                      }}
                     >
                       {/* Step Card */}
                       {editingIndex === index ? (
@@ -498,7 +518,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                           <div className="space-y-4">
                             {/* Tipo de Ação */}
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
                                 Tipo de Ação
                               </label>
                               <select
@@ -509,7 +529,23 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                     type: e.target.value,
                                   })
                                 }
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                style={{
+                                  width: '100%',
+                                  padding: '10px 16px',
+                                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                                  borderRadius: '8px',
+                                  backgroundColor: '#0f1419',
+                                  color: '#ffffff',
+                                  outline: 'none'
+                                }}
+                                onFocus={(e) => {
+                                  e.target.style.borderColor = '#10b981';
+                                  e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                                }}
+                                onBlur={(e) => {
+                                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                  e.target.style.boxShadow = 'none';
+                                }}
                               >
                                 {actionTypes.map((type) => (
                                   <option key={type.value} value={type.value}>
@@ -521,7 +557,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
 
                             {/* Título */}
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
                                 Título do Passo
                               </label>
                               <input
@@ -534,13 +570,29 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                   })
                                 }
                                 placeholder="Ex: Cumprimentar o cliente"
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                style={{
+                                  width: '100%',
+                                  padding: '10px 16px',
+                                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                                  borderRadius: '8px',
+                                  backgroundColor: '#0f1419',
+                                  color: '#ffffff',
+                                  outline: 'none'
+                                }}
+                                onFocus={(e) => {
+                                  e.target.style.borderColor = '#10b981';
+                                  e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                                }}
+                                onBlur={(e) => {
+                                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                  e.target.style.boxShadow = 'none';
+                                }}
                               />
                             </div>
 
                             {/* Descrição/Instruções */}
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
                                 {editingStep.type === 'free_text' 
                                   ? 'Prompt Livre (Escreva o texto completo)'
                                   : 'Instruções Detalhadas'}
@@ -557,9 +609,26 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                   ? "Ex: Você é um assistente prestativo. Quando o cliente perguntar sobre...\n\nEscreva aqui o prompt completo que deseja usar neste ponto do fluxo."
                                   : "Ex: Cumprimente o cliente de forma amigável e pergunte como pode ajudar..."}
                                 rows={editingStep.type === 'free_text' ? 8 : 4}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                style={{
+                                  width: '100%',
+                                  padding: '10px 16px',
+                                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                                  borderRadius: '8px',
+                                  backgroundColor: '#0f1419',
+                                  color: '#ffffff',
+                                  outline: 'none',
+                                  resize: 'vertical'
+                                }}
+                                onFocus={(e) => {
+                                  e.target.style.borderColor = '#10b981';
+                                  e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                                }}
+                                onBlur={(e) => {
+                                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                  e.target.style.boxShadow = 'none';
+                                }}
                               />
-                              <p className="text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded mt-2">
+                              <p style={{ fontSize: '0.875rem', color: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '12px', borderRadius: '8px', marginTop: '8px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                                 {getTipsForStepType(editingStep.type)}
                               </p>
                             </div>
@@ -567,8 +636,8 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                             {/* Campos específicos para Perfil do Agente */}
                             {editingStep.type === 'agent_profile' && (
                               <div className="border-t pt-4 space-y-4">
-                                <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-                                  <p className="text-sm text-amber-800 font-medium">
+                                <div style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                                  <p style={{ fontSize: '0.875rem', color: '#f59e0b', fontWeight: '600' }}>
                                     🤖 Configure a personalidade e apresentação do agente
                                   </p>
                                 </div>
@@ -576,7 +645,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                 <div className="grid grid-cols-2 gap-4">
                                   {/* Nome do Agente */}
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
                                       Nome do Agente *
                                     </label>
                                     <input
@@ -589,13 +658,29 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                         })
                                       }
                                       placeholder="Ex: Sofia, Pedro, Maria..."
-                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                      style={{
+                                        width: '100%',
+                                        padding: '10px 16px',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        borderRadius: '8px',
+                                        backgroundColor: '#0f1419',
+                                        color: '#ffffff',
+                                        outline: 'none'
+                                      }}
+                                      onFocus={(e) => {
+                                        e.target.style.borderColor = '#10b981';
+                                        e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                                      }}
+                                      onBlur={(e) => {
+                                        e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                        e.target.style.boxShadow = 'none';
+                                      }}
                                     />
                                   </div>
 
                                   {/* Cargo/Função */}
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
                                       Cargo/Função
                                     </label>
                                     <input
@@ -608,13 +693,29 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                         })
                                       }
                                       placeholder="Ex: Atendente, Consultor..."
-                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                      style={{
+                                        width: '100%',
+                                        padding: '10px 16px',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        borderRadius: '8px',
+                                        backgroundColor: '#0f1419',
+                                        color: '#ffffff',
+                                        outline: 'none'
+                                      }}
+                                      onFocus={(e) => {
+                                        e.target.style.borderColor = '#10b981';
+                                        e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                                      }}
+                                      onBlur={(e) => {
+                                        e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                        e.target.style.boxShadow = 'none';
+                                      }}
                                     />
                                   </div>
 
                                   {/* Tom de Voz */}
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
                                       Tom de Voz
                                     </label>
                                     <select
@@ -625,7 +726,23 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                           agentTone: e.target.value,
                                         })
                                       }
-                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                      style={{
+                                        width: '100%',
+                                        padding: '10px 16px',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        borderRadius: '8px',
+                                        backgroundColor: '#0f1419',
+                                        color: '#ffffff',
+                                        outline: 'none'
+                                      }}
+                                      onFocus={(e) => {
+                                        e.target.style.borderColor = '#10b981';
+                                        e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                                      }}
+                                      onBlur={(e) => {
+                                        e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                        e.target.style.boxShadow = 'none';
+                                      }}
                                     >
                                       <option value="friendly">😊 Amigável e Caloroso</option>
                                       <option value="professional">👔 Profissional e Formal</option>
@@ -637,7 +754,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
 
                                   {/* Estilo de Comunicação */}
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
                                       Estilo de Comunicação
                                     </label>
                                     <select
@@ -648,7 +765,23 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                           agentStyle: e.target.value,
                                         })
                                       }
-                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                      style={{
+                                        width: '100%',
+                                        padding: '10px 16px',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        borderRadius: '8px',
+                                        backgroundColor: '#0f1419',
+                                        color: '#ffffff',
+                                        outline: 'none'
+                                      }}
+                                      onFocus={(e) => {
+                                        e.target.style.borderColor = '#10b981';
+                                        e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                                      }}
+                                      onBlur={(e) => {
+                                        e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                        e.target.style.boxShadow = 'none';
+                                      }}
                                     >
                                       <option value="concise">📝 Conciso e Direto</option>
                                       <option value="detailed">📚 Detalhado e Explicativo</option>
@@ -660,10 +793,10 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
 
                                 {/* Personalidade */}
                                 <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
                                     Personalidade (use o campo "Instruções" acima)
                                   </label>
-                                  <p className="text-sm text-gray-500">
+                                  <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
                                     No campo "Instruções Detalhadas" acima, descreva características como: sempre usa emojis, evita termos técnicos, é paciente, etc.
                                   </p>
                                 </div>
@@ -673,7 +806,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                             {/* Condição (Opcional) */}
                             {editingStep.type !== 'agent_profile' && (
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
                                   Condição (Opcional)
                                 </label>
                                 <input
@@ -686,21 +819,40 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                     })
                                   }
                                   placeholder="Ex: Se o cliente perguntar sobre produtos..."
-                                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  style={{
+                                    width: '100%',
+                                    padding: '10px 16px',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '8px',
+                                    backgroundColor: '#0f1419',
+                                    color: '#ffffff',
+                                    outline: 'none'
+                                  }}
+                                  onFocus={(e) => {
+                                    e.target.style.borderColor = '#10b981';
+                                    e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                                  }}
+                                  onBlur={(e) => {
+                                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                    e.target.style.boxShadow = 'none';
+                                  }}
                                 />
                               </div>
                             )}
 
                             {/* Configurações de Catálogo (só para show_catalog) */}
                             {editingStep.type === 'show_catalog' && (
-                              <div className="border-t pt-4">
-                                <h4 className="font-semibold text-gray-800 mb-3">
+                              <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '16px' }}>
+                                <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#ffffff', marginBottom: '12px' }}>
                                   🛍️ Contexto de Catálogo
                                 </h4>
                                 
                                 {/* Incluir Produtos */}
-                                <div className="mb-4">
-                                  <label className="flex items-start gap-3 p-3 bg-green-50 border-2 border-green-200 rounded-lg cursor-pointer hover:bg-green-100 transition">
+                                <div style={{ marginBottom: '16px' }}>
+                                  <label style={{ display: 'flex', alignItems: 'start', gap: '12px', padding: '12px', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '2px solid rgba(16, 185, 129, 0.3)', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s' }}
+                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.2)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)'}
+                                  >
                                     <input
                                       type="checkbox"
                                       checked={editingStep.catalogSettings?.includeProducts || false}
@@ -718,15 +870,15 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                       }}
                                       className="mt-1"
                                     />
-                                    <div className="flex-1">
-                                      <div className="font-bold text-gray-900">
+                                    <div style={{ flex: 1 }}>
+                                      <div style={{ fontWeight: '700', color: '#ffffff', fontSize: '0.9375rem' }}>
                                         📦 Incluir Produtos do Catálogo
                                       </div>
-                                      <div className="text-sm text-gray-600">
+                                      <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
                                         A IA poderá oferecê-los aos clientes
                                       </div>
                                       {catalogItems.filter(i => i && i.type === 'product').length > 0 && (
-                                        <div className="text-xs text-green-700 mt-1">
+                                        <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '4px' }}>
                                           ✓ {catalogItems.filter(i => i && i.type === 'product').length} produto(s) disponível(is)
                                         </div>
                                       )}
@@ -735,9 +887,12 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
 
                                   {/* Lista de Produtos com Checkboxes Individuais */}
                                   {editingStep.catalogSettings?.includeProducts && (
-                                    <div className="mt-3 ml-6 space-y-2 max-h-60 overflow-y-auto">
+                                    <div style={{ marginTop: '12px', marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
                                       {catalogItems.filter(i => i && i.type === 'product').map(product => (
-                                        <label key={product.id} className="flex items-center gap-2 p-2 bg-white border rounded hover:bg-gray-50 cursor-pointer">
+                                        <label key={product.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', backgroundColor: '#0f1419', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s' }}
+                                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1a1f36'}
+                                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0f1419'}
+                                        >
                                           <input
                                             type="checkbox"
                                             checked={editingStep.catalogSettings?.selectedProducts?.includes(product.id) || false}
@@ -754,9 +909,9 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                               });
                                             }}
                                           />
-                                          <div className="flex-1">
-                                            <div className="font-medium text-sm">{product.name}</div>
-                                            <div className="text-xs text-gray-500">R$ {product.price}</div>
+                                          <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: '500', fontSize: '0.875rem', color: '#ffffff' }}>{product.name}</div>
+                                            <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>R$ {product.price}</div>
                                           </div>
                                         </label>
                                       ))}
@@ -766,7 +921,10 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
 
                                 {/* Incluir Serviços */}
                                 <div>
-                                  <label className="flex items-start gap-3 p-3 bg-blue-50 border-2 border-blue-200 rounded-lg cursor-pointer hover:bg-blue-100 transition">
+                                  <label style={{ display: 'flex', alignItems: 'start', gap: '12px', padding: '12px', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '2px solid rgba(16, 185, 129, 0.3)', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s' }}
+                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.2)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)'}
+                                  >
                                     <input
                                       type="checkbox"
                                       checked={editingStep.catalogSettings?.includeServices || false}
@@ -782,17 +940,17 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                           }
                                         });
                                       }}
-                                      className="mt-1"
+                                      style={{ marginTop: '4px' }}
                                     />
-                                    <div className="flex-1">
-                                      <div className="font-bold text-gray-900">
+                                    <div style={{ flex: 1 }}>
+                                      <div style={{ fontWeight: '700', color: '#ffffff', fontSize: '0.9375rem' }}>
                                         🛠️ Incluir Serviços do Catálogo
                                       </div>
-                                      <div className="text-sm text-gray-600">
+                                      <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
                                         A IA poderá oferecê-los aos clientes
                                       </div>
                                       {catalogItems.filter(i => i && i.type === 'service').length > 0 && (
-                                        <div className="text-xs text-blue-700 mt-1">
+                                        <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '4px' }}>
                                           ✓ {catalogItems.filter(i => i && i.type === 'service').length} serviço(s) disponível(is)
                                         </div>
                                       )}
@@ -801,9 +959,12 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
 
                                   {/* Lista de Serviços com Checkboxes Individuais */}
                                   {editingStep.catalogSettings?.includeServices && (
-                                    <div className="mt-3 ml-6 space-y-2 max-h-60 overflow-y-auto">
+                                    <div style={{ marginTop: '12px', marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
                                       {catalogItems.filter(i => i && i.type === 'service').map(service => (
-                                        <label key={service.id} className="flex items-center gap-2 p-2 bg-white border rounded hover:bg-gray-50 cursor-pointer">
+                                        <label key={service.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', backgroundColor: '#0f1419', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s' }}
+                                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1a1f36'}
+                                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0f1419'}
+                                        >
                                           <input
                                             type="checkbox"
                                             checked={editingStep.catalogSettings?.selectedServices?.includes(service.id) || false}
@@ -820,9 +981,9 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                               });
                                             }}
                                           />
-                                          <div className="flex-1">
-                                            <div className="font-medium text-sm">{service.name}</div>
-                                            <div className="text-xs text-gray-500">R$ {service.price}</div>
+                                          <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: '500', fontSize: '0.875rem', color: '#ffffff' }}>{service.name}</div>
+                                            <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>R$ {service.price}</div>
                                           </div>
                                         </label>
                                       ))}
@@ -844,13 +1005,13 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                             {editingStep.type === 'create_appointment' && (
                               <div className="border-t pt-4 mt-4">
                                 <div className="flex items-center justify-between mb-4">
-                                  <h4 className="font-semibold text-gray-800">
+                                  <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#ffffff' }}>
                                     📅 Configurações de Agendamento
                                   </h4>
                                 </div>
 
-                                <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
-                                  <label className="flex items-start gap-3 cursor-pointer">
+                                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '2px solid rgba(16, 185, 129, 0.3)', borderRadius: '8px', padding: '16px' }}>
+                                  <label style={{ display: 'flex', alignItems: 'start', gap: '12px', cursor: 'pointer' }}>
                                     <input
                                       type="checkbox"
                                       checked={editingStep.appointmentEnabled || false}
@@ -859,24 +1020,24 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                         appointmentEnabled: e.target.checked,
                                         appointmentTypes: e.target.checked ? (editingStep.appointmentTypes || []) : []
                                       })}
-                                      className="mt-1"
+                                      style={{ marginTop: '4px' }}
                                     />
-                                    <div className="flex-1">
-                                      <div className="font-bold text-gray-900">
+                                    <div style={{ flex: 1 }}>
+                                      <div style={{ fontWeight: '700', color: '#ffffff', fontSize: '0.9375rem' }}>
                                         📅 Habilitar Sistema de Agendamentos
                                       </div>
-                                      <div className="text-sm text-gray-600">
+                                      <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
                                         O agente poderá criar agendamentos durante a conversa
                                       </div>
                                     </div>
                                   </label>
 
                                   {editingStep.appointmentEnabled && (
-                                    <div className="mt-4">
-                                      <label className="block font-semibold text-sm text-gray-700 mb-3">
+                                    <div style={{ marginTop: '16px' }}>
+                                      <label style={{ display: 'block', fontWeight: '600', fontSize: '0.875rem', color: '#ffffff', marginBottom: '12px' }}>
                                         Tipos de Agendamento Permitidos:
                                       </label>
-                                      <div className="grid grid-cols-2 gap-2">
+                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
                                         {[
                                           { value: 'retirada', label: '📦 Retirada' },
                                           { value: 'servico', label: '🔧 Serviço' },
@@ -888,7 +1049,19 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                         ].map((type) => (
                                           <label
                                             key={type.value}
-                                            className="flex items-center gap-2 p-2 bg-white border rounded hover:bg-gray-50 cursor-pointer"
+                                            style={{
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '8px',
+                                              padding: '8px',
+                                              backgroundColor: '#0f1419',
+                                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                                              borderRadius: '8px',
+                                              cursor: 'pointer',
+                                              transition: 'all 0.2s'
+                                            }}
+                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1a1f36'}
+                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0f1419'}
                                           >
                                             <input
                                               type="checkbox"
@@ -901,12 +1074,12 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                                 setEditingStep({ ...editingStep, appointmentTypes: newTypes });
                                               }}
                                             />
-                                            <span className="text-sm">{type.label}</span>
+                                            <span style={{ fontSize: '0.875rem', color: '#ffffff' }}>{type.label}</span>
                                           </label>
                                         ))}
                                       </div>
-                                      <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                                        <p className="text-xs text-yellow-800">
+                                      <div style={{ marginTop: '12px', padding: '12px', backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '8px' }}>
+                                        <p style={{ fontSize: '0.75rem', color: '#f59e0b' }}>
                                           💡 <strong>Dica:</strong> Agendamentos criados durante a conversa aparecerão automaticamente na seção Agendamentos.
                                         </p>
                                       </div>
@@ -917,11 +1090,24 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                             )}
 
                             {/* Botões */}
-                            <div className="flex gap-2 justify-end pt-4 border-t">
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
                               <button
                                 type="button"
                                 onClick={cancelEdit}
-                                className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  padding: '10px 16px',
+                                  color: '#ffffff',
+                                  backgroundColor: '#0f1419',
+                                  borderRadius: '8px',
+                                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1a1f36'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0f1419'}
                               >
                                 <X size={16} />
                                 Cancelar
@@ -929,7 +1115,20 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                               <button
                                 type="button"
                                 onClick={saveEdit}
-                                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  padding: '10px 16px',
+                                  backgroundColor: '#10b981',
+                                  color: 'white',
+                                  borderRadius: '8px',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
                               >
                                 <Save size={16} />
                                 Salvar
@@ -958,47 +1157,47 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                       ?.icon
                                   }
                                 </span>
-                                <h3 className="text-lg font-semibold text-gray-800">
+                                <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#ffffff' }}>
                                   Passo {index + 1}: {step.title}
                                 </h3>
                                 {(!step.title || !step.description) && (
-                                  <span className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
+                                  <span style={{ fontSize: '0.75rem', color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
                                     ⚠️ Incompleto
                                   </span>
                                 )}
                               </div>
 
                               {step.description && (
-                                <p className="text-gray-600 mb-2">
+                                <p style={{ color: '#9ca3af', marginBottom: '8px' }}>
                                   {step.description}
                                 </p>
                               )}
 
                               {step.condition && (
-                                <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-1 rounded inline-flex">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem', color: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '6px 12px', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.3)', display: 'inline-flex' }}>
                                   ⚠️ Condição: {step.condition}
                                 </div>
                               )}
 
                               {/* Mostrar configurações de catálogo se houver */}
                               {step.type === 'show_catalog' && step.catalogSettings && (
-                                <div className="mt-3 text-sm">
+                                <div style={{ marginTop: '12px', fontSize: '0.875rem' }}>
                                   {step.catalogSettings.includeProducts && (
-                                    <div className="mb-2">
-                                      <span className="font-semibold text-green-700">
+                                    <div style={{ marginBottom: '8px' }}>
+                                      <span style={{ fontWeight: '600', color: '#10b981' }}>
                                         📦 Produtos: 
                                       </span>
-                                      <span className="text-gray-600 ml-2">
+                                      <span style={{ color: '#9ca3af', marginLeft: '8px' }}>
                                         {step.catalogSettings.selectedProducts?.length || 0} selecionado(s)
                                       </span>
                                     </div>
                                   )}
                                   {step.catalogSettings.includeServices && (
                                     <div>
-                                      <span className="font-semibold text-blue-700">
+                                      <span style={{ fontWeight: '600', color: '#10b981' }}>
                                         🛠️ Serviços: 
                                       </span>
-                                      <span className="text-gray-600 ml-2">
+                                      <span style={{ color: '#9ca3af', marginLeft: '8px' }}>
                                         {step.catalogSettings.selectedServices?.length || 0} selecionado(s)
                                       </span>
                                     </div>
@@ -1008,15 +1207,15 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
 
                               {/* Mostrar perguntas customizadas se houver */}
                               {step.type === 'collect_data' && step.customQuestions && step.customQuestions.length > 0 && (
-                                <div className="mt-3 text-sm">
-                                  <div className="font-semibold text-purple-700 mb-2">
+                                <div style={{ marginTop: '12px', fontSize: '0.875rem' }}>
+                                  <div style={{ fontWeight: '600', color: '#10b981', marginBottom: '8px' }}>
                                     📋 {step.customQuestions.length} Pergunta(s) Configurada(s):
                                   </div>
-                                  <div className="space-y-1">
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                     {step.customQuestions.map((q, idx) => (
-                                      <div key={q.id} className="text-gray-600 pl-4 border-l-2 border-purple-200">
+                                      <div key={q.id} style={{ color: '#9ca3af', paddingLeft: '16px', borderLeft: '2px solid rgba(16, 185, 129, 0.3)' }}>
                                         {idx + 1}. {q.question || 'Pergunta sem texto'} 
-                                        <span className="text-xs text-gray-500 ml-2">
+                                        <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: '8px' }}>
                                           ({q.field || 'sem campo'})
                                         </span>
                                       </div>
@@ -1027,12 +1226,12 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
 
                               {/* Mostrar configurações de agendamento se houver */}
                               {step.type === 'create_appointment' && step.appointmentEnabled && (
-                                <div className="mt-3 text-sm">
-                                  <div className="font-semibold text-blue-700 mb-2">
+                                <div style={{ marginTop: '12px', fontSize: '0.875rem' }}>
+                                  <div style={{ fontWeight: '600', color: '#10b981', marginBottom: '8px' }}>
                                     📅 Sistema de Agendamentos Habilitado
                                   </div>
                                   {step.appointmentTypes && step.appointmentTypes.length > 0 && (
-                                    <div className="text-gray-600">
+                                    <div style={{ color: '#9ca3af' }}>
                                       Tipos permitidos: {step.appointmentTypes.map(t => {
                                         const labels = {
                                           'retirada': '📦 Retirada',
@@ -1056,7 +1255,17 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                               <button
                                 type="button"
                                 onClick={() => startEdit(index)}
-                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                                style={{
+                                  padding: '8px',
+                                  color: '#10b981',
+                                  backgroundColor: 'transparent',
+                                  borderRadius: '8px',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                 title="Editar"
                               >
                                 <Edit2 size={18} />
@@ -1064,7 +1273,17 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                               <button
                                 type="button"
                                 onClick={() => removeStep(index)}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                                style={{
+                                  padding: '8px',
+                                  color: '#ef4444',
+                                  backgroundColor: 'transparent',
+                                  borderRadius: '8px',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                 title="Remover"
                               >
                                 <Trash2 size={18} />
@@ -1085,18 +1304,32 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
 
       {/* Empty State */}
       {steps.length === 0 && (
-        <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-          <div className="text-6xl mb-4">🤖</div>
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">
+        <div style={{ backgroundColor: '#1a1f36', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.1)', padding: '48px', textAlign: 'center' }}>
+          <div style={{ fontSize: '4rem', marginBottom: '16px' }}>🤖</div>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
             Nenhum passo configurado
           </h3>
-          <p className="text-gray-600 mb-6">
+          <p style={{ color: '#9ca3af', marginBottom: '24px' }}>
             Adicione passos para definir o fluxo de conversa do seu agente
           </p>
           <button
             type="button"
             onClick={addStep}
-            className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition mx-auto"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              backgroundColor: '#10b981',
+              color: 'white',
+              padding: '12px 24px',
+              borderRadius: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              margin: '0 auto',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
           >
             <Plus size={20} />
             Adicionar Primeiro Passo
@@ -1106,11 +1339,11 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
 
       {/* Preview do Prompt Gerado */}
       {steps.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm p-6 mt-4">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">
+        <div style={{ backgroundColor: '#1a1f36', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.1)', padding: '24px', marginTop: '16px' }}>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#ffffff', marginBottom: '16px' }}>
             📝 Preview do Prompt Gerado
           </h3>
-          <pre className="bg-gray-50 p-4 rounded-lg text-sm text-gray-700 overflow-x-auto whitespace-pre-wrap">
+          <pre style={{ backgroundColor: '#0f1419', padding: '16px', borderRadius: '8px', fontSize: '0.875rem', color: '#ffffff', overflowX: 'auto', whiteSpace: 'pre-wrap', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
             {generatePrompt()}
           </pre>
         </div>
@@ -1135,9 +1368,9 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
       {/* Quick Test Modal */}
       {showQuickTest && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div style={{ backgroundColor: '#1a1f36', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)', padding: '24px', width: '100%', maxWidth: '42rem', maxHeight: '90vh', overflowY: 'auto', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-800">
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#ffffff' }}>
                 🧪 Teste Rápido do Agente
               </h3>
               <button
@@ -1146,7 +1379,9 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                   setTestMessage('');
                   setTestResponse('');
                 }}
-                className="text-gray-500 hover:text-gray-700"
+                style={{ color: '#9ca3af', cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
+                onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}
               >
                 <X size={24} />
               </button>
@@ -1155,7 +1390,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
             <div className="space-y-4">
               {/* Input da mensagem */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
                   Digite uma mensagem para testar:
                 </label>
                 <textarea
@@ -1163,14 +1398,46 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                   onChange={(e) => setTestMessage(e.target.value)}
                   placeholder="Ex: Olá, quero comprar um produto"
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  style={{
+                    width: '100%',
+                    padding: '10px 16px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    backgroundColor: '#0f1419',
+                    color: '#ffffff',
+                    outline: 'none',
+                    resize: 'vertical'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#10b981';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                    e.target.style.boxShadow = 'none';
+                  }}
                 />
               </div>
 
               {/* Botão testar */}
               <button
                 onClick={handleQuickTest}
-                className="w-full bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2"
+                style={{
+                  width: '100%',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
               >
                 <Play size={20} />
                 Enviar Teste
@@ -1179,11 +1446,11 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
               {/* Resposta */}
               {testResponse && (
                 <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
                     Resposta do Agente:
                   </label>
-                  <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 min-h-[150px]">
-                    <pre className="whitespace-pre-wrap text-sm text-gray-800">
+                  <div style={{ backgroundColor: '#0f1419', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '16px', minHeight: '150px' }}>
+                    <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.875rem', color: '#ffffff', margin: 0 }}>
                       {testResponse}
                     </pre>
                   </div>
@@ -1191,8 +1458,8 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
               )}
 
               {/* Dica */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-xs text-blue-800">
+              <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '8px', padding: '12px' }}>
+                <p style={{ fontSize: '0.75rem', color: '#10b981' }}>
                   💡 <strong>Teste Interativo:</strong> Digite diferentes mensagens para ver como o agente responde baseado no fluxo configurado.
                 </p>
               </div>
@@ -1204,14 +1471,16 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
       {/* Modal de Conversa Demonstração */}
       {showDemoConversation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div style={{ backgroundColor: '#1a1f36', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)', padding: '24px', width: '100%', maxWidth: '48rem', maxHeight: '90vh', overflowY: 'auto', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-800">
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#ffffff' }}>
                 💬 Conversa Demonstração
               </h3>
               <button
                 onClick={() => setShowDemoConversation(false)}
-                className="text-gray-500 hover:text-gray-700"
+                style={{ color: '#9ca3af', cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
+                onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}
               >
                 <X size={24} />
               </button>
