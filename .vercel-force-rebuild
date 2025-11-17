@@ -1,5 +1,5 @@
 # Force Vercel rebuild
-# Timestamp: 2025-11-17T16:25:00Z
+# Timestamp: 2025-11-17T16:35:00Z
 # This file forces Vercel to rebuild completely from scratch
-REBUILD_ID=fix-agendamentosPaginated-not-defined
+REBUILD_ID=force-deploy-agendamentos-fix
 

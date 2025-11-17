@@ -3413,6 +3413,7 @@ const DashboardWithFirebase = ({
     const agendamentosAtual = agendamentos || [];
     const filterAtual = agendamentoFilter || 'todos';
     const typeFilterAtual = agendamentoTypeFilter || 'todos';
+    const agendamentoCurrentPageAtual = agendamentoCurrentPage ?? 0;
     
     console.log('🎨 [renderAgendamentos] INÍCIO - agendamentos:', agendamentosAtual.length);
     
@@ -3459,7 +3460,7 @@ const DashboardWithFirebase = ({
     // Paginação para agendamentos em lista - máximo 2 por página
     const agendamentosPerPage = 2;
     const agendamentosTotalPages = Math.ceil(agendamentosFiltrados.length / agendamentosPerPage);
-    const agendamentosStartIndex = (agendamentoCurrentPage || 0) * agendamentosPerPage;
+    const agendamentosStartIndex = agendamentoCurrentPageAtual * agendamentosPerPage;
     const agendamentosEndIndex = agendamentosStartIndex + agendamentosPerPage;
     const agendamentosPaginated = agendamentosFiltrados.slice(agendamentosStartIndex, agendamentosEndIndex);
 
@@ -3819,28 +3820,28 @@ const DashboardWithFirebase = ({
               <button
                 type="button"
                 onClick={() => setAgendamentoCurrentPage(prev => Math.max(0, prev - 1))}
-                disabled={agendamentoCurrentPage === 0}
+                disabled={agendamentoCurrentPageAtual === 0}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
                   padding: '10px 16px',
                   borderRadius: '8px',
-                  border: agendamentoCurrentPage === 0 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #10b981',
-                  backgroundColor: agendamentoCurrentPage === 0 ? 'rgba(16, 185, 129, 0.2)' : '#1a1f36',
+                  border: agendamentoCurrentPageAtual === 0 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #10b981',
+                  backgroundColor: agendamentoCurrentPageAtual === 0 ? 'rgba(16, 185, 129, 0.2)' : '#1a1f36',
                   color: 'white',
-                  cursor: agendamentoCurrentPage === 0 ? 'not-allowed' : 'pointer',
+                  cursor: agendamentoCurrentPageAtual === 0 ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s',
-                  opacity: agendamentoCurrentPage === 0 ? 0.5 : 1
+                  opacity: agendamentoCurrentPageAtual === 0 ? 0.5 : 1
                 }}
                 onMouseEnter={(e) => {
-                  if (agendamentoCurrentPage > 0) {
+                  if (agendamentoCurrentPageAtual > 0) {
                     e.currentTarget.style.backgroundColor = '#0f1419';
                     e.currentTarget.style.borderColor = '#059669';
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (agendamentoCurrentPage > 0) {
+                  if (agendamentoCurrentPageAtual > 0) {
                     e.currentTarget.style.backgroundColor = '#1a1f36';
                     e.currentTarget.style.borderColor = '#10b981';
                   }
@@ -3858,7 +3859,7 @@ const DashboardWithFirebase = ({
                 fontSize: '0.875rem'
               }}>
                 <span>Página</span>
-                <span style={{ fontWeight: '600', color: '#10b981' }}>{agendamentoCurrentPage + 1}</span>
+                <span style={{ fontWeight: '600', color: '#10b981' }}>{agendamentoCurrentPageAtual + 1}</span>
                 <span>de</span>
                 <span style={{ fontWeight: '600', color: '#10b981' }}>{agendamentosTotalPages}</span>
                 <span style={{ color: '#9ca3af' }}>({agendamentosFiltrados.length} agendamentos)</span>
@@ -3867,28 +3868,28 @@ const DashboardWithFirebase = ({
               <button
                 type="button"
                 onClick={() => setAgendamentoCurrentPage(prev => Math.min(agendamentosTotalPages - 1, prev + 1))}
-                disabled={agendamentoCurrentPage >= agendamentosTotalPages - 1}
+                disabled={agendamentoCurrentPageAtual >= agendamentosTotalPages - 1}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
                   padding: '10px 16px',
                   borderRadius: '8px',
-                  border: agendamentoCurrentPage >= agendamentosTotalPages - 1 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #10b981',
-                  backgroundColor: agendamentoCurrentPage >= agendamentosTotalPages - 1 ? 'rgba(16, 185, 129, 0.2)' : '#1a1f36',
+                  border: agendamentoCurrentPageAtual >= agendamentosTotalPages - 1 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #10b981',
+                  backgroundColor: agendamentoCurrentPageAtual >= agendamentosTotalPages - 1 ? 'rgba(16, 185, 129, 0.2)' : '#1a1f36',
                   color: 'white',
-                  cursor: agendamentoCurrentPage >= agendamentosTotalPages - 1 ? 'not-allowed' : 'pointer',
+                  cursor: agendamentoCurrentPageAtual >= agendamentosTotalPages - 1 ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s',
-                  opacity: agendamentoCurrentPage >= agendamentosTotalPages - 1 ? 0.5 : 1
+                  opacity: agendamentoCurrentPageAtual >= agendamentosTotalPages - 1 ? 0.5 : 1
                 }}
                 onMouseEnter={(e) => {
-                  if (agendamentoCurrentPage < agendamentosTotalPages - 1) {
+                  if (agendamentoCurrentPageAtual < agendamentosTotalPages - 1) {
                     e.currentTarget.style.backgroundColor = '#0f1419';
                     e.currentTarget.style.borderColor = '#059669';
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (agendamentoCurrentPage < agendamentosTotalPages - 1) {
+                  if (agendamentoCurrentPageAtual < agendamentosTotalPages - 1) {
                     e.currentTarget.style.backgroundColor = '#1a1f36';
                     e.currentTarget.style.borderColor = '#10b981';
                   }
