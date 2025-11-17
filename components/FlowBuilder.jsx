@@ -12,7 +12,7 @@ import AIGeneratorModal from './AIGeneratorModal';
  * - Reordenar via drag & drop
  * - Gerar prompt automaticamente
  */
-export default function FlowBuilder({ initialSteps = [], catalogItems = [], agendamentos = [], onChange, onPromptChange }) {
+export default function FlowBuilder({ initialSteps = [], catalogItems = [], agendamentos = [], onChange, onPromptChange, onSave }) {
   const [steps, setSteps] = useState(initialSteps);
   const [editingIndex, setEditingIndex] = useState(null);
   const [editingStep, setEditingStep] = useState(null);
@@ -400,6 +400,47 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
             )}
           </div>
           <div className="flex gap-3 flex-wrap">
+            {onSave && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (onSave) {
+                    onSave();
+                  } else {
+                    const form = document.getElementById('assistant-form');
+                    if (form) {
+                      const submitEvent = new Event('submit', { cancelable: true, bubbles: true });
+                      form.dispatchEvent(submitEvent);
+                    }
+                  }
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: 'white',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+                }}
+              >
+                <span style={{ fontSize: '1.125rem' }}>💾</span>
+                Salvar
+              </button>
+            )}
             {steps.length > 0 && (
               <>
                 <button

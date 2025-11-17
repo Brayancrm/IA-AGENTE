@@ -5397,7 +5397,7 @@ const DashboardWithFirebase = ({
               boxShadow: '0 4px 12px rgba(0,0,0,0.3)', 
               border: '1px solid rgba(16, 185, 129, 0.2)' 
             }}>
-              <form onSubmit={handleAssistantSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+              <form id="assistant-form" onSubmit={handleAssistantSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
                 {/* Campos visíveis apenas para o Master */}
                 {user.isMaster && (
                   <>
@@ -5539,6 +5539,13 @@ const DashboardWithFirebase = ({
                     initialSteps={assistantForm.flowSteps || []}
                     catalogItems={catalogItems}
                     agendamentos={agendamentos}
+                    onSave={() => {
+                      const form = document.getElementById('assistant-form');
+                      if (form) {
+                        const submitEvent = new Event('submit', { cancelable: true, bubbles: true });
+                        form.dispatchEvent(submitEvent);
+                      }
+                    }}
                     onChange={(newSteps) => {
                       // Buscar step de agendamento para sincronizar configuração global
                       const appointmentStep = newSteps.find(step => step.type === 'create_appointment' && step.appointmentEnabled);
@@ -5652,43 +5659,6 @@ const DashboardWithFirebase = ({
                 )}
 
                 {/* Botão Salvar */}
-                <div style={{ 
-                  marginTop: '16px',
-                  paddingTop: '32px',
-                  borderTop: '2px solid rgba(255, 255, 255, 0.1)',
-                  display: 'flex',
-                  justifyContent: 'flex-end'
-                }}>
-                <button
-                  type="submit"
-                  style={{
-                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                    color: 'white',
-                      padding: '16px 40px',
-                      borderRadius: '12px',
-                    border: 'none',
-                      fontWeight: '600',
-                      fontSize: '1.0625rem',
-                    cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.transform = 'translateY(-2px)';
-                      e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.4)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.transform = 'translateY(0)';
-                      e.target.style.boxShadow = '0 4px 16px rgba(16, 185, 129, 0.3)';
-                    }}
-                  >
-                    <span style={{ fontSize: '1.5rem' }}>💾</span>
-                    Salvar Configurações do Assistente
-                </button>
-                </div>
               </form>
             </div>
 
