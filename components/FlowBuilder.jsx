@@ -1573,17 +1573,24 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
               padding: '10px 16px',
               borderRadius: '8px',
               border: '1px solid rgba(255, 255, 255, 0.1)',
-              backgroundColor: currentPage === 0 ? 'rgba(16, 185, 129, 0.2)' : '#10b981',
+              backgroundColor: currentPage === 0 ? 'rgba(16, 185, 129, 0.2)' : '#1a1f36',
+              border: currentPage === 0 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #10b981',
               color: 'white',
               cursor: currentPage === 0 ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s',
               opacity: currentPage === 0 ? 0.5 : 1
             }}
             onMouseEnter={(e) => {
-              if (currentPage > 0) e.currentTarget.style.backgroundColor = '#059669';
+              if (currentPage > 0) {
+                e.currentTarget.style.backgroundColor = '#0f1419';
+                e.currentTarget.style.borderColor = '#059669';
+              }
             }}
             onMouseLeave={(e) => {
-              if (currentPage > 0) e.currentTarget.style.backgroundColor = '#10b981';
+              if (currentPage > 0) {
+                e.currentTarget.style.backgroundColor = '#1a1f36';
+                e.currentTarget.style.borderColor = '#10b981';
+              }
             }}
           >
             <ChevronLeft size={20} />
@@ -1620,18 +1627,24 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
               gap: '8px',
               padding: '10px 16px',
               borderRadius: '8px',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              backgroundColor: currentPage >= totalPages - 1 ? 'rgba(16, 185, 129, 0.2)' : '#10b981',
+              border: currentPage >= totalPages - 1 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #10b981',
+              backgroundColor: currentPage >= totalPages - 1 ? 'rgba(16, 185, 129, 0.2)' : '#1a1f36',
               color: 'white',
               cursor: currentPage >= totalPages - 1 ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s',
               opacity: currentPage >= totalPages - 1 ? 0.5 : 1
             }}
             onMouseEnter={(e) => {
-              if (currentPage < totalPages - 1) e.currentTarget.style.backgroundColor = '#059669';
+              if (currentPage < totalPages - 1) {
+                e.currentTarget.style.backgroundColor = '#0f1419';
+                e.currentTarget.style.borderColor = '#059669';
+              }
             }}
             onMouseLeave={(e) => {
-              if (currentPage < totalPages - 1) e.currentTarget.style.backgroundColor = '#10b981';
+              if (currentPage < totalPages - 1) {
+                e.currentTarget.style.backgroundColor = '#1a1f36';
+                e.currentTarget.style.borderColor = '#10b981';
+              }
             }}
           >
             Próxima
@@ -1830,14 +1843,21 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                   padding: '10px 20px',
                   borderRadius: '8px',
                   border: 'none',
-                  background: '#10b981',
+                  backgroundColor: '#1a1f36',
+                  border: '1px solid #10b981',
                   color: 'white',
                   fontWeight: '600',
                   cursor: 'pointer',
                   transition: 'all 0.2s'
                 }}
-                onMouseEnter={(e) => e.target.style.background = '#059669'}
-                onMouseLeave={(e) => e.target.style.background = '#10b981'}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#0f1419';
+                  e.target.style.borderColor = '#059669';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = '#1a1f36';
+                  e.target.style.borderColor = '#10b981';
+                }}
               >
                 Salvar Alterações
               </button>

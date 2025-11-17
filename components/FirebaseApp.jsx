@@ -3299,11 +3299,11 @@ const DashboardWithFirebase = ({
             <button
               onClick={handleOpenModal}
               style={{
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                backgroundColor: '#1a1f36',
+                border: '1px solid #10b981',
                 color: 'white',
                 padding: isMobile ? '10px 16px' : '14px 28px',
                 borderRadius: '12px',
-                border: 'none',
                 cursor: 'pointer',
                 fontSize: isMobile ? '0.875rem' : '1rem',
                 fontWeight: '600',
@@ -5135,11 +5135,11 @@ const DashboardWithFirebase = ({
                       link.click();
                     }}
                     style={{
-                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      backgroundColor: '#1a1f36',
+                      border: '1px solid #10b981',
                       color: 'white',
                       padding: '12px 24px',
                       borderRadius: '10px',
-                      border: 'none',
                       fontSize: '0.9375rem',
                       cursor: 'pointer',
                       fontWeight: '600',
@@ -5602,29 +5602,28 @@ const DashboardWithFirebase = ({
                 <button
                   onClick={() => openPlanModal()}
                   style={{
-                    backgroundColor: '#10b981',
+                    backgroundColor: '#1a1f36',
+                    border: '1px solid #10b981',
                     color: 'white',
                     padding: '14px 28px',
                     borderRadius: '12px',
-                    border: 'none',
                     fontWeight: '700',
                     fontSize: '1rem',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '10px',
-                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
                     transition: 'all 0.2s ease'
                   }}
                   onMouseEnter={(e) => {
                     e.target.style.transform = 'translateY(-2px)';
-                    e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
-                    e.target.style.backgroundColor = '#059669';
+                    e.target.style.backgroundColor = '#0f1419';
+                    e.target.style.borderColor = '#059669';
                   }}
                   onMouseLeave={(e) => {
                     e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
-                    e.target.style.backgroundColor = '#10b981';
+                    e.target.style.backgroundColor = '#1a1f36';
+                    e.target.style.borderColor = '#10b981';
                   }}
                 >
                   <Plus size={20} />
@@ -5646,7 +5645,8 @@ const DashboardWithFirebase = ({
                   <button
                     onClick={() => openPlanModal()}
                     style={{
-                      backgroundColor: '#10b981',
+                      backgroundColor: '#1a1f36',
+                    border: '1px solid #10b981',
                       color: 'white',
                       padding: '12px 24px',
                       borderRadius: '10px',
@@ -5712,7 +5712,8 @@ const DashboardWithFirebase = ({
                       {plan.active && (
                         <div style={{ position: 'absolute', top: '0', right: '0', zIndex: 1 }}>
                           <div style={{
-                            backgroundColor: '#10b981',
+                            backgroundColor: '#1a1f36',
+                    border: '1px solid #10b981',
                             color: 'white',
                             padding: '4px 12px',
                             borderRadius: '12px',
@@ -5795,7 +5796,8 @@ const DashboardWithFirebase = ({
                           }}
                           style={{
                             flex: 1,
-                            backgroundColor: '#10b981',
+                            backgroundColor: '#1a1f36',
+                    border: '1px solid #10b981',
                             color: 'white',
                             padding: '10px 16px',
                             borderRadius: '8px',
@@ -6105,7 +6107,8 @@ const DashboardWithFirebase = ({
                       minWidth: '32px',
                       height: '32px',
                       borderRadius: '50%',
-                      backgroundColor: '#10b981',
+                      backgroundColor: '#1a1f36',
+                    border: '1px solid #10b981',
                       color: '#ffffff',
                       display: 'flex',
                       alignItems: 'center',
@@ -6154,7 +6157,8 @@ const DashboardWithFirebase = ({
                       minWidth: '32px',
                       height: '32px',
                       borderRadius: '50%',
-                      backgroundColor: '#10b981',
+                      backgroundColor: '#1a1f36',
+                    border: '1px solid #10b981',
                       color: '#ffffff',
                       display: 'flex',
                       alignItems: 'center',
@@ -6203,7 +6207,8 @@ const DashboardWithFirebase = ({
                       minWidth: '32px',
                       height: '32px',
                       borderRadius: '50%',
-                      backgroundColor: '#10b981',
+                      backgroundColor: '#1a1f36',
+                    border: '1px solid #10b981',
                       color: '#ffffff',
                       display: 'flex',
                       alignItems: 'center',
@@ -6252,7 +6257,8 @@ const DashboardWithFirebase = ({
                       minWidth: '32px',
                       height: '32px',
                       borderRadius: '50%',
-                      backgroundColor: '#10b981',
+                      backgroundColor: '#1a1f36',
+                    border: '1px solid #10b981',
                       color: '#ffffff',
                       display: 'flex',
                       alignItems: 'center',
@@ -6301,7 +6307,8 @@ const DashboardWithFirebase = ({
                       minWidth: '32px',
                       height: '32px',
                       borderRadius: '50%',
-                      backgroundColor: '#10b981',
+                      backgroundColor: '#1a1f36',
+                    border: '1px solid #10b981',
                       color: '#ffffff',
                       display: 'flex',
                       alignItems: 'center',
@@ -6350,7 +6357,8 @@ const DashboardWithFirebase = ({
                       minWidth: '32px',
                       height: '32px',
                       borderRadius: '50%',
-                      backgroundColor: '#10b981',
+                      backgroundColor: '#1a1f36',
+                    border: '1px solid #10b981',
                       color: '#ffffff',
                       display: 'flex',
                       alignItems: 'center',
@@ -7366,7 +7374,8 @@ const DashboardWithFirebase = ({
                   <label style={{
                     display: 'inline-block',
                     padding: '10px 16px',
-                    backgroundColor: '#10b981',
+                    backgroundColor: '#1a1f36',
+                    border: '1px solid #10b981',
                     color: 'white',
                     borderRadius: '8px',
                     cursor: 'pointer',
@@ -7513,7 +7522,8 @@ const DashboardWithFirebase = ({
                 <button
                   type="submit"
                   style={{
-                    backgroundColor: '#10b981',
+                    backgroundColor: '#1a1f36',
+                    border: '1px solid #10b981',
                     color: 'white',
                     padding: '12px 24px',
                     borderRadius: '8px',
@@ -7582,7 +7592,8 @@ const DashboardWithFirebase = ({
                   }}
                   style={{
                     width: '100%',
-                    backgroundColor: '#10b981',
+                    backgroundColor: '#1a1f36',
+                    border: '1px solid #10b981',
                     color: 'white',
                     padding: '10px 16px',
                     borderRadius: '8px',
@@ -7865,7 +7876,8 @@ const DashboardWithFirebase = ({
                           }}
                           style={{
                             padding: '8px 16px',
-                            backgroundColor: '#10b981',
+                            backgroundColor: '#1a1f36',
+                    border: '1px solid #10b981',
                             color: '#ffffff',
                             border: 'none',
                             borderRadius: '6px',

@@ -908,7 +908,8 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                   padding: '10px 18px',
                   borderRadius: '8px',
                   border: 'none',
-                  backgroundColor: '#10b981',
+                  backgroundColor: '#1a1f36',
+                  border: '1px solid #10b981',
                   color: 'white',
                   fontWeight: 600,
                   cursor: customValue.trim() ? 'pointer' : 'not-allowed',
@@ -979,7 +980,8 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+          backgroundColor: '#1a1f36',
+          border: '1px solid #10b981'
         }}>
           <div>
             <h2 style={{
@@ -1126,8 +1128,8 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                     flex: 1,
                     padding: '12px 16px',
                     borderRadius: '10px',
-                    border: 'none',
-                    background: currentQuestionIndex === visibleQuestions.length - 1 ? 'rgba(16, 185, 129, 0.3)' : '#10b981',
+                    backgroundColor: currentQuestionIndex === visibleQuestions.length - 1 ? 'rgba(16, 185, 129, 0.2)' : '#1a1f36',
+                    border: currentQuestionIndex === visibleQuestions.length - 1 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #10b981',
                     color: 'white',
                     cursor: currentQuestionIndex === visibleQuestions.length - 1 ? 'not-allowed' : 'pointer',
                     fontWeight: 600
@@ -1314,8 +1316,8 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
             style={{
               padding: '10px 24px',
               borderRadius: '8px',
-              border: 'none',
-              background: loading || !canGenerate ? 'rgba(255, 255, 255, 0.1)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              backgroundColor: loading || !canGenerate ? 'rgba(255, 255, 255, 0.1)' : '#1a1f36',
+              border: loading || !canGenerate ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #10b981',
               color: 'white',
               fontWeight: '600',
               cursor: loading || !canGenerate ? 'not-allowed' : 'pointer',

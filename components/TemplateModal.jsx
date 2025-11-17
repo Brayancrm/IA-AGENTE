@@ -122,7 +122,7 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
                   borderRadius: '8px',
                   border: selectedCategory === cat ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
                   background: selectedCategory === cat 
-                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
+                    ? '#1a1f36' 
                     : '#1a1f36',
                   color: selectedCategory === cat ? 'white' : '#9ca3af',
                   fontWeight: selectedCategory === cat ? '600' : '500',
@@ -205,7 +205,8 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
                     position: 'absolute',
                     top: '12px',
                     right: '12px',
-                    background: '#10b981',
+                    backgroundColor: '#1a1f36',
+                    border: '1px solid #10b981',
                     borderRadius: '50%',
                     width: '24px',
                     height: '24px',
@@ -322,18 +323,24 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
             style={{
               padding: '10px 20px',
               borderRadius: '8px',
-              border: 'none',
-              background: selectedTemplate ? '#10b981' : 'rgba(16, 185, 129, 0.3)',
+              backgroundColor: selectedTemplate ? '#1a1f36' : 'rgba(16, 185, 129, 0.2)',
+              border: selectedTemplate ? '1px solid #10b981' : '1px solid rgba(16, 185, 129, 0.3)',
               color: 'white',
               fontWeight: '600',
               cursor: selectedTemplate ? 'pointer' : 'not-allowed',
               transition: 'all 0.2s'
             }}
             onMouseEnter={(e) => {
-              if (selectedTemplate) e.target.style.background = '#059669';
+              if (selectedTemplate) {
+                e.target.style.backgroundColor = '#0f1419';
+                e.target.style.borderColor = '#059669';
+              }
             }}
             onMouseLeave={(e) => {
-              if (selectedTemplate) e.target.style.background = '#10b981';
+              if (selectedTemplate) {
+                e.target.style.backgroundColor = '#1a1f36';
+                e.target.style.borderColor = '#10b981';
+              }
             }}
           >
             Usar Template
