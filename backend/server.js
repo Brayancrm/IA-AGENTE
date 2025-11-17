@@ -99,10 +99,7 @@ async function createSession(userId) {
     // 🔥 NOVO: Verificar se existe sessão salva nos arquivos do WPPConnect
     const fs = require('fs');
     const path = require('path');
-    const os = require('os');
-    // 🔥 CORRIGIDO: Caminho compatível com Windows e Linux
-    const tokensBaseDir = path.join(process.cwd(), 'tokens');
-    const tokenDir = path.join(tokensBaseDir, `user_${userId}`);
+    const tokenDir = `/tokens/user_${userId}`;
     
     if (fs.existsSync(tokenDir)) {
       const files = fs.readdirSync(tokenDir);
@@ -115,7 +112,7 @@ async function createSession(userId) {
     }
     
     // 🔥 Limpar arquivos de lock do Chromium antes de iniciar
-    const profileDir = path.join(tokensBaseDir, `chrome_profile_${userId}`);
+    const profileDir = `/tokens/chrome_profile_${userId}`;
     const lockFile = path.join(profileDir, 'SingletonLock');
     
     try {
@@ -132,9 +129,9 @@ async function createSession(userId) {
     // O WPPConnect gerencia automaticamente a persistência via tokenStore: 'file'
     const clientOptions = {
       session: `user_${userId}`,
-      // 🔥 NOVO: Habilitar persistência de sessão (caminho compatível com Windows e Linux)
+      // 🔥 NOVO: Habilitar persistência de sessão
       tokenStore: 'file',
-      folderNameToken: path.join(process.cwd(), 'tokens'),
+      folderNameToken: '/tokens',
       // 🔥 CRÍTICO: Flags adicionais para evitar conflitos de perfil
       disableWelcome: true,
       updatesLog: false,
@@ -215,10 +212,8 @@ async function createSession(userId) {
       autoClose: 180000, // 180 segundos (3 minutos)
       puppeteerOptions: {
         headless: true,
-        // 🔥 CORRIGIDO: Removido caminho hardcoded do NixOS. Deixa Puppeteer detectar automaticamente ou usa variável de ambiente
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || undefined,
-        // 🔥 SOLUÇÃO RADICAL: UserDataDir único POR TENTATIVA para evitar QUALQUER conflito (compatível com Windows e Linux)
-        userDataDir: path.join(os.tmpdir(), `wpp_${userId}_${Date.now()}`),
+        userDataDir: `/tmp/wpp_${userId}_${Date.now()}`,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -229,7 +224,6 @@ async function createSession(userId) {
           '--disable-gpu',
           '--disable-software-rasterizer',
           '--disable-dev-profile',
-          // 🔥 CRÍTICO: Flags adicionais para evitar bloqueio de perfil
           '--disable-features=IsolateOrigins,site-per-process',
           '--disable-site-isolation-trials',
           '--disable-web-security',
@@ -237,18 +231,7 @@ async function createSession(userId) {
           '--disable-background-networking',
           '--disable-sync',
           '--metrics-recording-only',
-          '--mute-audio',
-          // 🔥 NOVO: Flags para reduzir dependências de bibliotecas do sistema (libglib, etc)
-          '--disable-gpu-sandbox',
-          '--disable-background-timer-throttling',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding',
-          '--disable-features=TranslateUI',
-          '--disable-ipc-flooding-protection',
-          '--single-process', // 🔥 CRÍTICO: Executa em processo único, reduz dependências
-          '--disable-breakpad',
-          '--disable-crash-reporter',
-          '--disable-crashpad'
+          '--mute-audio'
         ]
       }
     };
