@@ -42,7 +42,7 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
     >
       <div 
         style={{
-          backgroundColor: 'white',
+          backgroundColor: '#1a1f36',
           borderRadius: '16px',
           width: '100%',
           maxWidth: '900px',
@@ -50,14 +50,15 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div style={{
           padding: '24px',
-          borderBottom: '1px solid #e5e7eb',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
@@ -66,7 +67,7 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
             <h2 style={{ 
               fontSize: '24px', 
               fontWeight: 'bold', 
-              color: '#1f2937',
+              color: '#ffffff',
               margin: 0,
               marginBottom: '4px'
             }}>
@@ -74,7 +75,7 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
             </h2>
             <p style={{ 
               fontSize: '14px', 
-              color: '#6b7280',
+              color: '#9ca3af',
               margin: 0
             }}>
               Escolha um template para começar rapidamente
@@ -83,7 +84,7 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
           <button
             onClick={onClose}
             style={{
-              background: 'none',
+              background: 'rgba(255, 255, 255, 0.1)',
               border: 'none',
               cursor: 'pointer',
               padding: '8px',
@@ -93,19 +94,19 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
               borderRadius: '8px',
               transition: 'background 0.2s'
             }}
-            onMouseEnter={(e) => e.target.style.background = '#f3f4f6'}
-            onMouseLeave={(e) => e.target.style.background = 'none'}
+            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
+            onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.1)'}
           >
-            <X size={24} color="#6b7280" />
+            <X size={24} color="#9ca3af" />
           </button>
         </div>
 
         {/* Categories */}
         <div style={{
           padding: '24px',
-          borderBottom: '2px solid #e5e7eb',
+          borderBottom: '2px solid rgba(255, 255, 255, 0.1)',
           overflowX: 'auto',
-          background: '#f9fafb'
+          background: '#0f1419'
         }}>
           <div style={{ 
             display: 'flex', 
@@ -119,38 +120,38 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
                 style={{
                   padding: '12px 24px',
                   borderRadius: '12px',
-                  border: selectedCategory === cat ? 'none' : '2px solid #e5e7eb',
+                  border: selectedCategory === cat ? 'none' : '2px solid rgba(255, 255, 255, 0.1)',
                   background: selectedCategory === cat 
-                    ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' 
-                    : 'white',
-                  color: selectedCategory === cat ? 'white' : '#4b5563',
+                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
+                    : '#1a1f36',
+                  color: selectedCategory === cat ? 'white' : '#9ca3af',
                   fontWeight: selectedCategory === cat ? '700' : '500',
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
                   whiteSpace: 'nowrap',
                   fontSize: '15px',
                   boxShadow: selectedCategory === cat 
-                    ? '0 4px 12px rgba(59, 130, 246, 0.4)' 
-                    : '0 2px 4px rgba(0, 0, 0, 0.05)',
+                    ? '0 4px 12px rgba(16, 185, 129, 0.4)' 
+                    : '0 2px 4px rgba(0, 0, 0, 0.3)',
                   transform: selectedCategory === cat ? 'translateY(-2px)' : 'translateY(0)',
                   letterSpacing: '0.3px'
                 }}
                 onMouseEnter={(e) => {
                   if (selectedCategory !== cat) {
-                    e.target.style.background = '#f3f4f6';
-                    e.target.style.borderColor = '#3b82f6';
-                    e.target.style.color = '#3b82f6';
+                    e.target.style.background = '#1a1f36';
+                    e.target.style.borderColor = '#10b981';
+                    e.target.style.color = '#10b981';
                     e.target.style.transform = 'translateY(-2px)';
-                    e.target.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.2)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.2)';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (selectedCategory !== cat) {
-                    e.target.style.background = 'white';
-                    e.target.style.borderColor = '#e5e7eb';
-                    e.target.style.color = '#4b5563';
+                    e.target.style.background = '#1a1f36';
+                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                    e.target.style.color = '#9ca3af';
                     e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.05)';
+                    e.target.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.3)';
                   }
                 }}
               >
@@ -176,24 +177,24 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
                 key={template.id}
                 onClick={() => setSelectedTemplate(template)}
                 style={{
-                  border: selectedTemplate?.id === template.id ? '2px solid #3b82f6' : '1px solid #e5e7eb',
+                  border: selectedTemplate?.id === template.id ? '2px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)',
                   borderRadius: '12px',
                   padding: '16px',
                   cursor: 'pointer',
                   transition: 'all 0.2s',
-                  background: selectedTemplate?.id === template.id ? '#eff6ff' : 'white',
+                  background: selectedTemplate?.id === template.id ? 'rgba(16, 185, 129, 0.1)' : '#1a1f36',
                   position: 'relative'
                 }}
                 onMouseEnter={(e) => {
                   if (selectedTemplate?.id !== template.id) {
-                    e.currentTarget.style.borderColor = '#3b82f6';
+                    e.currentTarget.style.borderColor = '#10b981';
                     e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.2)';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (selectedTemplate?.id !== template.id) {
-                    e.currentTarget.style.borderColor = '#e5e7eb';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = 'none';
                   }
@@ -205,7 +206,7 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
                     position: 'absolute',
                     top: '12px',
                     right: '12px',
-                    background: '#3b82f6',
+                    background: '#10b981',
                     borderRadius: '50%',
                     width: '24px',
                     height: '24px',
@@ -221,7 +222,7 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
                 <div style={{
                   fontSize: '18px',
                   fontWeight: 'bold',
-                  color: '#1f2937',
+                  color: '#ffffff',
                   marginBottom: '8px'
                 }}>
                   {template.name}
@@ -230,7 +231,7 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
                 {/* Description */}
                 <p style={{
                   fontSize: '13px',
-                  color: '#6b7280',
+                  color: '#9ca3af',
                   marginBottom: '12px',
                   lineHeight: '1.5'
                 }}>
@@ -238,13 +239,13 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
                 </p>
 
                 {/* Meta info */}
-                <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#9ca3af' }}>
+                <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#6b7280' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Layers size={14} />
+                    <Layers size={14} color="#10b981" />
                     {template.steps.length} passos
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Clock size={14} />
+                    <Clock size={14} color="#10b981" />
                     {template.estimatedTime}
                   </div>
                 </div>
@@ -256,16 +257,16 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
         {/* Preview Section */}
         {selectedTemplate && (
           <div style={{
-            borderTop: '1px solid #e5e7eb',
+            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
             padding: '16px 24px',
-            background: '#f9fafb',
+            background: '#0f1419',
             maxHeight: '200px',
             overflow: 'auto'
           }}>
             <div style={{ 
               fontSize: '14px', 
               fontWeight: '600', 
-              color: '#1f2937',
+              color: '#ffffff',
               marginBottom: '12px'
             }}>
               📋 Preview dos Passos:
@@ -276,12 +277,12 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
                   key={step.id}
                   style={{
                     fontSize: '13px',
-                    color: '#4b5563',
+                    color: '#9ca3af',
                     display: 'flex',
                     gap: '8px'
                   }}
                 >
-                  <span style={{ fontWeight: '600', color: '#6b7280' }}>
+                  <span style={{ fontWeight: '600', color: '#10b981' }}>
                     {index + 1}.
                   </span>
                   <span>{step.title}</span>
@@ -294,7 +295,7 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
         {/* Footer */}
         <div style={{
           padding: '20px 24px',
-          borderTop: '1px solid #e5e7eb',
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
           display: 'flex',
           justifyContent: 'flex-end',
           gap: '12px'
@@ -304,15 +305,15 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
             style={{
               padding: '10px 20px',
               borderRadius: '8px',
-              border: '1px solid #d1d5db',
-              background: 'white',
-              color: '#374151',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              background: '#0f1419',
+              color: '#ffffff',
               fontWeight: '500',
               cursor: 'pointer',
               transition: 'all 0.2s'
             }}
-            onMouseEnter={(e) => e.target.style.background = '#f9fafb'}
-            onMouseLeave={(e) => e.target.style.background = 'white'}
+            onMouseEnter={(e) => e.target.style.background = '#1a1f36'}
+            onMouseLeave={(e) => e.target.style.background = '#0f1419'}
           >
             Cancelar
           </button>
@@ -323,17 +324,17 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
               padding: '10px 20px',
               borderRadius: '8px',
               border: 'none',
-              background: selectedTemplate ? '#3b82f6' : '#d1d5db',
+              background: selectedTemplate ? '#10b981' : 'rgba(16, 185, 129, 0.3)',
               color: 'white',
               fontWeight: '600',
               cursor: selectedTemplate ? 'pointer' : 'not-allowed',
               transition: 'all 0.2s'
             }}
             onMouseEnter={(e) => {
-              if (selectedTemplate) e.target.style.background = '#2563eb';
+              if (selectedTemplate) e.target.style.background = '#059669';
             }}
             onMouseLeave={(e) => {
-              if (selectedTemplate) e.target.style.background = '#3b82f6';
+              if (selectedTemplate) e.target.style.background = '#10b981';
             }}
           >
             Usar Template

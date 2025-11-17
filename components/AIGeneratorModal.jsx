@@ -654,10 +654,7 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
 
   const handleNextQuestion = () => {
     if (!currentQuestion) return;
-    if (currentQuestion.required && !isQuestionAnswered(currentQuestion)) {
-      setError('Responda esta pergunta para continuar.');
-      return;
-    }
+    // Permite pular perguntas mesmo se não estiverem respondidas
     setError('');
     setCurrentQuestionIndex((prev) => Math.min(prev + 1, visibleQuestions.length - 1));
   };
@@ -1124,7 +1121,7 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                 <button
                   type="button"
                   onClick={handleNextQuestion}
-                  disabled={currentQuestionIndex === visibleQuestions.length - 1 && isQuestionAnswered(currentQuestion)}
+                  disabled={currentQuestionIndex === visibleQuestions.length - 1}
                   style={{
                     flex: 1,
                     padding: '12px 16px',
