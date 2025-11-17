@@ -28,6 +28,8 @@ import {
   Upload,
   Download,
   Tag,
+  ChevronLeft,
+  ChevronRight,
   ShoppingCart,
   DollarSign,
   Target
@@ -81,6 +83,12 @@ const FirebaseApp = () => {
   const [agendamentoFilter, setAgendamentoFilter] = useState('todos'); // todos, pendente, confirmado, concluido, cancelado
   const [agendamentoTypeFilter, setAgendamentoTypeFilter] = useState('todos'); // todos, retirada, servico, visita, etc
   const [agendamentoViewMode, setAgendamentoViewMode] = useState('lista'); // lista ou calendario
+  const [agendamentoCurrentPage, setAgendamentoCurrentPage] = useState(0);
+
+  // Resetar página quando filtros mudarem
+  useEffect(() => {
+    setAgendamentoCurrentPage(0);
+  }, [agendamentoFilter, agendamentoTypeFilter]);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(null); // Data selecionada no calendário
   const [selectedDateAgendamentos, setSelectedDateAgendamentos] = useState([]); // Agendamentos da data selecionada
   
@@ -2527,6 +2535,12 @@ const DashboardWithFirebase = ({
   const [catalogFilter, setCatalogFilter] = useState('all');
   const [catalogCategory, setCatalogCategory] = useState('all');
   const [catalogView, setCatalogView] = useState('grid');
+  const [catalogCurrentPage, setCatalogCurrentPage] = useState(0);
+
+  // Resetar página quando filtros mudarem
+  useEffect(() => {
+    setCatalogCurrentPage(0);
+  }, [catalogSearch, catalogFilter, catalogCategory]);
   const [showImportModal, setShowImportModal] = useState(false);
 
   const [companyForm, setCompanyForm] = useState({
@@ -2832,6 +2846,13 @@ const DashboardWithFirebase = ({
       return matchesSearch && matchesFilter && matchesCategory;
     });
 
+    // Paginação - máximo 4 itens por página
+    const catalogItemsPerPage = 4;
+    const catalogTotalPages = Math.ceil(filteredItems.length / catalogItemsPerPage);
+    const catalogStartIndex = (catalogCurrentPage || 0) * catalogItemsPerPage;
+    const catalogEndIndex = catalogStartIndex + catalogItemsPerPage;
+    const catalogPaginatedItems = filteredItems.slice(catalogStartIndex, catalogEndIndex);
+
     // Obter categorias únicas (apenas de itens válidos)
     const categories = [...new Set(validItems.map(i => i.category).filter(Boolean))];
 
@@ -2985,8 +3006,9 @@ const DashboardWithFirebase = ({
             )}
           </div>
         ) : catalogView === 'grid' ? (
+          <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredItems.map((item) => (
+            {catalogPaginatedItems.map((item) => (
               <div key={item.id} className="bg-gray-800 rounded-2xl shadow-lg border border-gray-700 overflow-hidden hover:shadow-xl hover:border-green-600 transition-all duration-300 group">
                 {/* Imagem */}
                 <div className="relative h-48 bg-gradient-to-br from-green-800 to-green-900 overflow-hidden">
@@ -3085,6 +3107,103 @@ const DashboardWithFirebase = ({
               </div>
             ))}
           </div>
+          {/* Navegação de Páginas - Catálogo */}
+          {filteredItems.length > catalogItemsPerPage && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '16px',
+              marginTop: '24px',
+              padding: '16px',
+              backgroundColor: '#1a1f36',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.1)'
+            }}>
+              <button
+                type="button"
+                onClick={() => setCatalogCurrentPage(prev => Math.max(0, prev - 1))}
+                disabled={catalogCurrentPage === 0}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  border: catalogCurrentPage === 0 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #10b981',
+                  backgroundColor: catalogCurrentPage === 0 ? 'rgba(16, 185, 129, 0.2)' : '#1a1f36',
+                  color: 'white',
+                  cursor: catalogCurrentPage === 0 ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s',
+                  opacity: catalogCurrentPage === 0 ? 0.5 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (catalogCurrentPage > 0) {
+                    e.currentTarget.style.backgroundColor = '#0f1419';
+                    e.currentTarget.style.borderColor = '#059669';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (catalogCurrentPage > 0) {
+                    e.currentTarget.style.backgroundColor = '#1a1f36';
+                    e.currentTarget.style.borderColor = '#10b981';
+                  }
+                }}
+              >
+                <ChevronLeft size={20} />
+                Anterior
+              </button>
+              
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                color: '#ffffff',
+                fontSize: '0.875rem'
+              }}>
+                <span>Página</span>
+                <span style={{ fontWeight: '600', color: '#10b981' }}>{catalogCurrentPage + 1}</span>
+                <span>de</span>
+                <span style={{ fontWeight: '600', color: '#10b981' }}>{catalogTotalPages}</span>
+                <span style={{ color: '#9ca3af' }}>({filteredItems.length} itens)</span>
+              </div>
+              
+              <button
+                type="button"
+                onClick={() => setCatalogCurrentPage(prev => Math.min(catalogTotalPages - 1, prev + 1))}
+                disabled={catalogCurrentPage >= catalogTotalPages - 1}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  border: catalogCurrentPage >= catalogTotalPages - 1 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #10b981',
+                  backgroundColor: catalogCurrentPage >= catalogTotalPages - 1 ? 'rgba(16, 185, 129, 0.2)' : '#1a1f36',
+                  color: 'white',
+                  cursor: catalogCurrentPage >= catalogTotalPages - 1 ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s',
+                  opacity: catalogCurrentPage >= catalogTotalPages - 1 ? 0.5 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (catalogCurrentPage < catalogTotalPages - 1) {
+                    e.currentTarget.style.backgroundColor = '#0f1419';
+                    e.currentTarget.style.borderColor = '#059669';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (catalogCurrentPage < catalogTotalPages - 1) {
+                    e.currentTarget.style.backgroundColor = '#1a1f36';
+                    e.currentTarget.style.borderColor = '#10b981';
+                  }
+                }}
+              >
+                Próxima
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          )}
+          </>
         ) : (
           <div className="bg-gray-800 rounded-2xl shadow-lg border border-gray-700 overflow-hidden">
             <div className="overflow-x-auto">
@@ -3101,7 +3220,7 @@ const DashboardWithFirebase = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-700">
-                  {filteredItems.map((item) => (
+                  {catalogPaginatedItems.map((item) => (
                     <tr key={item.id} className="hover:bg-gray-900">
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
@@ -3185,6 +3304,102 @@ const DashboardWithFirebase = ({
               </table>
             </div>
           </div>
+          {/* Navegação de Páginas - Catálogo (Lista) */}
+          {filteredItems.length > catalogItemsPerPage && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '16px',
+              marginTop: '24px',
+              padding: '16px',
+              backgroundColor: '#1a1f36',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.1)'
+            }}>
+              <button
+                type="button"
+                onClick={() => setCatalogCurrentPage(prev => Math.max(0, prev - 1))}
+                disabled={catalogCurrentPage === 0}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  border: catalogCurrentPage === 0 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #10b981',
+                  backgroundColor: catalogCurrentPage === 0 ? 'rgba(16, 185, 129, 0.2)' : '#1a1f36',
+                  color: 'white',
+                  cursor: catalogCurrentPage === 0 ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s',
+                  opacity: catalogCurrentPage === 0 ? 0.5 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (catalogCurrentPage > 0) {
+                    e.currentTarget.style.backgroundColor = '#0f1419';
+                    e.currentTarget.style.borderColor = '#059669';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (catalogCurrentPage > 0) {
+                    e.currentTarget.style.backgroundColor = '#1a1f36';
+                    e.currentTarget.style.borderColor = '#10b981';
+                  }
+                }}
+              >
+                <ChevronLeft size={20} />
+                Anterior
+              </button>
+              
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                color: '#ffffff',
+                fontSize: '0.875rem'
+              }}>
+                <span>Página</span>
+                <span style={{ fontWeight: '600', color: '#10b981' }}>{catalogCurrentPage + 1}</span>
+                <span>de</span>
+                <span style={{ fontWeight: '600', color: '#10b981' }}>{catalogTotalPages}</span>
+                <span style={{ color: '#9ca3af' }}>({filteredItems.length} itens)</span>
+              </div>
+              
+              <button
+                type="button"
+                onClick={() => setCatalogCurrentPage(prev => Math.min(catalogTotalPages - 1, prev + 1))}
+                disabled={catalogCurrentPage >= catalogTotalPages - 1}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  border: catalogCurrentPage >= catalogTotalPages - 1 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #10b981',
+                  backgroundColor: catalogCurrentPage >= catalogTotalPages - 1 ? 'rgba(16, 185, 129, 0.2)' : '#1a1f36',
+                  color: 'white',
+                  cursor: catalogCurrentPage >= catalogTotalPages - 1 ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s',
+                  opacity: catalogCurrentPage >= catalogTotalPages - 1 ? 0.5 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (catalogCurrentPage < catalogTotalPages - 1) {
+                    e.currentTarget.style.backgroundColor = '#0f1419';
+                    e.currentTarget.style.borderColor = '#059669';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (catalogCurrentPage < catalogTotalPages - 1) {
+                    e.currentTarget.style.backgroundColor = '#1a1f36';
+                    e.currentTarget.style.borderColor = '#10b981';
+                  }
+                }}
+              >
+                Próxima
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          )}
         )}
       </div>
     );
@@ -3480,8 +3695,9 @@ const DashboardWithFirebase = ({
             </p>
           </div>
         ) : (
+          <>
           <div style={{ display: 'grid', gap: '16px' }}>
-            {agendamentosFiltrados.map(agend => (
+            {agendamentosPaginated.map(agend => (
               <div
                 key={agend.id}
                 style={{
@@ -3578,6 +3794,103 @@ const DashboardWithFirebase = ({
               </div>
             ))}
           </div>
+          {/* Navegação de Páginas - Agendamentos (Lista) */}
+          {agendamentosFiltrados.length > agendamentosPerPage && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '16px',
+              marginTop: '24px',
+              padding: '16px',
+              backgroundColor: '#1a1f36',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.1)'
+            }}>
+              <button
+                type="button"
+                onClick={() => setAgendamentoCurrentPage(prev => Math.max(0, prev - 1))}
+                disabled={agendamentoCurrentPage === 0}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  border: agendamentoCurrentPage === 0 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #10b981',
+                  backgroundColor: agendamentoCurrentPage === 0 ? 'rgba(16, 185, 129, 0.2)' : '#1a1f36',
+                  color: 'white',
+                  cursor: agendamentoCurrentPage === 0 ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s',
+                  opacity: agendamentoCurrentPage === 0 ? 0.5 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (agendamentoCurrentPage > 0) {
+                    e.currentTarget.style.backgroundColor = '#0f1419';
+                    e.currentTarget.style.borderColor = '#059669';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (agendamentoCurrentPage > 0) {
+                    e.currentTarget.style.backgroundColor = '#1a1f36';
+                    e.currentTarget.style.borderColor = '#10b981';
+                  }
+                }}
+              >
+                <ChevronLeft size={20} />
+                Anterior
+              </button>
+              
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                color: '#ffffff',
+                fontSize: '0.875rem'
+              }}>
+                <span>Página</span>
+                <span style={{ fontWeight: '600', color: '#10b981' }}>{agendamentoCurrentPage + 1}</span>
+                <span>de</span>
+                <span style={{ fontWeight: '600', color: '#10b981' }}>{agendamentosTotalPages}</span>
+                <span style={{ color: '#9ca3af' }}>({agendamentosFiltrados.length} agendamentos)</span>
+              </div>
+              
+              <button
+                type="button"
+                onClick={() => setAgendamentoCurrentPage(prev => Math.min(agendamentosTotalPages - 1, prev + 1))}
+                disabled={agendamentoCurrentPage >= agendamentosTotalPages - 1}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  border: agendamentoCurrentPage >= agendamentosTotalPages - 1 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #10b981',
+                  backgroundColor: agendamentoCurrentPage >= agendamentosTotalPages - 1 ? 'rgba(16, 185, 129, 0.2)' : '#1a1f36',
+                  color: 'white',
+                  cursor: agendamentoCurrentPage >= agendamentosTotalPages - 1 ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s',
+                  opacity: agendamentoCurrentPage >= agendamentosTotalPages - 1 ? 0.5 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (agendamentoCurrentPage < agendamentosTotalPages - 1) {
+                    e.currentTarget.style.backgroundColor = '#0f1419';
+                    e.currentTarget.style.borderColor = '#059669';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (agendamentoCurrentPage < agendamentosTotalPages - 1) {
+                    e.currentTarget.style.backgroundColor = '#1a1f36';
+                    e.currentTarget.style.borderColor = '#10b981';
+                  }
+                }}
+              >
+                Próxima
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          )}
+          </>
         )
         )}
       </div>
