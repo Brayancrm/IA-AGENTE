@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Plus, Trash2, GripVertical, Edit2, Save, X, FileText, Sparkles, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Edit2, Save, X, FileText, Sparkles, ChevronLeft, ChevronRight, Eye, ChevronUp, ChevronDown } from 'lucide-react';
 import TemplateModal from './TemplateModal';
 import AIGeneratorModal from './AIGeneratorModal';
 
@@ -131,6 +131,36 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
 
     setSteps(items);
     if (onChange) onChange(items);
+  };
+
+  // Mover passo para cima
+  const moveStepUp = (index) => {
+    if (index === 0) return;
+    const items = [...steps];
+    [items[index - 1], items[index]] = [items[index], items[index - 1]];
+    setSteps(items);
+    if (onChange) onChange(items);
+    // Ajustar página se necessário
+    const stepsPerPage = 2;
+    const newPage = Math.floor((index - 1) / stepsPerPage);
+    if (newPage !== currentPage) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  // Mover passo para baixo
+  const moveStepDown = (index) => {
+    if (index === steps.length - 1) return;
+    const items = [...steps];
+    [items[index], items[index + 1]] = [items[index + 1], items[index]];
+    setSteps(items);
+    if (onChange) onChange(items);
+    // Ajustar página se necessário
+    const stepsPerPage = 2;
+    const newPage = Math.floor((index + 1) / stepsPerPage);
+    if (newPage !== currentPage) {
+      setCurrentPage(newPage);
+    }
   };
 
   // Aplicar template selecionado
@@ -1417,6 +1447,58 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
 
                             {/* Actions */}
                             <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => moveStepUp(originalIndex)}
+                                disabled={originalIndex === 0}
+                                style={{
+                                  padding: '8px',
+                                  color: originalIndex === 0 ? '#6b7280' : '#10b981',
+                                  backgroundColor: 'transparent',
+                                  borderRadius: '8px',
+                                  border: 'none',
+                                  cursor: originalIndex === 0 ? 'not-allowed' : 'pointer',
+                                  transition: 'all 0.2s',
+                                  opacity: originalIndex === 0 ? 0.5 : 1
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (originalIndex !== 0) {
+                                    e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'transparent';
+                                }}
+                                title="Mover para cima"
+                              >
+                                <ChevronUp size={18} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => moveStepDown(originalIndex)}
+                                disabled={originalIndex === steps.length - 1}
+                                style={{
+                                  padding: '8px',
+                                  color: originalIndex === steps.length - 1 ? '#6b7280' : '#10b981',
+                                  backgroundColor: 'transparent',
+                                  borderRadius: '8px',
+                                  border: 'none',
+                                  cursor: originalIndex === steps.length - 1 ? 'not-allowed' : 'pointer',
+                                  transition: 'all 0.2s',
+                                  opacity: originalIndex === steps.length - 1 ? 0.5 : 1
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (originalIndex !== steps.length - 1) {
+                                    e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'transparent';
+                                }}
+                                title="Mover para baixo"
+                              >
+                                <ChevronDown size={18} />
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => startEdit(originalIndex)}

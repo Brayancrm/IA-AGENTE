@@ -1,5 +1,5 @@
 # Force Vercel rebuild
-# Timestamp: 2025-11-17T15:20:00Z
+# Timestamp: 2025-11-17T15:30:00Z
 # This file forces Vercel to rebuild completely from scratch
-REBUILD_ID=dark-buttons-with-green-border
+REBUILD_ID=add-arrow-buttons-to-reorder-steps
 
