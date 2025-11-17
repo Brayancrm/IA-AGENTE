@@ -83,12 +83,6 @@ const FirebaseApp = () => {
   const [agendamentoFilter, setAgendamentoFilter] = useState('todos'); // todos, pendente, confirmado, concluido, cancelado
   const [agendamentoTypeFilter, setAgendamentoTypeFilter] = useState('todos'); // todos, retirada, servico, visita, etc
   const [agendamentoViewMode, setAgendamentoViewMode] = useState('lista'); // lista ou calendario
-  const [agendamentoCurrentPage, setAgendamentoCurrentPage] = useState(0);
-
-  // Resetar página quando filtros mudarem
-  useEffect(() => {
-    setAgendamentoCurrentPage(0);
-  }, [agendamentoFilter, agendamentoTypeFilter]);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(null); // Data selecionada no calendário
   const [selectedDateAgendamentos, setSelectedDateAgendamentos] = useState([]); // Agendamentos da data selecionada
   
@@ -3413,7 +3407,6 @@ const DashboardWithFirebase = ({
     const agendamentosAtual = agendamentos || [];
     const filterAtual = agendamentoFilter || 'todos';
     const typeFilterAtual = agendamentoTypeFilter || 'todos';
-    const agendamentoCurrentPageAtual = agendamentoCurrentPage ?? 0;
     
     console.log('🎨 [renderAgendamentos] INÍCIO - agendamentos:', agendamentosAtual.length);
     
@@ -3456,13 +3449,6 @@ const DashboardWithFirebase = ({
       const matchType = typeFilterAtual === 'todos' || agend.tipo === typeFilterAtual;
       return matchStatus && matchType;
     });
-
-    // Paginação para agendamentos em lista - máximo 2 por página
-    const agendamentosPerPage = 2;
-    const agendamentosTotalPages = Math.ceil(agendamentosFiltrados.length / agendamentosPerPage);
-    const agendamentosStartIndex = agendamentoCurrentPageAtual * agendamentosPerPage;
-    const agendamentosEndIndex = agendamentosStartIndex + agendamentosPerPage;
-    const agendamentosPaginated = agendamentosFiltrados.slice(agendamentosStartIndex, agendamentosEndIndex);
 
     // Estatísticas
     const stats = {
@@ -3707,7 +3693,7 @@ const DashboardWithFirebase = ({
         ) : (
           <>
           <div style={{ display: 'grid', gap: '16px' }}>
-            {agendamentosPaginated.map(agend => (
+            {agendamentosFiltrados.map(agend => (
               <div
                 key={agend.id}
                 style={{
@@ -3804,102 +3790,6 @@ const DashboardWithFirebase = ({
               </div>
             ))}
           </div>
-          {/* Navegação de Páginas - Agendamentos (Lista) */}
-          {agendamentosFiltrados.length > agendamentosPerPage && (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: '16px',
-              marginTop: '24px',
-              padding: '16px',
-              backgroundColor: '#1a1f36',
-              borderRadius: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.1)'
-            }}>
-              <button
-                type="button"
-                onClick={() => setAgendamentoCurrentPage(prev => Math.max(0, prev - 1))}
-                disabled={agendamentoCurrentPageAtual === 0}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 16px',
-                  borderRadius: '8px',
-                  border: agendamentoCurrentPageAtual === 0 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #10b981',
-                  backgroundColor: agendamentoCurrentPageAtual === 0 ? 'rgba(16, 185, 129, 0.2)' : '#1a1f36',
-                  color: 'white',
-                  cursor: agendamentoCurrentPageAtual === 0 ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s',
-                  opacity: agendamentoCurrentPageAtual === 0 ? 0.5 : 1
-                }}
-                onMouseEnter={(e) => {
-                  if (agendamentoCurrentPageAtual > 0) {
-                    e.currentTarget.style.backgroundColor = '#0f1419';
-                    e.currentTarget.style.borderColor = '#059669';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (agendamentoCurrentPageAtual > 0) {
-                    e.currentTarget.style.backgroundColor = '#1a1f36';
-                    e.currentTarget.style.borderColor = '#10b981';
-                  }
-                }}
-              >
-                <ChevronLeft size={20} />
-                Anterior
-              </button>
-              
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                color: '#ffffff',
-                fontSize: '0.875rem'
-              }}>
-                <span>Página</span>
-                <span style={{ fontWeight: '600', color: '#10b981' }}>{agendamentoCurrentPageAtual + 1}</span>
-                <span>de</span>
-                <span style={{ fontWeight: '600', color: '#10b981' }}>{agendamentosTotalPages}</span>
-                <span style={{ color: '#9ca3af' }}>({agendamentosFiltrados.length} agendamentos)</span>
-              </div>
-              
-              <button
-                type="button"
-                onClick={() => setAgendamentoCurrentPage(prev => Math.min(agendamentosTotalPages - 1, prev + 1))}
-                disabled={agendamentoCurrentPageAtual >= agendamentosTotalPages - 1}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 16px',
-                  borderRadius: '8px',
-                  border: agendamentoCurrentPageAtual >= agendamentosTotalPages - 1 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #10b981',
-                  backgroundColor: agendamentoCurrentPageAtual >= agendamentosTotalPages - 1 ? 'rgba(16, 185, 129, 0.2)' : '#1a1f36',
-                  color: 'white',
-                  cursor: agendamentoCurrentPageAtual >= agendamentosTotalPages - 1 ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s',
-                  opacity: agendamentoCurrentPageAtual >= agendamentosTotalPages - 1 ? 0.5 : 1
-                }}
-                onMouseEnter={(e) => {
-                  if (agendamentoCurrentPageAtual < agendamentosTotalPages - 1) {
-                    e.currentTarget.style.backgroundColor = '#0f1419';
-                    e.currentTarget.style.borderColor = '#059669';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (agendamentoCurrentPageAtual < agendamentosTotalPages - 1) {
-                    e.currentTarget.style.backgroundColor = '#1a1f36';
-                    e.currentTarget.style.borderColor = '#10b981';
-                  }
-                }}
-              >
-                Próxima
-                <ChevronRight size={20} />
-              </button>
-            </div>
-          )}
           </>
         )
         )}
