@@ -123,7 +123,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
 
     const items = Array.from(steps);
     // Converter índices da página visível para índices globais
-    const stepsPerPage = 3;
+    const stepsPerPage = 2;
     const sourceIndex = (currentPage * stepsPerPage) + result.source.index;
     const destIndex = (currentPage * stepsPerPage) + result.destination.index;
     const [reorderedItem] = items.splice(sourceIndex, 1);
@@ -331,8 +331,8 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
   const hasAgentProfile = steps.some(s => s.type === 'agent_profile');
   const hasGreeting = steps.some(s => s.type === 'greeting');
   
-  // Paginação - mostrar 3 steps por vez
-  const stepsPerPage = 3;
+  // Paginação - mostrar 2 steps por vez
+  const stepsPerPage = 2;
   const totalPages = Math.ceil(steps.length / stepsPerPage);
   const startIndex = currentPage * stepsPerPage;
   const endIndex = startIndex + stepsPerPage;
