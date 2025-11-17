@@ -437,24 +437,25 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                backgroundColor: '#1a1f36',
                 color: 'white',
                 padding: '8px 14px',
                 borderRadius: '6px',
-                border: 'none',
+                border: '1px solid #10b981',
                 cursor: 'pointer',
                 fontSize: '0.875rem',
                 fontWeight: '500',
-                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
                 transition: 'all 0.2s'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
+                e.currentTarget.style.backgroundColor = '#0f1419';
+                e.currentTarget.style.borderColor = '#059669';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.3)';
+                e.currentTarget.style.backgroundColor = '#1a1f36';
+                e.currentTarget.style.borderColor = '#10b981';
               }}
             >
               <Save size={16} />
@@ -470,18 +471,24 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  backgroundColor: '#10b981',
+                  backgroundColor: '#1a1f36',
                   color: 'white',
                   padding: '8px 14px',
                   borderRadius: '6px',
-                  border: 'none',
+                  border: '1px solid #10b981',
                   cursor: 'pointer',
                   fontSize: '0.875rem',
                   fontWeight: '500',
                   transition: 'all 0.2s'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#0f1419';
+                  e.currentTarget.style.borderColor = '#059669';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1a1f36';
+                  e.currentTarget.style.borderColor = '#10b981';
+                }}
               >
                 <span style={{ fontSize: '0.875rem' }}>💬</span>
                 Demonstração
@@ -493,18 +500,24 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  backgroundColor: '#f59e0b',
+                  backgroundColor: '#1a1f36',
                   color: 'white',
                   padding: '8px 14px',
                   borderRadius: '6px',
-                  border: 'none',
+                  border: '1px solid #f59e0b',
                   cursor: 'pointer',
                   fontSize: '0.875rem',
                   fontWeight: '500',
                   transition: 'all 0.2s'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d97706'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f59e0b'}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#0f1419';
+                  e.currentTarget.style.borderColor = '#d97706';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1a1f36';
+                  e.currentTarget.style.borderColor = '#f59e0b';
+                }}
               >
                 <Sparkles size={16} />
                 Melhorar
@@ -518,24 +531,25 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              backgroundColor: '#1a1f36',
               color: 'white',
               padding: '8px 14px',
               borderRadius: '6px',
-              border: 'none',
+              border: '1px solid #10b981',
               cursor: 'pointer',
               fontSize: '0.875rem',
               fontWeight: '500',
-              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
               transition: 'all 0.2s'
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
+              e.currentTarget.style.backgroundColor = '#0f1419';
+              e.currentTarget.style.borderColor = '#059669';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.3)';
+              e.currentTarget.style.backgroundColor = '#1a1f36';
+              e.currentTarget.style.borderColor = '#10b981';
             }}
           >
             <Sparkles size={16} />
@@ -548,18 +562,24 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#10b981',
+              backgroundColor: '#1a1f36',
               color: 'white',
               padding: '8px 14px',
               borderRadius: '6px',
-              border: 'none',
+              border: '1px solid #10b981',
               cursor: 'pointer',
               fontSize: '0.875rem',
               fontWeight: '500',
               transition: 'all 0.2s'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#0f1419';
+              e.currentTarget.style.borderColor = '#059669';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#1a1f36';
+              e.currentTarget.style.borderColor = '#10b981';
+            }}
           >
             <FileText size={16} />
             Template
@@ -571,18 +591,24 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#10b981',
+              backgroundColor: '#1a1f36',
               color: 'white',
               padding: '8px 14px',
               borderRadius: '6px',
-              border: 'none',
+              border: '1px solid #10b981',
               cursor: 'pointer',
               fontSize: '0.875rem',
               fontWeight: '500',
               transition: 'all 0.2s'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#0f1419';
+              e.currentTarget.style.borderColor = '#059669';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#1a1f36';
+              e.currentTarget.style.borderColor = '#10b981';
+            }}
           >
             <Plus size={16} />
             Adicionar Passo
@@ -595,18 +621,24 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                backgroundColor: '#10b981',
+                backgroundColor: '#1a1f36',
                 color: 'white',
                 padding: '8px 14px',
                 borderRadius: '6px',
-                border: 'none',
+                border: '1px solid #10b981',
                 cursor: 'pointer',
                 fontSize: '0.875rem',
                 fontWeight: '500',
                 transition: 'all 0.2s'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#0f1419';
+                e.currentTarget.style.borderColor = '#059669';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#1a1f36';
+                e.currentTarget.style.borderColor = '#10b981';
+              }}
             >
               <Eye size={16} />
               Ver Prompt

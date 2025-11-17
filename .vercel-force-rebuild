@@ -1,5 +1,5 @@
 # Force Vercel rebuild
-# Timestamp: 2025-11-17T15:10:00Z
+# Timestamp: 2025-11-17T15:20:00Z
 # This file forces Vercel to rebuild completely from scratch
-REBUILD_ID=change-pagination-to-2-steps
+REBUILD_ID=dark-buttons-with-green-border
 
