@@ -2,6 +2,10 @@ import { useMemo, useState } from 'react';
 import { X, Sparkles, Loader } from 'lucide-react';
 
 const getInitialGuidedAnswers = () => ({
+  agentName: '',
+  agentRole: '',
+  agentTone: 'Amigável e profissional',
+  agentStyle: '',
   segment: '',
   audience: '',
   mainGoal: '',
@@ -12,7 +16,22 @@ const getInitialGuidedAnswers = () => ({
   extras: '',
   schedulingNeed: '',
   schedulingTypes: [],
-  schedulingNotes: ''
+  schedulingNotes: '',
+  // Alta prioridade
+  businessHours: '',
+  escalateToHuman: '',
+  paymentMethods: [],
+  deliveryPolicy: '',
+  // Média prioridade
+  limitsRestrictions: '',
+  companyInfo: '',
+  handleObjections: '',
+  returnPolicy: '',
+  // Baixa prioridade
+  coverageArea: '',
+  urgencyPriority: '',
+  languageStyle: '',
+  personalizationHistory: ''
 });
 
 export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogItems = [], agendamentos = [] }) {
@@ -68,6 +87,66 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
     const appointmentOptions = appointmentTypeOptions.length > 0 ? appointmentTypeOptions : defaultAppointmentTypes;
 
     return [
+      {
+        id: 'agentName',
+        type: 'text',
+        title: 'Qual é o nome do assistente?',
+        description: 'Defina um nome para o seu assistente virtual. Isso ajuda a personalizar a experiência.',
+        placeholder: 'Ex: Ana, João, Assistente Virtual',
+        suggestions: [
+          'Ana',
+          'João',
+          'Assistente Virtual',
+          'Atendente IA',
+          'Consultor Digital'
+        ],
+        required: false
+      },
+      {
+        id: 'agentRole',
+        type: 'text',
+        title: 'Qual é o papel/função do assistente?',
+        description: 'Descreva a função ou cargo que o assistente representa (ex: Vendedor, Consultor, Atendente).',
+        placeholder: 'Ex: Vendedor especializado, Consultor de vendas',
+        suggestions: [
+          'Vendedor especializado',
+          'Consultor de vendas',
+          'Atendente de suporte',
+          'Assistente comercial',
+          'Especialista em produtos'
+        ],
+        required: false
+      },
+      {
+        id: 'agentTone',
+        type: 'single_select',
+        title: 'Qual tom de voz o assistente deve usar?',
+        description: 'Escolha o estilo de comunicação que melhor representa sua marca.',
+        options: [
+          { value: 'Amigável e profissional', label: 'Amigável e profissional' },
+          { value: 'Consultivo e educativo', label: 'Consultivo e educativo' },
+          { value: 'Informal e descontraído', label: 'Informal e descontraído' },
+          { value: 'Direto e objetivo', label: 'Direto e objetivo' },
+          { value: 'Elegante e sofisticado', label: 'Elegante e sofisticado' }
+        ],
+        allowCustom: true,
+        required: false
+      },
+      {
+        id: 'agentStyle',
+        type: 'text',
+        title: 'Como o assistente deve se comunicar?',
+        description: 'Descreva o estilo de comunicação específico (ex: usa emojis, formal, técnico, simples).',
+        placeholder: 'Ex: Comunicação clara e objetiva, sempre educado',
+        suggestions: [
+          'Comunicação clara e objetiva',
+          'Usa emojis para ser mais amigável',
+          'Linguagem técnica quando necessário',
+          'Sempre educado e prestativo',
+          'Foco em resolver problemas rapidamente'
+        ],
+        required: false
+      },
       {
         id: 'segment',
         type: 'text',
@@ -177,11 +256,193 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
         ],
         allowCustom: true
       },
+      // ========== ALTA PRIORIDADE ==========
+      {
+        id: 'businessHours',
+        type: 'text',
+        title: 'Quais são os horários de atendimento?',
+        description: 'Informe quando o assistente está disponível e como responder fora do horário.',
+        placeholder: 'Ex: Segunda a Sexta, 9h às 18h. Fora do horário, informar que responderá no próximo dia útil.',
+        suggestions: [
+          'Segunda a Sexta, 9h às 18h',
+          'Segunda a Sábado, 8h às 20h',
+          '24 horas por dia, 7 dias por semana',
+          'Segunda a Sexta, 8h às 17h. Fins de semana apenas emergências'
+        ],
+        required: false
+      },
+      {
+        id: 'escalateToHuman',
+        type: 'text',
+        title: 'Quando escalar para atendimento humano?',
+        description: 'Defina situações que exigem transferência para um atendente humano.',
+        placeholder: 'Ex: Se o cliente pedir cancelamento, reclamar de produto ou solicitar reembolso.',
+        suggestions: [
+          'Quando cliente pedir cancelamento ou reembolso',
+          'Em caso de reclamações ou problemas com produtos',
+          'Para negociações de valores ou descontos especiais',
+          'Quando cliente solicitar explicitamente falar com humano',
+          'Em situações complexas que o assistente não consegue resolver'
+        ],
+        required: false
+      },
+      {
+        id: 'paymentMethods',
+        type: 'multi_select',
+        title: 'Quais formas de pagamento são aceitas?',
+        description: 'Selecione os métodos de pagamento disponíveis.',
+        options: [
+          { value: 'PIX', label: '💳 PIX' },
+          { value: 'Cartão de Crédito', label: '💳 Cartão de Crédito' },
+          { value: 'Cartão de Débito', label: '💳 Cartão de Débito' },
+          { value: 'Boleto Bancário', label: '📄 Boleto Bancário' },
+          { value: 'Transferência Bancária', label: '🏦 Transferência Bancária' },
+          { value: 'Dinheiro na entrega', label: '💵 Dinheiro na entrega' }
+        ],
+        required: false
+      },
+      {
+        id: 'deliveryPolicy',
+        type: 'text',
+        title: 'Qual é a política de entrega/frete?',
+        description: 'Informe prazos, valores e áreas de cobertura para entrega.',
+        placeholder: 'Ex: Entrega em 2-5 dias úteis. Frete grátis acima de R$ 100. Atendemos Grande São Paulo.',
+        suggestions: [
+          'Entrega em 2-5 dias úteis. Frete grátis acima de R$ 100',
+          'Entrega expressa em 24h para região metropolitana',
+          'Retirada no local disponível. Entrega com taxa fixa de R$ 15',
+          'Entrega apenas na cidade. Frete calculado por distância',
+          'Sem entrega. Apenas retirada no local'
+        ],
+        required: false
+      },
+      // ========== MÉDIA PRIORIDADE ==========
+      {
+        id: 'limitsRestrictions',
+        type: 'text',
+        title: 'Existem limites ou restrições importantes?',
+        description: 'Valores mínimos/máximos, descontos permitidos, condições especiais.',
+        placeholder: 'Ex: Não oferecer desconto acima de 10% sem autorização. Pedido mínimo de R$ 50.',
+        suggestions: [
+          'Não oferecer desconto acima de 10% sem autorização',
+          'Pedido mínimo de R$ 50 para entrega',
+          'Limite de crédito de R$ 5.000 por cliente',
+          'Não vender para menores de 18 anos',
+          'Apenas uma unidade por cliente em promoções'
+        ],
+        required: false
+      },
+      {
+        id: 'companyInfo',
+        type: 'text',
+        title: 'Informações sobre a empresa/marca',
+        description: 'Nome da empresa, valores, diferenciais, história. Como apresentar a empresa.',
+        placeholder: 'Ex: Somos especialistas em X há 10 anos. Nossa missão é...',
+        suggestions: [
+          'Somos especialistas em X há 10 anos',
+          'Empresa familiar com tradição e qualidade',
+          'Líderes de mercado em nossa região',
+          'Comprometidos com sustentabilidade e qualidade',
+          'Empresa jovem e inovadora focada em tecnologia'
+        ],
+        required: false
+      },
+      {
+        id: 'handleObjections',
+        type: 'text',
+        title: 'Como lidar com objeções comuns?',
+        description: 'Respostas para objeções frequentes dos clientes.',
+        placeholder: 'Ex: Se cliente disser que está caro, destacar benefícios e qualidade.',
+        suggestions: [
+          'Se disser que está caro, destacar benefícios e qualidade',
+          'Se questionar prazo, explicar processo e garantir qualidade',
+          'Se comparar com concorrente, destacar diferenciais únicos',
+          'Se hesitar, oferecer garantia ou período de teste',
+          'Se pedir desconto, oferecer condições de pagamento'
+        ],
+        required: false
+      },
+      {
+        id: 'returnPolicy',
+        type: 'text',
+        title: 'Qual é a política de devolução/troca?',
+        description: 'Prazos, condições e procedimentos para devoluções e trocas.',
+        placeholder: 'Ex: Aceitamos devolução em até 7 dias após a compra, com produto em perfeito estado.',
+        suggestions: [
+          'Aceitamos devolução em até 7 dias após a compra',
+          'Troca em até 30 dias se produto estiver lacrado',
+          'Sem devolução, apenas troca por defeito de fabricação',
+          'Devolução em até 15 dias com nota fiscal',
+          'Política de satisfação garantida ou devolvemos o dinheiro'
+        ],
+        required: false
+      },
+      // ========== BAIXA PRIORIDADE ==========
+      {
+        id: 'coverageArea',
+        type: 'text',
+        title: 'Qual é a área de cobertura/atuação?',
+        description: 'Regiões, cidades ou áreas geográficas atendidas.',
+        placeholder: 'Ex: Atendemos toda a Grande São Paulo e região metropolitana.',
+        suggestions: [
+          'Atendemos toda a Grande São Paulo',
+          'Cobertura nacional com entrega pelos Correios',
+          'Apenas região metropolitana da capital',
+          'Atendimento em todo o estado',
+          'Apenas na cidade sede'
+        ],
+        required: false
+      },
+      {
+        id: 'urgencyPriority',
+        type: 'text',
+        title: 'Como tratar urgências e prioridades?',
+        description: 'Como identificar e tratar casos urgentes ou com prioridade.',
+        placeholder: 'Ex: Pedidos com "urgente" no nome têm prioridade. Clientes VIP atendidos primeiro.',
+        suggestions: [
+          'Pedidos com "urgente" no nome têm prioridade',
+          'Clientes VIP atendidos primeiro',
+          'Emergências médicas têm prioridade absoluta',
+          'Pedidos pagos têm prioridade sobre orçamentos',
+          'Primeiro a chegar, primeiro a ser atendido'
+        ],
+        required: false
+      },
+      {
+        id: 'languageStyle',
+        type: 'text',
+        title: 'Qual estilo de linguagem usar?',
+        description: 'Idioma, regionalização, formalidade, uso de gírias ou termos técnicos.',
+        placeholder: 'Ex: Use linguagem do dia a dia, sem muito formalismo. Evite termos técnicos.',
+        suggestions: [
+          'Use linguagem do dia a dia, sem muito formalismo',
+          'Linguagem técnica quando necessário, mas sempre explicando',
+          'Formal e respeitoso, mas acessível',
+          'Use gírias regionais para criar proximidade',
+          'Linguagem simples e direta, sem rodeios'
+        ],
+        required: false
+      },
+      {
+        id: 'personalizationHistory',
+        type: 'text',
+        title: 'Como usar histórico do cliente?',
+        description: 'Como personalizar atendimento baseado em compras anteriores ou histórico.',
+        placeholder: 'Ex: Se for cliente recorrente, oferecer desconto fidelidade. Lembrar preferências.',
+        suggestions: [
+          'Se for cliente recorrente, oferecer desconto fidelidade',
+          'Lembrar preferências e produtos anteriores',
+          'Sugerir produtos similares aos já comprados',
+          'Parabenizar aniversário e oferecer presente',
+          'Personalizar ofertas baseado em histórico de compras'
+        ],
+        required: false
+      },
       {
         id: 'extras',
         type: 'text',
         title: 'Existe alguma regra ou observação final?',
-        description: 'Políticas de atendimento, gatilhos ou instruções específicas.',
+        description: 'Políticas de atendimento, gatilhos ou instruções específicas adicionais.',
         placeholder: 'Ex: sempre confirmar endereço completo antes de finalizar.'
       }
     ];
@@ -209,6 +470,25 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
 
   const guidedPrompt = useMemo(() => {
     const parts = [];
+
+    // Perfil do assistente (primeiro)
+    const profileParts = [];
+    if (guidedAnswers.agentName.trim()) {
+      profileParts.push(`Nome: ${guidedAnswers.agentName.trim()}`);
+    }
+    if (guidedAnswers.agentRole.trim()) {
+      profileParts.push(`Papel: ${guidedAnswers.agentRole.trim()}`);
+    }
+    if (guidedAnswers.agentTone.trim()) {
+      profileParts.push(`Tom: ${guidedAnswers.agentTone.trim()}`);
+    }
+    if (guidedAnswers.agentStyle.trim()) {
+      profileParts.push(`Estilo: ${guidedAnswers.agentStyle.trim()}`);
+    }
+    
+    if (profileParts.length > 0) {
+      parts.push(`PERFIL DO ASSISTENTE:\n${profileParts.join('\n')}`);
+    }
 
     if (guidedAnswers.segment.trim()) {
       parts.push(`Quero um agente para ${guidedAnswers.segment.trim()}.`);
@@ -250,8 +530,59 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
       parts.push(`Mantenha um tom ${guidedAnswers.tone.trim()}.`);
     }
 
+    // ========== ALTA PRIORIDADE ==========
+    if (guidedAnswers.businessHours.trim()) {
+      parts.push(`HORÁRIOS DE ATENDIMENTO:\n${guidedAnswers.businessHours.trim()}`);
+    }
+
+    if (guidedAnswers.escalateToHuman.trim()) {
+      parts.push(`ESCALAÇÃO PARA HUMANO:\n${guidedAnswers.escalateToHuman.trim()}`);
+    }
+
+    if (guidedAnswers.paymentMethods.length > 0) {
+      parts.push(`FORMAS DE PAGAMENTO ACEITAS:\n${guidedAnswers.paymentMethods.join(', ')}`);
+    }
+
+    if (guidedAnswers.deliveryPolicy.trim()) {
+      parts.push(`POLÍTICA DE ENTREGA/FRETE:\n${guidedAnswers.deliveryPolicy.trim()}`);
+    }
+
+    // ========== MÉDIA PRIORIDADE ==========
+    if (guidedAnswers.limitsRestrictions.trim()) {
+      parts.push(`LIMITES E RESTRIÇÕES:\n${guidedAnswers.limitsRestrictions.trim()}`);
+    }
+
+    if (guidedAnswers.companyInfo.trim()) {
+      parts.push(`INFORMAÇÕES DA EMPRESA/MARCA:\n${guidedAnswers.companyInfo.trim()}`);
+    }
+
+    if (guidedAnswers.handleObjections.trim()) {
+      parts.push(`COMO LIDAR COM OBJEÇÕES:\n${guidedAnswers.handleObjections.trim()}`);
+    }
+
+    if (guidedAnswers.returnPolicy.trim()) {
+      parts.push(`POLÍTICA DE DEVOLUÇÃO/TROCA:\n${guidedAnswers.returnPolicy.trim()}`);
+    }
+
+    // ========== BAIXA PRIORIDADE ==========
+    if (guidedAnswers.coverageArea.trim()) {
+      parts.push(`ÁREA DE COBERTURA/ATUAÇÃO:\n${guidedAnswers.coverageArea.trim()}`);
+    }
+
+    if (guidedAnswers.urgencyPriority.trim()) {
+      parts.push(`URGÊNCIAS E PRIORIDADES:\n${guidedAnswers.urgencyPriority.trim()}`);
+    }
+
+    if (guidedAnswers.languageStyle.trim()) {
+      parts.push(`ESTILO DE LINGUAGEM:\n${guidedAnswers.languageStyle.trim()}`);
+    }
+
+    if (guidedAnswers.personalizationHistory.trim()) {
+      parts.push(`PERSONALIZAÇÃO BASEADA EM HISTÓRICO:\n${guidedAnswers.personalizationHistory.trim()}`);
+    }
+
     if (guidedAnswers.extras.trim()) {
-      parts.push(`Observações adicionais: ${guidedAnswers.extras.trim()}.`);
+      parts.push(`OBSERVAÇÕES ADICIONAIS:\n${guidedAnswers.extras.trim()}`);
     }
 
     return parts.join('\n\n');

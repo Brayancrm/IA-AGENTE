@@ -6557,8 +6557,11 @@ const DashboardWithFirebase = ({
                     borderRadius: '12px',
                     border: '1px solid rgba(255, 255, 255, 0.1)'
                   }}>
-                    <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
-                      💬 Conversas WhatsApp
+                    <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}>
+                        <WhatsAppIcon size={20} color="#25D366" />
+                      </span>
+                      Conversas WhatsApp
                     </h4>
                     <p style={{ fontSize: '0.875rem', color: '#9ca3af', lineHeight: '1.5' }}>
                       Acompanhe todas as conversas em tempo real. Veja o histórico completo de interações.
@@ -6571,8 +6574,11 @@ const DashboardWithFirebase = ({
                     borderRadius: '12px',
                     border: '1px solid rgba(255, 255, 255, 0.1)'
                   }}>
-                    <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
-                      🎯 CRM
+                    <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}>
+                        <Target size={20} color="#FF9800" />
+                      </span>
+                      CRM
                     </h4>
                     <p style={{ fontSize: '0.875rem', color: '#9ca3af', lineHeight: '1.5' }}>
                       Gerencie clientes, pedidos e oportunidades de vendas. Visualize métricas e funil de vendas.
