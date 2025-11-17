@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Plus, Trash2, GripVertical, Edit2, Save, X, FileText, Sparkles, Play } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Edit2, Save, X, FileText, Sparkles, Play, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import TemplateModal from './TemplateModal';
 import AIGeneratorModal from './AIGeneratorModal';
 
@@ -38,6 +38,9 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
   const [showingImproved, setShowingImproved] = useState(false);
   const [selectedStepsForImprovement, setSelectedStepsForImprovement] = useState([]);
   const [improvementTexts, setImprovementTexts] = useState({});
+  const [currentPage, setCurrentPage] = useState(0);
+  const [showPromptModal, setShowPromptModal] = useState(false);
+  const [editablePrompt, setEditablePrompt] = useState('');
 
   // Tipos de ação disponíveis
   const actionTypes = [
@@ -122,8 +125,12 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
     if (!result.destination) return;
 
     const items = Array.from(steps);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
+    // Converter índices da página visível para índices globais
+    const stepsPerPage = 3;
+    const sourceIndex = (currentPage * stepsPerPage) + result.source.index;
+    const destIndex = (currentPage * stepsPerPage) + result.destination.index;
+    const [reorderedItem] = items.splice(sourceIndex, 1);
+    items.splice(destIndex, 0, reorderedItem);
 
     setSteps(items);
     if (onChange) onChange(items);
@@ -364,6 +371,42 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
   const hasAgentProfile = steps.some(s => s.type === 'agent_profile');
   const hasGreeting = steps.some(s => s.type === 'greeting');
   
+  // Paginação - mostrar 3 steps por vez
+  const stepsPerPage = 3;
+  const totalPages = Math.ceil(steps.length / stepsPerPage);
+  const startIndex = currentPage * stepsPerPage;
+  const endIndex = startIndex + stepsPerPage;
+  const visibleSteps = steps.slice(startIndex, endIndex);
+  const visibleStepsWithIndex = visibleSteps.map((step, idx) => ({
+    step,
+    originalIndex: startIndex + idx
+  }));
+  
+  // Ajustar página atual se necessário
+  useEffect(() => {
+    if (currentPage >= totalPages && totalPages > 0) {
+      setCurrentPage(Math.max(0, totalPages - 1));
+    }
+  }, [steps.length, currentPage, totalPages]);
+  
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(0, prev - 1));
+  };
+  
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(totalPages - 1, prev + 1));
+  };
+  
+  const handleOpenPromptModal = () => {
+    setEditablePrompt(generatePrompt());
+    setShowPromptModal(true);
+  };
+  
+  const handleSavePrompt = () => {
+    // Aqui você pode salvar o prompt editado se necessário
+    setShowPromptModal(false);
+  };
+  
   // Dicas contextuais por tipo de step
   const getTipsForStepType = (type) => {
     const tips = {
@@ -528,24 +571,38 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
               <Plus size={20} />
               Adicionar Passo
             </button>
+            {steps.length > 0 && (
+              <button
+                type="button"
+                onClick={handleOpenPromptModal}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#10b981', color: 'white', padding: '10px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
+              >
+                <Eye size={20} />
+                Ver Prompt
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       {/* Steps List */}
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="steps">
-          {(provided) => (
-            <div
-              {...provided.droppableProps}
-              ref={provided.innerRef}
-              className="space-y-4"
-            >
-              {steps.map((step, index) => (
+      {steps.length > 0 && (
+        <>
+          <DragDropContext onDragEnd={onDragEnd}>
+            <Droppable droppableId="steps">
+              {(provided) => (
+                <div
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  className="space-y-4"
+                >
+                  {visibleStepsWithIndex.map(({ step, originalIndex }, localIndex) => (
                 <Draggable
                   key={step.id}
                   draggableId={String(step.id)}
-                  index={index}
+                  index={localIndex}
                 >
                   {(provided, snapshot) => (
                     <div
@@ -560,7 +617,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                       }}
                     >
                       {/* Step Card */}
-                      {editingIndex === index ? (
+                      {editingIndex === originalIndex ? (
                         // Edit Mode
                         <div className="p-6">
                           <div className="space-y-4">
@@ -1206,7 +1263,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                   }
                                 </span>
                                 <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#ffffff' }}>
-                                  Passo {index + 1}: {step.title}
+                                  Passo {originalIndex + 1}: {step.title}
                                 </h3>
                                 {(!step.title || !step.description) && (
                                   <span style={{ fontSize: '0.75rem', color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
@@ -1302,7 +1359,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                             <div className="flex gap-2">
                               <button
                                 type="button"
-                                onClick={() => startEdit(index)}
+                                onClick={() => startEdit(originalIndex)}
                                 style={{
                                   padding: '8px',
                                   color: '#10b981',
@@ -1320,7 +1377,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                               </button>
                               <button
                                 type="button"
-                                onClick={() => removeStep(index)}
+                                onClick={() => removeStep(originalIndex)}
                                 style={{
                                   padding: '8px',
                                   color: '#ef4444',
@@ -1349,6 +1406,97 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
           )}
         </Droppable>
       </DragDropContext>
+      
+      {/* Navegação de Páginas */}
+      {steps.length > stepsPerPage && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '16px',
+          marginTop: '24px',
+          padding: '16px',
+          backgroundColor: '#1a1f36',
+          borderRadius: '12px',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
+        }}>
+          <button
+            type="button"
+            onClick={handlePreviousPage}
+            disabled={currentPage === 0}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              borderRadius: '8px',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              backgroundColor: currentPage === 0 ? 'rgba(16, 185, 129, 0.2)' : '#10b981',
+              color: 'white',
+              cursor: currentPage === 0 ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              opacity: currentPage === 0 ? 0.5 : 1
+            }}
+            onMouseEnter={(e) => {
+              if (currentPage > 0) e.currentTarget.style.backgroundColor = '#059669';
+            }}
+            onMouseLeave={(e) => {
+              if (currentPage > 0) e.currentTarget.style.backgroundColor = '#10b981';
+            }}
+          >
+            <ChevronLeft size={20} />
+            Anterior
+          </button>
+          
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            color: '#ffffff',
+            fontSize: '0.875rem'
+          }}>
+            <span>Página</span>
+            <span style={{
+              fontWeight: '600',
+              color: '#10b981'
+            }}>{currentPage + 1}</span>
+            <span>de</span>
+            <span style={{
+              fontWeight: '600',
+              color: '#10b981'
+            }}>{totalPages}</span>
+            <span style={{ color: '#9ca3af' }}>({steps.length} passos)</span>
+          </div>
+          
+          <button
+            type="button"
+            onClick={handleNextPage}
+            disabled={currentPage >= totalPages - 1}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              borderRadius: '8px',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              backgroundColor: currentPage >= totalPages - 1 ? 'rgba(16, 185, 129, 0.2)' : '#10b981',
+              color: 'white',
+              cursor: currentPage >= totalPages - 1 ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              opacity: currentPage >= totalPages - 1 ? 0.5 : 1
+            }}
+            onMouseEnter={(e) => {
+              if (currentPage < totalPages - 1) e.currentTarget.style.backgroundColor = '#059669';
+            }}
+            onMouseLeave={(e) => {
+              if (currentPage < totalPages - 1) e.currentTarget.style.backgroundColor = '#10b981';
+            }}
+          >
+            Próxima
+            <ChevronRight size={20} />
+          </button>
+        </div>
+      )}
 
       {/* Empty State */}
       {steps.length === 0 && (
@@ -1554,6 +1702,104 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                   </p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Visualizar/Editar Prompt Final */}
+      {showPromptModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)', padding: '24px', width: '100%', maxWidth: '900px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                📝 Prompt Final Gerado
+              </h3>
+              <button
+                onClick={() => setShowPromptModal(false)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '8px',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
+                onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.1)'}
+              >
+                <X size={24} color="#9ca3af" />
+              </button>
+            </div>
+
+            <div style={{ flex: 1, overflow: 'auto', marginBottom: '20px' }}>
+              <textarea
+                value={editablePrompt}
+                onChange={(e) => setEditablePrompt(e.target.value)}
+                style={{
+                  width: '100%',
+                  minHeight: '400px',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  backgroundColor: '#0f1419',
+                  color: '#ffffff',
+                  fontSize: '0.875rem',
+                  fontFamily: 'monospace',
+                  lineHeight: '1.6',
+                  outline: 'none',
+                  resize: 'vertical'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#10b981';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                  e.target.style.boxShadow = 'none';
+                }}
+                placeholder="O prompt será gerado automaticamente..."
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+              <button
+                onClick={() => setShowPromptModal(false)}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  background: '#0f1419',
+                  color: '#ffffff',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.background = '#1a1f36'}
+                onMouseLeave={(e) => e.target.style.background = '#0f1419'}
+              >
+                Fechar
+              </button>
+              <button
+                onClick={handleSavePrompt}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#10b981',
+                  color: 'white',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.background = '#059669'}
+                onMouseLeave={(e) => e.target.style.background = '#10b981'}
+              >
+                Salvar Alterações
+              </button>
             </div>
           </div>
         </div>
