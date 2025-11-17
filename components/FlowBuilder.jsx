@@ -387,153 +387,231 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
   return (
     <div className="w-full max-w-4xl mx-auto">
       {/* Header */}
-      <div style={{ backgroundColor: '#1a1f36', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '24px', marginBottom: '16px' }}>
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff' }}>
-              🎯 Fluxo do Agente
-            </h2>
-            <p style={{ color: '#9ca3af', marginTop: '8px' }}>
+      <div style={{ backgroundColor: '#1a1f36', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '20px', marginBottom: '16px' }}>
+        {/* Título e Status */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+              <span style={{ fontSize: '1.25rem' }}>🎯</span>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#ffffff', margin: 0 }}>
+                Fluxo do Agente
+              </h2>
+            </div>
+            <p style={{ color: '#9ca3af', fontSize: '0.875rem', margin: '0 0 8px 0', paddingLeft: '35px' }}>
               Configure o fluxo de conversa do seu agente em passos
             </p>
             {steps.length > 0 && (
-              <div className="flex gap-4 mt-2">
-                <span style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
-                  ✅ {completedSteps}/{steps.length} passos configurados
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '35px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.8125rem', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ color: '#10b981' }}>✓</span>
+                  {completedSteps}/{steps.length} passos configurados
                 </span>
                 {!hasAgentProfile && (
-                  <span style={{ fontSize: '0.75rem', color: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '3px 8px', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
                     ⚠️ Adicione um perfil do agente
                   </span>
                 )}
               </div>
             )}
           </div>
-          <div className="flex gap-3 flex-wrap">
-            {onSave && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (onSave) {
-                    onSave();
-                  } else {
-                    const form = document.getElementById('assistant-form');
-                    if (form) {
-                      const submitEvent = new Event('submit', { cancelable: true, bubbles: true });
-                      form.dispatchEvent(submitEvent);
-                    }
-                  }
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  color: 'white',
-                  padding: '10px 16px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
-                }}
-              >
-                <span style={{ fontSize: '1.125rem' }}>💾</span>
-                Salvar
-              </button>
-            )}
-            {steps.length > 0 && (
-              <>
-                <button
-                  type="button"
-                  onClick={openDemoConversation}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#10b981', color: 'white', padding: '10px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
-                >
-                  💬 Demonstração
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowPromptImprover(true)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#f59e0b', color: 'white', padding: '10px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d97706'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f59e0b'}
-                >
-                  ✨ Melhorar
-                </button>
-              </>
-            )}
+        </div>
+
+        {/* Botões - Layout Compacto */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          {onSave && (
             <button
               type="button"
-              onClick={() => setShowAIModal(true)}
+              onClick={(e) => {
+                e.preventDefault();
+                if (onSave) {
+                  onSave();
+                } else {
+                  const form = document.getElementById('assistant-form');
+                  if (form) {
+                    const submitEvent = new Event('submit', { cancelable: true, bubbles: true });
+                    form.dispatchEvent(submitEvent);
+                  }
+                }
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
+                gap: '6px',
                 background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                 color: 'white',
-                padding: '10px 16px',
-                borderRadius: '8px',
+                padding: '8px 14px',
+                borderRadius: '6px',
                 border: 'none',
                 cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
                 transition: 'all 0.2s'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.3)';
               }}
             >
-              <Sparkles size={20} />
-              Criar com IA
+              <Save size={16} />
+              Salvar
             </button>
-            <button
-              type="button"
-              onClick={() => setShowTemplateModal(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#10b981', color: 'white', padding: '10px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
-            >
-              <FileText size={20} />
-              Template
-            </button>
-            <button
-              type="button"
-              onClick={addStep}
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#10b981', color: 'white', padding: '10px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
-            >
-              <Plus size={20} />
-              Adicionar Passo
-            </button>
-            {steps.length > 0 && (
+          )}
+          {steps.length > 0 && (
+            <>
               <button
                 type="button"
-                onClick={handleOpenPromptModal}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#10b981', color: 'white', padding: '10px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                onClick={openDemoConversation}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  padding: '8px 14px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
               >
-                <Eye size={20} />
-                Ver Prompt
+                <span style={{ fontSize: '0.875rem' }}>💬</span>
+                Demonstração
               </button>
-            )}
-          </div>
+              <button
+                type="button"
+                onClick={() => setShowPromptImprover(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: '#f59e0b',
+                  color: 'white',
+                  padding: '8px 14px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d97706'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f59e0b'}
+              >
+                <Sparkles size={16} />
+                Melhorar
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowAIModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: 'white',
+              padding: '8px 14px',
+              borderRadius: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.3)';
+            }}
+          >
+            <Sparkles size={16} />
+            Criar com IA
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowTemplateModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: '#10b981',
+              color: 'white',
+              padding: '8px 14px',
+              borderRadius: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
+          >
+            <FileText size={16} />
+            Template
+          </button>
+          <button
+            type="button"
+            onClick={addStep}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: '#10b981',
+              color: 'white',
+              padding: '8px 14px',
+              borderRadius: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
+          >
+            <Plus size={16} />
+            Adicionar Passo
+          </button>
+          {steps.length > 0 && (
+            <button
+              type="button"
+              onClick={handleOpenPromptModal}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: '#10b981',
+                color: 'white',
+                padding: '8px 14px',
+                borderRadius: '6px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
+            >
+              <Eye size={16} />
+              Ver Prompt
+            </button>
+          )}
         </div>
       </div>
 

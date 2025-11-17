@@ -1,5 +1,5 @@
 # Force Vercel rebuild
-# Timestamp: 2025-11-17T14:50:00Z
+# Timestamp: 2025-11-17T15:00:00Z
 # This file forces Vercel to rebuild completely from scratch
-REBUILD_ID=remove-test-button-and-label
+REBUILD_ID=reformulate-header-layout
 
