@@ -1,5 +1,5 @@
 # Force Vercel rebuild
-# Timestamp: 2025-10-27T00:00:00Z
+# Timestamp: 2025-11-17T14:40:00Z
 # This file forces Vercel to rebuild completely from scratch
-REBUILD_ID=agendamentos-fix-final
+REBUILD_ID=remove-sections-force-deploy
 
