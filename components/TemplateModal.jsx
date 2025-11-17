@@ -103,46 +103,45 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
 
         {/* Categories */}
         <div style={{
-          padding: '24px',
+          padding: '16px 24px',
           borderBottom: '2px solid rgba(255, 255, 255, 0.1)',
-          overflowX: 'auto',
           background: '#0f1419'
         }}>
           <div style={{ 
             display: 'flex', 
-            gap: '12px',
-            flexWrap: 'wrap'
+            gap: '8px',
+            flexWrap: 'wrap',
+            justifyContent: 'flex-start'
           }}>
             {categories.map(cat => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
                 style={{
-                  padding: '12px 24px',
-                  borderRadius: '12px',
-                  border: selectedCategory === cat ? 'none' : '2px solid rgba(255, 255, 255, 0.1)',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: selectedCategory === cat ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
                   background: selectedCategory === cat 
                     ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
                     : '#1a1f36',
                   color: selectedCategory === cat ? 'white' : '#9ca3af',
-                  fontWeight: selectedCategory === cat ? '700' : '500',
+                  fontWeight: selectedCategory === cat ? '600' : '500',
                   cursor: 'pointer',
-                  transition: 'all 0.3s ease',
+                  transition: 'all 0.2s ease',
                   whiteSpace: 'nowrap',
-                  fontSize: '15px',
+                  fontSize: '13px',
                   boxShadow: selectedCategory === cat 
-                    ? '0 4px 12px rgba(16, 185, 129, 0.4)' 
-                    : '0 2px 4px rgba(0, 0, 0, 0.3)',
-                  transform: selectedCategory === cat ? 'translateY(-2px)' : 'translateY(0)',
-                  letterSpacing: '0.3px'
+                    ? '0 2px 8px rgba(16, 185, 129, 0.3)' 
+                    : '0 1px 3px rgba(0, 0, 0, 0.3)',
+                  transform: selectedCategory === cat ? 'translateY(-1px)' : 'translateY(0)'
                 }}
                 onMouseEnter={(e) => {
                   if (selectedCategory !== cat) {
                     e.target.style.background = '#1a1f36';
                     e.target.style.borderColor = '#10b981';
                     e.target.style.color = '#10b981';
-                    e.target.style.transform = 'translateY(-2px)';
-                    e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.2)';
+                    e.target.style.transform = 'translateY(-1px)';
+                    e.target.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.2)';
                   }
                 }}
                 onMouseLeave={(e) => {
@@ -151,7 +150,7 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
                     e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                     e.target.style.color = '#9ca3af';
                     e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.3)';
+                    e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.3)';
                   }
                 }}
               >
