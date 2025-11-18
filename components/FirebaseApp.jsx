@@ -52,6 +52,7 @@ const FirebaseApp = () => {
   const [integrationsConfig, setIntegrationsConfig] = useState({});
   const [assistantSettings, setAssistantSettings] = useState({});
   const [catalogItems, setCatalogItems] = useState([]);
+  const [savedCategories, setSavedCategories] = useState([]); // Categorias salvas
   const [users, setUsers] = useState([]);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -548,6 +549,27 @@ const FirebaseApp = () => {
       }
     }
   }, [user, db, database]);
+
+  // Listener para carregar categorias salvas
+  useEffect(() => {
+    if (!user || !database) return;
+    
+    const categoriesRef = ref(database, `users/data/${user.uid}/categories`);
+    const unsubscribe = onValue(categoriesRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const categoriesData = snapshot.val();
+        const categoriesList = Object.values(categoriesData).map(cat => cat.name).filter(Boolean);
+        setSavedCategories(categoriesList.sort());
+        console.log('✅ Categorias carregadas:', categoriesList);
+      } else {
+        setSavedCategories([]);
+      }
+    }, (error) => {
+      console.error('Erro ao carregar categorias:', error);
+    });
+    
+    return () => off(categoriesRef);
+  }, [user, database]);
 
   // Listener para status do WhatsApp
   useEffect(() => {
@@ -1442,6 +1464,25 @@ const FirebaseApp = () => {
         
         await set(productRef, productData);
         console.log('✅ [SYNC] Item sincronizado em products/' + user.uid + '/' + itemId);
+        
+        // 3️⃣ Salvar categoria se fornecida
+        if (data.category && data.category.trim()) {
+          const categoriesRef = ref(database, `users/data/${user.uid}/categories`);
+          const categorySnapshot = await get(categoriesRef);
+          const existingCategories = categorySnapshot.val() || {};
+          
+          // Verificar se a categoria já existe
+          const categoryKey = data.category.trim().toLowerCase().replace(/\s+/g, '_');
+          if (!existingCategories[categoryKey]) {
+            existingCategories[categoryKey] = {
+              name: data.category.trim(),
+              createdAt: now,
+              updatedAt: now
+            };
+            await set(categoriesRef, existingCategories);
+            console.log('✅ [SYNC] Categoria salva:', data.category);
+          }
+        }
         
         const itemType = data.type === 'service' ? 'Serviço' : 'Produto';
         showToast(`${itemType} adicionado e sincronizado com sucesso!`);
@@ -7853,21 +7894,65 @@ const DashboardWithFirebase = ({
                   <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
                     Categoria
                   </label>
-                  <input
-                    type="text"
-                    value={catalogForm.category || ''}
-                    onChange={(e) => setCatalogForm(prev => ({ ...prev, category: e.target.value }))}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      borderRadius: '8px',
-                      border: '1px solid #374151',
-                      fontSize: '1rem',
-                      backgroundColor: '#111827',
-                      color: '#ffffff'
-                    }}
-                    placeholder="Ex: Eletrônicos"
-                  />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <select
+                      value={catalogForm.category || ''}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '__new__') {
+                          // Usuário quer criar nova categoria
+                          const newCategory = prompt('Digite o nome da nova categoria:');
+                          if (newCategory && newCategory.trim()) {
+                            setCatalogForm(prev => ({ ...prev, category: newCategory.trim() }));
+                          } else {
+                            setCatalogForm(prev => ({ ...prev, category: '' }));
+                          }
+                        } else {
+                          setCatalogForm(prev => ({ ...prev, category: value }));
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        borderRadius: '8px',
+                        border: '1px solid #374151',
+                        fontSize: '1rem',
+                        backgroundColor: '#111827',
+                        color: '#ffffff',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="">Selecione uma categoria</option>
+                      {savedCategories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                      <option value="__new__" style={{ color: '#10b981', fontWeight: 'bold' }}>
+                        + Criar Nova Categoria
+                      </option>
+                    </select>
+                    {catalogForm.category && !savedCategories.includes(catalogForm.category) && (
+                      <input
+                        type="text"
+                        value={catalogForm.category}
+                        onChange={(e) => setCatalogForm(prev => ({ ...prev, category: e.target.value }))}
+                        style={{
+                          flex: 1,
+                          padding: '12px',
+                          borderRadius: '8px',
+                          border: '1px solid #10b981',
+                          fontSize: '1rem',
+                          backgroundColor: '#111827',
+                          color: '#ffffff'
+                        }}
+                        placeholder="Digite o nome da categoria"
+                      />
+                    )}
+                  </div>
+                  {savedCategories.length > 0 && (
+                    <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px', margin: 0 }}>
+                      {savedCategories.length} categoria{savedCategories.length !== 1 ? 's' : ''} disponível{savedCategories.length !== 1 ? 'is' : ''}
+                    </p>
+                  )}
                 </div>
               </div>
 
