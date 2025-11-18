@@ -38,6 +38,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
   const [currentPage, setCurrentPage] = useState(0);
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [editablePrompt, setEditablePrompt] = useState('');
+  const [promptWasEdited, setPromptWasEdited] = useState(false);
 
   // Tipos de ação disponíveis
   const actionTypes = [
@@ -427,7 +428,11 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
   };
   
   const handleSavePrompt = () => {
-    // Aqui você pode salvar o prompt editado se necessário
+    // Marcar que o prompt foi editado, permitindo salvar
+    setPromptWasEdited(true);
+    if (onPromptChange && editablePrompt) {
+      onPromptChange(editablePrompt);
+    }
     setShowPromptModal(false);
   };
   
@@ -482,50 +487,6 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
 
         {/* Botões - Layout Compacto */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
-          {onSave && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                if (onSave) {
-                  onSave();
-                } else {
-                  const form = document.getElementById('assistant-form');
-                  if (form) {
-                    const submitEvent = new Event('submit', { cancelable: true, bubbles: true });
-                    form.dispatchEvent(submitEvent);
-                  }
-                }
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                backgroundColor: '#1a1f36',
-                color: 'white',
-                padding: '8px 14px',
-                borderRadius: '6px',
-                border: '1px solid #10b981',
-                cursor: 'pointer',
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.backgroundColor = '#0f1419';
-                e.currentTarget.style.borderColor = '#059669';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.backgroundColor = '#1a1f36';
-                e.currentTarget.style.borderColor = '#10b981';
-              }}
-            >
-              <Save size={16} />
-              Salvar
-            </button>
-          )}
           {steps.length > 0 && (
             <>
               <button
@@ -706,6 +667,56 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
             >
               <Eye size={16} />
               Ver Prompt
+            </button>
+          )}
+          {onSave && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                if (onSave) {
+                  onSave();
+                } else {
+                  const form = document.getElementById('assistant-form');
+                  if (form) {
+                    const submitEvent = new Event('submit', { cancelable: true, bubbles: true });
+                    form.dispatchEvent(submitEvent);
+                  }
+                }
+              }}
+              disabled={steps.length === 0 && !promptWasEdited}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: (steps.length === 0 && !promptWasEdited) ? '#0f1419' : '#1a1f36',
+                color: (steps.length === 0 && !promptWasEdited) ? '#6b7280' : 'white',
+                padding: '8px 14px',
+                borderRadius: '6px',
+                border: (steps.length === 0 && !promptWasEdited) ? '1px solid #374151' : '1px solid #10b981',
+                cursor: (steps.length === 0 && !promptWasEdited) ? 'not-allowed' : 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                transition: 'all 0.2s',
+                opacity: (steps.length === 0 && !promptWasEdited) ? 0.5 : 1
+              }}
+              onMouseEnter={(e) => {
+                if (steps.length > 0 || promptWasEdited) {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.backgroundColor = '#0f1419';
+                  e.currentTarget.style.borderColor = '#059669';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (steps.length > 0 || promptWasEdited) {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.backgroundColor = '#1a1f36';
+                  e.currentTarget.style.borderColor = '#10b981';
+                }
+              }}
+            >
+              <Save size={16} />
+              Salvar
             </button>
           )}
         </div>
@@ -1933,7 +1944,13 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
             <div style={{ flex: 1, overflow: 'auto', marginBottom: '20px' }}>
               <textarea
                 value={editablePrompt}
-                onChange={(e) => setEditablePrompt(e.target.value)}
+                onChange={(e) => {
+                  setEditablePrompt(e.target.value);
+                  // Marcar que o prompt está sendo editado
+                  if (e.target.value.trim().length > 0) {
+                    setPromptWasEdited(true);
+                  }
+                }}
                 style={{
                   width: '100%',
                   minHeight: '400px',
