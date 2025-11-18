@@ -60,6 +60,33 @@ const AgendamentoModal = ({
     }
   };
 
+  // Estilos para ícones brancos nos inputs de data e horário
+  const dateTimeStyles = `
+    <style>
+      /* Chrome, Safari, Edge, Opera */
+      input[type="date"]::-webkit-calendar-picker-indicator,
+      input[type="time"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+        cursor: pointer;
+        opacity: 0.9;
+      }
+      
+      /* Firefox */
+      input[type="date"]::-moz-calendar-picker-indicator,
+      input[type="time"]::-moz-calendar-picker-indicator {
+        filter: invert(1);
+        cursor: pointer;
+        opacity: 0.9;
+      }
+      
+      /* Hover effect */
+      input[type="date"]::-webkit-calendar-picker-indicator:hover,
+      input[type="time"]::-webkit-calendar-picker-indicator:hover {
+        opacity: 1;
+      }
+    </style>
+  `;
+
   return (
     <>
       <div dangerouslySetInnerHTML={{ __html: dateTimeStyles }} />
