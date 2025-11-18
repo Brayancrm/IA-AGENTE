@@ -61,20 +61,22 @@ const AgendamentoModal = ({
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.6)',
-      backdropFilter: 'blur(4px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      animation: 'fadeIn 0.2s ease'
-    }}>
+    <>
+      <div dangerouslySetInnerHTML={{ __html: dateTimeStyles }} />
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        animation: 'fadeIn 0.2s ease'
+      }}>
       <div style={{
         backgroundColor: '#1a1f36',
         borderRadius: '24px',
@@ -199,6 +201,7 @@ const AgendamentoModal = ({
                   backgroundColor: '#0f1419',
                   color: '#ffffff'
                 }}
+                className="date-input-white-icon"
               />
             </div>
             <div>
@@ -219,6 +222,7 @@ const AgendamentoModal = ({
                   backgroundColor: '#0f1419',
                   color: '#ffffff'
                 }}
+                className="time-input-white-icon"
               />
             </div>
           </div>
@@ -412,6 +416,7 @@ const AgendamentoModal = ({
         </form>
       </div>
     </div>
+    </>
   );
 };
 
