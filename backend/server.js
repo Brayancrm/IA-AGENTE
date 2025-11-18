@@ -705,9 +705,24 @@ async function handleIncomingMessage(userId, message, client) {
               const tempAudioFile = path.join(tempDir, `response_${Date.now()}.mp3`);
               fs.writeFileSync(tempAudioFile, audioBuffer);
               
-              // Enviar áudio
-              await client.sendFile(message.from, tempAudioFile, 'audio.mp3', aiResponse);
-              console.log(`✅ Resposta em áudio enviada (idioma: ${audioLanguage}${audioVoice ? `, voz: ${audioVoice}` : ''})`);
+              // Enviar áudio como PTT (push-to-talk) - formato de áudio do WhatsApp
+              // WPPConnect pode ter sendPtt, mas se não tiver, usar sendFile com base64
+              try {
+                // Tentar usar sendPtt se disponível
+                if (client.sendPtt) {
+                  const audioBase64 = audioBuffer.toString('base64');
+                  await client.sendPtt(message.from, audioBase64);
+                  console.log(`✅ Resposta em áudio PTT enviada (idioma: ${audioLanguage}${audioVoice ? `, voz: ${audioVoice}` : ''})`);
+                } else {
+                  // Fallback: usar sendFile
+                  await client.sendFile(message.from, tempAudioFile, 'audio.mp3', aiResponse);
+                  console.log(`✅ Resposta em áudio enviada via sendFile (idioma: ${audioLanguage}${audioVoice ? `, voz: ${audioVoice}` : ''})`);
+                }
+              } catch (sendError) {
+                console.error('❌ Erro ao enviar áudio:', sendError.message);
+                // Tentar fallback com sendFile
+                await client.sendFile(message.from, tempAudioFile, 'audio.mp3', aiResponse);
+              }
               
               // Limpar arquivo temporário
               fs.unlinkSync(tempAudioFile);
