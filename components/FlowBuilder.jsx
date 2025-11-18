@@ -166,8 +166,11 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
 
   // Aplicar template selecionado
   const applyTemplate = (template) => {
+    // Verificar se o template já tem step de áudio
+    const hasAudioStep = template.steps.some(s => s.type === 'audio_config');
+    
     // Gerar IDs únicos para os steps do template
-    const newSteps = template.steps.map(step => ({
+    let stepsToAdd = template.steps.map(step => ({
       ...step,
       id: Date.now() + Math.random(), // Garantir IDs únicos
       catalogSettings: step.catalogSettings || {
@@ -178,8 +181,26 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
       }
     }));
     
-    setSteps(newSteps);
-    if (onChange) onChange(newSteps);
+    // Se não tiver step de áudio, adicionar após agent_profile
+    if (!hasAudioStep) {
+      const agentProfileIndex = stepsToAdd.findIndex(s => s.type === 'agent_profile');
+      const audioStep = {
+        id: Date.now() + '-audio',
+        type: 'audio_config',
+        title: 'Configurações de Áudio',
+        description: 'Configure o idioma e voz para respostas de áudio no WhatsApp. Quando o cliente enviar uma mensagem de áudio, o agente responderá também em áudio usando as configurações definidas aqui.',
+        audioLanguage: 'pt-BR',
+        audioVoice: '',
+        condition: '',
+        isRequired: true
+      };
+      
+      const insertIndex = agentProfileIndex >= 0 ? agentProfileIndex + 1 : 0;
+      stepsToAdd.splice(insertIndex, 0, audioStep);
+    }
+    
+    setSteps(stepsToAdd);
+    if (onChange) onChange(stepsToAdd);
   };
 
   // Aplicar template gerado pela IA
