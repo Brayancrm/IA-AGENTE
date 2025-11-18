@@ -59,6 +59,8 @@ const FirebaseApp = () => {
   const [showPlanSelectionModal, setShowPlanSelectionModal] = useState(false);
   const [showRequiredPlanModal, setShowRequiredPlanModal] = useState(false); // Modal obrigatório para novos usuários
   const [selectedUserForPlan, setSelectedUserForPlan] = useState(null);
+  const [companyPhotoPreview, setCompanyPhotoPreview] = useState(null);
+  const [uploadingCompanyPhoto, setUploadingCompanyPhoto] = useState(false);
   
   // Estados do WhatsApp
   const [whatsappStatus, setWhatsappStatus] = useState('disconnected');
@@ -665,9 +667,17 @@ const FirebaseApp = () => {
     const companyRef = ref(database, `users/data/${userId}/company_profile`);
     onValue(companyRef, (snapshot) => {
       if (snapshot.exists()) {
-        setCompanyProfile(snapshot.val());
+        const profileData = snapshot.val();
+        setCompanyProfile(profileData);
+        // Atualizar preview da foto se existir
+        if (profileData.photoURL) {
+          setCompanyPhotoPreview(profileData.photoURL);
+        } else {
+          setCompanyPhotoPreview(null);
+        }
       } else {
         setCompanyProfile({});
+        setCompanyPhotoPreview(null);
       }
     });
     cleanupFunctions.push(() => off(companyRef));
@@ -2593,10 +2603,10 @@ const DashboardWithFirebase = ({
   isMobileMenuOpen = false,
   setIsMobileMenuOpen,
   handleCompanyPhotoUpload,
-  companyPhotoPreview,
-  setCompanyPhotoPreview,
-  uploadingCompanyPhoto,
-  storage
+  companyPhotoPreview = undefined,
+  setCompanyPhotoPreview = undefined,
+  uploadingCompanyPhoto = undefined,
+  storage = undefined
 }) => {
   // Garantir que usedTrials sempre seja um objeto
   const safeUsedTrials = usedTrials || {};
@@ -2644,9 +2654,9 @@ const DashboardWithFirebase = ({
   const [localUploadingCompanyPhoto, setLocalUploadingCompanyPhoto] = useState(false);
   
   // Usar props se disponíveis, senão usar estados locais
-  const finalCompanyPhotoPreview = companyPhotoPreview !== undefined ? companyPhotoPreview : localCompanyPhotoPreview;
-  const setFinalCompanyPhotoPreview = companyPhotoPreview !== undefined ? setCompanyPhotoPreview : setLocalCompanyPhotoPreview;
-  const finalUploadingCompanyPhoto = uploadingCompanyPhoto !== undefined ? uploadingCompanyPhoto : localUploadingCompanyPhoto;
+  const finalCompanyPhotoPreview = (companyPhotoPreview !== undefined && companyPhotoPreview !== null) ? companyPhotoPreview : localCompanyPhotoPreview;
+  const setFinalCompanyPhotoPreview = (setCompanyPhotoPreview && typeof setCompanyPhotoPreview === 'function') ? setCompanyPhotoPreview : setLocalCompanyPhotoPreview;
+  const finalUploadingCompanyPhoto = (uploadingCompanyPhoto !== undefined && uploadingCompanyPhoto !== null) ? uploadingCompanyPhoto : localUploadingCompanyPhoto;
   const [integrationsForm, setIntegrationsForm] = useState({
     openaiApiKey: '',
     asaasApiKey: '',
