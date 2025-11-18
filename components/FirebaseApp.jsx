@@ -1001,8 +1001,7 @@ const FirebaseApp = () => {
         reader.readAsDataURL(file);
       });
       
-      // Atualizar estados com preview
-      setCompanyForm(prev => ({ ...prev, photoURL: base64String }));
+      // Atualizar preview (setCompanyForm está no DashboardWithFirebase, não aqui)
       setCompanyPhotoPreview(base64String);
       
       // Salvar automaticamente no perfil no Realtime Database
