@@ -2528,6 +2528,7 @@ const FirebaseApp = () => {
         integrationsConfig={integrationsConfig}
         assistantSettings={assistantSettings}
         catalogItems={catalogItems}
+        savedCategories={savedCategories}
         users={users}
         showUserModal={showUserModal}
         setShowUserModal={setShowUserModal}
@@ -2606,6 +2607,7 @@ const DashboardWithFirebase = ({
   integrationsConfig,
   assistantSettings,
   catalogItems,
+  savedCategories = [],
   users,
   showUserModal,
   setShowUserModal,
