@@ -543,17 +543,31 @@ async function handleIncomingMessage(userId, message, client) {
         if (audioBuffer) {
           // Transcrever áudio (sempre usa API Key do master)
           messageText = await transcribeAudio(audioBuffer);
-          if (messageText) {
-            console.log('✅ Áudio transcrito:', messageText);
+          if (messageText && messageText.trim() !== '') {
+            console.log('✅ Áudio transcrito com sucesso:', messageText);
           } else {
-            console.log('⚠️ Não foi possível transcrever o áudio');
-            messageText = '[Áudio não transcrito]';
+            console.log('⚠️ Não foi possível transcrever o áudio ou transcrição vazia');
+            messageText = null; // Não processar se não conseguir transcrever
           }
+        } else {
+          console.log('⚠️ Buffer de áudio vazio');
+          messageText = null;
         }
       } catch (error) {
         console.error('❌ Erro ao processar áudio:', error.message);
-        messageText = '[Erro ao processar áudio]';
+        messageText = null; // Não processar se houver erro
       }
+    }
+    
+    // Se messageText estiver vazio ou for uma mensagem de erro, não processar
+    if (!messageText || messageText.trim() === '') {
+      if (isAudioMessage) {
+        console.log('⚠️ Mensagem de áudio não pôde ser transcrita, não processando');
+        await client.sendText(message.from, 'Desculpe, não consegui entender o áudio. Pode repetir ou enviar por texto?');
+      } else {
+        console.log('⚠️ Mensagem de texto vazia, não processando');
+      }
+      return;
     }
     
     // Salvar mensagem no Realtime Database
