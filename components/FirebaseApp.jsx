@@ -3699,6 +3699,38 @@ const DashboardWithFirebase = ({
         showToast('❌ Erro ao excluir agendamento', 'error');
       }
     };
+
+    // Função para atualizar status rapidamente
+    const handleQuickStatusUpdate = async (agendamentoId, newStatus) => {
+      if (!user || !database) {
+        showToast('❌ Erro: Usuário não autenticado', 'error');
+        return;
+      }
+      
+      try {
+        console.log('🔄 [QUICK UPDATE] Atualizando status:', { agendamentoId, newStatus });
+        const agendamentoRef = ref(database, `users/data/${user.uid}/agendamentos/${agendamentoId}`);
+        const snapshot = await get(agendamentoRef);
+        
+        if (!snapshot.exists()) {
+          showToast('❌ Agendamento não encontrado', 'error');
+          return;
+        }
+        
+        const agendamentoData = snapshot.val();
+        await set(agendamentoRef, {
+          ...agendamentoData,
+          status: newStatus,
+          updatedAt: new Date().toISOString()
+        });
+        
+        console.log('✅ [FIREBASE] Status atualizado:', newStatus);
+        showToast(`Status alterado para: ${getStatusLabel(newStatus)}`, 'success');
+      } catch (error) {
+        console.error('❌ [FIREBASE] Erro ao atualizar status:', error);
+        showToast('❌ Erro ao atualizar status', 'error');
+      }
+    };
     
     // Filtrar agendamentos
     const agendamentosFiltrados = agendamentosAtual.filter(agend => {
@@ -3963,7 +3995,7 @@ const DashboardWithFirebase = ({
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '1.5rem' }}>{getTipoIcon(agend.tipo)}</span>
                       <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#1f2937' }}>
                         {agend.titulo}
@@ -3983,7 +4015,32 @@ const DashboardWithFirebase = ({
                     </div>
                     <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>{agend.descricao}</p>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    {/* Campo rápido para alterar status */}
+                    <select
+                      value={agend.status || 'pendente'}
+                      onChange={(e) => handleQuickStatusUpdate(agend.id, e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        padding: '6px 10px',
+                        border: `1px solid ${getStatusColor(agend.status)}`,
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        fontWeight: '500',
+                        backgroundColor: 'white',
+                        color: getStatusColor(agend.status),
+                        cursor: 'pointer',
+                        outline: 'none',
+                        minWidth: '120px'
+                      }}
+                      title="Alterar status rapidamente"
+                    >
+                      <option value="pendente">🟡 Pendente</option>
+                      <option value="confirmado">🔵 Confirmado</option>
+                      <option value="em_andamento">🟣 Em Andamento</option>
+                      <option value="concluido">🟢 Concluído</option>
+                      <option value="cancelado">🔴 Cancelado</option>
+                    </select>
                     <button
                       onClick={() => handleEdit(agend)}
                       style={{
