@@ -516,8 +516,10 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
     if (guidedAnswers.agentRole.trim()) {
       profileParts.push(`Papel: ${guidedAnswers.agentRole.trim()}`);
     }
-    if (guidedAnswers.agentTone.trim()) {
-      profileParts.push(`Tom: ${guidedAnswers.agentTone.trim()}`);
+    // agentTone agora pode ser array
+    const agentToneArray = Array.isArray(guidedAnswers.agentTone) ? guidedAnswers.agentTone : (guidedAnswers.agentTone ? [guidedAnswers.agentTone] : []);
+    if (agentToneArray.length > 0) {
+      profileParts.push(`Tom: ${agentToneArray.join(', ')}`);
     }
     if (guidedAnswers.agentStyle.trim()) {
       profileParts.push(`Estilo: ${guidedAnswers.agentStyle.trim()}`);
@@ -539,32 +541,40 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
       parts.push(`O objetivo principal do atendimento é ${guidedAnswers.mainGoal.trim()}.`);
     }
 
-    if (guidedAnswers.offerings.length > 0) {
-      parts.push(`Apresente e recomende estes produtos/serviços do catálogo: ${guidedAnswers.offerings.join(', ')}.`);
+    const offeringsArray = Array.isArray(guidedAnswers.offerings) ? guidedAnswers.offerings : (guidedAnswers.offerings ? [guidedAnswers.offerings] : []);
+    if (offeringsArray.length > 0) {
+      parts.push(`Apresente e recomende estes produtos/serviços do catálogo: ${offeringsArray.join(', ')}.`);
     }
 
-    if (guidedAnswers.workflows.length > 0) {
-      parts.push(`Siga este fluxo de etapas: ${guidedAnswers.workflows.join(', ')}.`);
+    const workflowsArray = Array.isArray(guidedAnswers.workflows) ? guidedAnswers.workflows : (guidedAnswers.workflows ? [guidedAnswers.workflows] : []);
+    if (workflowsArray.length > 0) {
+      parts.push(`Siga este fluxo de etapas: ${workflowsArray.join(', ')}.`);
     }
 
-    if (guidedAnswers.integrations.length > 0) {
-      parts.push(`Use os seguintes recursos e integrações: ${guidedAnswers.integrations.join(', ')}.`);
+    const integrationsArray = Array.isArray(guidedAnswers.integrations) ? guidedAnswers.integrations : (guidedAnswers.integrations ? [guidedAnswers.integrations] : []);
+    if (integrationsArray.length > 0) {
+      parts.push(`Use os seguintes recursos e integrações: ${integrationsArray.join(', ')}.`);
     }
 
-    if (guidedAnswers.schedulingNeed === 'yes') {
-      const types = guidedAnswers.schedulingTypes.length > 0
-        ? ` para ${guidedAnswers.schedulingTypes.join(', ')}`
+    // schedulingNeed agora pode ser array
+    const schedulingNeedArray = Array.isArray(guidedAnswers.schedulingNeed) ? guidedAnswers.schedulingNeed : (guidedAnswers.schedulingNeed ? [guidedAnswers.schedulingNeed] : []);
+    if (schedulingNeedArray.includes('yes')) {
+      const schedulingTypesArray = Array.isArray(guidedAnswers.schedulingTypes) ? guidedAnswers.schedulingTypes : (guidedAnswers.schedulingTypes ? [guidedAnswers.schedulingTypes] : []);
+      const types = schedulingTypesArray.length > 0
+        ? ` para ${schedulingTypesArray.join(', ')}`
         : '';
       parts.push(
         `Crie e confirme agendamentos${types}. Registre cada compromisso imediatamente no calendário oficial da agenda do usuário (tabela de agendamentos), incluindo data, horário, status e lembretes.`
       );
-      if (guidedAnswers.schedulingNotes.trim()) {
+      if (guidedAnswers.schedulingNotes && guidedAnswers.schedulingNotes.trim()) {
         parts.push(guidedAnswers.schedulingNotes.trim());
       }
     }
 
-    if (guidedAnswers.tone.trim()) {
-      parts.push(`Mantenha um tom ${guidedAnswers.tone.trim()}.`);
+    // tone agora pode ser array
+    const toneArray = Array.isArray(guidedAnswers.tone) ? guidedAnswers.tone : (guidedAnswers.tone ? [guidedAnswers.tone] : []);
+    if (toneArray.length > 0) {
+      parts.push(`Mantenha um tom ${toneArray.join(', ')}.`);
     }
 
     // ========== ALTA PRIORIDADE ==========
@@ -576,8 +586,9 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
       parts.push(`ESCALAÇÃO PARA HUMANO:\n${guidedAnswers.escalateToHuman.trim()}`);
     }
 
-    if (guidedAnswers.paymentMethods.length > 0) {
-      parts.push(`FORMAS DE PAGAMENTO ACEITAS:\n${guidedAnswers.paymentMethods.join(', ')}`);
+    const paymentMethodsArray = Array.isArray(guidedAnswers.paymentMethods) ? guidedAnswers.paymentMethods : (guidedAnswers.paymentMethods ? [guidedAnswers.paymentMethods] : []);
+    if (paymentMethodsArray.length > 0) {
+      parts.push(`FORMAS DE PAGAMENTO ACEITAS:\n${paymentMethodsArray.join(', ')}`);
     }
 
     if (guidedAnswers.deliveryPolicy.trim()) {
@@ -618,9 +629,13 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
       parts.push(`PERSONALIZAÇÃO BASEADA EM HISTÓRICO:\n${guidedAnswers.personalizationHistory.trim()}`);
     }
 
-    // Configurações de áudio
-    if (guidedAnswers.audioLanguage) {
-      parts.push(`CONFIGURAÇÕES DE ÁUDIO:\nIdioma: ${guidedAnswers.audioLanguage}${guidedAnswers.audioVoice ? `\nVoz: ${guidedAnswers.audioVoice}` : '\nVoz: Padrão (automática)'}`);
+    // Configurações de áudio (agora podem ser arrays)
+    const audioLanguageArray = Array.isArray(guidedAnswers.audioLanguage) ? guidedAnswers.audioLanguage : (guidedAnswers.audioLanguage ? [guidedAnswers.audioLanguage] : []);
+    const audioVoiceArray = Array.isArray(guidedAnswers.audioVoice) ? guidedAnswers.audioVoice : (guidedAnswers.audioVoice ? [guidedAnswers.audioVoice] : []);
+    if (audioLanguageArray.length > 0) {
+      const languages = audioLanguageArray.join(', ');
+      const voices = audioVoiceArray.length > 0 ? audioVoiceArray.join(', ') : 'Padrão (automática)';
+      parts.push(`CONFIGURAÇÕES DE ÁUDIO:\nIdioma: ${languages}\nVoz: ${voices}`);
     }
 
     if (guidedAnswers.extras.trim()) {
@@ -632,16 +647,15 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
 
   const isQuestionAnswered = (question) => {
     const value = guidedAnswers[question.id];
-    if (question.type === 'multi_select') {
-      return Array.isArray(value) && value.length > 0;
-    }
-    if (question.type === 'single_select') {
-      return Boolean(value);
+    // Se tiver opções, sempre tratar como array
+    if (question.options && question.options.length > 0) {
+      const valueArray = Array.isArray(value) ? value : (value ? [value] : []);
+      return valueArray.length > 0;
     }
     if (question.type === 'text') {
       return Boolean(value && value.trim());
     }
-    return false;
+    return Boolean(value);
   };
 
   const handleModeChange = (nextMode) => {
@@ -665,9 +679,10 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
   };
 
   const handleOptionSelect = (question, optionValue) => {
-    if (question.type === 'multi_select') {
+    // Sempre tratar como multi_select quando houver opções
+    if (question.options && question.options.length > 0) {
       setGuidedAnswers((prev) => {
-        const current = Array.isArray(prev[question.id]) ? prev[question.id] : [];
+        const current = Array.isArray(prev[question.id]) ? prev[question.id] : (prev[question.id] ? [prev[question.id]] : []);
         const exists = current.includes(optionValue);
         const next = exists ? current.filter((item) => item !== optionValue) : [...current, optionValue];
         return { ...prev, [question.id]: next };
@@ -680,9 +695,10 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
   const handleCustomAnswer = (question) => {
     const value = (customOptionDrafts[question.id] || '').trim();
     if (!value) return;
-    if (question.type === 'multi_select') {
+    // Sempre tratar como multi_select quando houver opções
+    if (question.options && question.options.length > 0) {
       setGuidedAnswers((prev) => {
-        const current = Array.isArray(prev[question.id]) ? prev[question.id] : [];
+        const current = Array.isArray(prev[question.id]) ? prev[question.id] : (prev[question.id] ? [prev[question.id]] : []);
         if (current.includes(value)) {
           return prev;
         }
@@ -836,9 +852,10 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '220px', overflowY: 'auto', marginBottom: '12px' }}>
         {question.options.map((option) => {
-          const isSelected = question.type === 'multi_select'
-            ? (guidedAnswers[question.id] || []).includes(option.value)
-            : guidedAnswers[question.id] === option.value;
+          // Sempre tratar como array quando houver opções
+          const currentValue = guidedAnswers[question.id];
+          const valueArray = Array.isArray(currentValue) ? currentValue : (currentValue ? [currentValue] : []);
+          const isSelected = valueArray.includes(option.value);
           return (
             <button
               key={option.value}
@@ -963,15 +980,19 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                 Usar resposta
               </button>
             </div>
-            {currentQuestion.type === 'multi_select' && (guidedAnswers[currentQuestion.id] || []).length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', fontSize: '12px' }}>
-                {(guidedAnswers[currentQuestion.id] || []).map((item) => (
-                  <span key={item} style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '4px 10px', borderRadius: '999px' }}>
-                    {item}
-                  </span>
-                ))}
-              </div>
-            )}
+            {currentQuestion.options && currentQuestion.options.length > 0 && (() => {
+              const currentValue = guidedAnswers[currentQuestion.id];
+              const valueArray = Array.isArray(currentValue) ? currentValue : (currentValue ? [currentValue] : []);
+              return valueArray.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', fontSize: '12px', marginTop: '8px' }}>
+                  {valueArray.map((item) => (
+                    <span key={item} style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '4px 10px', borderRadius: '999px' }}>
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              );
+            })()}
           </>
         )}
         {currentQuestion.helperText && (
