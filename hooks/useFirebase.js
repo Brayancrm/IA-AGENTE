@@ -5,6 +5,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -22,6 +23,7 @@ export const useFirebase = () => {
     db: null,
     auth: null,
     database: null,
+    storage: null,
     isReady: false,
     error: null
   });
@@ -35,12 +37,14 @@ export const useFirebase = () => {
       const db = getFirestore(app);
       const auth = getAuth(app);
       const database = getDatabase(app);
+      const storage = getStorage(app);
       
       console.log('Firebase inicializado com sucesso!', {
         hasApp: !!app,
         hasDb: !!db,
         hasAuth: !!auth,
-        hasDatabase: !!database
+        hasDatabase: !!database,
+        hasStorage: !!storage
       });
 
       setFirebase({
@@ -48,6 +52,7 @@ export const useFirebase = () => {
         db,
         auth,
         database,
+        storage,
         isReady: true,
         error: null
       });

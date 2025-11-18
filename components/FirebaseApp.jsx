@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useFirebase } from '../hooks/useFirebase';
-import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as firebaseSignOut, sendPasswordResetEmail } from 'firebase/auth';
+import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as firebaseSignOut, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { ref, push, set, remove, onValue, off, get } from 'firebase/database';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import SimpleLanding from './SimpleLanding';
 import dynamic from 'next/dynamic';
 import { convertStepsToPrompt } from '../hooks/useFlowBuilder';
@@ -38,7 +39,7 @@ import {
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsappsalesagent';
 
 const FirebaseApp = () => {
-  const { app, db, auth, database, isReady, error } = useFirebase();
+  const { app, db, auth, database, storage, isReady, error } = useFirebase();
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -1630,6 +1631,32 @@ const FirebaseApp = () => {
     }
   };
 
+  // Função para fazer upload de foto de perfil
+  const handlePhotoUpload = async (file) => {
+    if (!storage || !file) return;
+    
+    setUploadingPhoto(true);
+    try {
+      // Criar referência no Storage
+      const fileRef = storageRef(storage, `user_photos/${Date.now()}_${file.name}`);
+      
+      // Fazer upload
+      await uploadBytes(fileRef, file);
+      
+      // Obter URL de download
+      const downloadURL = await getDownloadURL(fileRef);
+      
+      setUserForm(prev => ({ ...prev, photoURL: downloadURL }));
+      setPhotoPreview(downloadURL);
+      showToast('Foto enviada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao fazer upload da foto:', error);
+      showToast('Erro ao fazer upload da foto: ' + error.message, 'error');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   // Funções de gerenciamento de usuários (apenas para master)
   const saveUser = async (userData) => {
     console.log('saveUser chamado:', { user, isMaster: user?.isMaster, database: !!database });
@@ -1652,11 +1679,24 @@ const FirebaseApp = () => {
         // Atualizar usuário existente no Realtime Database
         const userRef = ref(database, `users/registered/${editingUser.id}`);
         
+        // Atualizar photoURL no Auth se fornecido
+        if (userData.photoURL && editingUser.uid) {
+          try {
+            const authUser = auth.currentUser;
+            if (authUser && authUser.uid === editingUser.uid) {
+              await updateProfile(authUser, { photoURL: userData.photoURL });
+            }
+          } catch (error) {
+            console.error('Erro ao atualizar photoURL no Auth:', error);
+          }
+        }
+        
         // Manter os dados existentes e atualizar apenas os campos editados
         const updatedData = {
           ...editingUser,
           name: userData.name || editingUser.name,
           email: userData.email || editingUser.email,
+          photoURL: userData.photoURL || editingUser.photoURL || '',
           isActive: userData.isActive !== undefined ? userData.isActive : editingUser.isActive,
           updatedAt: new Date().toISOString()
         };
@@ -1697,11 +1737,21 @@ const FirebaseApp = () => {
         const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
         console.log('Usuário criado no Auth:', userCredential.user.uid);
         
+        // Atualizar photoURL no Auth se fornecido
+        if (userData.photoURL) {
+          try {
+            await updateProfile(userCredential.user, { photoURL: userData.photoURL });
+          } catch (error) {
+            console.error('Erro ao atualizar photoURL no Auth:', error);
+          }
+        }
+        
         // Salvar dados adicionais no Realtime Database
         const userDoc = {
           name: userData.name,
           email: userData.email,
           uid: userCredential.user.uid,
+          photoURL: userData.photoURL || '',
           isActive: userData.isActive !== undefined ? userData.isActive : true,
           isMaster: false,
           createdAt: new Date().toISOString(),
@@ -2578,8 +2628,11 @@ const DashboardWithFirebase = ({
     companyName: '',
     cnpj: '',
     whatsappNumber: '',
+    photoURL: '',
     isActive: true
   });
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState(null);
   const [planForm, setPlanForm] = useState({
     name: '',
     description: '',
@@ -2727,8 +2780,10 @@ const DashboardWithFirebase = ({
       companyName: '',
       cnpj: '',
       whatsappNumber: '',
+      photoURL: '',
       isActive: true
     });
+    setPhotoPreview(null);
   };
 
   const handleOpenUserModal = async (userData = null) => {
@@ -2760,8 +2815,10 @@ const DashboardWithFirebase = ({
         companyName: companyName,
         cnpj: cnpj,
         whatsappNumber: whatsappNumber,
+        photoURL: userData.photoURL || '',
         isActive: userData.isActive !== undefined ? userData.isActive : true
       });
+      setPhotoPreview(userData.photoURL || null);
     } else {
       setUserForm({
         name: '',
@@ -2770,8 +2827,10 @@ const DashboardWithFirebase = ({
         companyName: '',
         cnpj: '',
         whatsappNumber: '',
+        photoURL: '',
         isActive: true
       });
+      setPhotoPreview(null);
     }
     openUserModal(userData);
   };
@@ -8805,6 +8864,121 @@ const DashboardWithFirebase = ({
             </h3>
             
             <form onSubmit={handleUserSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Upload de Foto de Perfil */}
+              <div>
+                <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+                  Foto de Perfil
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  {photoPreview ? (
+                    <div style={{ position: 'relative' }}>
+                      <img 
+                        src={photoPreview} 
+                        alt="Preview" 
+                        style={{
+                          width: '80px',
+                          height: '80px',
+                          borderRadius: '50%',
+                          objectFit: 'cover',
+                          border: '2px solid #10b981'
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPhotoPreview(null);
+                          setUserForm(prev => ({ ...prev, photoURL: '' }));
+                        }}
+                        style={{
+                          position: 'absolute',
+                          top: '-5px',
+                          right: '-5px',
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          backgroundColor: '#ef4444',
+                          border: 'none',
+                          color: 'white',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '14px',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      border: '2px dashed rgba(255, 255, 255, 0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '24px',
+                      color: '#9ca3af'
+                    }}>
+                      👤
+                    </div>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          // Validar tamanho (máximo 5MB)
+                          if (file.size > 5 * 1024 * 1024) {
+                            showToast('A imagem deve ter no máximo 5MB', 'error');
+                            return;
+                          }
+                          handlePhotoUpload(file);
+                        }
+                      }}
+                      disabled={uploadingPhoto}
+                      style={{ display: 'none' }}
+                      id="photo-upload"
+                    />
+                    <label
+                      htmlFor="photo-upload"
+                      style={{
+                        display: 'inline-block',
+                        padding: '10px 20px',
+                        borderRadius: '8px',
+                        backgroundColor: uploadingPhoto ? 'rgba(16, 185, 129, 0.3)' : '#10b981',
+                        color: 'white',
+                        cursor: uploadingPhoto ? 'not-allowed' : 'pointer',
+                        fontWeight: '600',
+                        fontSize: '0.875rem',
+                        transition: 'all 0.2s',
+                        opacity: uploadingPhoto ? 0.6 : 1
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!uploadingPhoto) {
+                          e.target.style.backgroundColor = '#059669';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!uploadingPhoto) {
+                          e.target.style.backgroundColor = '#10b981';
+                        }
+                      }}
+                    >
+                      {uploadingPhoto ? 'Enviando...' : photoPreview ? 'Alterar Foto' : 'Escolher Foto'}
+                    </label>
+                    <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px', margin: 0 }}>
+                      Formatos: JPG, PNG, GIF (máx. 5MB)
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
                   Nome do Cliente/Razão Social
@@ -8968,7 +9142,10 @@ const DashboardWithFirebase = ({
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px' }}>
                 <button
                   type="button"
-                  onClick={() => setShowUserModal(false)}
+                  onClick={() => {
+                    setShowUserModal(false);
+                    setPhotoPreview(null);
+                  }}
                   style={{
                     backgroundColor: '#6b7280',
                     color: 'white',
