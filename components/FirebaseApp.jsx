@@ -967,25 +967,74 @@ const FirebaseApp = () => {
   
   // Função para fazer upload de foto de perfil no companyForm
   const handleCompanyPhotoUpload = async (file) => {
-    if (!storage || !file) return;
+    if (!storage || !file || !user || !user.uid) {
+      showToast('Erro: Usuário não autenticado ou storage não disponível', 'error');
+      return;
+    }
     
     setUploadingCompanyPhoto(true);
     try {
-      // Criar referência no Storage
-      const fileRef = storageRef(storage, `user_photos/${user.uid}_${Date.now()}_${file.name}`);
+      // Validar tipo de arquivo
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        showToast('Formato de arquivo inválido. Use JPG, PNG, GIF ou WEBP', 'error');
+        setUploadingCompanyPhoto(false);
+        return;
+      }
       
-      // Fazer upload
-      await uploadBytes(fileRef, file);
+      // Validar tamanho (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('A imagem deve ter no máximo 5MB', 'error');
+        setUploadingCompanyPhoto(false);
+        return;
+      }
+      
+      // Criar referência no Storage com caminho único
+      const timestamp = Date.now();
+      const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const fileRef = storageRef(storage, `user_photos/${user.uid}/${timestamp}_${sanitizedFileName}`);
+      
+      // Fazer upload com metadata
+      const metadata = {
+        contentType: file.type,
+        customMetadata: {
+          uploadedBy: user.uid,
+          uploadedAt: new Date().toISOString()
+        }
+      };
+      
+      await uploadBytes(fileRef, file, metadata);
       
       // Obter URL de download
       const downloadURL = await getDownloadURL(fileRef);
       
+      // Atualizar estados
       setCompanyForm(prev => ({ ...prev, photoURL: downloadURL }));
       setCompanyPhotoPreview(downloadURL);
-      showToast('Foto enviada com sucesso!');
+      
+      // Salvar automaticamente no perfil
+      await saveCompanyProfile({
+        ...companyProfile,
+        photoURL: downloadURL
+      });
+      
+      showToast('Foto enviada com sucesso!', 'success');
     } catch (error) {
       console.error('Erro ao fazer upload da foto:', error);
-      showToast('Erro ao fazer upload da foto: ' + error.message, 'error');
+      
+      // Mensagens de erro mais específicas
+      let errorMessage = 'Erro ao fazer upload da foto';
+      if (error.code === 'storage/unauthorized') {
+        errorMessage = 'Erro: Sem permissão para fazer upload. Verifique as regras do Firebase Storage.';
+      } else if (error.code === 'storage/canceled') {
+        errorMessage = 'Upload cancelado';
+      } else if (error.code === 'storage/unknown') {
+        errorMessage = 'Erro desconhecido. Verifique sua conexão e tente novamente.';
+      } else if (error.message) {
+        errorMessage = `Erro: ${error.message}`;
+      }
+      
+      showToast(errorMessage, 'error');
     } finally {
       setUploadingCompanyPhoto(false);
     }
