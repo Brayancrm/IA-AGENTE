@@ -2512,6 +2512,11 @@ const FirebaseApp = () => {
         isMobile={isMobile}
         isMobileMenuOpen={isMobileMenuOpen}
         setIsMobileMenuOpen={setIsMobileMenuOpen}
+        handleCompanyPhotoUpload={handleCompanyPhotoUpload}
+        companyPhotoPreview={companyPhotoPreview}
+        setCompanyPhotoPreview={setCompanyPhotoPreview}
+        uploadingCompanyPhoto={uploadingCompanyPhoto}
+        storage={storage}
       />
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <PlanSelectionModal />
@@ -2586,7 +2591,12 @@ const DashboardWithFirebase = ({
   formatTrialDurationFull,
   isMobile = false,
   isMobileMenuOpen = false,
-  setIsMobileMenuOpen
+  setIsMobileMenuOpen,
+  handleCompanyPhotoUpload,
+  companyPhotoPreview,
+  setCompanyPhotoPreview,
+  uploadingCompanyPhoto,
+  storage
 }) => {
   // Garantir que usedTrials sempre seja um objeto
   const safeUsedTrials = usedTrials || {};
@@ -2623,14 +2633,20 @@ const DashboardWithFirebase = ({
   }, [catalogSearch, catalogFilter, catalogCategory]);
   const [showImportModal, setShowImportModal] = useState(false);
 
+  // Estados do companyForm - usar props se disponíveis, senão criar locais
   const [companyForm, setCompanyForm] = useState({
     companyName: '',
     cnpj: '',
     whatsappNumber: '',
     photoURL: ''
   });
-  const [companyPhotoPreview, setCompanyPhotoPreview] = useState(null);
-  const [uploadingCompanyPhoto, setUploadingCompanyPhoto] = useState(false);
+  const [localCompanyPhotoPreview, setLocalCompanyPhotoPreview] = useState(null);
+  const [localUploadingCompanyPhoto, setLocalUploadingCompanyPhoto] = useState(false);
+  
+  // Usar props se disponíveis, senão usar estados locais
+  const finalCompanyPhotoPreview = companyPhotoPreview !== undefined ? companyPhotoPreview : localCompanyPhotoPreview;
+  const setFinalCompanyPhotoPreview = companyPhotoPreview !== undefined ? setCompanyPhotoPreview : setLocalCompanyPhotoPreview;
+  const finalUploadingCompanyPhoto = uploadingCompanyPhoto !== undefined ? uploadingCompanyPhoto : localUploadingCompanyPhoto;
   const [integrationsForm, setIntegrationsForm] = useState({
     openaiApiKey: '',
     asaasApiKey: '',
@@ -2700,8 +2716,34 @@ const DashboardWithFirebase = ({
       whatsappNumber: companyProfile.whatsappNumber || '',
       photoURL: companyProfile.photoURL || ''
     });
-    setCompanyPhotoPreview(companyProfile.photoURL || null);
+    setFinalCompanyPhotoPreview(companyProfile.photoURL || null);
   }, [companyProfile]);
+  
+  // Wrapper para handleCompanyPhotoUpload que atualiza os estados corretos
+  const handleCompanyPhotoUploadWrapper = async (file) => {
+    if (handleCompanyPhotoUpload && storage) {
+      // Usar função que vem como prop (preferencial)
+      await handleCompanyPhotoUpload(file);
+    } else if (storage && file && user) {
+      // Se não vier como prop, criar função local
+      setLocalUploadingCompanyPhoto(true);
+      try {
+        const fileRef = storageRef(storage, `user_photos/${user.uid}_${Date.now()}_${file.name}`);
+        await uploadBytes(fileRef, file);
+        const downloadURL = await getDownloadURL(fileRef);
+        setCompanyForm(prev => ({ ...prev, photoURL: downloadURL }));
+        setFinalCompanyPhotoPreview(downloadURL);
+        showToast('Foto enviada com sucesso!');
+      } catch (error) {
+        console.error('Erro ao fazer upload da foto:', error);
+        showToast('Erro ao fazer upload da foto: ' + error.message, 'error');
+      } finally {
+        setLocalUploadingCompanyPhoto(false);
+      }
+    } else {
+      showToast('Erro: Storage ou usuário não disponível', 'error');
+    }
+  };
 
   useEffect(() => {
     setIntegrationsForm({
@@ -4627,10 +4669,10 @@ const DashboardWithFirebase = ({
                     Foto de Perfil
                   </label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    {companyPhotoPreview ? (
+                    {finalCompanyPhotoPreview ? (
                       <div style={{ position: 'relative' }}>
                         <img 
-                          src={companyPhotoPreview} 
+                          src={finalCompanyPhotoPreview} 
                           alt="Preview" 
                           style={{
                             width: '80px',
@@ -4643,7 +4685,7 @@ const DashboardWithFirebase = ({
                         <button
                           type="button"
                           onClick={() => {
-                            setCompanyPhotoPreview(null);
+                            setFinalCompanyPhotoPreview(null);
                             setCompanyForm(prev => ({ ...prev, photoURL: '' }));
                           }}
                           style={{
@@ -4695,10 +4737,10 @@ const DashboardWithFirebase = ({
                               showToast('A imagem deve ter no máximo 5MB', 'error');
                               return;
                             }
-                            handleCompanyPhotoUpload(file);
+                            handleCompanyPhotoUploadWrapper(file);
                           }
                         }}
-                        disabled={uploadingCompanyPhoto}
+                        disabled={finalUploadingCompanyPhoto}
                         style={{ display: 'none' }}
                         id="company-photo-upload"
                       />
@@ -4708,26 +4750,26 @@ const DashboardWithFirebase = ({
                           display: 'inline-block',
                           padding: '10px 20px',
                           borderRadius: '8px',
-                          backgroundColor: uploadingCompanyPhoto ? 'rgba(16, 185, 129, 0.3)' : '#10b981',
+                          backgroundColor: finalUploadingCompanyPhoto ? 'rgba(16, 185, 129, 0.3)' : '#10b981',
                           color: 'white',
-                          cursor: uploadingCompanyPhoto ? 'not-allowed' : 'pointer',
+                          cursor: finalUploadingCompanyPhoto ? 'not-allowed' : 'pointer',
                           fontWeight: '600',
                           fontSize: '0.875rem',
                           transition: 'all 0.2s',
-                          opacity: uploadingCompanyPhoto ? 0.6 : 1
+                          opacity: finalUploadingCompanyPhoto ? 0.6 : 1
                         }}
                         onMouseEnter={(e) => {
-                          if (!uploadingCompanyPhoto) {
+                          if (!finalUploadingCompanyPhoto) {
                             e.target.style.backgroundColor = '#059669';
                           }
                         }}
                         onMouseLeave={(e) => {
-                          if (!uploadingCompanyPhoto) {
+                          if (!finalUploadingCompanyPhoto) {
                             e.target.style.backgroundColor = '#10b981';
                           }
                         }}
                       >
-                        {uploadingCompanyPhoto ? 'Enviando...' : companyPhotoPreview ? 'Alterar Foto' : 'Escolher Foto'}
+                        {finalUploadingCompanyPhoto ? 'Enviando...' : finalCompanyPhotoPreview ? 'Alterar Foto' : 'Escolher Foto'}
                       </label>
                       <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px', margin: 0 }}>
                         Formatos: JPG, PNG, GIF (máx. 5MB)
