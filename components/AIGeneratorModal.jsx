@@ -713,8 +713,9 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
   };
 
   const promptToSend = mode === 'guided' ? guidedPrompt.trim() : description.trim();
+  const isLastQuestion = mode === 'guided' && currentQuestionIndex === visibleQuestions.length - 1;
   const canGenerate = mode === 'guided'
-    ? Boolean(promptToSend && requiredGuidedMissing.length === 0)
+    ? Boolean(isLastQuestion && promptToSend && requiredGuidedMissing.length === 0)
     : Boolean(promptToSend);
 
   const handleGenerate = async () => {
