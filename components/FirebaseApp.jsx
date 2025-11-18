@@ -1021,10 +1021,22 @@ const FirebaseApp = () => {
       showToast('Foto enviada com sucesso!', 'success');
     } catch (error) {
       console.error('Erro ao fazer upload da foto:', error);
+      console.error('Código do erro:', error.code);
+      console.error('Mensagem do erro:', error.message);
+      console.error('Stack trace:', error.stack);
       
       // Mensagens de erro mais específicas
       let errorMessage = 'Erro ao fazer upload da foto';
-      if (error.code === 'storage/unauthorized') {
+      
+      // Verificar se é erro de CORS
+      if (error.message && (
+        error.message.includes('CORS') || 
+        error.message.includes('preflight') ||
+        error.message.includes('Access-Control')
+      )) {
+        errorMessage = 'Erro de CORS: Configure as regras de CORS no Google Cloud Console. Veja FIREBASE_STORAGE_RULES.md';
+        console.error('⚠️ ERRO DE CORS DETECTADO! Configure CORS no Google Cloud Console.');
+      } else if (error.code === 'storage/unauthorized') {
         errorMessage = 'Erro: Sem permissão para fazer upload. Verifique as regras do Firebase Storage.';
       } else if (error.code === 'storage/canceled') {
         errorMessage = 'Upload cancelado';

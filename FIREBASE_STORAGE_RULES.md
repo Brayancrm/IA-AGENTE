@@ -98,21 +98,84 @@ Após publicar as regras:
 
 ---
 
-## 🐛 Se o Erro Persistir:
+## 🐛 Se o Erro de CORS Persistir (Como na Sua Foto):
 
-1. **Verifique se o usuário está autenticado:**
-   - O usuário precisa estar logado para fazer upload
-   - Verifique se `auth.currentUser` não é `null`
+O erro de CORS pode ocorrer mesmo com regras corretas. Isso acontece porque o Firebase Storage usa Google Cloud Storage, que precisa de configuração de CORS adicional.
 
-2. **Verifique as regras do Storage:**
-   - Certifique-se de que as regras foram publicadas corretamente
-   - Verifique se o caminho `user_photos/{userId}/` está permitido
+### Solução 1: Configurar CORS no Google Cloud Console
 
-3. **Limpe o cache do navegador:**
+1. **Acesse:** https://console.cloud.google.com
+2. **Selecione o projeto:** `ia-agente-b2f46`
+3. **No menu lateral:** Vá em **Cloud Storage** → **Buckets**
+4. **Clique no bucket:** `ia-agente-b2f46.firebasestorage.app` (ou similar)
+5. **Clique na aba:** **Configuração** (Configuration)
+6. **Role até:** **CORS** (Cross-Origin Resource Sharing)
+7. **Clique em:** **Editar** (Edit)
+8. **Cole esta configuração JSON:**
+
+```json
+[
+  {
+    "origin": ["https://ia-agente.vercel.app", "https://*.vercel.app"],
+    "method": ["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS"],
+    "responseHeader": ["Content-Type", "Authorization", "Content-Length", "User-Agent", "x-goog-resumable"],
+    "maxAgeSeconds": 3600
+  }
+]
+```
+
+9. **Clique em:** **Salvar** (Save)
+
+### Solução 2: Verificar se o Usuário Está Autenticado
+
+O erro de CORS pode ocorrer se o usuário não estiver autenticado:
+
+1. **Verifique no console do navegador:**
+   - Abra o DevTools (F12)
+   - Vá na aba "Console"
+   - Digite: `firebase.auth().currentUser`
+   - Deve retornar um objeto, não `null`
+
+2. **Se retornar `null`:**
+   - Faça login novamente
+   - Aguarde alguns segundos
+   - Tente fazer upload novamente
+
+### Solução 3: Limpar Cache e Tentar Novamente
+
+1. **Limpe o cache do navegador:**
    - Pressione `Ctrl+Shift+R` (Windows) ou `Cmd+Shift+R` (Mac)
    - Ou limpe o cache manualmente
 
-4. **Verifique a configuração do Firebase:**
-   - Certifique-se de que o Storage está habilitado no projeto
-   - Verifique se o bucket está configurado corretamente
+2. **Tente em uma aba anônima:**
+   - Abra uma janela anônima/privada
+   - Faça login
+   - Tente fazer upload
+
+### Solução 4: Verificar Configuração do Firebase
+
+1. **Certifique-se de que o Storage está habilitado:**
+   - Firebase Console → Storage
+   - Deve mostrar "Storage está ativado"
+
+2. **Verifique o bucket:**
+   - O bucket deve ser: `ia-agente-b2f46.firebasestorage.app` ou `ia-agente-b2f46.appspot.com`
+   - Verifique no arquivo `.env` ou `env.local` se `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` está correto
+
+### Solução 5: Regras Temporárias Mais Permissivas (TESTE)
+
+Se nada funcionar, teste temporariamente com regras totalmente abertas (APENAS PARA TESTE):
+
+```javascript
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if true;  // ⚠️ PERMISSIVO - APENAS PARA TESTE
+    }
+  }
+}
+```
+
+**⚠️ IMPORTANTE:** Se funcionar com essas regras, o problema é nas regras. Se não funcionar, o problema é na configuração de CORS do Google Cloud.
 
