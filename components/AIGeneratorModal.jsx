@@ -197,7 +197,10 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
         type: 'multi_select',
         title: 'Quais produtos ou serviços o agente deve oferecer?',
         description: 'Selecione itens diretamente do seu catálogo ou escreva manualmente.',
-        options: offerOptions,
+        options: [
+          { value: 'NÃO_APLICA_OFFERINGS', label: '❌ Não há oferta de Produtos/serviços', isNegative: true },
+          ...offerOptions
+        ],
         emptyState: catalogOptions.length === 0 ? 'Cadastre produtos e serviços no catálogo para facilitar.' : '',
         required: false
       },
@@ -207,6 +210,7 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
         title: 'Quais etapas o agente deve seguir?',
         description: 'Escolha o fluxo desejado para cada atendimento.',
         options: [
+          { value: 'NÃO_APLICA_WORKFLOWS', label: '❌ Não há etapas específicas a seguir', isNegative: true },
           { value: 'Qualificar leads e identificar necessidades', label: 'Qualificar leads' },
           { value: 'Apresentar catálogo com produtos/serviços', label: 'Mostrar catálogo' },
           { value: 'Criar pedidos completos', label: 'Montar pedido' },
@@ -221,6 +225,7 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
         title: 'Quais recursos extra devem ser utilizados?',
         description: 'Selecione integrações e automações suportadas pelo sistema.',
         options: [
+          { value: 'NÃO_APLICA_INTEGRATIONS', label: '❌ Não há recursos extras necessários', isNegative: true },
           { value: 'Consultar estoque e disponibilidade em tempo real', label: 'Consultar estoque' },
           { value: 'Registrar pedidos no CRM e pipeline', label: 'Atualizar CRM' },
           { value: 'Gerar boletos e cobranças pelo Asaas', label: 'Emitir cobrança Asaas' },
@@ -244,8 +249,14 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
         type: 'multi_select',
         title: 'Quais tipos de compromisso devem ser agendados?',
         description: 'Selecione os serviços que viram compromissos no calendário.',
-        options: appointmentOptions,
-        shouldShow: (answers) => answers.schedulingNeed === 'yes'
+        options: [
+          { value: 'NÃO_APLICA_SCHEDULING', label: '❌ Não há tipos específicos de agendamento', isNegative: true },
+          ...appointmentOptions
+        ],
+        shouldShow: (answers) => {
+          const schedulingNeedArray = Array.isArray(answers.schedulingNeed) ? answers.schedulingNeed : (answers.schedulingNeed ? [answers.schedulingNeed] : []);
+          return schedulingNeedArray.includes('yes');
+        }
       },
       {
         id: 'audioLanguage',
@@ -329,6 +340,7 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
         title: 'Quais formas de pagamento são aceitas?',
         description: 'Selecione os métodos de pagamento disponíveis.',
         options: [
+          { value: 'NÃO_APLICA_PAYMENT', label: '❌ Não há formas de pagamento específicas', isNegative: true },
           { value: 'PIX', label: '💳 PIX' },
           { value: 'Cartão de Crédito', label: '💳 Cartão de Crédito' },
           { value: 'Cartão de Débito', label: '💳 Cartão de Débito' },
@@ -406,6 +418,7 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
         description: 'Prazos, condições e procedimentos para devoluções e trocas.',
         placeholder: 'Ex: Aceitamos devolução em até 7 dias após a compra, com produto em perfeito estado.',
         suggestions: [
+          '❌ Não há necessidade de devolução ou troca para meus serviços',
           'Aceitamos devolução em até 7 dias após a compra',
           'Troca em até 30 dias se produto estiver lacrado',
           'Sem devolução, apenas troca por defeito de fabricação',
@@ -542,26 +555,36 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
     }
 
     const offeringsArray = Array.isArray(guidedAnswers.offerings) ? guidedAnswers.offerings : (guidedAnswers.offerings ? [guidedAnswers.offerings] : []);
-    if (offeringsArray.length > 0) {
-      parts.push(`Apresente e recomende estes produtos/serviços do catálogo: ${offeringsArray.join(', ')}.`);
+    const offeringsFiltered = offeringsArray.filter(item => !item.startsWith('NÃO_APLICA_'));
+    if (offeringsFiltered.length > 0) {
+      parts.push(`Apresente e recomende estes produtos/serviços do catálogo: ${offeringsFiltered.join(', ')}.`);
+    } else if (offeringsArray.includes('NÃO_APLICA_OFFERINGS')) {
+      parts.push(`Não há oferta de Produtos/serviços.`);
     }
 
     const workflowsArray = Array.isArray(guidedAnswers.workflows) ? guidedAnswers.workflows : (guidedAnswers.workflows ? [guidedAnswers.workflows] : []);
-    if (workflowsArray.length > 0) {
-      parts.push(`Siga este fluxo de etapas: ${workflowsArray.join(', ')}.`);
+    const workflowsFiltered = workflowsArray.filter(item => !item.startsWith('NÃO_APLICA_'));
+    if (workflowsFiltered.length > 0) {
+      parts.push(`Siga este fluxo de etapas: ${workflowsFiltered.join(', ')}.`);
+    } else if (workflowsArray.includes('NÃO_APLICA_WORKFLOWS')) {
+      parts.push(`Não há etapas específicas a seguir.`);
     }
 
     const integrationsArray = Array.isArray(guidedAnswers.integrations) ? guidedAnswers.integrations : (guidedAnswers.integrations ? [guidedAnswers.integrations] : []);
-    if (integrationsArray.length > 0) {
-      parts.push(`Use os seguintes recursos e integrações: ${integrationsArray.join(', ')}.`);
+    const integrationsFiltered = integrationsArray.filter(item => !item.startsWith('NÃO_APLICA_'));
+    if (integrationsFiltered.length > 0) {
+      parts.push(`Use os seguintes recursos e integrações: ${integrationsFiltered.join(', ')}.`);
+    } else if (integrationsArray.includes('NÃO_APLICA_INTEGRATIONS')) {
+      parts.push(`Não há recursos extras necessários.`);
     }
 
     // schedulingNeed agora pode ser array
     const schedulingNeedArray = Array.isArray(guidedAnswers.schedulingNeed) ? guidedAnswers.schedulingNeed : (guidedAnswers.schedulingNeed ? [guidedAnswers.schedulingNeed] : []);
     if (schedulingNeedArray.includes('yes')) {
       const schedulingTypesArray = Array.isArray(guidedAnswers.schedulingTypes) ? guidedAnswers.schedulingTypes : (guidedAnswers.schedulingTypes ? [guidedAnswers.schedulingTypes] : []);
-      const types = schedulingTypesArray.length > 0
-        ? ` para ${schedulingTypesArray.join(', ')}`
+      const schedulingTypesFiltered = schedulingTypesArray.filter(item => !item.startsWith('NÃO_APLICA_'));
+      const types = schedulingTypesFiltered.length > 0
+        ? ` para ${schedulingTypesFiltered.join(', ')}`
         : '';
       parts.push(
         `Crie e confirme agendamentos${types}. Registre cada compromisso imediatamente no calendário oficial da agenda do usuário (tabela de agendamentos), incluindo data, horário, status e lembretes.`
@@ -587,8 +610,11 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
     }
 
     const paymentMethodsArray = Array.isArray(guidedAnswers.paymentMethods) ? guidedAnswers.paymentMethods : (guidedAnswers.paymentMethods ? [guidedAnswers.paymentMethods] : []);
-    if (paymentMethodsArray.length > 0) {
-      parts.push(`FORMAS DE PAGAMENTO ACEITAS:\n${paymentMethodsArray.join(', ')}`);
+    const paymentMethodsFiltered = paymentMethodsArray.filter(item => !item.startsWith('NÃO_APLICA_'));
+    if (paymentMethodsFiltered.length > 0) {
+      parts.push(`FORMAS DE PAGAMENTO ACEITAS:\n${paymentMethodsFiltered.join(', ')}`);
+    } else if (paymentMethodsArray.includes('NÃO_APLICA_PAYMENT')) {
+      parts.push(`FORMAS DE PAGAMENTO ACEITAS:\nNão há formas de pagamento específicas.`);
     }
 
     if (guidedAnswers.deliveryPolicy.trim()) {
