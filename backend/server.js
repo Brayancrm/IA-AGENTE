@@ -233,8 +233,7 @@ async function createSession(userId) {
           '--metrics-recording-only',
           '--mute-audio',
           '--disable-audio-input',
-          '--disable-audio-output',
-          '--disable-dev-shm-usage'
+          '--disable-audio-output'
         ]
       }
     };
