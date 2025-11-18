@@ -948,14 +948,8 @@ const FirebaseApp = () => {
         updatedAt: new Date().toISOString()
       });
       
-      // Atualizar photoURL no Auth se fornecido
-      if (data.photoURL && auth.currentUser) {
-        try {
-          await updateProfile(auth.currentUser, { photoURL: data.photoURL });
-        } catch (error) {
-          console.error('Erro ao atualizar photoURL no Auth:', error);
-        }
-      }
+      // NOTA: Não atualizamos photoURL no Auth porque Base64 é muito longo para o Auth
+      // A foto fica apenas no Realtime Database (company_profile.photoURL)
       
       showToast('Perfil da empresa salvo com sucesso!');
     } catch (error) {
@@ -1768,17 +1762,8 @@ const FirebaseApp = () => {
         // Atualizar usuário existente no Realtime Database
         const userRef = ref(database, `users/registered/${editingUser.id}`);
         
-        // Atualizar photoURL no Auth se fornecido
-        if (userData.photoURL && editingUser.uid) {
-          try {
-            const authUser = auth.currentUser;
-            if (authUser && authUser.uid === editingUser.uid) {
-              await updateProfile(authUser, { photoURL: userData.photoURL });
-            }
-          } catch (error) {
-            console.error('Erro ao atualizar photoURL no Auth:', error);
-          }
-        }
+        // NOTA: Não atualizamos photoURL no Auth porque Base64 é muito longo para o Auth
+        // A foto fica apenas no Realtime Database
         
         // Manter os dados existentes e atualizar apenas os campos editados
         const updatedData = {
@@ -1826,14 +1811,8 @@ const FirebaseApp = () => {
         const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
         console.log('Usuário criado no Auth:', userCredential.user.uid);
         
-        // Atualizar photoURL no Auth se fornecido
-        if (userData.photoURL) {
-          try {
-            await updateProfile(userCredential.user, { photoURL: userData.photoURL });
-          } catch (error) {
-            console.error('Erro ao atualizar photoURL no Auth:', error);
-          }
-        }
+        // NOTA: Não atualizamos photoURL no Auth porque Base64 é muito longo para o Auth
+        // A foto fica apenas no Realtime Database
         
         // Salvar dados adicionais no Realtime Database
         const userDoc = {
