@@ -5830,8 +5830,7 @@ const DashboardWithFirebase = ({
                         <span style={{ fontSize: '1.25rem' }}>🎙️</span>
                         Voz (Opcional)
                       </label>
-                      <input
-                        type="text"
+                      <select
                         value={assistantForm.audioVoice || ''}
                         onChange={(e) => setAssistantForm(prev => ({ ...prev, audioVoice: e.target.value }))}
                         style={{
@@ -5845,7 +5844,6 @@ const DashboardWithFirebase = ({
                           backgroundColor: '#0f1419',
                           color: '#ffffff'
                         }}
-                        placeholder="Ex: pt-BR-Standard-A (feminina) ou pt-BR-Standard-B (masculina)"
                         onFocus={(e) => {
                           e.target.style.borderColor = '#10b981';
                           e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
@@ -5854,9 +5852,37 @@ const DashboardWithFirebase = ({
                           e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                           e.target.style.boxShadow = 'none';
                         }}
-                      />
+                      >
+                        <option value="">🔇 Voz Padrão (automática)</option>
+                        <optgroup label="🇧🇷 Português (Brasil)">
+                          <option value="pt-BR-Standard-A">👩 Voz Feminina - Padrão</option>
+                          <option value="pt-BR-Standard-B">👨 Voz Masculina - Padrão</option>
+                          <option value="pt-BR-Wavenet-A">👩 Voz Feminina - Natural</option>
+                          <option value="pt-BR-Wavenet-B">👨 Voz Masculina - Natural</option>
+                          <option value="pt-BR-Wavenet-C">👩 Voz Feminina - Jovem</option>
+                          <option value="pt-BR-Wavenet-D">👨 Voz Masculina - Jovem</option>
+                        </optgroup>
+                        <optgroup label="🇺🇸 English (US)">
+                          <option value="en-US-Standard-A">👩 Female Voice - Standard</option>
+                          <option value="en-US-Standard-B">👨 Male Voice - Standard</option>
+                          <option value="en-US-Wavenet-A">👩 Female Voice - Natural</option>
+                          <option value="en-US-Wavenet-B">👨 Male Voice - Natural</option>
+                        </optgroup>
+                        <optgroup label="🇪🇸 Español (España)">
+                          <option value="es-ES-Standard-A">👩 Voz Femenina - Estándar</option>
+                          <option value="es-ES-Standard-B">👨 Voz Masculina - Estándar</option>
+                        </optgroup>
+                        <optgroup label="🇫🇷 Français">
+                          <option value="fr-FR-Standard-A">👩 Voix Féminine - Standard</option>
+                          <option value="fr-FR-Standard-B">👨 Voix Masculine - Standard</option>
+                        </optgroup>
+                        <optgroup label="🇩🇪 Deutsch">
+                          <option value="de-DE-Standard-A">👩 Weibliche Stimme - Standard</option>
+                          <option value="de-DE-Standard-B">👨 Männliche Stimme - Standard</option>
+                        </optgroup>
+                      </select>
                       <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '8px' }}>
-                        Deixe em branco para usar a voz padrão do idioma selecionado
+                        Escolha a voz que o agente usará ao responder em áudio. Deixe em branco para usar a voz padrão.
                       </p>
                     </div>
                   </div>
@@ -5886,6 +5912,11 @@ const DashboardWithFirebase = ({
                       const hasProducts = catalogStep?.catalogSettings?.includeProducts || false;
                       const hasServices = catalogStep?.catalogSettings?.includeServices || false;
                       
+                      // Buscar step de áudio para sincronizar configuração global
+                      const audioStep = newSteps.find(step => step.type === 'audio_config');
+                      const audioLanguage = audioStep?.audioLanguage || 'pt-BR';
+                      const audioVoice = audioStep?.audioVoice || '';
+                      
                       setAssistantForm(prev => ({
                         ...prev,
                         flowSteps: newSteps,
@@ -5897,7 +5928,10 @@ const DashboardWithFirebase = ({
                         appointmentTypes: appointmentTypes,
                         // Sincronizar configurações de catálogo
                         includeCatalogProducts: hasProducts,
-                        includeCatalogServices: hasServices
+                        includeCatalogServices: hasServices,
+                        // Sincronizar configurações de áudio
+                        audioLanguage: audioLanguage,
+                        audioVoice: audioVoice
                       }));
                     }}
                     onPromptChange={(improvedPrompt) => {

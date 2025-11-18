@@ -17,6 +17,9 @@ const getInitialGuidedAnswers = () => ({
   schedulingNeed: '',
   schedulingTypes: [],
   schedulingNotes: '',
+  // Configurações de áudio
+  audioLanguage: 'pt-BR',
+  audioVoice: '',
   // Alta prioridade
   businessHours: '',
   escalateToHuman: '',
@@ -243,6 +246,46 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
         description: 'Selecione os serviços que viram compromissos no calendário.',
         options: appointmentOptions,
         shouldShow: (answers) => answers.schedulingNeed === 'yes'
+      },
+      {
+        id: 'audioLanguage',
+        type: 'single_select',
+        title: '🎤 Qual idioma usar para respostas de áudio?',
+        description: 'Quando o cliente enviar uma mensagem de áudio, o agente responderá também em áudio neste idioma.',
+        options: [
+          { value: 'pt-BR', label: '🇧🇷 Português (Brasil)' },
+          { value: 'pt-PT', label: '🇵🇹 Português (Portugal)' },
+          { value: 'en-US', label: '🇺🇸 English (US)' },
+          { value: 'en-GB', label: '🇬🇧 English (UK)' },
+          { value: 'es-ES', label: '🇪🇸 Español (España)' },
+          { value: 'es-MX', label: '🇲🇽 Español (México)' },
+          { value: 'fr-FR', label: '🇫🇷 Français' },
+          { value: 'de-DE', label: '🇩🇪 Deutsch' },
+          { value: 'it-IT', label: '🇮🇹 Italiano' }
+        ],
+        required: true
+      },
+      {
+        id: 'audioVoice',
+        type: 'single_select',
+        title: '🎙️ Qual voz usar para respostas de áudio?',
+        description: 'Escolha o tom e gênero da voz que o agente usará ao responder em áudio.',
+        options: [
+          { value: '', label: '🔇 Voz Padrão (automática)' },
+          { value: 'pt-BR-Standard-A', label: '👩 Voz Feminina - Padrão (Brasil)' },
+          { value: 'pt-BR-Standard-B', label: '👨 Voz Masculina - Padrão (Brasil)' },
+          { value: 'pt-BR-Wavenet-A', label: '👩 Voz Feminina - Natural (Brasil)' },
+          { value: 'pt-BR-Wavenet-B', label: '👨 Voz Masculina - Natural (Brasil)' },
+          { value: 'pt-BR-Wavenet-C', label: '👩 Voz Feminina - Jovem (Brasil)' },
+          { value: 'pt-BR-Wavenet-D', label: '👨 Voz Masculina - Jovem (Brasil)' },
+          { value: 'en-US-Standard-A', label: '👩 Female Voice - Standard (US)' },
+          { value: 'en-US-Standard-B', label: '👨 Male Voice - Standard (US)' },
+          { value: 'en-US-Wavenet-A', label: '👩 Female Voice - Natural (US)' },
+          { value: 'en-US-Wavenet-B', label: '👨 Male Voice - Natural (US)' },
+          { value: 'es-ES-Standard-A', label: '👩 Voz Femenina - Estándar (España)' },
+          { value: 'es-ES-Standard-B', label: '👨 Voz Masculina - Estándar (España)' }
+        ],
+        required: false
       },
       {
         id: 'tone',
@@ -579,6 +622,11 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
 
     if (guidedAnswers.personalizationHistory.trim()) {
       parts.push(`PERSONALIZAÇÃO BASEADA EM HISTÓRICO:\n${guidedAnswers.personalizationHistory.trim()}`);
+    }
+
+    // Configurações de áudio
+    if (guidedAnswers.audioLanguage) {
+      parts.push(`CONFIGURAÇÕES DE ÁUDIO:\nIdioma: ${guidedAnswers.audioLanguage}${guidedAnswers.audioVoice ? `\nVoz: ${guidedAnswers.audioVoice}` : '\nVoz: Padrão (automática)'}`);
     }
 
     if (guidedAnswers.extras.trim()) {

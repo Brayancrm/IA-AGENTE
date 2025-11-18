@@ -214,6 +214,18 @@ export function convertStepsToPrompt(steps) {
       prompt += `Ao criar um agendamento, informe data, horário, tipo e descrição. O agendamento será salvo automaticamente.\n\n`;
     }
     
+    // Se for configuração de áudio, adicionar as configurações
+    if (step.type === 'audio_config') {
+      prompt += `**CONFIGURAÇÕES DE ÁUDIO:**\n`;
+      prompt += `Idioma: ${step.audioLanguage || 'pt-BR'}\n`;
+      if (step.audioVoice) {
+        prompt += `Voz: ${step.audioVoice}\n`;
+      } else {
+        prompt += `Voz: Padrão (automática)\n`;
+      }
+      prompt += `Quando o cliente enviar uma mensagem de áudio, você deve responder também em áudio usando essas configurações.\n\n`;
+    }
+    
     prompt += '---\n\n';
   });
 

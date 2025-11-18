@@ -2086,10 +2086,55 @@ export const FLOW_TEMPLATES = [
 ];
 
 /**
- * Obter template por ID
+ * Adiciona step de configuração de áudio em todos os templates
+ * Este step é obrigatório e deve aparecer após o agent_profile
+ */
+export function addAudioConfigStepToTemplate(template) {
+  if (!template || !template.steps) return template;
+  
+  // Verificar se já tem step de áudio
+  const hasAudioStep = template.steps.some(s => s.type === 'audio_config');
+  if (hasAudioStep) return template;
+  
+  // Encontrar índice do agent_profile
+  const agentProfileIndex = template.steps.findIndex(s => s.type === 'agent_profile');
+  
+  // Criar step de configuração de áudio
+  const audioStep = {
+    id: Date.now() + '-audio',
+    type: 'audio_config',
+    title: 'Configurações de Áudio',
+    description: 'Configure o idioma e voz para respostas de áudio no WhatsApp. Quando o cliente enviar uma mensagem de áudio, o agente responderá também em áudio usando as configurações definidas aqui.',
+    audioLanguage: 'pt-BR',
+    audioVoice: '',
+    condition: '',
+    isRequired: true
+  };
+  
+  // Inserir após agent_profile (ou no início se não houver)
+  const insertIndex = agentProfileIndex >= 0 ? agentProfileIndex + 1 : 0;
+  const newSteps = [...template.steps];
+  newSteps.splice(insertIndex, 0, audioStep);
+  
+  return {
+    ...template,
+    steps: newSteps
+  };
+}
+
+/**
+ * Processa todos os templates adicionando step de áudio
+ */
+export function processTemplatesWithAudio() {
+  return FLOW_TEMPLATES.map(template => addAudioConfigStepToTemplate(template));
+}
+
+/**
+ * Obter template por ID (com step de áudio incluído)
  */
 export function getTemplateById(id) {
-  return FLOW_TEMPLATES.find(t => t.id === id);
+  const template = FLOW_TEMPLATES.find(t => t.id === id);
+  return template ? addAudioConfigStepToTemplate(template) : null;
 }
 
 /**

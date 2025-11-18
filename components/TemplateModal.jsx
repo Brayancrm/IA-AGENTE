@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Check, Clock, Layers } from 'lucide-react';
-import { FLOW_TEMPLATES, getCategories } from '../constants/flowTemplates';
+import { FLOW_TEMPLATES, getCategories, addAudioConfigStepToTemplate } from '../constants/flowTemplates';
 
 /**
  * Modal para selecionar templates de fluxo
@@ -12,9 +12,10 @@ export default function TemplateModal({ isOpen, onClose, onSelectTemplate }) {
   if (!isOpen) return null;
 
   const categories = ['all', ...getCategories()];
-  const filteredTemplates = selectedCategory === 'all' 
+  const filteredTemplates = (selectedCategory === 'all' 
     ? FLOW_TEMPLATES 
-    : FLOW_TEMPLATES.filter(t => t.category === selectedCategory);
+    : FLOW_TEMPLATES.filter(t => t.category === selectedCategory)
+  ).map(template => addAudioConfigStepToTemplate(template));
 
   const handleApplyTemplate = () => {
     if (selectedTemplate) {

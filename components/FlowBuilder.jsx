@@ -42,6 +42,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
   // Tipos de ação disponíveis
   const actionTypes = [
     { value: 'agent_profile', label: '🤖 Perfil do Agente', icon: '🤖' },
+    { value: 'audio_config', label: '🎤 Configurações de Áudio', icon: '🎤' },
     { value: 'greeting', label: '👋 Cumprimentar', icon: '👋' },
     { value: 'ask_info', label: '❓ Perguntar Informação', icon: '❓' },
     { value: 'collect_data', label: '📋 Coleta de Dados (CRM)', icon: '📋' },
@@ -348,6 +349,18 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
           prompt += `Tipos permitidos: ${step.appointmentTypes.join(', ')}\n`;
         }
         prompt += `O agente poderá criar agendamentos durante a conversa que aparecerão na seção Agendamentos.\n`;
+      }
+      
+      // Se for configuração de áudio, adicionar as configurações
+      if (step.type === 'audio_config') {
+        prompt += `\n🎤 CONFIGURAÇÕES DE ÁUDIO:\n`;
+        prompt += `Idioma: ${step.audioLanguage || 'pt-BR'}\n`;
+        if (step.audioVoice) {
+          prompt += `Voz: ${step.audioVoice}\n`;
+        } else {
+          prompt += `Voz: Padrão (automática)\n`;
+        }
+        prompt += `Quando o cliente enviar uma mensagem de áudio, o agente responderá também em áudio usando essas configurações.\n`;
       }
       
       prompt += '\n';
@@ -998,8 +1011,123 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                               </div>
                             )}
 
+                            {/* Campos específicos para Configurações de Áudio */}
+                            {editingStep.type === 'audio_config' && (
+                              <div className="border-t pt-4 space-y-4">
+                                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                                  <p style={{ fontSize: '0.875rem', color: '#10b981', fontWeight: '600' }}>
+                                    🎤 Configure o idioma e voz para respostas de áudio no WhatsApp
+                                  </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                  {/* Idioma do Áudio */}
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
+                                      Idioma do Áudio *
+                                    </label>
+                                    <select
+                                      value={editingStep.audioLanguage || 'pt-BR'}
+                                      onChange={(e) =>
+                                        setEditingStep({
+                                          ...editingStep,
+                                          audioLanguage: e.target.value,
+                                        })
+                                      }
+                                      style={{
+                                        width: '100%',
+                                        padding: '10px 16px',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        borderRadius: '8px',
+                                        backgroundColor: '#0f1419',
+                                        color: '#ffffff',
+                                        outline: 'none'
+                                      }}
+                                      onFocus={(e) => {
+                                        e.target.style.borderColor = '#10b981';
+                                        e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                                      }}
+                                      onBlur={(e) => {
+                                        e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                        e.target.style.boxShadow = 'none';
+                                      }}
+                                    >
+                                      <option value="pt-BR">🇧🇷 Português (Brasil)</option>
+                                      <option value="pt-PT">🇵🇹 Português (Portugal)</option>
+                                      <option value="en-US">🇺🇸 English (US)</option>
+                                      <option value="en-GB">🇬🇧 English (UK)</option>
+                                      <option value="es-ES">🇪🇸 Español (España)</option>
+                                      <option value="es-MX">🇲🇽 Español (México)</option>
+                                      <option value="fr-FR">🇫🇷 Français</option>
+                                      <option value="de-DE">🇩🇪 Deutsch</option>
+                                      <option value="it-IT">🇮🇹 Italiano</option>
+                                    </select>
+                                  </div>
+
+                                  {/* Voz */}
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
+                                      Voz (Opcional)
+                                    </label>
+                                    <select
+                                      value={editingStep.audioVoice || ''}
+                                      onChange={(e) =>
+                                        setEditingStep({
+                                          ...editingStep,
+                                          audioVoice: e.target.value,
+                                        })
+                                      }
+                                      style={{
+                                        width: '100%',
+                                        padding: '10px 16px',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        borderRadius: '8px',
+                                        backgroundColor: '#0f1419',
+                                        color: '#ffffff',
+                                        outline: 'none'
+                                      }}
+                                      onFocus={(e) => {
+                                        e.target.style.borderColor = '#10b981';
+                                        e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                                      }}
+                                      onBlur={(e) => {
+                                        e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                                        e.target.style.boxShadow = 'none';
+                                      }}
+                                    >
+                                      <option value="">🔇 Voz Padrão (automática)</option>
+                                      <optgroup label="🇧🇷 Português (Brasil)">
+                                        <option value="pt-BR-Standard-A">👩 Voz Feminina - Padrão</option>
+                                        <option value="pt-BR-Standard-B">👨 Voz Masculina - Padrão</option>
+                                        <option value="pt-BR-Wavenet-A">👩 Voz Feminina - Natural</option>
+                                        <option value="pt-BR-Wavenet-B">👨 Voz Masculina - Natural</option>
+                                        <option value="pt-BR-Wavenet-C">👩 Voz Feminina - Jovem</option>
+                                        <option value="pt-BR-Wavenet-D">👨 Voz Masculina - Jovem</option>
+                                      </optgroup>
+                                      <optgroup label="🇺🇸 English (US)">
+                                        <option value="en-US-Standard-A">👩 Female Voice - Standard</option>
+                                        <option value="en-US-Standard-B">👨 Male Voice - Standard</option>
+                                        <option value="en-US-Wavenet-A">👩 Female Voice - Natural</option>
+                                        <option value="en-US-Wavenet-B">👨 Male Voice - Natural</option>
+                                      </optgroup>
+                                      <optgroup label="🇪🇸 Español (España)">
+                                        <option value="es-ES-Standard-A">👩 Voz Femenina - Estándar</option>
+                                        <option value="es-ES-Standard-B">👨 Voz Masculina - Estándar</option>
+                                      </optgroup>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.05)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                  <p style={{ fontSize: '0.875rem', color: '#9ca3af', margin: 0 }}>
+                                    💡 <strong style={{ color: '#10b981' }}>Dica:</strong> Quando o cliente enviar uma mensagem de áudio, o agente responderá automaticamente também em áudio usando essas configurações.
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+
                             {/* Condição (Opcional) */}
-                            {editingStep.type !== 'agent_profile' && (
+                            {editingStep.type !== 'agent_profile' && editingStep.type !== 'audio_config' && (
                               <div>
                                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
                                   Condição (Opcional)
