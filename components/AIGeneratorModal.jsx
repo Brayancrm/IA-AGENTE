@@ -882,6 +882,7 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
           const currentValue = guidedAnswers[question.id];
           const valueArray = Array.isArray(currentValue) ? currentValue : (currentValue ? [currentValue] : []);
           const isSelected = valueArray.includes(option.value);
+          const isNegative = option.isNegative === true;
           return (
             <button
               key={option.value}
@@ -889,8 +890,12 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
               onClick={() => handleOptionSelect(question, option.value)}
               style={{
                 border: '1px solid',
-                borderColor: isSelected ? '#10b981' : 'rgba(255, 255, 255, 0.1)',
-                background: isSelected ? 'rgba(16, 185, 129, 0.2)' : '#0f1419',
+                borderColor: isSelected 
+                  ? (isNegative ? '#ef4444' : '#10b981')
+                  : (isNegative ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 255, 255, 0.1)'),
+                background: isSelected 
+                  ? (isNegative ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)')
+                  : (isNegative ? 'rgba(239, 68, 68, 0.05)' : '#0f1419'),
                 borderRadius: '10px',
                 padding: '12px 14px',
                 textAlign: 'left',
@@ -901,7 +906,12 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                 gap: '4px'
               }}
             >
-              <span style={{ fontWeight: 600, color: '#ffffff' }}>{option.label}</span>
+              <span style={{ 
+                fontWeight: 600, 
+                color: isNegative && isSelected ? '#ef4444' : '#ffffff' 
+              }}>
+                {option.label}
+              </span>
               {option.description && (
                 <span style={{ fontSize: '12px', color: '#9ca3af' }}>{option.description}</span>
               )}
