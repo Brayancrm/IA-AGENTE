@@ -938,10 +938,46 @@ const FirebaseApp = () => {
         ...data,
         updatedAt: new Date().toISOString()
       });
+      
+      // Atualizar photoURL no Auth se fornecido
+      if (data.photoURL && auth.currentUser) {
+        try {
+          await updateProfile(auth.currentUser, { photoURL: data.photoURL });
+        } catch (error) {
+          console.error('Erro ao atualizar photoURL no Auth:', error);
+        }
+      }
+      
       showToast('Perfil da empresa salvo com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar perfil:', error);
       showToast('Erro ao salvar perfil da empresa', 'error');
+    }
+  };
+  
+  // Função para fazer upload de foto de perfil no companyForm
+  const handleCompanyPhotoUpload = async (file) => {
+    if (!storage || !file) return;
+    
+    setUploadingCompanyPhoto(true);
+    try {
+      // Criar referência no Storage
+      const fileRef = storageRef(storage, `user_photos/${user.uid}_${Date.now()}_${file.name}`);
+      
+      // Fazer upload
+      await uploadBytes(fileRef, file);
+      
+      // Obter URL de download
+      const downloadURL = await getDownloadURL(fileRef);
+      
+      setCompanyForm(prev => ({ ...prev, photoURL: downloadURL }));
+      setCompanyPhotoPreview(downloadURL);
+      showToast('Foto enviada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao fazer upload da foto:', error);
+      showToast('Erro ao fazer upload da foto: ' + error.message, 'error');
+    } finally {
+      setUploadingCompanyPhoto(false);
     }
   };
 
@@ -2590,8 +2626,11 @@ const DashboardWithFirebase = ({
   const [companyForm, setCompanyForm] = useState({
     companyName: '',
     cnpj: '',
-    whatsappNumber: ''
+    whatsappNumber: '',
+    photoURL: ''
   });
+  const [companyPhotoPreview, setCompanyPhotoPreview] = useState(null);
+  const [uploadingCompanyPhoto, setUploadingCompanyPhoto] = useState(false);
   const [integrationsForm, setIntegrationsForm] = useState({
     openaiApiKey: '',
     asaasApiKey: '',
@@ -2658,8 +2697,10 @@ const DashboardWithFirebase = ({
     setCompanyForm({
       companyName: companyProfile.companyName || '',
       cnpj: companyProfile.cnpj || '',
-      whatsappNumber: companyProfile.whatsappNumber || ''
+      whatsappNumber: companyProfile.whatsappNumber || '',
+      photoURL: companyProfile.photoURL || ''
     });
+    setCompanyPhotoPreview(companyProfile.photoURL || null);
   }, [companyProfile]);
 
   useEffect(() => {
@@ -4580,6 +4621,121 @@ const DashboardWithFirebase = ({
               border: '1px solid rgba(16, 185, 129, 0.2)' 
             }}>
               <form onSubmit={handleCompanySubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {/* Upload de Foto de Perfil */}
+                <div>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+                    Foto de Perfil
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    {companyPhotoPreview ? (
+                      <div style={{ position: 'relative' }}>
+                        <img 
+                          src={companyPhotoPreview} 
+                          alt="Preview" 
+                          style={{
+                            width: '80px',
+                            height: '80px',
+                            borderRadius: '50%',
+                            objectFit: 'cover',
+                            border: '2px solid #10b981'
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCompanyPhotoPreview(null);
+                            setCompanyForm(prev => ({ ...prev, photoURL: '' }));
+                          }}
+                          style={{
+                            position: 'absolute',
+                            top: '-5px',
+                            right: '-5px',
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '50%',
+                            backgroundColor: '#ef4444',
+                            border: 'none',
+                            color: 'white',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '14px',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{
+                        width: '80px',
+                        height: '80px',
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        border: '2px dashed rgba(255, 255, 255, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '24px',
+                        color: '#9ca3af'
+                      }}>
+                        👤
+                      </div>
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            // Validar tamanho (máximo 5MB)
+                            if (file.size > 5 * 1024 * 1024) {
+                              showToast('A imagem deve ter no máximo 5MB', 'error');
+                              return;
+                            }
+                            handleCompanyPhotoUpload(file);
+                          }
+                        }}
+                        disabled={uploadingCompanyPhoto}
+                        style={{ display: 'none' }}
+                        id="company-photo-upload"
+                      />
+                      <label
+                        htmlFor="company-photo-upload"
+                        style={{
+                          display: 'inline-block',
+                          padding: '10px 20px',
+                          borderRadius: '8px',
+                          backgroundColor: uploadingCompanyPhoto ? 'rgba(16, 185, 129, 0.3)' : '#10b981',
+                          color: 'white',
+                          cursor: uploadingCompanyPhoto ? 'not-allowed' : 'pointer',
+                          fontWeight: '600',
+                          fontSize: '0.875rem',
+                          transition: 'all 0.2s',
+                          opacity: uploadingCompanyPhoto ? 0.6 : 1
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!uploadingCompanyPhoto) {
+                            e.target.style.backgroundColor = '#059669';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!uploadingCompanyPhoto) {
+                            e.target.style.backgroundColor = '#10b981';
+                          }
+                        }}
+                      >
+                        {uploadingCompanyPhoto ? 'Enviando...' : companyPhotoPreview ? 'Alterar Foto' : 'Escolher Foto'}
+                      </label>
+                      <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px', margin: 0 }}>
+                        Formatos: JPG, PNG, GIF (máx. 5MB)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <label style={{ 
                     display: 'flex',
