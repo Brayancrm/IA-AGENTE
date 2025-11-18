@@ -487,7 +487,7 @@ async function generateAudioFromText(text, language = 'pt-BR', voice = null) {
         model: model,
         input: text,
         voice: openAIVoice,
-        response_format: 'opus' // Formato opus para melhor qualidade e menor tamanho
+        response_format: 'mp3' // Formato mp3 para compatibilidade com WhatsApp
       },
       {
         headers: {
