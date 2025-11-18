@@ -2,6 +2,25 @@
 
 import React, { useState, useEffect } from 'react';
 import { useFirebase } from '../hooks/useFirebase';
+
+// Suprimir erros não críticos de scripts externos (Firebase/Vercel feedback)
+if (typeof window !== 'undefined') {
+  const originalError = console.error;
+  console.error = (...args) => {
+    const errorMessage = args[0]?.toString() || '';
+    // Suprimir erros de feedback.html (Firebase/Vercel analytics)
+    if (
+      errorMessage.includes('Could not fetch session') ||
+      errorMessage.includes('Failed to fetch Flags Explorer state') ||
+      errorMessage.includes('feedback.html')
+    ) {
+      // Silenciar esses erros não críticos
+      return;
+    }
+    // Manter outros erros
+    originalError.apply(console, args);
+  };
+}
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as firebaseSignOut, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { ref, push, set, remove, onValue, off, get } from 'firebase/database';
