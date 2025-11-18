@@ -231,7 +231,10 @@ async function createSession(userId) {
           '--disable-background-networking',
           '--disable-sync',
           '--metrics-recording-only',
-          '--mute-audio'
+          '--mute-audio',
+          '--disable-audio-input',
+          '--disable-audio-output',
+          '--disable-dev-shm-usage'
         ]
       }
     };
