@@ -329,11 +329,64 @@ function sanitizePhoneNumber(phoneNumber) {
 // FUNÇÕES DE ÁUDIO
 // ============================================
 
-// Função para transcrever áudio usando OpenAI Whisper
-async function transcribeAudio(audioBuffer, apiKey) {
+// Função para buscar API Key do master para áudio
+async function getMasterApiKeyForAudio() {
   try {
+    // Buscar master em users/registered
+    const usersSnapshot = await db.ref('users/registered').once('value');
+    
+    if (usersSnapshot.exists()) {
+      const users = usersSnapshot.val();
+      const masterUser = Object.values(users).find(u => 
+        u.email === 'brayan@master.com' || u.isMaster === true
+      );
+      
+      if (masterUser && masterUser.uid) {
+        const masterConfigSnapshot = await db.ref(`users/data/${masterUser.uid}/assistant_settings`).once('value');
+        const masterConfig = masterConfigSnapshot.val();
+        
+        if (masterConfig && masterConfig.apiKey) {
+          console.log('✅ API Key do master encontrada para áudio');
+          return masterConfig.apiKey;
+        }
+      }
+    }
+    
+    // Se não encontrou, buscar em users/data
+    const allDataSnapshot = await db.ref('users/data').once('value');
+    if (allDataSnapshot.exists()) {
+      const allUsersData = allDataSnapshot.val();
+      for (const [uid, userData] of Object.entries(allUsersData)) {
+        if (userData.assistant_settings && userData.assistant_settings.apiKey) {
+          // Verificar se é master
+          const userRegisteredSnapshot = await db.ref(`users/registered/${uid}`).once('value');
+          if (userRegisteredSnapshot.exists()) {
+            const userRegistered = userRegisteredSnapshot.val();
+            if (userRegistered.isMaster || userRegistered.email === 'brayan@master.com') {
+              console.log('✅ API Key do master encontrada em users/data');
+              return userData.assistant_settings.apiKey;
+            }
+          }
+        }
+      }
+    }
+    
+    console.log('⚠️ API Key do master não encontrada para áudio');
+    return null;
+  } catch (error) {
+    console.error('❌ Erro ao buscar API Key do master:', error.message);
+    return null;
+  }
+}
+
+// Função para transcrever áudio usando OpenAI Whisper (sempre usa API Key do master)
+async function transcribeAudio(audioBuffer) {
+  try {
+    // Sempre buscar API Key do master
+    const apiKey = await getMasterApiKeyForAudio();
+    
     if (!apiKey) {
-      console.log('⚠️ API Key não fornecida para transcrição');
+      console.log('⚠️ API Key do master não encontrada para transcrição');
       return null;
     }
 
@@ -370,17 +423,23 @@ async function transcribeAudio(audioBuffer, apiKey) {
 }
 
 // Função para gerar áudio a partir de texto (TTS) usando Google TTS
-async function generateAudioFromText(text, language = 'pt-BR') {
+async function generateAudioFromText(text, language = 'pt-BR', voice = null) {
   try {
     // Usar API gratuita do Google TTS
-    const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${language}&client=tw-ob&q=${encodeURIComponent(text)}`;
+    // voice pode ser usado para selecionar voz específica (ex: 'pt-BR-Standard-A' para feminina, 'pt-BR-Standard-B' para masculina)
+    let ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${language}&client=tw-ob&q=${encodeURIComponent(text)}`;
+    
+    // Se voice for especificado, adicionar parâmetro (alguns TTS suportam)
+    if (voice) {
+      ttsUrl += `&voice=${voice}`;
+    }
     
     const response = await axios.get(ttsUrl, {
       responseType: 'arraybuffer'
     });
 
     if (response.data) {
-      console.log('✅ Áudio gerado com sucesso');
+      console.log(`✅ Áudio gerado com sucesso (idioma: ${language}${voice ? `, voz: ${voice}` : ''})`);
       return Buffer.from(response.data);
     }
 
@@ -419,40 +478,13 @@ async function handleIncomingMessage(userId, message, client) {
         const audioBuffer = await client.decryptFile(message);
         
         if (audioBuffer) {
-          // Buscar API Key para transcrição
-          const aiConfigSnapshot = await db.ref(`users/data/${userId}/assistant_settings`).once('value');
-          let aiConfig = aiConfigSnapshot.val();
-          
-          // Se não tiver API Key, buscar do master
-          if (aiConfig && !aiConfig.apiKey) {
-            const usersSnapshot = await db.ref('users/registered').once('value');
-            if (usersSnapshot.exists()) {
-              const users = usersSnapshot.val();
-              const masterUser = Object.values(users).find(u => 
-                u.email === 'brayan@master.com' || u.isMaster === true
-              );
-              if (masterUser) {
-                const masterConfigSnapshot = await db.ref(`users/data/${masterUser.uid}/assistant_settings`).once('value');
-                const masterConfig = masterConfigSnapshot.val();
-                if (masterConfig && masterConfig.apiKey) {
-                  aiConfig = { ...aiConfig, apiKey: masterConfig.apiKey };
-                }
-              }
-            }
-          }
-          
-          // Transcrever áudio
-          if (aiConfig && aiConfig.apiKey) {
-            messageText = await transcribeAudio(audioBuffer, aiConfig.apiKey);
-            if (messageText) {
-              console.log('✅ Áudio transcrito:', messageText);
-            } else {
-              console.log('⚠️ Não foi possível transcrever o áudio');
-              messageText = '[Áudio não transcrito]';
-            }
+          // Transcrever áudio (sempre usa API Key do master)
+          messageText = await transcribeAudio(audioBuffer);
+          if (messageText) {
+            console.log('✅ Áudio transcrito:', messageText);
           } else {
-            console.log('⚠️ API Key não encontrada para transcrição');
-            messageText = '[Áudio recebido - transcrição não disponível]';
+            console.log('⚠️ Não foi possível transcrever o áudio');
+            messageText = '[Áudio não transcrito]';
           }
         }
       } catch (error) {
@@ -577,7 +609,12 @@ async function handleIncomingMessage(userId, message, client) {
         if (isAudioMessage) {
           try {
             console.log('🎤 Gerando resposta em áudio...');
-            const audioBuffer = await generateAudioFromText(aiResponse);
+            
+            // Buscar configurações de áudio do usuário
+            const audioLanguage = aiConfig.audioLanguage || 'pt-BR';
+            const audioVoice = aiConfig.audioVoice || null;
+            
+            const audioBuffer = await generateAudioFromText(aiResponse, audioLanguage, audioVoice);
             
             if (audioBuffer) {
               // Salvar áudio temporariamente
@@ -587,7 +624,7 @@ async function handleIncomingMessage(userId, message, client) {
               
               // Enviar áudio
               await client.sendFile(message.from, tempAudioFile, 'audio.ogg', aiResponse);
-              console.log('✅ Resposta em áudio enviada');
+              console.log(`✅ Resposta em áudio enviada (idioma: ${audioLanguage}${audioVoice ? `, voz: ${audioVoice}` : ''})`);
               
               // Limpar arquivo temporário
               fs.unlinkSync(tempAudioFile);
@@ -3678,8 +3715,15 @@ app.post('/api/messages/send-audio', async (req, res) => {
       return res.status(404).json({ error: 'Sessão não encontrada ou inativa' });
     }
     
+    // Buscar configurações de áudio do usuário
+    const aiConfigSnapshot = await db.ref(`users/data/${userId}/assistant_settings`).once('value');
+    const aiConfig = aiConfigSnapshot.val() || {};
+    
+    const audioLanguage = language || aiConfig.audioLanguage || 'pt-BR';
+    const audioVoice = aiConfig.audioVoice || null;
+    
     // Gerar áudio a partir do texto
-    const audioBuffer = await generateAudioFromText(text, language || 'pt-BR');
+    const audioBuffer = await generateAudioFromText(text, audioLanguage, audioVoice);
     
     if (!audioBuffer) {
       return res.status(500).json({ error: 'Erro ao gerar áudio' });

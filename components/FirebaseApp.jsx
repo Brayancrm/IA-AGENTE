@@ -2630,7 +2630,9 @@ const DashboardWithFirebase = ({
       flowMode: 'visual', // Sempre visual
       flowSteps: assistantSettings.flowSteps || [], // ✅ Carregar steps salvos
       enableAppointments: assistantSettings.enableAppointments || false,
-      appointmentTypes: assistantSettings.appointmentTypes || []
+      appointmentTypes: assistantSettings.appointmentTypes || [],
+      audioLanguage: assistantSettings.audioLanguage || 'pt-BR',
+      audioVoice: assistantSettings.audioVoice || ''
     });
   }, [assistantSettings]);
 
@@ -5742,6 +5744,123 @@ const DashboardWithFirebase = ({
                     </div>
                   </>
                 )}
+
+                {/* Configurações de Áudio */}
+                <div style={{ 
+                  padding: '24px', 
+                  backgroundColor: 'rgba(16, 185, 129, 0.05)', 
+                  borderRadius: '12px',
+                  border: '1px solid rgba(16, 185, 129, 0.2)'
+                }}>
+                  <h3 style={{ 
+                    fontSize: '1.125rem', 
+                    fontWeight: '600', 
+                    color: '#ffffff', 
+                    marginBottom: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span style={{ fontSize: '1.5rem' }}>🎤</span>
+                    Configurações de Áudio
+                  </h3>
+                  <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '20px' }}>
+                    Configure o idioma e voz para respostas de áudio no WhatsApp
+                  </p>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div>
+                      <label style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontWeight: '600', 
+                        marginBottom: '10px', 
+                        color: '#ffffff',
+                        fontSize: '0.9375rem'
+                      }}>
+                        <span style={{ fontSize: '1.25rem' }}>🌍</span>
+                        Idioma do Áudio
+                      </label>
+                      <select
+                        value={assistantForm.audioLanguage || 'pt-BR'}
+                        onChange={(e) => setAssistantForm(prev => ({ ...prev, audioLanguage: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          padding: '14px 16px',
+                          borderRadius: '12px',
+                          border: '2px solid rgba(255, 255, 255, 0.1)',
+                          fontSize: '1rem',
+                          transition: 'all 0.2s ease',
+                          outline: 'none',
+                          backgroundColor: '#0f1419',
+                          color: '#ffffff'
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = '#10b981';
+                          e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                      >
+                        <option value="pt-BR">Português (Brasil)</option>
+                        <option value="pt-PT">Português (Portugal)</option>
+                        <option value="en-US">English (US)</option>
+                        <option value="en-GB">English (UK)</option>
+                        <option value="es-ES">Español (España)</option>
+                        <option value="es-MX">Español (México)</option>
+                        <option value="fr-FR">Français</option>
+                        <option value="de-DE">Deutsch</option>
+                        <option value="it-IT">Italiano</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontWeight: '600', 
+                        marginBottom: '10px', 
+                        color: '#ffffff',
+                        fontSize: '0.9375rem'
+                      }}>
+                        <span style={{ fontSize: '1.25rem' }}>🎙️</span>
+                        Voz (Opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={assistantForm.audioVoice || ''}
+                        onChange={(e) => setAssistantForm(prev => ({ ...prev, audioVoice: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          padding: '14px 16px',
+                          borderRadius: '12px',
+                          border: '2px solid rgba(255, 255, 255, 0.1)',
+                          fontSize: '1rem',
+                          transition: 'all 0.2s ease',
+                          outline: 'none',
+                          backgroundColor: '#0f1419',
+                          color: '#ffffff'
+                        }}
+                        placeholder="Ex: pt-BR-Standard-A (feminina) ou pt-BR-Standard-B (masculina)"
+                        onFocus={(e) => {
+                          e.target.style.borderColor = '#10b981';
+                          e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                      />
+                      <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '8px' }}>
+                        Deixe em branco para usar a voz padrão do idioma selecionado
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Flow Builder Visual */}
                 <div>
