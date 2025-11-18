@@ -966,9 +966,10 @@ const FirebaseApp = () => {
   };
   
   // Função para fazer upload de foto de perfil no companyForm
+  // Agora salva como Base64 no Realtime Database (sem usar Storage)
   const handleCompanyPhotoUpload = async (file) => {
-    if (!storage || !file || !user || !user.uid) {
-      showToast('Erro: Usuário não autenticado ou storage não disponível', 'error');
+    if (!file || !user || !user.uid || !database) {
+      showToast('Erro: Usuário não autenticado ou database não disponível', 'error');
       return;
     }
     
@@ -982,71 +983,39 @@ const FirebaseApp = () => {
         return;
       }
       
-      // Validar tamanho (máximo 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        showToast('A imagem deve ter no máximo 5MB', 'error');
+      // Validar tamanho (máximo 2MB para Base64 - menor que Storage para evitar problemas)
+      const maxSize = 2 * 1024 * 1024; // 2MB
+      if (file.size > maxSize) {
+        showToast('A imagem deve ter no máximo 2MB para salvar no banco de dados', 'error');
         setUploadingCompanyPhoto(false);
         return;
       }
       
-      // Criar referência no Storage com caminho único
-      const timestamp = Date.now();
-      const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const fileRef = storageRef(storage, `user_photos/${user.uid}/${timestamp}_${sanitizedFileName}`);
-      
-      // Fazer upload com metadata
-      const metadata = {
-        contentType: file.type,
-        customMetadata: {
-          uploadedBy: user.uid,
-          uploadedAt: new Date().toISOString()
-        }
-      };
-      
-      await uploadBytes(fileRef, file, metadata);
-      
-      // Obter URL de download
-      const downloadURL = await getDownloadURL(fileRef);
-      
-      // Atualizar estados
-      setCompanyForm(prev => ({ ...prev, photoURL: downloadURL }));
-      setCompanyPhotoPreview(downloadURL);
-      
-      // Salvar automaticamente no perfil
-      await saveCompanyProfile({
-        ...companyProfile,
-        photoURL: downloadURL
+      // Converter arquivo para Base64
+      const base64String = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          // reader.result contém "data:image/jpeg;base64,..."
+          resolve(reader.result);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
       });
       
-      showToast('Foto enviada com sucesso!', 'success');
+      // Atualizar estados com preview
+      setCompanyForm(prev => ({ ...prev, photoURL: base64String }));
+      setCompanyPhotoPreview(base64String);
+      
+      // Salvar automaticamente no perfil no Realtime Database
+      await saveCompanyProfile({
+        ...companyProfile,
+        photoURL: base64String
+      });
+      
+      showToast('Foto salva com sucesso!', 'success');
     } catch (error) {
-      console.error('Erro ao fazer upload da foto:', error);
-      console.error('Código do erro:', error.code);
-      console.error('Mensagem do erro:', error.message);
-      console.error('Stack trace:', error.stack);
-      
-      // Mensagens de erro mais específicas
-      let errorMessage = 'Erro ao fazer upload da foto';
-      
-      // Verificar se é erro de CORS
-      if (error.message && (
-        error.message.includes('CORS') || 
-        error.message.includes('preflight') ||
-        error.message.includes('Access-Control')
-      )) {
-        errorMessage = 'Erro de CORS: Configure as regras de CORS no Google Cloud Console. Veja FIREBASE_STORAGE_RULES.md';
-        console.error('⚠️ ERRO DE CORS DETECTADO! Configure CORS no Google Cloud Console.');
-      } else if (error.code === 'storage/unauthorized') {
-        errorMessage = 'Erro: Sem permissão para fazer upload. Verifique as regras do Firebase Storage.';
-      } else if (error.code === 'storage/canceled') {
-        errorMessage = 'Upload cancelado';
-      } else if (error.code === 'storage/unknown') {
-        errorMessage = 'Erro desconhecido. Verifique sua conexão e tente novamente.';
-      } else if (error.message) {
-        errorMessage = `Erro: ${error.message}`;
-      }
-      
-      showToast(errorMessage, 'error');
+      console.error('Erro ao processar a foto:', error);
+      showToast('Erro ao processar a foto: ' + (error.message || 'Erro desconhecido'), 'error');
     } finally {
       setUploadingCompanyPhoto(false);
     }
@@ -1738,27 +1707,42 @@ const FirebaseApp = () => {
     }
   };
 
-  // Função para fazer upload de foto de perfil
+  // Função para fazer upload de foto de perfil (agora salva como Base64 no Realtime Database)
   const handlePhotoUpload = async (file) => {
-    if (!storage || !file) return;
+    if (!file || !database) return;
     
     setUploadingPhoto(true);
     try {
-      // Criar referência no Storage
-      const fileRef = storageRef(storage, `user_photos/${Date.now()}_${file.name}`);
+      // Validar tipo de arquivo
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        showToast('Formato de arquivo inválido. Use JPG, PNG, GIF ou WEBP', 'error');
+        setUploadingPhoto(false);
+        return;
+      }
       
-      // Fazer upload
-      await uploadBytes(fileRef, file);
+      // Validar tamanho (máximo 2MB para Base64)
+      const maxSize = 2 * 1024 * 1024; // 2MB
+      if (file.size > maxSize) {
+        showToast('A imagem deve ter no máximo 2MB', 'error');
+        setUploadingPhoto(false);
+        return;
+      }
       
-      // Obter URL de download
-      const downloadURL = await getDownloadURL(fileRef);
+      // Converter arquivo para Base64
+      const base64String = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
       
-      setUserForm(prev => ({ ...prev, photoURL: downloadURL }));
-      setPhotoPreview(downloadURL);
-      showToast('Foto enviada com sucesso!');
+      setUserForm(prev => ({ ...prev, photoURL: base64String }));
+      setPhotoPreview(base64String);
+      showToast('Foto processada com sucesso!');
     } catch (error) {
-      console.error('Erro ao fazer upload da foto:', error);
-      showToast('Erro ao fazer upload da foto: ' + error.message, 'error');
+      console.error('Erro ao processar a foto:', error);
+      showToast('Erro ao processar a foto: ' + (error.message || 'Erro desconhecido'), 'error');
     } finally {
       setUploadingPhoto(false);
     }
@@ -2587,7 +2571,6 @@ const FirebaseApp = () => {
         companyPhotoPreview={companyPhotoPreview}
         setCompanyPhotoPreview={setCompanyPhotoPreview}
         uploadingCompanyPhoto={uploadingCompanyPhoto}
-        storage={storage}
       />
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <PlanSelectionModal />
@@ -2666,8 +2649,7 @@ const DashboardWithFirebase = ({
   handleCompanyPhotoUpload,
   companyPhotoPreview = undefined,
   setCompanyPhotoPreview = undefined,
-  uploadingCompanyPhoto = undefined,
-  storage = undefined
+  uploadingCompanyPhoto = undefined
 }) => {
   // Garantir que usedTrials sempre seja um objeto
   const safeUsedTrials = usedTrials || {};
@@ -2792,27 +2774,48 @@ const DashboardWithFirebase = ({
   
   // Wrapper para handleCompanyPhotoUpload que atualiza os estados corretos
   const handleCompanyPhotoUploadWrapper = async (file) => {
-    if (handleCompanyPhotoUpload && storage) {
+    if (handleCompanyPhotoUpload) {
       // Usar função que vem como prop (preferencial)
       await handleCompanyPhotoUpload(file);
-    } else if (storage && file && user) {
-      // Se não vier como prop, criar função local
+    } else if (file && user && database) {
+      // Se não vier como prop, criar função local usando Base64
       setLocalUploadingCompanyPhoto(true);
       try {
-        const fileRef = storageRef(storage, `user_photos/${user.uid}_${Date.now()}_${file.name}`);
-        await uploadBytes(fileRef, file);
-        const downloadURL = await getDownloadURL(fileRef);
-        setCompanyForm(prev => ({ ...prev, photoURL: downloadURL }));
-        setFinalCompanyPhotoPreview(downloadURL);
-        showToast('Foto enviada com sucesso!');
+        // Validar tipo de arquivo
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+          showToast('Formato de arquivo inválido. Use JPG, PNG, GIF ou WEBP', 'error');
+          setLocalUploadingCompanyPhoto(false);
+          return;
+        }
+        
+        // Validar tamanho (máximo 2MB para Base64)
+        const maxSize = 2 * 1024 * 1024; // 2MB
+        if (file.size > maxSize) {
+          showToast('A imagem deve ter no máximo 2MB', 'error');
+          setLocalUploadingCompanyPhoto(false);
+          return;
+        }
+        
+        // Converter arquivo para Base64
+        const base64String = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        
+        setCompanyForm(prev => ({ ...prev, photoURL: base64String }));
+        setFinalCompanyPhotoPreview(base64String);
+        showToast('Foto processada com sucesso!');
       } catch (error) {
-        console.error('Erro ao fazer upload da foto:', error);
-        showToast('Erro ao fazer upload da foto: ' + error.message, 'error');
+        console.error('Erro ao processar a foto:', error);
+        showToast('Erro ao processar a foto: ' + (error.message || 'Erro desconhecido'), 'error');
       } finally {
         setLocalUploadingCompanyPhoto(false);
       }
     } else {
-      showToast('Erro: Storage ou usuário não disponível', 'error');
+      showToast('Erro: Database ou usuário não disponível', 'error');
     }
   };
 
@@ -4804,8 +4807,8 @@ const DashboardWithFirebase = ({
                           const file = e.target.files?.[0];
                           if (file) {
                             // Validar tamanho (máximo 5MB)
-                            if (file.size > 5 * 1024 * 1024) {
-                              showToast('A imagem deve ter no máximo 5MB', 'error');
+                            if (file.size > 2 * 1024 * 1024) {
+                              showToast('A imagem deve ter no máximo 2MB', 'error');
                               return;
                             }
                             handleCompanyPhotoUploadWrapper(file);
@@ -4843,7 +4846,7 @@ const DashboardWithFirebase = ({
                         {finalUploadingCompanyPhoto ? 'Enviando...' : finalCompanyPhotoPreview ? 'Alterar Foto' : 'Escolher Foto'}
                       </label>
                       <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px', margin: 0 }}>
-                        Formatos: JPG, PNG, GIF (máx. 5MB)
+                        Formatos: JPG, PNG, GIF (máx. 2MB)
                       </p>
                     </div>
                   </div>
