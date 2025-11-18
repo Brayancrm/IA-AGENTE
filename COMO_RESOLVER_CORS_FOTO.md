@@ -13,11 +13,14 @@ O erro de CORS acontece porque o Google Cloud Storage (que o Firebase usa) preci
    - OU `ia-agente-b2f46.appspot.com`
    - (Pode aparecer apenas um, não tem problema)
 
-3. **No topo da página, clique na aba "CONFIGURAÇÃO"** (Configuration)
+3. **No topo da página, clique na aba "CONFIGURAÇÃO"** (Configuration) - ✅ **VOCÊ JÁ ESTÁ AQUI!**
 
-4. **Role a página até encontrar a seção "CORS"** (Cross-Origin Resource Sharing)
+4. **ROLE A PÁGINA PARA BAIXO** - Continue rolando até encontrar a seção **"CORS"** (Cross-Origin Resource Sharing)
+   - ⚠️ **IMPORTANTE:** A seção CORS fica bem no final da página de configuração
+   - Você vai passar por várias seções como: "Panoramica", "Autorizzazioni", "Protezione", "Ciclo di vita", etc.
+   - Continue rolando até aparecer **"CORS"**
 
-5. **Clique no botão "EDITAR"** (Edit) ao lado de CORS
+5. **Quando encontrar a seção CORS, clique no botão "EDITAR"** (Edit) ou "CONFIGURA" (Configure)
 
 6. **Apague tudo que estiver lá e cole EXATAMENTE isto:**
 
@@ -81,11 +84,28 @@ O erro de CORS acontece porque o Google Cloud Storage (que o Firebase usa) preci
 Google Cloud Console
   └─ Cloud Storage
       └─ Buckets
-          └─ [Seu Bucket]
-              └─ Aba "CONFIGURAÇÃO"
-                  └─ Seção "CORS"
-                      └─ Botão "EDITAR"
+          └─ [Seu Bucket] ✅ VOCÊ ESTÁ AQUI
+              └─ Aba "CONFIGURAÇÃO" ✅ VOCÊ ESTÁ AQUI
+                  └─ ⬇️ ROLE PARA BAIXO ⬇️
+                      └─ Seção "CORS" ← PROCURE AQUI
+                          └─ Botão "EDITAR"
 ```
+
+## 🔍 Se Não Encontrar a Seção CORS:
+
+**Opção 1:** A seção pode estar oculta. Tente:
+- Use `Ctrl + F` (ou `Cmd + F` no Mac) e procure por "CORS"
+- Ou procure por "Cross-Origin"
+
+**Opção 2:** Se realmente não aparecer, você pode configurar via linha de comando:
+1. Instale o Google Cloud SDK
+2. Execute este comando no terminal:
+
+```bash
+gsutil cors set cors-config.json gs://ia-agente-b2f46.firebasestorage.app
+```
+
+Onde `cors-config.json` é um arquivo com o JSON que forneci acima.
 
 ---
 
