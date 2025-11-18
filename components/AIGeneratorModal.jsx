@@ -490,10 +490,21 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
       },
       {
         id: 'extras',
-        type: 'text',
+        type: 'multi_select',
         title: 'Existe alguma regra ou observação final?',
         description: 'Políticas de atendimento, gatilhos ou instruções específicas adicionais.',
-        placeholder: 'Ex: sempre confirmar endereço completo antes de finalizar.'
+        options: [
+          { value: 'Sempre confirmar endereço completo antes de finalizar', label: '✅ Confirmar endereço antes de finalizar' },
+          { value: 'Validar dados do cliente antes de processar pedido', label: '✅ Validar dados do cliente' },
+          { value: 'Solicitar confirmação explícita antes de cobrar', label: '✅ Confirmar antes de cobrar' },
+          { value: 'Informar prazo de entrega sempre que mencionar produto', label: '✅ Informar prazo de entrega' },
+          { value: 'Oferecer desconto apenas com autorização prévia', label: '✅ Desconto apenas com autorização' },
+          { value: 'Sempre agradecer ao final da conversa', label: '✅ Agradecer ao final' },
+          { value: 'Confirmar horário de funcionamento antes de agendar', label: '✅ Confirmar horário de funcionamento' },
+          { value: 'Verificar disponibilidade antes de confirmar pedido', label: '✅ Verificar disponibilidade' },
+          { value: 'NÃO_APLICA_EXTRAS', label: '❌ Não há regras ou observações adicionais', isNegative: true }
+        ],
+        allowCustom: true
       }
     ];
   }, [appointmentTypeOptions, catalogOptions]);
@@ -664,8 +675,13 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
       parts.push(`CONFIGURAÇÕES DE ÁUDIO:\nIdioma: ${languages}\nVoz: ${voices}`);
     }
 
-    if (guidedAnswers.extras.trim()) {
-      parts.push(`OBSERVAÇÕES ADICIONAIS:\n${guidedAnswers.extras.trim()}`);
+    // extras agora pode ser array
+    const extrasArray = Array.isArray(guidedAnswers.extras) ? guidedAnswers.extras : (guidedAnswers.extras ? [guidedAnswers.extras] : []);
+    const extrasFiltered = extrasArray.filter(item => !item.startsWith('NÃO_APLICA_'));
+    if (extrasFiltered.length > 0) {
+      parts.push(`OBSERVAÇÕES ADICIONAIS:\n${extrasFiltered.join('\n')}`);
+    } else if (extrasArray.includes('NÃO_APLICA_EXTRAS')) {
+      parts.push(`OBSERVAÇÕES ADICIONAIS:\nNão há regras ou observações adicionais.`);
     }
 
     return parts.join('\n\n');
@@ -1251,23 +1267,24 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                 >
                   Voltar
                 </button>
-                <button
-                  type="button"
-                  onClick={handleNextQuestion}
-                  disabled={currentQuestionIndex === visibleQuestions.length - 1}
-                  style={{
-                    flex: 1,
-                    padding: '12px 16px',
-                    borderRadius: '10px',
-                    backgroundColor: currentQuestionIndex === visibleQuestions.length - 1 ? 'rgba(16, 185, 129, 0.2)' : '#1a1f36',
-                    border: currentQuestionIndex === visibleQuestions.length - 1 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #10b981',
-                    color: 'white',
-                    cursor: currentQuestionIndex === visibleQuestions.length - 1 ? 'not-allowed' : 'pointer',
-                    fontWeight: 600
-                  }}
-                >
-                  Próxima pergunta
-                </button>
+                {currentQuestionIndex < visibleQuestions.length - 1 && (
+                  <button
+                    type="button"
+                    onClick={handleNextQuestion}
+                    style={{
+                      flex: 1,
+                      padding: '12px 16px',
+                      borderRadius: '10px',
+                      backgroundColor: '#1a1f36',
+                      border: '1px solid #10b981',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontWeight: 600
+                    }}
+                  >
+                    Próxima pergunta
+                  </button>
+                )}
               </div>
 
               <div style={{
