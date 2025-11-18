@@ -1108,17 +1108,48 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
           {mode === 'guided' ? (
             <>
               <div style={{
-                marginBottom: '16px',
-                padding: '12px 16px',
-                borderRadius: '10px',
-                background: 'rgba(16, 185, 129, 0.1)',
-                color: '#10b981',
+                marginBottom: '20px',
+                padding: '16px 20px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.15) 100%)',
+                border: '2px solid rgba(16, 185, 129, 0.4)',
                 display: 'flex',
                 justifyContent: 'space-between',
-                fontSize: '13px'
+                alignItems: 'center',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
               }}>
-                <span>Pergunta {currentQuestionIndex + 1} de {visibleQuestions.length}</span>
-                <span>Monte o prompt passo a passo</span>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}>
+                  <span style={{
+                    fontSize: '20px',
+                    fontWeight: '700',
+                    color: '#10b981',
+                    letterSpacing: '0.5px'
+                  }}>
+                    Pergunta {currentQuestionIndex + 1} de {visibleQuestions.length}
+                  </span>
+                  <span style={{
+                    fontSize: '12px',
+                    color: 'rgba(16, 185, 129, 0.8)',
+                    fontWeight: '500'
+                  }}>
+                    Monte o prompt passo a passo
+                  </span>
+                </div>
+                <div style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  background: 'rgba(16, 185, 129, 0.2)',
+                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#10b981'
+                }}>
+                  {Math.round(((currentQuestionIndex + 1) / visibleQuestions.length) * 100)}%
+                </div>
               </div>
 
               <div style={{
