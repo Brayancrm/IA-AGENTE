@@ -702,11 +702,11 @@ async function handleIncomingMessage(userId, message, client) {
             if (audioBuffer) {
               // Salvar áudio temporariamente
               const tempDir = os.tmpdir();
-              const tempAudioFile = path.join(tempDir, `response_${Date.now()}.ogg`);
+              const tempAudioFile = path.join(tempDir, `response_${Date.now()}.mp3`);
               fs.writeFileSync(tempAudioFile, audioBuffer);
               
               // Enviar áudio
-              await client.sendFile(message.from, tempAudioFile, 'audio.ogg', aiResponse);
+              await client.sendFile(message.from, tempAudioFile, 'audio.mp3', aiResponse);
               console.log(`✅ Resposta em áudio enviada (idioma: ${audioLanguage}${audioVoice ? `, voz: ${audioVoice}` : ''})`);
               
               // Limpar arquivo temporário
@@ -3814,12 +3814,12 @@ app.post('/api/messages/send-audio', async (req, res) => {
     
     // Salvar áudio temporariamente
     const tempDir = os.tmpdir();
-    const tempAudioFile = path.join(tempDir, `audio_${Date.now()}_${userId}.ogg`);
+    const tempAudioFile = path.join(tempDir, `audio_${Date.now()}_${userId}.mp3`);
     fs.writeFileSync(tempAudioFile, audioBuffer);
     
     try {
       // Enviar áudio
-      await client.sendFile(to, tempAudioFile, 'audio.ogg', text);
+      await client.sendFile(to, tempAudioFile, 'audio.mp3', text);
       
       // Incrementar contador de uso
       await incrementMessageUsage(userId);
