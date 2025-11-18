@@ -76,7 +76,16 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
     };
     const newSteps = [...steps, newStep];
     setSteps(newSteps);
-    setEditingIndex(newSteps.length - 1);
+    
+    // Calcular a página onde o novo passo estará (2 passos por página)
+    const stepsPerPage = 2;
+    const newStepIndex = newSteps.length - 1;
+    const targetPage = Math.floor(newStepIndex / stepsPerPage);
+    
+    // Navegar para a página do novo passo
+    setCurrentPage(targetPage);
+    
+    setEditingIndex(newStepIndex);
     setEditingStep(newStep);
   };
 
