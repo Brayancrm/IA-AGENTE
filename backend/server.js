@@ -3833,8 +3833,23 @@ app.post('/api/messages/send-audio', async (req, res) => {
     fs.writeFileSync(tempAudioFile, audioBuffer);
     
     try {
-      // Enviar áudio
-      await client.sendFile(to, tempAudioFile, 'audio.mp3', text);
+      // Enviar áudio como PTT (push-to-talk) - formato de áudio do WhatsApp
+      try {
+        // Tentar usar sendPtt se disponível
+        if (client.sendPtt) {
+          const audioBase64 = audioBuffer.toString('base64');
+          await client.sendPtt(to, audioBase64);
+          console.log(`✅ Áudio PTT enviado manualmente`);
+        } else {
+          // Fallback: usar sendFile
+          await client.sendFile(to, tempAudioFile, 'audio.mp3', text);
+          console.log(`✅ Áudio enviado via sendFile`);
+        }
+      } catch (sendError) {
+        console.error('❌ Erro ao enviar áudio:', sendError.message);
+        // Tentar fallback com sendFile
+        await client.sendFile(to, tempAudioFile, 'audio.mp3', text);
+      }
       
       // Incrementar contador de uso
       await incrementMessageUsage(userId);
