@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { getDatabase, ref, push, set, onValue, off } from 'firebase/database';
 
 const firebaseConfig = {
@@ -42,6 +42,11 @@ const SimpleLanding = ({ onLoginSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [plans, setPlans] = useState([]);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false);
+  const [forgotPasswordError, setForgotPasswordError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -206,6 +211,41 @@ const SimpleLanding = ({ onLoginSuccess }) => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!forgotPasswordEmail || !forgotPasswordEmail.trim()) {
+      setForgotPasswordError('Por favor, digite seu email.');
+      return;
+    }
+
+    setForgotPasswordLoading(true);
+    setForgotPasswordError('');
+
+    try {
+      await sendPasswordResetEmail(auth, forgotPasswordEmail.trim());
+      setForgotPasswordSuccess(true);
+      setForgotPasswordError('');
+    } catch (error) {
+      console.error('Erro ao enviar email de redefinição:', error);
+      switch (error.code) {
+        case 'auth/user-not-found':
+          setForgotPasswordError('Email não encontrado. Verifique se o email está correto.');
+          break;
+        case 'auth/invalid-email':
+          setForgotPasswordError('Email inválido. Verifique o formato do email.');
+          break;
+        case 'auth/too-many-requests':
+          setForgotPasswordError('Muitas tentativas. Aguarde alguns minutos e tente novamente.');
+          break;
+        default:
+          setForgotPasswordError('Erro ao enviar email de recuperação. Tente novamente.');
+      }
+      setForgotPasswordSuccess(false);
+    } finally {
+      setForgotPasswordLoading(false);
     }
   };
 
@@ -1253,6 +1293,34 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             />
           </div>
 
+          {mode === 'login' && (
+            <div style={{ textAlign: 'right', marginBottom: '20px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setForgotPasswordEmail(formData.email || '');
+                  setShowForgotPasswordModal(true);
+                  setForgotPasswordSuccess(false);
+                  setForgotPasswordError('');
+                }}
+                style={{
+                  backgroundColor: 'transparent',
+                  color: '#9ca3af',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  textDecoration: 'none',
+                  transition: 'color 0.2s ease',
+                  padding: '4px 0'
+                }}
+                onMouseEnter={(e) => e.target.style.color = '#10b981'}
+                onMouseLeave={(e) => e.target.style.color = '#9ca3af'}
+              >
+                Esqueceu sua senha?
+              </button>
+            </div>
+          )}
+
           {mode === 'register' && (
             <>
               <div style={{ marginBottom: '20px' }}>
@@ -1398,6 +1466,260 @@ const SimpleLanding = ({ onLoginSuccess }) => {
           </button>
         </div>
       </div>
+        </div>
+      )}
+
+      {/* Modal de Redefinição de Senha */}
+      {showForgotPasswordModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2001,
+            padding: '20px'
+          }}
+          onClick={() => {
+            setShowForgotPasswordModal(false);
+            setForgotPasswordEmail('');
+            setForgotPasswordSuccess(false);
+            setForgotPasswordError('');
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#1a1f36',
+              borderRadius: '24px',
+              padding: '48px',
+              maxWidth: '480px',
+              width: '100%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              border: '1px solid rgba(16, 185, 129, 0.2)',
+              position: 'relative'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Botão Fechar */}
+            <button
+              onClick={() => {
+                setShowForgotPasswordModal(false);
+                setForgotPasswordEmail('');
+                setForgotPasswordSuccess(false);
+                setError('');
+              }}
+              style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#9ca3af',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '8px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                e.target.style.color = '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#9ca3af';
+              }}
+            >
+              ×
+            </button>
+
+            {/* Conteúdo do Modal */}
+            {!forgotPasswordSuccess ? (
+              <>
+                <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                  <div style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 20px',
+                    fontSize: '2rem'
+                  }}>
+                    🔐
+                  </div>
+                  <h2 style={{
+                    fontSize: '1.875rem',
+                    fontWeight: '700',
+                    color: '#ffffff',
+                    marginBottom: '12px'
+                  }}>
+                    Esqueceu sua senha?
+                  </h2>
+                  <p style={{
+                    fontSize: '0.9375rem',
+                    color: '#9ca3af',
+                    lineHeight: '1.6'
+                  }}>
+                    Digite seu email e enviaremos um link para redefinir sua senha
+                  </p>
+                </div>
+
+                <form onSubmit={handleForgotPassword}>
+                  <div style={{ marginBottom: '20px' }}>
+                    <input
+                      type="email"
+                      placeholder="seu@email.com"
+                      value={forgotPasswordEmail}
+                      onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                      required
+                      disabled={forgotPasswordLoading}
+                      style={{
+                        width: '100%',
+                        padding: '14px 16px',
+                        borderRadius: '12px',
+                        border: '2px solid rgba(255,255,255,0.1)',
+                        backgroundColor: '#0f1419',
+                        color: '#ffffff',
+                        fontSize: '1rem',
+                        boxSizing: 'border-box',
+                        outline: 'none',
+                        transition: 'border-color 0.2s ease',
+                        opacity: forgotPasswordLoading ? 0.6 : 1
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                      onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+                    />
+                  </div>
+
+                  {forgotPasswordError && (
+                    <div style={{
+                      backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                      color: '#fecaca',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      marginBottom: '16px',
+                      fontSize: '0.875rem'
+                    }}>
+                      {forgotPasswordError}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={forgotPasswordLoading}
+                    style={{
+                      width: '100%',
+                      background: forgotPasswordLoading ? '#6b7280' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      color: 'white',
+                      padding: '16px',
+                      borderRadius: '12px',
+                      fontWeight: '700',
+                      fontSize: '1.125rem',
+                      border: 'none',
+                      cursor: forgotPasswordLoading ? 'not-allowed' : 'pointer',
+                      boxShadow: forgotPasswordLoading ? 'none' : '0 4px 16px rgba(16, 185, 129, 0.4)',
+                      transition: 'all 0.2s ease',
+                      marginBottom: '16px'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!forgotPasswordLoading) {
+                        e.target.style.transform = 'translateY(-2px)';
+                        e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.5)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!forgotPasswordLoading) {
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 4px 16px rgba(16, 185, 129, 0.4)';
+                      }
+                    }}
+                  >
+                    {forgotPasswordLoading ? 'Enviando...' : '📧 Enviar Link de Recuperação'}
+                  </button>
+                </form>
+              </>
+            ) : (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 20px',
+                  fontSize: '2rem'
+                }}>
+                  ✅
+                </div>
+                <h2 style={{
+                  fontSize: '1.875rem',
+                  fontWeight: '700',
+                  color: '#ffffff',
+                  marginBottom: '12px'
+                }}>
+                  Email enviado!
+                </h2>
+                <p style={{
+                  fontSize: '0.9375rem',
+                  color: '#9ca3af',
+                  lineHeight: '1.6',
+                  marginBottom: '32px'
+                }}>
+                  Verifique sua caixa de entrada e clique no link para redefinir sua senha.
+                  <br />
+                  <span style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '8px', display: 'block' }}>
+                    Não recebeu? Verifique a pasta de spam.
+                  </span>
+                </p>
+                <button
+                  onClick={() => {
+                    setShowForgotPasswordModal(false);
+                    setForgotPasswordEmail('');
+                    setForgotPasswordSuccess(false);
+                    setError('');
+                  }}
+                  style={{
+                    width: '100%',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: 'white',
+                    padding: '16px',
+                    borderRadius: '12px',
+                    fontWeight: '700',
+                    fontSize: '1.125rem',
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 16px rgba(16, 185, 129, 0.4)',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.5)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 4px 16px rgba(16, 185, 129, 0.4)';
+                  }}
+                >
+                  Entendi
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
