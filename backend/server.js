@@ -3478,8 +3478,9 @@ app.post('/api/messages/send', async (req, res) => {
     // Incrementar contador de uso
     await incrementMessageUsage(userId);
     
-    // Salvar mensagem enviada
-    const messageRef = db.ref(`conversations/${userId}/${to}/messages`).push();
+    // Salvar mensagem enviada (sanitizar número para Firebase)
+    const sanitizedNumber = sanitizePhoneNumber(to);
+    const messageRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
     await messageRef.set({
       from: 'me',
       to: to,
