@@ -332,7 +332,9 @@ function sanitizePhoneNumber(phoneNumber) {
 // Função para buscar API Key do master para áudio
 async function getMasterApiKeyForAudio() {
   try {
-    // Buscar master em users/registered
+    let masterUserId = null;
+    
+    // Estratégia 1: Buscar master em users/registered
     const usersSnapshot = await db.ref('users/registered').once('value');
     
     if (usersSnapshot.exists()) {
@@ -342,32 +344,63 @@ async function getMasterApiKeyForAudio() {
       );
       
       if (masterUser && masterUser.uid) {
-        const masterConfigSnapshot = await db.ref(`users/data/${masterUser.uid}/assistant_settings`).once('value');
-        const masterConfig = masterConfigSnapshot.val();
-        
-        if (masterConfig && masterConfig.apiKey) {
-          console.log('✅ API Key do master encontrada para áudio');
-          return masterConfig.apiKey;
+        masterUserId = masterUser.uid;
+        console.log('✅ Master encontrado em users/registered:', masterUser.email, 'UID:', masterUserId);
+      }
+    }
+    
+    // Estratégia 2: Se não encontrou, buscar todas as configurações em users/data até encontrar uma com API Key
+    if (!masterUserId) {
+      console.log('🔍 Master não encontrado em users/registered, buscando em users/data...');
+      
+      const allDataSnapshot = await db.ref('users/data').once('value');
+      
+      if (allDataSnapshot.exists()) {
+        const allUsersData = allDataSnapshot.val();
+        for (const [uid, userData] of Object.entries(allUsersData)) {
+          if (userData.assistant_settings && userData.assistant_settings.apiKey) {
+            // Verificar se é master
+            const userRegisteredSnapshot = await db.ref(`users/registered/${uid}`).once('value');
+            if (userRegisteredSnapshot.exists()) {
+              const userRegistered = userRegisteredSnapshot.val();
+              if (userRegistered.isMaster || userRegistered.email === 'brayan@master.com') {
+                masterUserId = uid;
+                console.log('✅ Master encontrado em users/data, UID:', masterUserId);
+                break;
+              }
+            }
+          }
         }
       }
     }
     
-    // Se não encontrou, buscar em users/data
-    const allDataSnapshot = await db.ref('users/data').once('value');
-    if (allDataSnapshot.exists()) {
-      const allUsersData = allDataSnapshot.val();
-      for (const [uid, userData] of Object.entries(allUsersData)) {
-        if (userData.assistant_settings && userData.assistant_settings.apiKey) {
-          // Verificar se é master
-          const userRegisteredSnapshot = await db.ref(`users/registered/${uid}`).once('value');
-          if (userRegisteredSnapshot.exists()) {
-            const userRegistered = userRegisteredSnapshot.val();
-            if (userRegistered.isMaster || userRegistered.email === 'brayan@master.com') {
-              console.log('✅ API Key do master encontrada em users/data');
-              return userData.assistant_settings.apiKey;
-            }
+    // Estratégia 3: Se ainda não encontrou, buscar qualquer usuário com API Key (fallback)
+    if (!masterUserId) {
+      console.log('🔍 Master não encontrado, buscando qualquer API Key disponível...');
+      
+      const allDataSnapshot = await db.ref('users/data').once('value');
+      if (allDataSnapshot.exists()) {
+        const allUsersData = allDataSnapshot.val();
+        for (const [uid, userData] of Object.entries(allUsersData)) {
+          if (userData.assistant_settings && userData.assistant_settings.apiKey) {
+            masterUserId = uid;
+            console.log('✅ Usando API Key encontrada no UID:', uid, '(fallback)');
+            break;
           }
         }
+      }
+    }
+    
+    // Buscar configuração do master encontrado
+    if (masterUserId) {
+      const masterConfigSnapshot = await db.ref(`users/data/${masterUserId}/assistant_settings`).once('value');
+      const masterConfig = masterConfigSnapshot.val();
+      
+      if (masterConfig && masterConfig.apiKey) {
+        console.log('✅ API Key do master encontrada para áudio (primeiros 10 caracteres):', masterConfig.apiKey.substring(0, 10) + '...');
+        return masterConfig.apiKey;
+      } else {
+        console.log('⚠️ Master encontrado mas sem API Key configurada');
       }
     }
     

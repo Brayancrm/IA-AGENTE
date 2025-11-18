@@ -271,19 +271,13 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
         title: '🎙️ Qual voz usar para respostas de áudio?',
         description: 'Escolha o tom e gênero da voz que o agente usará ao responder em áudio.',
         options: [
-          { value: '', label: '🔇 Voz Padrão (automática)' },
-          { value: 'pt-BR-Standard-A', label: '👩 Voz Feminina - Padrão (Brasil)' },
-          { value: 'pt-BR-Standard-B', label: '👨 Voz Masculina - Padrão (Brasil)' },
-          { value: 'pt-BR-Wavenet-A', label: '👩 Voz Feminina - Natural (Brasil)' },
-          { value: 'pt-BR-Wavenet-B', label: '👨 Voz Masculina - Natural (Brasil)' },
-          { value: 'pt-BR-Wavenet-C', label: '👩 Voz Feminina - Jovem (Brasil)' },
-          { value: 'pt-BR-Wavenet-D', label: '👨 Voz Masculina - Jovem (Brasil)' },
-          { value: 'en-US-Standard-A', label: '👩 Female Voice - Standard (US)' },
-          { value: 'en-US-Standard-B', label: '👨 Male Voice - Standard (US)' },
-          { value: 'en-US-Wavenet-A', label: '👩 Female Voice - Natural (US)' },
-          { value: 'en-US-Wavenet-B', label: '👨 Male Voice - Natural (US)' },
-          { value: 'es-ES-Standard-A', label: '👩 Voz Femenina - Estándar (España)' },
-          { value: 'es-ES-Standard-B', label: '👨 Voz Masculina - Estándar (España)' }
+          { value: '', label: '🔇 Voz Padrão (automática - feminina natural)' },
+          { value: 'nova', label: '✨ Nova - Feminina Natural (Recomendada)' },
+          { value: 'shimmer', label: '🌟 Shimmer - Feminina Jovem e Energética' },
+          { value: 'alloy', label: '💎 Alloy - Feminina Neutra e Profissional' },
+          { value: 'onyx', label: '🎙️ Onyx - Masculina Profunda e Autoritativa' },
+          { value: 'echo', label: '🔊 Echo - Masculina Jovem e Vibrante' },
+          { value: 'fable', label: '📖 Fable - Masculina Narrativa e Expressiva' }
         ],
         required: false
       },

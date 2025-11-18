@@ -5853,32 +5853,16 @@ const DashboardWithFirebase = ({
                           e.target.style.boxShadow = 'none';
                         }}
                       >
-                        <option value="">🔇 Voz Padrão (automática)</option>
-                        <optgroup label="🇧🇷 Português (Brasil)">
-                          <option value="pt-BR-Standard-A">👩 Voz Feminina - Padrão</option>
-                          <option value="pt-BR-Standard-B">👨 Voz Masculina - Padrão</option>
-                          <option value="pt-BR-Wavenet-A">👩 Voz Feminina - Natural</option>
-                          <option value="pt-BR-Wavenet-B">👨 Voz Masculina - Natural</option>
-                          <option value="pt-BR-Wavenet-C">👩 Voz Feminina - Jovem</option>
-                          <option value="pt-BR-Wavenet-D">👨 Voz Masculina - Jovem</option>
+                        <option value="">🔇 Voz Padrão (automática - feminina natural)</option>
+                        <optgroup label="👩 Vozes Femininas">
+                          <option value="nova">✨ Nova - Feminina Natural (Recomendada)</option>
+                          <option value="shimmer">🌟 Shimmer - Feminina Jovem e Energética</option>
+                          <option value="alloy">💎 Alloy - Feminina Neutra e Profissional</option>
                         </optgroup>
-                        <optgroup label="🇺🇸 English (US)">
-                          <option value="en-US-Standard-A">👩 Female Voice - Standard</option>
-                          <option value="en-US-Standard-B">👨 Male Voice - Standard</option>
-                          <option value="en-US-Wavenet-A">👩 Female Voice - Natural</option>
-                          <option value="en-US-Wavenet-B">👨 Male Voice - Natural</option>
-                        </optgroup>
-                        <optgroup label="🇪🇸 Español (España)">
-                          <option value="es-ES-Standard-A">👩 Voz Femenina - Estándar</option>
-                          <option value="es-ES-Standard-B">👨 Voz Masculina - Estándar</option>
-                        </optgroup>
-                        <optgroup label="🇫🇷 Français">
-                          <option value="fr-FR-Standard-A">👩 Voix Féminine - Standard</option>
-                          <option value="fr-FR-Standard-B">👨 Voix Masculine - Standard</option>
-                        </optgroup>
-                        <optgroup label="🇩🇪 Deutsch">
-                          <option value="de-DE-Standard-A">👩 Weibliche Stimme - Standard</option>
-                          <option value="de-DE-Standard-B">👨 Männliche Stimme - Standard</option>
+                        <optgroup label="👨 Vozes Masculinas">
+                          <option value="onyx">🎙️ Onyx - Masculina Profunda e Autoritativa</option>
+                          <option value="echo">🔊 Echo - Masculina Jovem e Vibrante</option>
+                          <option value="fable">📖 Fable - Masculina Narrativa e Expressiva</option>
                         </optgroup>
                       </select>
                       <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '8px' }}>
