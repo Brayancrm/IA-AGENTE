@@ -3,6 +3,10 @@ const admin = require('firebase-admin');
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const FormData = require('form-data');
 require('dotenv').config();
 
 const APP_ID = 'whatsapp-sales-agent';
@@ -231,9 +235,7 @@ async function createSession(userId) {
           '--disable-background-networking',
           '--disable-sync',
           '--metrics-recording-only',
-          '--mute-audio',
-          '--disable-audio-input',
-          '--disable-audio-output'
+          '--mute-audio'
         ]
       }
     };
@@ -323,10 +325,76 @@ function sanitizePhoneNumber(phoneNumber) {
   return phoneNumber.replace(/[\.\#\$\[\]@]/g, '_');
 }
 
+// ============================================
+// FUNÇÕES DE ÁUDIO
+// ============================================
+
+// Função para transcrever áudio usando OpenAI Whisper
+async function transcribeAudio(audioBuffer, apiKey) {
+  try {
+    if (!apiKey) {
+      console.log('⚠️ API Key não fornecida para transcrição');
+      return null;
+    }
+
+    // Criar arquivo temporário
+    const tempDir = os.tmpdir();
+    const tempFile = path.join(tempDir, `audio_${Date.now()}.ogg`);
+    fs.writeFileSync(tempFile, audioBuffer);
+
+    // Fazer upload e transcrever usando OpenAI Whisper
+    const formData = new FormData();
+    formData.append('file', fs.createReadStream(tempFile));
+    formData.append('model', 'whisper-1');
+
+    const response = await axios.post('https://api.openai.com/v1/audio/transcriptions', formData, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        ...formData.getHeaders()
+      }
+    });
+
+    // Limpar arquivo temporário
+    fs.unlinkSync(tempFile);
+
+    if (response.data && response.data.text) {
+      console.log('✅ Áudio transcrito:', response.data.text);
+      return response.data.text;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('❌ Erro ao transcrever áudio:', error.message);
+    return null;
+  }
+}
+
+// Função para gerar áudio a partir de texto (TTS) usando Google TTS
+async function generateAudioFromText(text, language = 'pt-BR') {
+  try {
+    // Usar API gratuita do Google TTS
+    const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${language}&client=tw-ob&q=${encodeURIComponent(text)}`;
+    
+    const response = await axios.get(ttsUrl, {
+      responseType: 'arraybuffer'
+    });
+
+    if (response.data) {
+      console.log('✅ Áudio gerado com sucesso');
+      return Buffer.from(response.data);
+    }
+
+    return null;
+  } catch (error) {
+    console.error('❌ Erro ao gerar áudio:', error.message);
+    return null;
+  }
+}
+
 // Handler de mensagens recebidas
 async function handleIncomingMessage(userId, message, client) {
   try {
-    console.log(`📨 Mensagem recebida de ${message.from}:`, message.body);
+    console.log(`📨 Mensagem recebida de ${message.from}:`, message.body || `[${message.type}]`);
     
     // Ignorar mensagens de status e grupos
     if (message.isGroupMsg || message.from === 'status@broadcast') {
@@ -336,16 +404,74 @@ async function handleIncomingMessage(userId, message, client) {
     // Sanitizar número do WhatsApp para usar como chave no Firebase
     const sanitizedNumber = sanitizePhoneNumber(message.from);
     
+    // ============================================
+    // PROCESSAR MENSAGENS DE ÁUDIO
+    // ============================================
+    let messageText = message.body || '';
+    let isAudioMessage = false;
+    
+    if (message.type === 'ptt' || message.type === 'audio') {
+      console.log('🎤 Mensagem de áudio detectada!');
+      isAudioMessage = true;
+      
+      try {
+        // Baixar áudio
+        const audioBuffer = await client.decryptFile(message);
+        
+        if (audioBuffer) {
+          // Buscar API Key para transcrição
+          const aiConfigSnapshot = await db.ref(`users/data/${userId}/assistant_settings`).once('value');
+          let aiConfig = aiConfigSnapshot.val();
+          
+          // Se não tiver API Key, buscar do master
+          if (aiConfig && !aiConfig.apiKey) {
+            const usersSnapshot = await db.ref('users/registered').once('value');
+            if (usersSnapshot.exists()) {
+              const users = usersSnapshot.val();
+              const masterUser = Object.values(users).find(u => 
+                u.email === 'brayan@master.com' || u.isMaster === true
+              );
+              if (masterUser) {
+                const masterConfigSnapshot = await db.ref(`users/data/${masterUser.uid}/assistant_settings`).once('value');
+                const masterConfig = masterConfigSnapshot.val();
+                if (masterConfig && masterConfig.apiKey) {
+                  aiConfig = { ...aiConfig, apiKey: masterConfig.apiKey };
+                }
+              }
+            }
+          }
+          
+          // Transcrever áudio
+          if (aiConfig && aiConfig.apiKey) {
+            messageText = await transcribeAudio(audioBuffer, aiConfig.apiKey);
+            if (messageText) {
+              console.log('✅ Áudio transcrito:', messageText);
+            } else {
+              console.log('⚠️ Não foi possível transcrever o áudio');
+              messageText = '[Áudio não transcrito]';
+            }
+          } else {
+            console.log('⚠️ API Key não encontrada para transcrição');
+            messageText = '[Áudio recebido - transcrição não disponível]';
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erro ao processar áudio:', error.message);
+        messageText = '[Erro ao processar áudio]';
+      }
+    }
+    
     // Salvar mensagem no Realtime Database
     const messageRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
     await messageRef.set({
       from: message.from || '',
       to: message.to || '',
-      body: message.body || '',
+      body: messageText,
       timestamp: new Date().toISOString(),
       type: message.type || 'chat',
       isFromMe: message.isFromMe || false,
-      messageId: message.id || ''
+      messageId: message.id || '',
+      isAudio: isAudioMessage
     });
     
     console.log('💾 Mensagem salva no banco de dados');
@@ -353,12 +479,12 @@ async function handleIncomingMessage(userId, message, client) {
     // ============================================
     // DETECÇÃO E SALVAMENTO AUTOMÁTICO DE DADOS DO CLIENTE
     // ============================================
-    if (!message.isFromMe) {
-      await detectAndSaveCustomerData(userId, message.from, message.body, sanitizedNumber);
+    if (!message.isFromMe && messageText) {
+      await detectAndSaveCustomerData(userId, message.from, messageText, sanitizedNumber);
     }
     
     // Se não for mensagem enviada pelo usuário, processar com IA
-    if (!message.isFromMe) {
+    if (!message.isFromMe && messageText) {
       // Buscar configuração de IA do usuário
       const aiConfigSnapshot = await db.ref(`users/data/${userId}/assistant_settings`).once('value');
       let aiConfig = aiConfigSnapshot.val();
@@ -444,12 +570,41 @@ async function handleIncomingMessage(userId, message, client) {
         }
         
         // Gerar resposta com IA
-        const aiResult = await generateAIResponse(userId, sanitizedNumber, message.body, aiConfig);
+        const aiResult = await generateAIResponse(userId, sanitizedNumber, messageText, aiConfig);
         const aiResponse = aiResult.text;
         
-        // Enviar resposta de texto
-        await client.sendText(message.from, aiResponse);
-        console.log('✅ Resposta enviada:', aiResponse);
+        // Se a mensagem original foi áudio, tentar responder também em áudio
+        if (isAudioMessage) {
+          try {
+            console.log('🎤 Gerando resposta em áudio...');
+            const audioBuffer = await generateAudioFromText(aiResponse);
+            
+            if (audioBuffer) {
+              // Salvar áudio temporariamente
+              const tempDir = os.tmpdir();
+              const tempAudioFile = path.join(tempDir, `response_${Date.now()}.ogg`);
+              fs.writeFileSync(tempAudioFile, audioBuffer);
+              
+              // Enviar áudio
+              await client.sendFile(message.from, tempAudioFile, 'audio.ogg', aiResponse);
+              console.log('✅ Resposta em áudio enviada');
+              
+              // Limpar arquivo temporário
+              fs.unlinkSync(tempAudioFile);
+            } else {
+              // Se falhar, enviar como texto
+              await client.sendText(message.from, aiResponse);
+              console.log('✅ Resposta enviada como texto (fallback)');
+            }
+          } catch (audioError) {
+            console.error('❌ Erro ao enviar áudio, enviando como texto:', audioError.message);
+            await client.sendText(message.from, aiResponse);
+          }
+        } else {
+          // Enviar resposta de texto normalmente
+          await client.sendText(message.from, aiResponse);
+          console.log('✅ Resposta enviada:', aiResponse);
+        }
         
         // Incrementar contador de uso
         await incrementMessageUsage(userId);
@@ -3498,6 +3653,77 @@ app.post('/api/messages/send', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Erro ao enviar mensagem:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Enviar mensagem de áudio manualmente
+app.post('/api/messages/send-audio', async (req, res) => {
+  try {
+    const { userId, to, text, language } = req.body;
+    
+    if (!userId || !to || !text) {
+      return res.status(400).json({ error: 'userId, to e text são obrigatórios' });
+    }
+    
+    // Verificar limites do plano
+    const limitCheck = await checkPlanLimits(userId, 'messagesPerMonth');
+    
+    if (!limitCheck.allowed) {
+      return res.status(403).json({ error: limitCheck.message });
+    }
+    
+    const client = activeClients.get(userId);
+    if (!client) {
+      return res.status(404).json({ error: 'Sessão não encontrada ou inativa' });
+    }
+    
+    // Gerar áudio a partir do texto
+    const audioBuffer = await generateAudioFromText(text, language || 'pt-BR');
+    
+    if (!audioBuffer) {
+      return res.status(500).json({ error: 'Erro ao gerar áudio' });
+    }
+    
+    // Salvar áudio temporariamente
+    const tempDir = os.tmpdir();
+    const tempAudioFile = path.join(tempDir, `audio_${Date.now()}_${userId}.ogg`);
+    fs.writeFileSync(tempAudioFile, audioBuffer);
+    
+    try {
+      // Enviar áudio
+      await client.sendFile(to, tempAudioFile, 'audio.ogg', text);
+      
+      // Incrementar contador de uso
+      await incrementMessageUsage(userId);
+      
+      // Salvar mensagem enviada (sanitizar número para Firebase)
+      const sanitizedNumber = sanitizePhoneNumber(to);
+      const messageRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+      await messageRef.set({
+        from: 'me',
+        to: to,
+        body: text,
+        timestamp: new Date().toISOString(),
+        type: 'ptt',
+        isFromMe: true,
+        manual: true,
+        isAudio: true
+      });
+      
+      res.json({ 
+        status: 'success',
+        message: 'Áudio enviado com sucesso' 
+      });
+    } finally {
+      // Limpar arquivo temporário
+      if (fs.existsSync(tempAudioFile)) {
+        fs.unlinkSync(tempAudioFile);
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao enviar áudio:', error);
     res.status(500).json({ error: error.message });
   }
 });
