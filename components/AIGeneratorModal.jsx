@@ -1126,14 +1126,14 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
                   <span style={{
                     fontSize: '20px',
                     fontWeight: '700',
-                    color: '#10b981',
+                    color: '#ffffff',
                     letterSpacing: '0.5px'
                   }}>
                     Pergunta {currentQuestionIndex + 1} de {visibleQuestions.length}
                   </span>
                   <span style={{
                     fontSize: '12px',
-                    color: 'rgba(16, 185, 129, 0.8)',
+                    color: 'rgba(255, 255, 255, 0.8)',
                     fontWeight: '500'
                   }}>
                     Monte o prompt passo a passo
