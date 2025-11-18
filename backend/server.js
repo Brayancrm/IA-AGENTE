@@ -457,40 +457,36 @@ async function transcribeAudio(audioBuffer) {
 
 // Função para mapear voz selecionada para voz da OpenAI
 function mapVoiceToOpenAI(voice, language) {
-  // OpenAI TTS suporta: alloy, echo, fable, onyx, nova, shimmer
-  // Mapear baseado no padrão de nome da voz
+  // OpenAI TTS suporta apenas estas 6 vozes: alloy, echo, fable, onyx, nova, shimmer
+  // As vozes são universais e funcionam com qualquer idioma
   
   if (!voice || voice === '') {
-    // Voz padrão baseada no idioma
-    if (language.startsWith('pt')) {
-      return 'nova'; // Voz feminina natural em português
-    } else if (language.startsWith('en')) {
-      return 'nova'; // Voz feminina natural em inglês
-    } else if (language.startsWith('es')) {
-      return 'nova'; // Voz feminina natural em espanhol
-    }
-    return 'nova'; // Padrão
+    // Voz padrão: nova (feminina natural)
+    return 'nova';
   }
   
-  // Mapear vozes específicas
-  // Femininas -> nova ou shimmer
-  // Masculinas -> alloy, echo, fable, onyx
+  // Se a voz já é uma das vozes da OpenAI, usar diretamente
+  const openAIVoices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
+  if (openAIVoices.includes(voice.toLowerCase())) {
+    return voice.toLowerCase();
+  }
   
+  // Compatibilidade com vozes antigas (Google TTS) - mapear para OpenAI
   if (voice.includes('Standard-A') || voice.includes('Wavenet-A') || voice.includes('Wavenet-C')) {
-    // Voz feminina
+    // Voz feminina antiga -> mapear para nova ou shimmer
     if (voice.includes('Wavenet-C') || voice.includes('Jovem')) {
-      return 'shimmer'; // Voz mais jovem/energética
+      return 'shimmer';
     }
-    return 'nova'; // Voz feminina natural
+    return 'nova';
   } else if (voice.includes('Standard-B') || voice.includes('Wavenet-B') || voice.includes('Wavenet-D')) {
-    // Voz masculina
+    // Voz masculina antiga -> mapear para onyx ou echo
     if (voice.includes('Wavenet-D') || voice.includes('Jovem')) {
-      return 'echo'; // Voz masculina mais jovem
+      return 'echo';
     }
-    return 'onyx'; // Voz masculina profunda
+    return 'onyx';
   }
   
-  // Fallback baseado no idioma
+  // Fallback: usar nova (feminina natural)
   return 'nova';
 }
 
