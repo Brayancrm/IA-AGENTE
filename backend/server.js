@@ -422,30 +422,93 @@ async function transcribeAudio(audioBuffer) {
   }
 }
 
-// Função para gerar áudio a partir de texto (TTS) usando Google TTS
+// Função para mapear voz selecionada para voz da OpenAI
+function mapVoiceToOpenAI(voice, language) {
+  // OpenAI TTS suporta: alloy, echo, fable, onyx, nova, shimmer
+  // Mapear baseado no padrão de nome da voz
+  
+  if (!voice || voice === '') {
+    // Voz padrão baseada no idioma
+    if (language.startsWith('pt')) {
+      return 'nova'; // Voz feminina natural em português
+    } else if (language.startsWith('en')) {
+      return 'nova'; // Voz feminina natural em inglês
+    } else if (language.startsWith('es')) {
+      return 'nova'; // Voz feminina natural em espanhol
+    }
+    return 'nova'; // Padrão
+  }
+  
+  // Mapear vozes específicas
+  // Femininas -> nova ou shimmer
+  // Masculinas -> alloy, echo, fable, onyx
+  
+  if (voice.includes('Standard-A') || voice.includes('Wavenet-A') || voice.includes('Wavenet-C')) {
+    // Voz feminina
+    if (voice.includes('Wavenet-C') || voice.includes('Jovem')) {
+      return 'shimmer'; // Voz mais jovem/energética
+    }
+    return 'nova'; // Voz feminina natural
+  } else if (voice.includes('Standard-B') || voice.includes('Wavenet-B') || voice.includes('Wavenet-D')) {
+    // Voz masculina
+    if (voice.includes('Wavenet-D') || voice.includes('Jovem')) {
+      return 'echo'; // Voz masculina mais jovem
+    }
+    return 'onyx'; // Voz masculina profunda
+  }
+  
+  // Fallback baseado no idioma
+  return 'nova';
+}
+
+// Função para gerar áudio a partir de texto (TTS) usando OpenAI TTS API
 async function generateAudioFromText(text, language = 'pt-BR', voice = null) {
   try {
-    // Usar API gratuita do Google TTS
-    // voice pode ser usado para selecionar voz específica (ex: 'pt-BR-Standard-A' para feminina, 'pt-BR-Standard-B' para masculina)
-    let ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${language}&client=tw-ob&q=${encodeURIComponent(text)}`;
+    // Buscar API Key do master para TTS
+    const apiKey = await getMasterApiKeyForAudio();
     
-    // Se voice for especificado, adicionar parâmetro (alguns TTS suportam)
-    if (voice) {
-      ttsUrl += `&voice=${voice}`;
+    if (!apiKey) {
+      console.log('⚠️ API Key do master não encontrada para TTS');
+      return null;
     }
     
-    const response = await axios.get(ttsUrl, {
-      responseType: 'arraybuffer'
-    });
+    // Mapear voz para voz da OpenAI
+    const openAIVoice = mapVoiceToOpenAI(voice, language);
+    
+    // OpenAI TTS suporta: alloy, echo, fable, onyx, nova, shimmer
+    // Modelo: tts-1 (rápido) ou tts-1-hd (alta qualidade)
+    const model = 'tts-1-hd'; // Usar HD para melhor qualidade
+    
+    console.log(`🎤 Gerando áudio com OpenAI TTS (voz: ${openAIVoice}, idioma: ${language})`);
+    
+    const response = await axios.post(
+      'https://api.openai.com/v1/audio/speech',
+      {
+        model: model,
+        input: text,
+        voice: openAIVoice,
+        response_format: 'opus' // Formato opus para melhor qualidade e menor tamanho
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        responseType: 'arraybuffer'
+      }
+    );
 
     if (response.data) {
-      console.log(`✅ Áudio gerado com sucesso (idioma: ${language}${voice ? `, voz: ${voice}` : ''})`);
+      console.log(`✅ Áudio gerado com sucesso (voz OpenAI: ${openAIVoice}, idioma: ${language})`);
       return Buffer.from(response.data);
     }
 
     return null;
   } catch (error) {
     console.error('❌ Erro ao gerar áudio:', error.message);
+    if (error.response) {
+      console.error('❌ Detalhes do erro:', error.response.data);
+    }
     return null;
   }
 }
@@ -601,9 +664,15 @@ async function handleIncomingMessage(userId, message, client) {
           return;
         }
         
-        // Gerar resposta com IA
+        // Gerar resposta com IA usando o texto transcrito (ou texto original)
+        console.log(`💬 Processando mensagem para IA: "${messageText}" (${isAudioMessage ? 'transcrita de áudio' : 'texto'})`);
         const aiResult = await generateAIResponse(userId, sanitizedNumber, messageText, aiConfig);
         const aiResponse = aiResult.text;
+        
+        if (!aiResponse || aiResponse.trim() === '') {
+          console.log('⚠️ Resposta da IA vazia, não enviando');
+          return;
+        }
         
         // Se a mensagem original foi áudio, tentar responder também em áudio
         if (isAudioMessage) {
