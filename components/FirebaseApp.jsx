@@ -5982,34 +5982,6 @@ const DashboardWithFirebase = ({
                     Desconectar WhatsApp
                   </button>
                 )}
-                <button
-                  onClick={() => window.open('/WPPCONNECT_SETUP.md', '_blank')}
-                  style={{
-                    background: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
-                    color: 'white',
-                    padding: '14px 28px',
-                    borderRadius: '12px',
-                    border: 'none',
-                    fontWeight: '600',
-                    fontSize: '1rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 4px 16px rgba(107, 114, 128, 0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-2px)';
-                    e.target.style.boxShadow = '0 6px 20px rgba(107, 114, 128, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 4px 16px rgba(107, 114, 128, 0.3)';
-                  }}
-                >
-                  📖 Ver Documentação
-                </button>
               </div>
             </div>
           </div>
