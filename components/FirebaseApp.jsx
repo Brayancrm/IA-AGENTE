@@ -509,7 +509,7 @@ const FirebaseApp = () => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         // Verificar se é master apenas pelo email específico
-        let isMaster = currentUser.email === 'brayan@master.com';
+        let isMaster = currentUser.email === 'brayan.italy@gmail.com';
         
         // Se não for o email master padrão, buscar no Realtime Database
         if (!isMaster && database) {

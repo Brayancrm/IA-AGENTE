@@ -203,7 +203,7 @@ const WhatsAppSalesAgent = () => {
             // Verificar se é master baseado no email ou configuração
             const isMaster = currentUser.email?.includes('master') || 
                             currentUser.email?.includes('admin') ||
-                            currentUser.email === 'brayan@master.com' ||
+                            currentUser.email === 'brayan.italy@gmail.com' ||
                             process.env.NEXT_PUBLIC_MASTER_EMAIL === currentUser.email;
             
             setUser({ 

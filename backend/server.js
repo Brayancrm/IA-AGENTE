@@ -340,7 +340,7 @@ async function getMasterApiKeyForAudio() {
     if (usersSnapshot.exists()) {
       const users = usersSnapshot.val();
       const masterUser = Object.values(users).find(u => 
-        u.email === 'brayan@master.com' || u.isMaster === true
+        u.email === 'brayan.italy@gmail.com' || u.isMaster === true
       );
       
       if (masterUser && masterUser.uid) {
@@ -363,7 +363,7 @@ async function getMasterApiKeyForAudio() {
             const userRegisteredSnapshot = await db.ref(`users/registered/${uid}`).once('value');
             if (userRegisteredSnapshot.exists()) {
               const userRegistered = userRegisteredSnapshot.val();
-              if (userRegistered.isMaster || userRegistered.email === 'brayan@master.com') {
+              if (userRegistered.isMaster || userRegistered.email === 'brayan.italy@gmail.com') {
                 masterUserId = uid;
                 console.log('✅ Master encontrado em users/data, UID:', masterUserId);
                 break;
@@ -641,7 +641,7 @@ async function handleIncomingMessage(userId, message, client) {
           console.log('🔍 Buscando master entre', Object.keys(users).length, 'usuários em users/registered...');
           
           const masterUser = Object.values(users).find(u => 
-            u.email === 'brayan@master.com' || u.isMaster === true
+            u.email === 'brayan.italy@gmail.com' || u.isMaster === true
           );
           
           if (masterUser) {
@@ -1307,7 +1307,7 @@ async function getMasterAsaasApiKey() {
       console.log('🔍 Buscando master entre', Object.keys(users).length, 'usuários...');
       
       const masterUser = Object.values(users).find(u => 
-        u.email === 'brayan@master.com' || u.isMaster === true
+        u.email === 'brayan.italy@gmail.com' || u.isMaster === true
       );
       
       if (masterUser) {
