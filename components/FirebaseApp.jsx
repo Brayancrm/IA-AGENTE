@@ -3130,7 +3130,6 @@ const DashboardWithFirebase = ({
                 type="text"
                 value={formData.name || ''}
                 onChange={(e) => {
-                  e.preventDefault();
                   const value = e.target.value;
                   setFormData(prev => ({ ...prev, name: value }));
                 }}
@@ -3160,7 +3159,6 @@ const DashboardWithFirebase = ({
                 type="text"
                 value={formData.subject || ''}
                 onChange={(e) => {
-                  e.preventDefault();
                   const value = e.target.value;
                   setFormData(prev => ({ ...prev, subject: value }));
                 }}
