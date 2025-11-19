@@ -1719,7 +1719,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                 </button>
               </div>
             )}
-          </div>
+      </div>
         </div>
       )}
 

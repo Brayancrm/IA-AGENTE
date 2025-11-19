@@ -28,6 +28,8 @@ import SimpleLanding from './SimpleLanding';
 import dynamic from 'next/dynamic';
 import { convertStepsToPrompt } from '../hooks/useFlowBuilder';
 
+// Unlayer Editor será carregado via script tag (embed)
+
 // Import dinâmico para evitar problemas de SSR
 const FlowBuilder = dynamic(() => import('./FlowBuilder'), { ssr: false });
 const AgendamentoModal = dynamic(() => import('./AgendamentoModal'), { ssr: false });
@@ -285,6 +287,542 @@ const FirebaseApp = () => {
       return `${h} hora${h !== 1 ? 's' : ''}`;
     }
     return `${h}h ${m}min`;
+  };
+
+  // Componente EmailTemplateModal
+  const EmailTemplateModal = ({ isOpen, onClose, template, formData, setFormData, database, showToast }) => {
+    const [editorReady, setEditorReady] = useState(false);
+    const editorContainerRef = React.useRef(null);
+    const unlayerInstanceRef = React.useRef(null);
+
+    // Carregar script do Unlayer
+    React.useEffect(() => {
+      if (!isOpen) return;
+
+      // Verificar se script já foi carregado
+      if (window.unlayer) {
+        initializeEditor();
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://editor.unlayer.com/embed.js';
+      script.async = true;
+      script.onload = () => {
+        console.log('✅ Unlayer script carregado');
+        initializeEditor();
+      };
+      script.onerror = () => {
+        console.error('❌ Erro ao carregar script do Unlayer');
+        showToast('Erro ao carregar editor de email', 'error');
+      };
+      document.body.appendChild(script);
+
+      return () => {
+        // Limpar ao fechar
+        if (unlayerInstanceRef.current) {
+          try {
+            unlayerInstanceRef.current.destroy();
+          } catch (e) {
+            console.error('Erro ao destruir editor:', e);
+          }
+        }
+      };
+    }, [isOpen]);
+
+    const initializeEditor = () => {
+      if (!editorContainerRef.current || !window.unlayer) {
+        // Tentar novamente após um pequeno delay
+        setTimeout(() => {
+          if (editorContainerRef.current && window.unlayer) {
+            initializeEditor();
+          }
+        }, 100);
+        return;
+      }
+
+      try {
+        // Inicializar editor Unlayer
+        const editorId = 'unlayer-editor-container-' + Date.now();
+        editorContainerRef.current.id = editorId;
+        
+        unlayerInstanceRef.current = window.unlayer.init({
+          id: editorId,
+          projectId: parseInt(process.env.NEXT_PUBLIC_UNLAYER_PROJECT_ID || '0'),
+          displayMode: 'email',
+          appearance: {
+            theme: 'dark'
+          },
+          locale: 'pt-BR'
+        });
+
+        // Carregar template existente se houver
+        if (template?.body) {
+          setTimeout(() => {
+            if (unlayerInstanceRef.current && unlayerInstanceRef.current.loadDesign) {
+              unlayerInstanceRef.current.loadDesign(template.body);
+            }
+          }, 500);
+        }
+
+        setEditorReady(true);
+        console.log('✅ Editor Unlayer inicializado');
+      } catch (error) {
+        console.error('Erro ao inicializar editor:', error);
+        showToast('Erro ao inicializar editor de email: ' + error.message, 'error');
+      }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          padding: '20px'
+        }}
+        onClick={onClose}
+      >
+        <div
+          style={{
+            backgroundColor: '#1a1f36',
+            borderRadius: '24px',
+            padding: '32px',
+            maxWidth: '95vw',
+            maxHeight: '95vh',
+            width: '100%',
+            height: '100%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#ffffff', margin: 0 }}>
+              {template ? 'Editar Template' : 'Criar Template'}
+            </h2>
+            <button
+              onClick={onClose}
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#9ca3af',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '8px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                e.target.style.color = '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#9ca3af';
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          {/* Formulário */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+            <div>
+              <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+                Nome do Template
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Ex: Boas-vindas"
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  border: '2px solid rgba(255,255,255,0.1)',
+                  backgroundColor: '#0f1419',
+                  color: '#ffffff',
+                  fontSize: '1rem',
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                  transition: 'border-color 0.2s ease'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+                Assunto do Email
+              </label>
+              <input
+                type="text"
+                value={formData.subject}
+                onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
+                placeholder="Ex: Bem-vindo ao {{companyName}}!"
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  border: '2px solid rgba(255,255,255,0.1)',
+                  backgroundColor: '#0f1419',
+                  color: '#ffffff',
+                  fontSize: '1rem',
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                  transition: 'border-color 0.2s ease'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+              />
+              <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px', margin: 0 }}>
+                Use variáveis: {'{{clientName}}'}, {'{{clientEmail}}'}, {'{{companyName}}'}
+              </p>
+            </div>
+          </div>
+
+          {/* Editor Unlayer */}
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+              Corpo do Email
+            </label>
+            <div style={{ flex: 1, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', overflow: 'hidden', position: 'relative' }}>
+              {!editorReady && (
+                <div style={{ 
+                  position: 'absolute', 
+                  top: 0, 
+                  left: 0, 
+                  right: 0, 
+                  bottom: 0, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  backgroundColor: '#0f1419',
+                  color: '#ffffff',
+                  zIndex: 1
+                }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '2rem', marginBottom: '12px' }}>⏳</div>
+                    <div>Carregando editor...</div>
+                  </div>
+                </div>
+              )}
+              <div 
+                ref={editorContainerRef}
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  minHeight: '500px',
+                  display: editorReady ? 'block' : 'none'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Botões */}
+          <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+            <button
+              onClick={onClose}
+              style={{
+                flex: 1,
+                backgroundColor: '#6b7280',
+                color: 'white',
+                padding: '12px 24px',
+                borderRadius: '12px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '1rem',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => {
+                if (!unlayerInstanceRef.current) {
+                  showToast('Editor não está pronto. Aguarde o carregamento.', 'error');
+                  return;
+                }
+                
+                // Exportar HTML do editor
+                unlayerInstanceRef.current.exportHtml((data) => {
+                  // Atualizar formData com o design
+                  setFormData(prev => ({ ...prev, body: data.design }));
+                  
+                  // Salvar template
+                  const templateToSave = {
+                    name: formData.name,
+                    subject: formData.subject,
+                    body: data.design, // JSON do Unlayer
+                    html: data.html, // HTML compilado
+                    createdAt: template?.createdAt || new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                  };
+
+                  if (template) {
+                    // Atualizar template existente
+                    const templateRef = ref(database, `email_templates/${template.id}`);
+                    set(templateRef, templateToSave);
+                    showToast('Template atualizado com sucesso!', 'success');
+                  } else {
+                    // Criar novo template
+                    const templatesRef = ref(database, 'email_templates');
+                    const newTemplateRef = push(templatesRef);
+                    set(newTemplateRef, templateToSave);
+                    showToast('Template criado com sucesso!', 'success');
+                  }
+
+                  onClose();
+                });
+              }}
+              style={{
+                flex: 1,
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: 'white',
+                padding: '12px 24px',
+                borderRadius: '12px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '1rem',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+              }}
+            >
+              {template ? 'Atualizar Template' : 'Salvar Template'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Componente SendEmailModal
+  const SendEmailModal = ({ isOpen, onClose, template, users, database, user, showToast }) => {
+    const [selectedUsers, setSelectedUsers] = useState([]);
+    const [sending, setSending] = useState(false);
+    const [sendAll, setSendAll] = useState(false);
+
+    if (!isOpen || !template) return null;
+
+    const handleSend = async () => {
+      if (!sendAll && selectedUsers.length === 0) {
+        showToast('Selecione pelo menos um destinatário', 'error');
+        return;
+      }
+
+      setSending(true);
+      try {
+        const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+        const recipients = sendAll ? 'all' : selectedUsers;
+
+        const response = await fetch(`${BACKEND_URL}/api/email/send`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            templateId: template.id,
+            template: template,
+            recipients: recipients,
+            userId: user.uid
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          showToast(`Email enviado para ${data.sentCount} destinatário(s)!`, 'success');
+          onClose();
+        } else {
+          showToast('Erro ao enviar email: ' + (data.error || 'Erro desconhecido'), 'error');
+        }
+      } catch (error) {
+        console.error('Erro ao enviar email:', error);
+        showToast('Erro ao enviar email: ' + error.message, 'error');
+      } finally {
+        setSending(false);
+      }
+    };
+
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10001,
+          padding: '20px'
+        }}
+        onClick={onClose}
+      >
+        <div
+          style={{
+            backgroundColor: '#1a1f36',
+            borderRadius: '24px',
+            padding: '32px',
+            maxWidth: '600px',
+            width: '100%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            position: 'relative'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#ffffff', margin: 0 }}>
+              Enviar Email
+            </h2>
+            <button
+              onClick={onClose}
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#9ca3af',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '8px'
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <p style={{ color: '#ffffff', marginBottom: '12px', fontWeight: '600' }}>
+              Template: {template.name}
+            </p>
+            <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginBottom: '20px' }}>
+              Assunto: {template.subject}
+            </p>
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: '#ffffff', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={sendAll}
+                onChange={(e) => {
+                  setSendAll(e.target.checked);
+                  if (e.target.checked) setSelectedUsers([]);
+                }}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              <span>Enviar para todos os usuários</span>
+            </label>
+
+            {!sendAll && (
+              <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '12px' }}>
+                {users && users.length > 0 ? (
+                  users.map((u) => (
+                    <label key={u.uid} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#ffffff', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.includes(u.uid)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedUsers([...selectedUsers, u.uid]);
+                          } else {
+                            setSelectedUsers(selectedUsers.filter(id => id !== u.uid));
+                          }
+                        }}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                      />
+                      <span>{u.name || u.email} ({u.email})</span>
+                    </label>
+                  ))
+                ) : (
+                  <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>Nenhum usuário encontrado</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button
+              onClick={onClose}
+              disabled={sending}
+              style={{
+                flex: 1,
+                backgroundColor: '#6b7280',
+                color: 'white',
+                padding: '12px 24px',
+                borderRadius: '12px',
+                border: 'none',
+                cursor: sending ? 'not-allowed' : 'pointer',
+                fontWeight: '600',
+                fontSize: '1rem',
+                opacity: sending ? 0.5 : 1
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSend}
+              disabled={sending}
+              style={{
+                flex: 1,
+                background: sending ? '#6b7280' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: 'white',
+                padding: '12px 24px',
+                borderRadius: '12px',
+                border: 'none',
+                cursor: sending ? 'not-allowed' : 'pointer',
+                fontWeight: '600',
+                fontSize: '1rem',
+                transition: 'all 0.2s ease',
+                boxShadow: sending ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.3)'
+              }}
+            >
+              {sending ? 'Enviando...' : 'Enviar Email'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Componente Toast
@@ -588,6 +1126,30 @@ const FirebaseApp = () => {
     });
     
     return () => off(categoriesRef);
+  }, [user, database]);
+
+  // Listener para Email Templates
+  useEffect(() => {
+    if (!user || !database || !user.isMaster) return;
+
+    const templatesRef = ref(database, 'email_templates');
+    
+    const unsubscribe = onValue(templatesRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const templatesData = snapshot.val();
+        const templatesList = Object.keys(templatesData).map(key => ({
+          id: key,
+          ...templatesData[key]
+        }));
+        setEmailTemplates(templatesList);
+      } else {
+        setEmailTemplates([]);
+      }
+    }, (error) => {
+      console.error('Erro ao carregar templates de email:', error);
+    });
+    
+    return () => off(templatesRef);
   }, [user, database]);
 
   // Listener para status do WhatsApp
@@ -1555,6 +2117,76 @@ const FirebaseApp = () => {
     setUser(null);
     setIsAuthenticated(false);
     showToast('Logout realizado com sucesso!', 'success');
+  };
+
+  // Funções para Email Templates
+  const saveEmailTemplate = async (templateData, emailEditorRef) => {
+    if (!user || !database || !user.isMaster) {
+      showToast('Erro: Apenas o master pode criar templates', 'error');
+      return;
+    }
+
+    if (!emailTemplateForm.name || !emailTemplateForm.subject) {
+      showToast('Por favor, preencha nome e assunto do template', 'error');
+      return;
+    }
+
+    try {
+      if (emailEditorRef && emailEditorRef.current) {
+        emailEditorRef.current.exportHtml((data) => {
+          const templateToSave = {
+            name: emailTemplateForm.name,
+            subject: emailTemplateForm.subject,
+            body: data.design, // JSON do Unlayer
+            html: data.html, // HTML compilado
+            createdAt: editingEmailTemplate?.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+
+          if (editingEmailTemplate) {
+            // Atualizar template existente
+            const templateRef = ref(database, `email_templates/${editingEmailTemplate.id}`);
+            set(templateRef, templateToSave);
+            showToast('Template atualizado com sucesso!', 'success');
+          } else {
+            // Criar novo template
+            const templatesRef = ref(database, 'email_templates');
+            const newTemplateRef = push(templatesRef);
+            set(newTemplateRef, templateToSave);
+            showToast('Template criado com sucesso!', 'success');
+          }
+
+          setShowEmailTemplateModal(false);
+          setEditingEmailTemplate(null);
+          setEmailTemplateForm({ name: '', subject: '', body: null });
+        });
+      } else {
+        showToast('Erro: Editor não está pronto', 'error');
+      }
+    } catch (error) {
+      console.error('Erro ao salvar template:', error);
+      showToast('Erro ao salvar template: ' + error.message, 'error');
+    }
+  };
+
+  const deleteEmailTemplate = async (templateId) => {
+    if (!user || !database || !user.isMaster) {
+      showToast('Erro: Apenas o master pode deletar templates', 'error');
+      return;
+    }
+
+    if (!window.confirm('Tem certeza que deseja excluir este template? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    try {
+      const templateRef = ref(database, `email_templates/${templateId}`);
+      await remove(templateRef);
+      showToast('Template excluído com sucesso!', 'success');
+    } catch (error) {
+      console.error('Erro ao deletar template:', error);
+      showToast('Erro ao deletar template: ' + error.message, 'error');
+    }
   };
 
   // Funções do WhatsApp
@@ -2780,6 +3412,19 @@ const DashboardWithFirebase = ({
   });
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
+  
+  // Estados para Email Templates
+  const [emailTemplates, setEmailTemplates] = useState([]);
+  const [showEmailTemplateModal, setShowEmailTemplateModal] = useState(false);
+  const [editingEmailTemplate, setEditingEmailTemplate] = useState(null);
+  const [emailTemplateForm, setEmailTemplateForm] = useState({
+    name: '',
+    subject: '',
+    body: null // JSON do Unlayer
+  });
+  const [emailSends, setEmailSends] = useState([]);
+  const [showSendEmailModal, setShowSendEmailModal] = useState(false);
+  
   const [planForm, setPlanForm] = useState({
     name: '',
     description: '',
@@ -7127,6 +7772,199 @@ const DashboardWithFirebase = ({
           </div>
         );
 
+      case 'email':
+        return (
+          <div style={{ padding: getResponsivePadding(), maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+            {/* Header */}
+            <div style={{ marginBottom: '32px' }}>
+              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {renderPageIcon('email')}
+                Email
+              </h2>
+              <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
+                Crie templates de email e envie para seus clientes
+              </p>
+            </div>
+
+            {/* Botão Criar Template */}
+            <div style={{ marginBottom: '24px' }}>
+              <button
+                onClick={() => {
+                  setEditingEmailTemplate(null);
+                  setEmailTemplateForm({ name: '', subject: '', body: null });
+                  setShowEmailTemplateModal(true);
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: 'white',
+                  padding: '14px 28px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  fontWeight: '600',
+                  fontSize: '1rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+                }}
+              >
+                <span>+</span>
+                Criar Template
+              </button>
+            </div>
+
+            {/* Lista de Templates */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))',
+              gap: '20px',
+              marginBottom: '32px'
+            }}>
+              {emailTemplates.length === 0 ? (
+                <div style={{
+                  gridColumn: '1 / -1',
+                  backgroundColor: '#1a1f36',
+                  borderRadius: '16px',
+                  padding: '48px',
+                  textAlign: 'center',
+                  border: '1px solid rgba(16, 185, 129, 0.2)'
+                }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📧</div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
+                    Nenhum template criado
+                  </h3>
+                  <p style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '24px' }}>
+                    Crie seu primeiro template de email para começar a enviar mensagens para seus clientes
+                  </p>
+                </div>
+              ) : (
+                emailTemplates.map((template) => (
+                  <div
+                    key={template.id}
+                    style={{
+                      backgroundColor: '#1a1f36',
+                      borderRadius: '16px',
+                      padding: '24px',
+                      border: '1px solid rgba(16, 185, 129, 0.2)',
+                      transition: 'all 0.2s ease',
+                      cursor: 'pointer'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                      e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                      e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    onClick={() => {
+                      setEditingEmailTemplate(template);
+                      setEmailTemplateForm({
+                        name: template.name || '',
+                        subject: template.subject || '',
+                        body: template.body || null
+                      });
+                      setShowEmailTemplateModal(true);
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#ffffff', margin: 0 }}>
+                        {template.name || 'Sem nome'}
+                      </h3>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteEmailTemplate(template.id);
+                        }}
+                        style={{
+                          backgroundColor: 'transparent',
+                          border: 'none',
+                          color: '#ef4444',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          fontSize: '1.25rem'
+                        }}
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                    <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '12px' }}>
+                      Assunto: {template.subject || 'Sem assunto'}
+                    </p>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingEmailTemplate(template);
+                          setShowSendEmailModal(true);
+                        }}
+                        style={{
+                          flex: 1,
+                          backgroundColor: '#10b981',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 16px',
+                          borderRadius: '8px',
+                          fontSize: '0.875rem',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Enviar
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Modal de Criar/Editar Template */}
+            {showEmailTemplateModal && (
+              <EmailTemplateModal
+                isOpen={showEmailTemplateModal}
+                onClose={() => {
+                  setShowEmailTemplateModal(false);
+                  setEditingEmailTemplate(null);
+                  setEmailTemplateForm({ name: '', subject: '', body: null });
+                }}
+                template={editingEmailTemplate}
+                formData={emailTemplateForm}
+                setFormData={setEmailTemplateForm}
+                database={database}
+                showToast={showToast}
+              />
+            )}
+
+            {/* Modal de Enviar Email */}
+            {showSendEmailModal && editingEmailTemplate && (
+              <SendEmailModal
+                isOpen={showSendEmailModal}
+                onClose={() => {
+                  setShowSendEmailModal(false);
+                  setEditingEmailTemplate(null);
+                }}
+                template={editingEmailTemplate}
+                users={users}
+                database={database}
+                user={user}
+                showToast={showToast}
+              />
+            )}
+          </div>
+        );
+
       default:
         return (
           <div style={{ padding: '24px' }}>
@@ -7173,12 +8011,15 @@ const DashboardWithFirebase = ({
     { id: 'whatsapp', label: 'Conexão WhatsApp', icon: '📱' },
     { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' },
     { id: 'plans', label: 'Planos e Assinaturas', icon: '💎' },
-    ...(user?.isMaster ? [{ id: 'users', label: 'Gerenciar Usuários', icon: '👤' }] : [])
+    ...(user?.isMaster ? [
+      { id: 'users', label: 'Gerenciar Usuários', icon: '👤' },
+      { id: 'email', label: 'Email', icon: '📧' }
+    ] : [])
   ];
 
   // Função helper para renderizar ícones de página (mesma lógica do sidebar)
   const renderPageIcon = (pageId, customSize = null) => {
-    const coloredIcons = ['dashboard', 'catalog', 'agendamentos', 'conversas', 'whatsapp', 'assistant', 'plans', 'tutorials'];
+    const coloredIcons = ['dashboard', 'catalog', 'agendamentos', 'conversas', 'whatsapp', 'assistant', 'plans', 'tutorials', 'email'];
     const shouldBeColored = coloredIcons.includes(pageId);
     const menuItem = menuItems.find(item => item.id === pageId);
     
@@ -7605,8 +8446,8 @@ const DashboardWithFirebase = ({
                 flexShrink: 0
               }}>
                 {/* Perfil do Usuário */}
-                <div style={{
-                  display: 'flex',
+                <div style={{ 
+                  display: 'flex', 
                   alignItems: 'center',
                   gap: '12px',
                   padding: '12px'
@@ -7617,7 +8458,7 @@ const DashboardWithFirebase = ({
                       width: '56px',
                       height: '56px',
                       borderRadius: '50%',
-                      overflow: 'hidden',
+                    overflow: 'hidden',
                       flexShrink: 0,
                       border: '2px solid rgba(16, 185, 129, 0.3)',
                       backgroundColor: '#1a1f36',
@@ -7652,8 +8493,8 @@ const DashboardWithFirebase = ({
                       >
                         {(companyProfile?.companyName || user?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
                       </div>
-                    )}
-                  </div>
+                  )}
+                </div>
 
                   {/* Nome e Email */}
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -8032,19 +8873,19 @@ const DashboardWithFirebase = ({
                       </option>
                     </select>
                     {catalogForm.category && !savedCategories.includes(catalogForm.category) && (
-                      <input
-                        type="text"
+                  <input
+                    type="text"
                         value={catalogForm.category}
-                        onChange={(e) => setCatalogForm(prev => ({ ...prev, category: e.target.value }))}
-                        style={{
+                    onChange={(e) => setCatalogForm(prev => ({ ...prev, category: e.target.value }))}
+                    style={{
                           flex: 1,
-                          padding: '12px',
-                          borderRadius: '8px',
+                      padding: '12px',
+                      borderRadius: '8px',
                           border: '1px solid #10b981',
-                          fontSize: '1rem',
-                          backgroundColor: '#111827',
-                          color: '#ffffff'
-                        }}
+                      fontSize: '1rem',
+                      backgroundColor: '#111827',
+                      color: '#ffffff'
+                    }}
                         placeholder="Digite o nome da categoria"
                       />
                     )}

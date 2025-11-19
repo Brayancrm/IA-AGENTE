@@ -7,7 +7,30 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const FormData = require('form-data');
-require('dotenv').config();
+const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+// Inicializar AWS SES
+let sesClient = null;
+if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+  sesClient = new SESClient({
+    region: process.env.AWS_SES_REGION || 'us-east-1',
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    }
+  });
+  console.log('✅ AWS SES inicializado');
+  console.log('   Região:', process.env.AWS_SES_REGION || 'us-east-1');
+  console.log('   Email remetente:', process.env.AWS_SES_FROM_EMAIL || 'não configurado');
+} else {
+  console.log('⚠️ AWS SES não configurado - Configure AWS_ACCESS_KEY_ID e AWS_SECRET_ACCESS_KEY');
+  console.log('   Verifique se o arquivo .env existe na pasta backend/');
+  console.log('   Variáveis encontradas:', {
+    AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ? '✅' : '❌',
+    AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY ? '✅' : '❌'
+  });
+}
 
 const APP_ID = 'whatsapp-sales-agent';
 
@@ -5769,5 +5792,183 @@ process.on('SIGINT', async () => {
   }
   
   process.exit(0);
+});
+
+// ============================================
+// ENDPOINT: Enviar Email via AWS SES
+// ============================================
+app.post('/api/email/send', async (req, res) => {
+  try {
+    const { templateId, template, recipients, userId } = req.body;
+
+    if (!template || !recipients || !userId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Template, recipients e userId são obrigatórios' 
+      });
+    }
+
+    if (!sesClient) {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'AWS SES não configurado. Configure AWS_ACCESS_KEY_ID e AWS_SECRET_ACCESS_KEY no backend.' 
+      });
+    }
+
+    // Buscar lista de destinatários
+    let recipientList = [];
+    
+    if (recipients === 'all') {
+      // Buscar todos os usuários do Firebase
+      const usersSnapshot = await db.ref('users/registered').once('value');
+      if (usersSnapshot.exists()) {
+        const usersData = usersSnapshot.val();
+        recipientList = Object.values(usersData).map(u => ({
+          email: u.email,
+          name: u.name || u.email,
+          uid: u.uid
+        }));
+      }
+    } else if (Array.isArray(recipients)) {
+      // Buscar usuários específicos
+      for (const uid of recipients) {
+        const userSnapshot = await db.ref(`users/registered/${uid}`).once('value');
+        if (userSnapshot.exists()) {
+          const userData = userSnapshot.val();
+          recipientList.push({
+            email: userData.email,
+            name: userData.name || userData.email,
+            uid: uid
+          });
+        }
+      }
+    }
+
+    if (recipientList.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Nenhum destinatário encontrado' 
+      });
+    }
+
+    // Buscar dados da empresa do master para variáveis
+    let companyData = {};
+    try {
+      const companySnapshot = await db.ref(`users/data/${userId}/company_profile`).once('value');
+      if (companySnapshot.exists()) {
+        companyData = companySnapshot.val();
+      }
+    } catch (error) {
+      console.error('Erro ao buscar dados da empresa:', error);
+    }
+
+    // Enviar emails
+    let sentCount = 0;
+    let failedCount = 0;
+    const errors = [];
+
+    for (const recipient of recipientList) {
+      try {
+        // Substituir variáveis no assunto e HTML
+        let subject = template.subject || 'Sem assunto';
+        let html = template.html || '';
+
+        // Variáveis disponíveis
+        const variables = {
+          clientName: recipient.name || recipient.email.split('@')[0],
+          clientEmail: recipient.email,
+          companyName: companyData.companyName || 'Nossa Empresa'
+        };
+
+        // Substituir variáveis no assunto
+        Object.keys(variables).forEach(key => {
+          const regex = new RegExp(`{{${key}}}`, 'g');
+          subject = subject.replace(regex, variables[key]);
+        });
+
+        // Substituir variáveis no HTML
+        Object.keys(variables).forEach(key => {
+          const regex = new RegExp(`{{${key}}}`, 'g');
+          html = html.replace(regex, variables[key]);
+        });
+
+        // Enviar via AWS SES
+        const fromEmail = process.env.AWS_SES_FROM_EMAIL || 'noreply@ia-agente.com';
+        
+        const command = new SendEmailCommand({
+          Source: fromEmail,
+          Destination: {
+            ToAddresses: [recipient.email]
+          },
+          Message: {
+            Subject: {
+              Data: subject,
+              Charset: 'UTF-8'
+            },
+            Body: {
+              Html: {
+                Data: html,
+                Charset: 'UTF-8'
+              }
+            }
+          }
+        });
+
+        await sesClient.send(command);
+        sentCount++;
+
+        // Salvar histórico no Firebase
+        const sendRef = db.ref(`email_sends`).push();
+        await sendRef.set({
+          templateId: templateId,
+          templateName: template.name,
+          recipientEmail: recipient.email,
+          recipientName: recipient.name,
+          recipientUid: recipient.uid,
+          status: 'sent',
+          sentAt: new Date().toISOString(),
+          sentBy: userId
+        });
+
+        console.log(`✅ Email enviado para: ${recipient.email}`);
+      } catch (error) {
+        console.error(`❌ Erro ao enviar para ${recipient.email}:`, error);
+        failedCount++;
+        errors.push({
+          email: recipient.email,
+          error: error.message
+        });
+
+        // Salvar histórico de falha
+        const sendRef = db.ref(`email_sends`).push();
+        await sendRef.set({
+          templateId: templateId,
+          templateName: template.name,
+          recipientEmail: recipient.email,
+          recipientName: recipient.name,
+          recipientUid: recipient.uid,
+          status: 'failed',
+          error: error.message,
+          sentAt: new Date().toISOString(),
+          sentBy: userId
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      sentCount: sentCount,
+      failedCount: failedCount,
+      total: recipientList.length,
+      errors: errors.length > 0 ? errors : undefined
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao processar envio de email:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
 });
 

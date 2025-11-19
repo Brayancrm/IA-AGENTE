@@ -25,6 +25,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.934.0",
     "@wppconnect-team/wppconnect": "^1.30.0",
     "axios": "^1.6.0",
     "cors": "^2.8.5",
