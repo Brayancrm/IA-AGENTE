@@ -13,8 +13,7 @@
     "pm2:delete": "pm2 delete whatsapp-ia-backend",
     "pm2:logs": "pm2 logs whatsapp-ia-backend",
     "pm2:status": "pm2 status",
-    "pm2:monit": "pm2 monit",
-    "postinstall": "bash install-deps.sh || echo '⚠️ Script de dependências não executado (normal em Windows)'"
+    "pm2:monit": "pm2 monit"
   },
   "keywords": [
     "whatsapp",
