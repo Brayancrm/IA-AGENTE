@@ -7637,10 +7637,7 @@ const DashboardWithFirebase = ({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
-                  padding: '12px',
-                  backgroundColor: '#0f1419',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(16, 185, 129, 0.2)'
+                  padding: '12px'
                 }}>
                   {/* Foto do Perfil */}
                   <div
