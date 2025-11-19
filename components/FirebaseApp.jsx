@@ -9609,23 +9609,23 @@ const DashboardWithFirebase = ({
         </div>
       )}
 
-      {/* Perfil do Usuário - Canto Inferior Esquerdo */}
+      {/* Perfil do Usuário - Acima do Botão Sair */}
       {user && !isMobile && (
         <div
           style={{
             position: 'fixed',
-            bottom: '20px',
+            bottom: '100px',
             left: '20px',
             backgroundColor: '#1a1f36',
-            borderRadius: '16px',
-            padding: '12px 16px',
+            borderRadius: '20px',
+            padding: '18px 24px',
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
+            gap: '18px',
             boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5)',
             border: '1px solid rgba(16, 185, 129, 0.2)',
             zIndex: 1000,
-            maxWidth: '300px',
+            maxWidth: '320px',
             transition: 'all 0.2s ease'
           }}
           onMouseEnter={(e) => {
@@ -9642,12 +9642,12 @@ const DashboardWithFirebase = ({
           {/* Foto do Perfil */}
           <div
             style={{
-              width: '48px',
-              height: '48px',
+              width: '72px',
+              height: '72px',
               borderRadius: '50%',
               overflow: 'hidden',
               flexShrink: 0,
-              border: '2px solid rgba(16, 185, 129, 0.3)',
+              border: '3px solid rgba(16, 185, 129, 0.3)',
               backgroundColor: '#0f1419',
               display: 'flex',
               alignItems: 'center',
@@ -9674,7 +9674,7 @@ const DashboardWithFirebase = ({
                   justifyContent: 'center',
                   background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                   color: '#ffffff',
-                  fontSize: '1.25rem',
+                  fontSize: '1.875rem',
                   fontWeight: '700'
                 }}
               >
@@ -9687,10 +9687,10 @@ const DashboardWithFirebase = ({
           <div style={{ flex: 1, minWidth: 0 }}>
             <div
               style={{
-                fontSize: '0.9375rem',
+                fontSize: '1.125rem',
                 fontWeight: '600',
                 color: '#ffffff',
-                marginBottom: '4px',
+                marginBottom: '6px',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis'
@@ -9700,7 +9700,7 @@ const DashboardWithFirebase = ({
             </div>
             <div
               style={{
-                fontSize: '0.8125rem',
+                fontSize: '0.9375rem',
                 color: '#9ca3af',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
