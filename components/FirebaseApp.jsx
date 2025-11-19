@@ -789,29 +789,6 @@ const FirebaseApp = () => {
     return () => off(categoriesRef);
   }, [user, database]);
 
-  // Listener para Email Templates
-  useEffect(() => {
-    if (!user || !database || !user.isMaster) return;
-
-    const templatesRef = ref(database, 'email_templates');
-    
-    const unsubscribe = onValue(templatesRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const templatesData = snapshot.val();
-        const templatesList = Object.keys(templatesData).map(key => ({
-          id: key,
-          ...templatesData[key]
-        }));
-        setEmailTemplates(templatesList);
-      } else {
-        setEmailTemplates([]);
-      }
-    }, (error) => {
-      console.error('Erro ao carregar templates de email:', error);
-    });
-    
-    return () => off(templatesRef);
-  }, [user, database]);
 
   // Listener para status do WhatsApp
   useEffect(() => {
@@ -3151,8 +3128,12 @@ const DashboardWithFirebase = ({
               </label>
               <input
                 type="text"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                value={formData.name || ''}
+                onChange={(e) => {
+                  e.preventDefault();
+                  const value = e.target.value;
+                  setFormData(prev => ({ ...prev, name: value }));
+                }}
                 placeholder="Ex: Boas-vindas"
                 style={{
                   width: '100%',
@@ -3177,8 +3158,12 @@ const DashboardWithFirebase = ({
               </label>
               <input
                 type="text"
-                value={formData.subject}
-                onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
+                value={formData.subject || ''}
+                onChange={(e) => {
+                  e.preventDefault();
+                  const value = e.target.value;
+                  setFormData(prev => ({ ...prev, subject: value }));
+                }}
                 placeholder="Ex: Bem-vindo ao {{companyName}}!"
                 style={{
                   width: '100%',
@@ -3424,6 +3409,40 @@ const DashboardWithFirebase = ({
   });
   const [emailSends, setEmailSends] = useState([]);
   const [showSendEmailModal, setShowSendEmailModal] = useState(false);
+  
+  // Listener para Email Templates (movido para dentro do DashboardWithFirebase)
+  useEffect(() => {
+    if (!user || !database || !user.isMaster) return;
+
+    const templatesRef = ref(database, 'email_templates');
+    
+    const unsubscribe = onValue(templatesRef, (snapshot) => {
+      try {
+        if (snapshot.exists()) {
+          const templatesData = snapshot.val();
+          const templatesList = Object.keys(templatesData).map(key => ({
+            id: key,
+            ...templatesData[key]
+          }));
+          setEmailTemplates(templatesList);
+        } else {
+          setEmailTemplates([]);
+        }
+      } catch (error) {
+        console.error('Erro ao processar templates de email:', error);
+      }
+    }, (error) => {
+      console.error('Erro ao carregar templates de email:', error);
+    });
+    
+    return () => {
+      try {
+        off(templatesRef);
+      } catch (e) {
+        // Ignorar erros ao desconectar
+      }
+    };
+  }, [user?.uid, user?.isMaster, database]);
   
   const [planForm, setPlanForm] = useState({
     name: '',
