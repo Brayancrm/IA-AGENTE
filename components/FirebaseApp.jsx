@@ -9608,6 +9608,110 @@ const DashboardWithFirebase = ({
           </div>
         </div>
       )}
+
+      {/* Perfil do Usuário - Canto Inferior Esquerdo */}
+      {user && !isMobile && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '20px',
+            left: '20px',
+            backgroundColor: '#1a1f36',
+            borderRadius: '16px',
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5)',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            zIndex: 1000,
+            maxWidth: '300px',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.6)';
+            e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.5)';
+            e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+          }}
+        >
+          {/* Foto do Perfil */}
+          <div
+            style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              overflow: 'hidden',
+              flexShrink: 0,
+              border: '2px solid rgba(16, 185, 129, 0.3)',
+              backgroundColor: '#0f1419',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {finalCompanyPhotoPreview ? (
+              <img
+                src={finalCompanyPhotoPreview}
+                alt="Foto do perfil"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover'
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#ffffff',
+                  fontSize: '1.25rem',
+                  fontWeight: '700'
+                }}
+              >
+                {(companyProfile?.companyName || user?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
+              </div>
+            )}
+          </div>
+
+          {/* Nome e Email */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: '0.9375rem',
+                fontWeight: '600',
+                color: '#ffffff',
+                marginBottom: '4px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
+            >
+              {companyProfile?.companyName || user?.displayName || 'Usuário'}
+            </div>
+            <div
+              style={{
+                fontSize: '0.8125rem',
+                color: '#9ca3af',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
+            >
+              {user?.email || ''}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
         </>
   );
