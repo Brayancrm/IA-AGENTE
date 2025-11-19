@@ -75,6 +75,14 @@
     "subscriptions": {
       ".read": "auth != null",
       ".write": "auth != null"
+    },
+    "email_templates": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "email_sends": {
+      ".read": "auth != null",
+      ".write": "auth != null"
     }
   }
 }

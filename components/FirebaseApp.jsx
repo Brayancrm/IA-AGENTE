@@ -289,345 +289,6 @@ const FirebaseApp = () => {
     return `${h}h ${m}min`;
   };
 
-  // Componente EmailTemplateModal
-  const EmailTemplateModal = ({ isOpen, onClose, template, formData, setFormData, database, showToast }) => {
-    const [editorReady, setEditorReady] = useState(false);
-    const editorContainerRef = React.useRef(null);
-    const unlayerInstanceRef = React.useRef(null);
-
-    // Carregar script do Unlayer
-    React.useEffect(() => {
-      if (!isOpen) return;
-
-      // Verificar se script já foi carregado
-      if (window.unlayer) {
-        initializeEditor();
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = 'https://editor.unlayer.com/embed.js';
-      script.async = true;
-      script.onload = () => {
-        console.log('✅ Unlayer script carregado');
-        initializeEditor();
-      };
-      script.onerror = () => {
-        console.error('❌ Erro ao carregar script do Unlayer');
-        showToast('Erro ao carregar editor de email', 'error');
-      };
-      document.body.appendChild(script);
-
-      return () => {
-        // Limpar ao fechar
-        if (unlayerInstanceRef.current) {
-          try {
-            unlayerInstanceRef.current.destroy();
-          } catch (e) {
-            console.error('Erro ao destruir editor:', e);
-          }
-        }
-      };
-    }, [isOpen]);
-
-    const initializeEditor = () => {
-      if (!editorContainerRef.current || !window.unlayer) {
-        // Tentar novamente após um pequeno delay
-        setTimeout(() => {
-          if (editorContainerRef.current && window.unlayer) {
-            initializeEditor();
-          }
-        }, 100);
-        return;
-      }
-
-      try {
-        // Inicializar editor Unlayer
-        const editorId = 'unlayer-editor-container-' + Date.now();
-        editorContainerRef.current.id = editorId;
-        
-        unlayerInstanceRef.current = window.unlayer.init({
-          id: editorId,
-          projectId: parseInt(process.env.NEXT_PUBLIC_UNLAYER_PROJECT_ID || '0'),
-          displayMode: 'email',
-          appearance: {
-            theme: 'dark'
-          },
-          locale: 'pt-BR'
-        });
-
-        // Carregar template existente se houver
-        if (template?.body) {
-          setTimeout(() => {
-            if (unlayerInstanceRef.current && unlayerInstanceRef.current.loadDesign) {
-              unlayerInstanceRef.current.loadDesign(template.body);
-            }
-          }, 500);
-        }
-
-        setEditorReady(true);
-        console.log('✅ Editor Unlayer inicializado');
-      } catch (error) {
-        console.error('Erro ao inicializar editor:', error);
-        showToast('Erro ao inicializar editor de email: ' + error.message, 'error');
-      }
-    };
-
-    if (!isOpen) return null;
-
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.9)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000,
-          padding: '20px'
-        }}
-        onClick={onClose}
-      >
-        <div
-          style={{
-            backgroundColor: '#1a1f36',
-            borderRadius: '24px',
-            padding: '32px',
-            maxWidth: '95vw',
-            maxHeight: '95vh',
-            width: '100%',
-            height: '100%',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-            border: '1px solid rgba(16, 185, 129, 0.2)',
-            position: 'relative',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#ffffff', margin: 0 }}>
-              {template ? 'Editar Template' : 'Criar Template'}
-            </h2>
-            <button
-              onClick={onClose}
-              style={{
-                backgroundColor: 'transparent',
-                border: 'none',
-                color: '#9ca3af',
-                fontSize: '1.5rem',
-                cursor: 'pointer',
-                width: '32px',
-                height: '32px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '8px',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                e.target.style.color = '#ffffff';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = 'transparent';
-                e.target.style.color = '#9ca3af';
-              }}
-            >
-              ×
-            </button>
-          </div>
-
-          {/* Formulário */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
-            <div>
-              <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-                Nome do Template
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Ex: Boas-vindas"
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  borderRadius: '12px',
-                  border: '2px solid rgba(255,255,255,0.1)',
-                  backgroundColor: '#0f1419',
-                  color: '#ffffff',
-                  fontSize: '1rem',
-                  boxSizing: 'border-box',
-                  outline: 'none',
-                  transition: 'border-color 0.2s ease'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#10b981'}
-                onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-                Assunto do Email
-              </label>
-              <input
-                type="text"
-                value={formData.subject}
-                onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
-                placeholder="Ex: Bem-vindo ao {{companyName}}!"
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  borderRadius: '12px',
-                  border: '2px solid rgba(255,255,255,0.1)',
-                  backgroundColor: '#0f1419',
-                  color: '#ffffff',
-                  fontSize: '1rem',
-                  boxSizing: 'border-box',
-                  outline: 'none',
-                  transition: 'border-color 0.2s ease'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#10b981'}
-                onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-              />
-              <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px', margin: 0 }}>
-                Use variáveis: {'{{clientName}}'}, {'{{clientEmail}}'}, {'{{companyName}}'}
-              </p>
-            </div>
-          </div>
-
-          {/* Editor Unlayer */}
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-              Corpo do Email
-            </label>
-            <div style={{ flex: 1, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', overflow: 'hidden', position: 'relative' }}>
-              {!editorReady && (
-                <div style={{ 
-                  position: 'absolute', 
-                  top: 0, 
-                  left: 0, 
-                  right: 0, 
-                  bottom: 0, 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  backgroundColor: '#0f1419',
-                  color: '#ffffff',
-                  zIndex: 1
-                }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '2rem', marginBottom: '12px' }}>⏳</div>
-                    <div>Carregando editor...</div>
-                  </div>
-                </div>
-              )}
-              <div 
-                ref={editorContainerRef}
-                style={{ 
-                  width: '100%', 
-                  height: '100%', 
-                  minHeight: '500px',
-                  display: editorReady ? 'block' : 'none'
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Botões */}
-          <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-            <button
-              onClick={onClose}
-              style={{
-                flex: 1,
-                backgroundColor: '#6b7280',
-                color: 'white',
-                padding: '12px 24px',
-                borderRadius: '12px',
-                border: 'none',
-                cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '1rem',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={() => {
-                if (!unlayerInstanceRef.current) {
-                  showToast('Editor não está pronto. Aguarde o carregamento.', 'error');
-                  return;
-                }
-                
-                // Exportar HTML do editor
-                unlayerInstanceRef.current.exportHtml((data) => {
-                  // Atualizar formData com o design
-                  setFormData(prev => ({ ...prev, body: data.design }));
-                  
-                  // Salvar template
-                  const templateToSave = {
-                    name: formData.name,
-                    subject: formData.subject,
-                    body: data.design, // JSON do Unlayer
-                    html: data.html, // HTML compilado
-                    createdAt: template?.createdAt || new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                  };
-
-                  if (template) {
-                    // Atualizar template existente
-                    const templateRef = ref(database, `email_templates/${template.id}`);
-                    set(templateRef, templateToSave);
-                    showToast('Template atualizado com sucesso!', 'success');
-                  } else {
-                    // Criar novo template
-                    const templatesRef = ref(database, 'email_templates');
-                    const newTemplateRef = push(templatesRef);
-                    set(newTemplateRef, templateToSave);
-                    showToast('Template criado com sucesso!', 'success');
-                  }
-
-                  onClose();
-                });
-              }}
-              style={{
-                flex: 1,
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                color: 'white',
-                padding: '12px 24px',
-                borderRadius: '12px',
-                border: 'none',
-                cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '1rem',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
-              }}
-            >
-              {template ? 'Atualizar Template' : 'Salvar Template'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // Componente SendEmailModal
   const SendEmailModal = ({ isOpen, onClose, template, users, database, user, showToast }) => {
     const [selectedUsers, setSelectedUsers] = useState([]);
@@ -3325,6 +2986,345 @@ const DashboardWithFirebase = ({
   // Garantir que usedTrials sempre seja um objeto
   const safeUsedTrials = usedTrials || {};
   const [isActive, setIsActive] = useState(assistantSettings.isActive || true);
+  
+  // Componente EmailTemplateModal (movido para dentro do DashboardWithFirebase)
+  const EmailTemplateModal = ({ isOpen, onClose, template, formData, setFormData, database, showToast }) => {
+    const [editorReady, setEditorReady] = useState(false);
+    const editorContainerRef = React.useRef(null);
+    const unlayerInstanceRef = React.useRef(null);
+
+    // Carregar script do Unlayer
+    React.useEffect(() => {
+      if (!isOpen) return;
+
+      // Verificar se script já foi carregado
+      if (window.unlayer) {
+        initializeEditor();
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://editor.unlayer.com/embed.js';
+      script.async = true;
+      script.onload = () => {
+        console.log('✅ Unlayer script carregado');
+        initializeEditor();
+      };
+      script.onerror = () => {
+        console.error('❌ Erro ao carregar script do Unlayer');
+        showToast('Erro ao carregar editor de email', 'error');
+      };
+      document.body.appendChild(script);
+
+      return () => {
+        // Limpar ao fechar
+        if (unlayerInstanceRef.current) {
+          try {
+            unlayerInstanceRef.current.destroy();
+          } catch (e) {
+            console.error('Erro ao destruir editor:', e);
+          }
+        }
+      };
+    }, [isOpen]);
+
+    const initializeEditor = () => {
+      if (!editorContainerRef.current || !window.unlayer) {
+        // Tentar novamente após um pequeno delay
+        setTimeout(() => {
+          if (editorContainerRef.current && window.unlayer) {
+            initializeEditor();
+          }
+        }, 100);
+        return;
+      }
+
+      try {
+        // Inicializar editor Unlayer
+        const editorId = 'unlayer-editor-container-' + Date.now();
+        editorContainerRef.current.id = editorId;
+        
+        unlayerInstanceRef.current = window.unlayer.init({
+          id: editorId,
+          projectId: parseInt(process.env.NEXT_PUBLIC_UNLAYER_PROJECT_ID || '0'),
+          displayMode: 'email',
+          appearance: {
+            theme: 'dark'
+          },
+          locale: 'pt-BR'
+        });
+
+        // Carregar template existente se houver
+        if (template?.body) {
+          setTimeout(() => {
+            if (unlayerInstanceRef.current && unlayerInstanceRef.current.loadDesign) {
+              unlayerInstanceRef.current.loadDesign(template.body);
+            }
+          }, 500);
+        }
+
+        setEditorReady(true);
+        console.log('✅ Editor Unlayer inicializado');
+      } catch (error) {
+        console.error('Erro ao inicializar editor:', error);
+        showToast('Erro ao inicializar editor de email: ' + error.message, 'error');
+      }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          padding: '20px'
+        }}
+        onClick={onClose}
+      >
+        <div
+          style={{
+            backgroundColor: '#1a1f36',
+            borderRadius: '24px',
+            padding: '32px',
+            maxWidth: '95vw',
+            maxHeight: '95vh',
+            width: '100%',
+            height: '100%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#ffffff', margin: 0 }}>
+              {template ? 'Editar Template' : 'Criar Template'}
+            </h2>
+            <button
+              onClick={onClose}
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#9ca3af',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '8px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                e.target.style.color = '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#9ca3af';
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          {/* Formulário */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+            <div>
+              <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+                Nome do Template
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Ex: Boas-vindas"
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  border: '2px solid rgba(255,255,255,0.1)',
+                  backgroundColor: '#0f1419',
+                  color: '#ffffff',
+                  fontSize: '1rem',
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                  transition: 'border-color 0.2s ease'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+                Assunto do Email
+              </label>
+              <input
+                type="text"
+                value={formData.subject}
+                onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
+                placeholder="Ex: Bem-vindo ao {{companyName}}!"
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  border: '2px solid rgba(255,255,255,0.1)',
+                  backgroundColor: '#0f1419',
+                  color: '#ffffff',
+                  fontSize: '1rem',
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                  transition: 'border-color 0.2s ease'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+              />
+              <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px', margin: 0 }}>
+                Use variáveis: {'{{clientName}}'}, {'{{clientEmail}}'}, {'{{companyName}}'}
+              </p>
+            </div>
+          </div>
+
+          {/* Editor Unlayer */}
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+              Corpo do Email
+            </label>
+            <div style={{ flex: 1, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', overflow: 'hidden', position: 'relative' }}>
+              {!editorReady && (
+                <div style={{ 
+                  position: 'absolute', 
+                  top: 0, 
+                  left: 0, 
+                  right: 0, 
+                  bottom: 0, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  backgroundColor: '#0f1419',
+                  color: '#ffffff',
+                  zIndex: 1
+                }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '2rem', marginBottom: '12px' }}>⏳</div>
+                    <div>Carregando editor...</div>
+                  </div>
+                </div>
+              )}
+              <div 
+                ref={editorContainerRef}
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  minHeight: '500px',
+                  display: editorReady ? 'block' : 'none'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Botões */}
+          <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+            <button
+              onClick={onClose}
+              style={{
+                flex: 1,
+                backgroundColor: '#6b7280',
+                color: 'white',
+                padding: '12px 24px',
+                borderRadius: '12px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '1rem',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => {
+                if (!unlayerInstanceRef.current) {
+                  showToast('Editor não está pronto. Aguarde o carregamento.', 'error');
+                  return;
+                }
+                
+                // Exportar HTML do editor
+                unlayerInstanceRef.current.exportHtml((data) => {
+                  // Atualizar formData com o design
+                  setFormData(prev => ({ ...prev, body: data.design }));
+                  
+                  // Salvar template
+                  const templateToSave = {
+                    name: formData.name,
+                    subject: formData.subject,
+                    body: data.design, // JSON do Unlayer
+                    html: data.html, // HTML compilado
+                    createdAt: template?.createdAt || new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                  };
+
+                  if (template) {
+                    // Atualizar template existente
+                    const templateRef = ref(database, `email_templates/${template.id}`);
+                    set(templateRef, templateToSave);
+                    showToast('Template atualizado com sucesso!', 'success');
+                  } else {
+                    // Criar novo template
+                    const templatesRef = ref(database, 'email_templates');
+                    const newTemplateRef = push(templatesRef);
+                    set(newTemplateRef, templateToSave);
+                    showToast('Template criado com sucesso!', 'success');
+                  }
+
+                  onClose();
+                });
+              }}
+              style={{
+                flex: 1,
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: 'white',
+                padding: '12px 24px',
+                borderRadius: '12px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '1rem',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+              }}
+            >
+              {template ? 'Atualizar Template' : 'Salvar Template'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
   
   // Função auxiliar para padding responsivo
   const getResponsivePadding = () => isMobile ? '16px' : '40px';
