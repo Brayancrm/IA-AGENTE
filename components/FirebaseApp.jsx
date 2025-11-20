@@ -3052,11 +3052,24 @@ const DashboardWithFirebase = ({
     }, [showToast]);
 
     // Aguardar script do Unlayer carregar (já está no head via layout.tsx)
+    // IMPORTANTE: Só inicializa quando o modal abre, não a cada mudança de formData
+    const hasInitializedForThisModal = React.useRef(false);
+    
     React.useEffect(() => {
-      if (!isOpen) return;
+      if (!isOpen) {
+        // Resetar flag quando modal fechar
+        hasInitializedForThisModal.current = false;
+        return;
+      }
+
+      // Se já inicializou para este modal, não fazer nada
+      if (hasInitializedForThisModal.current) {
+        return;
+      }
 
       // Verificar se script já foi carregado
       if (window.unlayer) {
+        hasInitializedForThisModal.current = true;
         initializeEditor();
         return;
       }
@@ -3069,6 +3082,7 @@ const DashboardWithFirebase = ({
         
         if (window.unlayer) {
           clearInterval(checkInterval);
+          hasInitializedForThisModal.current = true;
           console.log('✅ Unlayer detectado, inicializando editor...');
           initializeEditor();
         } else if (attempts >= maxAttempts) {
@@ -3090,7 +3104,7 @@ const DashboardWithFirebase = ({
           }
         }
       };
-    }, [isOpen, initializeEditor]);
+    }, [isOpen]); // Removido initializeEditor das dependências - só depende de isOpen
 
     // Resetar estado quando modal fechar
     React.useEffect(() => {
