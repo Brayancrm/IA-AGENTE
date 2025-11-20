@@ -2965,140 +2965,134 @@ const DashboardWithFirebase = ({
   const [isActive, setIsActive] = useState(assistantSettings.isActive || true);
   
   // Componente EmailTemplateModal (movido para dentro do DashboardWithFirebase)
-  const EmailTemplateModal = ({ isOpen, onClose, template, formData, setFormData, database, showToast }) => {
+  const EmailTemplateModal = React.memo(({ isOpen, onClose, template, formData, setFormData, database, showToast }) => {
     const [editorReady, setEditorReady] = useState(false);
     const editorContainerRef = React.useRef(null);
     const unlayerInstanceRef = React.useRef(null);
     const isEditorInitializedRef = React.useRef(false);
     const templateBodyRef = React.useRef(null);
+    const hasInitializedForThisModalRef = React.useRef(false);
 
-    // Atualizar ref do template body quando mudar
+    // Atualizar ref do template body quando mudar (não causa re-render)
     React.useEffect(() => {
       templateBodyRef.current = template?.body || null;
     }, [template?.body]);
 
-    // Função para inicializar o editor (usando ref para evitar recriação)
-    const initializeEditorRef = React.useRef(null);
-    
-    // Criar função de inicialização apenas uma vez
-    if (!initializeEditorRef.current) {
-      initializeEditorRef.current = () => {
-        // Se já foi inicializado, não reinicializar
+    // Função para inicializar o editor (usando useCallback para estabilizar)
+    const initializeEditor = React.useCallback(() => {
+      // Se já foi inicializado, não reinicializar
+      if (isEditorInitializedRef.current && unlayerInstanceRef.current) {
+        console.log('⚠️ Editor já inicializado, ignorando chamada duplicada');
+        return;
+      }
+
+      if (!editorContainerRef.current || !window.unlayer) {
+        // Tentar novamente após um pequeno delay
+        setTimeout(() => {
+          if (editorContainerRef.current && window.unlayer && !isEditorInitializedRef.current) {
+            initializeEditor();
+          }
+        }, 100);
+        return;
+      }
+
+      try {
+        // Validar projectId antes de inicializar
+        const projectId = parseInt(process.env.NEXT_PUBLIC_UNLAYER_PROJECT_ID || '0');
+        if (!projectId || projectId === 0) {
+          console.error('❌ NEXT_PUBLIC_UNLAYER_PROJECT_ID não está configurado');
+          showToast('Erro: Project ID do Unlayer não está configurado. Configure a variável NEXT_PUBLIC_UNLAYER_PROJECT_ID no arquivo .env.local', 'error');
+          return;
+        }
+
+        // Verificar novamente antes de inicializar (double-check)
         if (isEditorInitializedRef.current && unlayerInstanceRef.current) {
-          console.log('⚠️ Editor já inicializado, ignorando chamada duplicada');
+          console.log('⚠️ Editor já inicializado (double-check), ignorando');
           return;
         }
 
-        if (!editorContainerRef.current || !window.unlayer) {
-          // Tentar novamente após um pequeno delay
-          setTimeout(() => {
-            if (editorContainerRef.current && window.unlayer && !isEditorInitializedRef.current) {
-              initializeEditorRef.current();
-            }
-          }, 100);
-          return;
+        // Inicializar editor Unlayer
+        const editorId = 'unlayer-editor-container-' + Date.now();
+        editorContainerRef.current.id = editorId;
+        
+        // Configuração do editor Unlayer
+        const editorConfig = {
+          id: editorId,
+          projectId: projectId,
+          displayMode: 'email',
+          appearance: {
+            theme: 'dark'
+          },
+          locale: 'pt-BR'
+        };
+
+        // Adicionar API key se estiver configurada (opcional, mas pode ajudar com autenticação)
+        const unlayerApiKey = process.env.NEXT_PUBLIC_UNLAYER_API_KEY;
+        if (unlayerApiKey) {
+          editorConfig.apiKey = unlayerApiKey;
+          console.log('✅ Unlayer API Key configurada');
+        } else {
+          console.log('ℹ️ Unlayer API Key não configurada (usando apenas Project ID)');
         }
+        
+        console.log('🔄 Inicializando editor Unlayer...');
+        unlayerInstanceRef.current = window.unlayer.init(editorConfig);
 
-        try {
-          // Validar projectId antes de inicializar
-          const projectId = parseInt(process.env.NEXT_PUBLIC_UNLAYER_PROJECT_ID || '0');
-          if (!projectId || projectId === 0) {
-            console.error('❌ NEXT_PUBLIC_UNLAYER_PROJECT_ID não está configurado');
-            showToast('Erro: Project ID do Unlayer não está configurado. Configure a variável NEXT_PUBLIC_UNLAYER_PROJECT_ID no arquivo .env.local', 'error');
-            return;
-          }
+        // Marcar como inicializado IMEDIATAMENTE para evitar múltiplas inicializações
+        isEditorInitializedRef.current = true;
 
-          // Verificar novamente antes de inicializar (double-check)
-          if (isEditorInitializedRef.current && unlayerInstanceRef.current) {
-            console.log('⚠️ Editor já inicializado (double-check), ignorando');
-            return;
-          }
-
-          // Inicializar editor Unlayer
-          const editorId = 'unlayer-editor-container-' + Date.now();
-          editorContainerRef.current.id = editorId;
-          
-          // Configuração do editor Unlayer
-          const editorConfig = {
-            id: editorId,
-            projectId: projectId,
-            displayMode: 'email',
-            appearance: {
-              theme: 'dark'
-            },
-            locale: 'pt-BR'
-          };
-
-          // Adicionar API key se estiver configurada (opcional, mas pode ajudar com autenticação)
-          const unlayerApiKey = process.env.NEXT_PUBLIC_UNLAYER_API_KEY;
-          if (unlayerApiKey) {
-            editorConfig.apiKey = unlayerApiKey;
-            console.log('✅ Unlayer API Key configurada');
-          } else {
-            console.log('ℹ️ Unlayer API Key não configurada (usando apenas Project ID)');
-          }
-          
-          console.log('🔄 Inicializando editor Unlayer...');
-          unlayerInstanceRef.current = window.unlayer.init(editorConfig);
-
-          // Marcar como inicializado IMEDIATAMENTE para evitar múltiplas inicializações
-          isEditorInitializedRef.current = true;
-
-          // Adicionar listeners para erros do Unlayer
-          if (unlayerInstanceRef.current) {
-            unlayerInstanceRef.current.addEventListener('editor:ready', () => {
-              console.log('✅ Editor Unlayer pronto');
-              setEditorReady(true);
-              
-              // Carregar template existente se houver (apenas na primeira inicialização)
-              if (templateBodyRef.current) {
-                setTimeout(() => {
-                  if (unlayerInstanceRef.current && unlayerInstanceRef.current.loadDesign) {
-                    try {
-                      unlayerInstanceRef.current.loadDesign(templateBodyRef.current);
-                    } catch (loadError) {
-                      console.error('Erro ao carregar design:', loadError);
-                      showToast('Erro ao carregar template existente', 'error');
-                    }
-                  }
-                }, 500);
-              }
-            });
-          } else {
+        // Adicionar listeners para erros do Unlayer
+        if (unlayerInstanceRef.current) {
+          unlayerInstanceRef.current.addEventListener('editor:ready', () => {
+            console.log('✅ Editor Unlayer pronto');
             setEditorReady(true);
-          }
-
-          console.log('✅ Editor Unlayer inicializado (ID:', editorId, ')');
-        } catch (error) {
-          console.error('Erro ao inicializar editor:', error);
-          isEditorInitializedRef.current = false; // Resetar em caso de erro
-          showToast('Erro ao inicializar editor de email: ' + (error.message || 'Erro desconhecido'), 'error');
+            
+            // Carregar template existente se houver (apenas na primeira inicialização)
+            if (templateBodyRef.current) {
+              setTimeout(() => {
+                if (unlayerInstanceRef.current && unlayerInstanceRef.current.loadDesign) {
+                  try {
+                    unlayerInstanceRef.current.loadDesign(templateBodyRef.current);
+                  } catch (loadError) {
+                    console.error('Erro ao carregar design:', loadError);
+                    showToast('Erro ao carregar template existente', 'error');
+                  }
+                }
+              }, 500);
+            }
+          });
+        } else {
+          setEditorReady(true);
         }
-      };
-    }
-    
-    const initializeEditor = initializeEditorRef.current;
+
+        console.log('✅ Editor Unlayer inicializado (ID:', editorId, ')');
+      } catch (error) {
+        console.error('Erro ao inicializar editor:', error);
+        isEditorInitializedRef.current = false; // Resetar em caso de erro
+        showToast('Erro ao inicializar editor de email: ' + (error.message || 'Erro desconhecido'), 'error');
+      }
+    }, [showToast]); // showToast é estável, não muda
 
     // Aguardar script do Unlayer carregar (já está no head via layout.tsx)
     // IMPORTANTE: Só inicializa quando o modal abre, não a cada mudança de formData
-    const hasInitializedForThisModal = React.useRef(false);
-    
     React.useEffect(() => {
       if (!isOpen) {
-        // Resetar flag quando modal fechar
-        hasInitializedForThisModal.current = false;
+        // Resetar flags quando modal fechar
+        hasInitializedForThisModalRef.current = false;
+        isEditorInitializedRef.current = false;
         return;
       }
 
       // Se já inicializou para este modal, não fazer nada
-      if (hasInitializedForThisModal.current) {
+      if (hasInitializedForThisModalRef.current) {
+        console.log('⚠️ Já inicializado para este modal, ignorando');
         return;
       }
 
       // Verificar se script já foi carregado
       if (window.unlayer) {
-        if (!hasInitializedForThisModal.current) {
-          hasInitializedForThisModal.current = true;
+        if (!hasInitializedForThisModalRef.current) {
+          hasInitializedForThisModalRef.current = true;
           console.log('🔄 Iniciando inicialização do editor (script já carregado)...');
           initializeEditor();
         }
@@ -3111,9 +3105,9 @@ const DashboardWithFirebase = ({
       const checkInterval = setInterval(() => {
         attempts++;
         
-        if (window.unlayer && !hasInitializedForThisModal.current) {
+        if (window.unlayer && !hasInitializedForThisModalRef.current) {
           clearInterval(checkInterval);
-          hasInitializedForThisModal.current = true;
+          hasInitializedForThisModalRef.current = true;
           console.log('✅ Unlayer detectado, inicializando editor...');
           initializeEditor();
         } else if (attempts >= maxAttempts) {
@@ -3135,7 +3129,7 @@ const DashboardWithFirebase = ({
           }
         }
       };
-    }, [isOpen]); // Removido initializeEditor das dependências - só depende de isOpen
+    }, [isOpen, initializeEditor]); // initializeEditor é estável devido ao useCallback
 
     // Resetar estado quando modal fechar
     React.useEffect(() => {
@@ -3458,7 +3452,19 @@ const DashboardWithFirebase = ({
         </div>
       </div>
     );
-  };
+  }, (prevProps, nextProps) => {
+    // Comparação customizada para evitar re-renders desnecessários
+    // Só re-renderiza se isOpen, template ou database mudarem
+    // Ignora mudanças em formData para evitar reinicialização do editor
+    return (
+      prevProps.isOpen === nextProps.isOpen &&
+      prevProps.template === nextProps.template &&
+      prevProps.database === nextProps.database &&
+      prevProps.showToast === nextProps.showToast &&
+      prevProps.onClose === nextProps.onClose &&
+      prevProps.setFormData === nextProps.setFormData
+    );
+  });
   
   // Função auxiliar para padding responsivo
   const getResponsivePadding = () => isMobile ? '16px' : '40px';
