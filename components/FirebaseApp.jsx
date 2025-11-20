@@ -3036,7 +3036,7 @@ const DashboardWithFirebase = ({
       }
     }, [template, showToast]);
 
-    // Carregar script do Unlayer
+    // Aguardar script do Unlayer carregar (já está no head via layout.tsx)
     React.useEffect(() => {
       if (!isOpen) return;
 
@@ -3046,46 +3046,25 @@ const DashboardWithFirebase = ({
         return;
       }
 
-      // Verificar se já existe um script sendo carregado
-      const existingScript = document.querySelector('script[src="https://editor.unlayer.com/embed.js"]');
-      if (existingScript) {
-        existingScript.addEventListener('load', initializeEditor);
-        existingScript.addEventListener('error', () => {
-          console.error('❌ Erro ao carregar script do Unlayer');
-          showToast('Erro ao carregar editor de email. Verifique sua conexão com a internet.', 'error');
-        });
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = 'https://editor.unlayer.com/embed.js';
-      script.async = true;
-      script.crossOrigin = 'anonymous';
-      
-      let timeoutId = setTimeout(() => {
-        console.error('❌ Timeout ao carregar script do Unlayer');
-        showToast('Timeout ao carregar editor. Verifique sua conexão com a internet.', 'error');
-      }, 30000); // 30 segundos de timeout
-
-      script.onload = () => {
-        clearTimeout(timeoutId);
-        console.log('✅ Unlayer script carregado');
-        // Pequeno delay para garantir que o objeto unlayer está totalmente disponível
-        setTimeout(() => {
+      // Aguardar script carregar do head
+      let attempts = 0;
+      const maxAttempts = 50; // 5 segundos máximo
+      const checkInterval = setInterval(() => {
+        attempts++;
+        
+        if (window.unlayer) {
+          clearInterval(checkInterval);
+          console.log('✅ Unlayer detectado, inicializando editor...');
           initializeEditor();
-        }, 100);
-      };
-      
-      script.onerror = (error) => {
-        clearTimeout(timeoutId);
-        console.error('❌ Erro ao carregar script do Unlayer:', error);
-        showToast('Erro ao carregar editor de email. Verifique sua conexão com a internet e tente novamente.', 'error');
-      };
-      
-      document.body.appendChild(script);
+        } else if (attempts >= maxAttempts) {
+          clearInterval(checkInterval);
+          console.error('❌ Timeout: Unlayer não carregou após 5 segundos');
+          showToast('Erro ao carregar editor. Verifique sua conexão com a internet e recarregue a página.', 'error');
+        }
+      }, 100);
 
       return () => {
-        clearTimeout(timeoutId);
+        clearInterval(checkInterval);
         // Limpar ao fechar
         if (unlayerInstanceRef.current) {
           try {

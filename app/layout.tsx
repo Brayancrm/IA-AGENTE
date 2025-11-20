@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
 import { PWARegister } from '../components/PWARegister'
 
@@ -55,6 +56,20 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
+      <head>
+        <Script
+          src="https://editor.unlayer.com/embed.js"
+          strategy="lazyOnload"
+          onLoad={() => {
+            if (typeof window !== 'undefined') {
+              console.log('✅ Unlayer script carregado no head');
+            }
+          }}
+          onError={(e) => {
+            console.error('❌ Erro ao carregar script do Unlayer no head:', e);
+          }}
+        />
+      </head>
       <body className={inter.className}>
         <PWARegister />
         {children}

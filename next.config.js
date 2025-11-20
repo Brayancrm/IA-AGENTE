@@ -18,6 +18,10 @@ const nextConfig = {
       },
     ];
   },
+  // Permitir carregamento de scripts externos do Unlayer
+  async rewrites() {
+    return [];
+  },
 }
 
 module.exports = nextConfig
