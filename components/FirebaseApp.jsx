@@ -3340,42 +3340,64 @@ const DashboardWithFirebase = ({
               Cancelar
             </button>
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (!unlayerInstanceRef.current) {
                   showToast('Editor não está pronto. Aguarde o carregamento.', 'error');
                   return;
                 }
+
+                if (!database) {
+                  showToast('Erro: Banco de dados não disponível', 'error');
+                  return;
+                }
+
+                if (!formData.name || !formData.subject) {
+                  showToast('Por favor, preencha o nome e o assunto do template', 'error');
+                  return;
+                }
                 
-                // Exportar HTML do editor
-                unlayerInstanceRef.current.exportHtml((data) => {
-                  // Atualizar formData com o design
-                  setFormData(prev => ({ ...prev, body: data.design }));
-                  
-                  // Salvar template
-                  const templateToSave = {
-                    name: formData.name,
-                    subject: formData.subject,
-                    body: data.design, // JSON do Unlayer
-                    html: data.html, // HTML compilado
-                    createdAt: template?.createdAt || new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                  };
+                try {
+                  // Exportar HTML do editor
+                  unlayerInstanceRef.current.exportHtml(async (data) => {
+                    try {
+                      // Atualizar formData com o design
+                      setFormData(prev => ({ ...prev, body: data.design }));
+                      
+                      // Salvar template
+                      const templateToSave = {
+                        name: formData.name.trim(),
+                        subject: formData.subject.trim(),
+                        body: data.design, // JSON do Unlayer
+                        html: data.html, // HTML compilado
+                        createdAt: template?.createdAt || new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                      };
 
-                  if (template) {
-                    // Atualizar template existente
-                    const templateRef = ref(database, `email_templates/${template.id}`);
-                    set(templateRef, templateToSave);
-                    showToast('Template atualizado com sucesso!', 'success');
-                  } else {
-                    // Criar novo template
-                    const templatesRef = ref(database, 'email_templates');
-                    const newTemplateRef = push(templatesRef);
-                    set(newTemplateRef, templateToSave);
-                    showToast('Template criado com sucesso!', 'success');
-                  }
+                      if (template) {
+                        // Atualizar template existente
+                        const templateRef = ref(database, `email_templates/${template.id}`);
+                        await set(templateRef, templateToSave);
+                        console.log('✅ Template atualizado:', template.id);
+                        showToast('Template atualizado com sucesso!', 'success');
+                      } else {
+                        // Criar novo template
+                        const templatesRef = ref(database, 'email_templates');
+                        const newTemplateRef = push(templatesRef);
+                        await set(newTemplateRef, templateToSave);
+                        console.log('✅ Template criado:', newTemplateRef.key);
+                        showToast('Template criado com sucesso!', 'success');
+                      }
 
-                  onClose();
-                });
+                      onClose();
+                    } catch (error) {
+                      console.error('❌ Erro ao salvar template:', error);
+                      showToast('Erro ao salvar template: ' + (error.message || 'Erro desconhecido'), 'error');
+                    }
+                  });
+                } catch (error) {
+                  console.error('❌ Erro ao exportar HTML do editor:', error);
+                  showToast('Erro ao exportar conteúdo do editor: ' + (error.message || 'Erro desconhecido'), 'error');
+                }
               }}
               style={{
                 flex: 1,
