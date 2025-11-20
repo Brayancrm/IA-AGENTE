@@ -3007,7 +3007,8 @@ const DashboardWithFirebase = ({
         const editorId = 'unlayer-editor-container-' + Date.now();
         editorContainerRef.current.id = editorId;
         
-        unlayerInstanceRef.current = window.unlayer.init({
+        // Configuração do editor Unlayer
+        const editorConfig = {
           id: editorId,
           projectId: projectId,
           displayMode: 'email',
@@ -3015,7 +3016,18 @@ const DashboardWithFirebase = ({
             theme: 'dark'
           },
           locale: 'pt-BR'
-        });
+        };
+
+        // Adicionar API key se estiver configurada (opcional, mas pode ajudar com autenticação)
+        const unlayerApiKey = process.env.NEXT_PUBLIC_UNLAYER_API_KEY;
+        if (unlayerApiKey) {
+          editorConfig.apiKey = unlayerApiKey;
+          console.log('✅ Unlayer API Key configurada');
+        } else {
+          console.log('ℹ️ Unlayer API Key não configurada (usando apenas Project ID)');
+        }
+        
+        unlayerInstanceRef.current = window.unlayer.init(editorConfig);
 
         // Marcar como inicializado
         isEditorInitializedRef.current = true;
