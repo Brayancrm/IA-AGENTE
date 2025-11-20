@@ -2970,42 +2970,8 @@ const DashboardWithFirebase = ({
     const editorContainerRef = React.useRef(null);
     const unlayerInstanceRef = React.useRef(null);
 
-    // Carregar script do Unlayer
-    React.useEffect(() => {
-      if (!isOpen) return;
-
-      // Verificar se script já foi carregado
-      if (window.unlayer) {
-        initializeEditor();
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = 'https://editor.unlayer.com/embed.js';
-      script.async = true;
-      script.onload = () => {
-        console.log('✅ Unlayer script carregado');
-        initializeEditor();
-      };
-      script.onerror = () => {
-        console.error('❌ Erro ao carregar script do Unlayer');
-        showToast('Erro ao carregar editor de email', 'error');
-      };
-      document.body.appendChild(script);
-
-      return () => {
-        // Limpar ao fechar
-        if (unlayerInstanceRef.current) {
-          try {
-            unlayerInstanceRef.current.destroy();
-          } catch (e) {
-            console.error('Erro ao destruir editor:', e);
-          }
-        }
-      };
-    }, [isOpen]);
-
-    const initializeEditor = () => {
+    // Função para inicializar o editor (definida antes do useEffect)
+    const initializeEditor = React.useCallback(() => {
       if (!editorContainerRef.current || !window.unlayer) {
         // Tentar novamente após um pequeno delay
         setTimeout(() => {
@@ -3017,13 +2983,21 @@ const DashboardWithFirebase = ({
       }
 
       try {
+        // Validar projectId antes de inicializar
+        const projectId = parseInt(process.env.NEXT_PUBLIC_UNLAYER_PROJECT_ID || '0');
+        if (!projectId || projectId === 0) {
+          console.error('❌ NEXT_PUBLIC_UNLAYER_PROJECT_ID não está configurado');
+          showToast('Erro: Project ID do Unlayer não está configurado. Configure a variável NEXT_PUBLIC_UNLAYER_PROJECT_ID no arquivo .env.local', 'error');
+          return;
+        }
+
         // Inicializar editor Unlayer
         const editorId = 'unlayer-editor-container-' + Date.now();
         editorContainerRef.current.id = editorId;
         
         unlayerInstanceRef.current = window.unlayer.init({
           id: editorId,
-          projectId: parseInt(process.env.NEXT_PUBLIC_UNLAYER_PROJECT_ID || '0'),
+          projectId: projectId,
           displayMode: 'email',
           appearance: {
             theme: 'dark'
@@ -3031,22 +3005,127 @@ const DashboardWithFirebase = ({
           locale: 'pt-BR'
         });
 
+        // Adicionar listeners para erros do Unlayer
+        if (unlayerInstanceRef.current) {
+          unlayerInstanceRef.current.addEventListener('editor:ready', () => {
+            console.log('✅ Editor Unlayer pronto');
+            setEditorReady(true);
+          });
+        }
+
         // Carregar template existente se houver
         if (template?.body) {
           setTimeout(() => {
             if (unlayerInstanceRef.current && unlayerInstanceRef.current.loadDesign) {
-              unlayerInstanceRef.current.loadDesign(template.body);
+              try {
+                unlayerInstanceRef.current.loadDesign(template.body);
+              } catch (loadError) {
+                console.error('Erro ao carregar design:', loadError);
+                showToast('Erro ao carregar template existente', 'error');
+              }
             }
           }, 500);
+        } else {
+          setEditorReady(true);
         }
 
-        setEditorReady(true);
         console.log('✅ Editor Unlayer inicializado');
       } catch (error) {
         console.error('Erro ao inicializar editor:', error);
-        showToast('Erro ao inicializar editor de email: ' + error.message, 'error');
+        showToast('Erro ao inicializar editor de email: ' + (error.message || 'Erro desconhecido'), 'error');
       }
-    };
+    }, [template, showToast]);
+
+    // Carregar script do Unlayer
+    React.useEffect(() => {
+      if (!isOpen) return;
+
+      // Verificar se script já foi carregado
+      if (window.unlayer) {
+        initializeEditor();
+        return;
+      }
+
+      // Verificar se já existe um script sendo carregado
+      const existingScript = document.querySelector('script[src="https://editor.unlayer.com/embed.js"]');
+      if (existingScript) {
+        existingScript.addEventListener('load', initializeEditor);
+        existingScript.addEventListener('error', () => {
+          console.error('❌ Erro ao carregar script do Unlayer');
+          showToast('Erro ao carregar editor de email. Verifique sua conexão com a internet.', 'error');
+        });
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://editor.unlayer.com/embed.js';
+      script.async = true;
+      script.crossOrigin = 'anonymous';
+      
+      let timeoutId = setTimeout(() => {
+        console.error('❌ Timeout ao carregar script do Unlayer');
+        showToast('Timeout ao carregar editor. Verifique sua conexão com a internet.', 'error');
+      }, 30000); // 30 segundos de timeout
+
+      script.onload = () => {
+        clearTimeout(timeoutId);
+        console.log('✅ Unlayer script carregado');
+        // Pequeno delay para garantir que o objeto unlayer está totalmente disponível
+        setTimeout(() => {
+          initializeEditor();
+        }, 100);
+      };
+      
+      script.onerror = (error) => {
+        clearTimeout(timeoutId);
+        console.error('❌ Erro ao carregar script do Unlayer:', error);
+        showToast('Erro ao carregar editor de email. Verifique sua conexão com a internet e tente novamente.', 'error');
+      };
+      
+      document.body.appendChild(script);
+
+      return () => {
+        clearTimeout(timeoutId);
+        // Limpar ao fechar
+        if (unlayerInstanceRef.current) {
+          try {
+            unlayerInstanceRef.current.destroy();
+          } catch (e) {
+            console.error('Erro ao destruir editor:', e);
+          }
+        }
+      };
+    }, [isOpen, initializeEditor]);
+
+    // Tratar erros globais de fetch do Unlayer
+    React.useEffect(() => {
+      if (!isOpen) return;
+
+      const handleError = (event) => {
+        if (event.message && event.message.includes('Failed to fetch') && event.filename?.includes('unlayer')) {
+          console.error('❌ Erro de conexão com Unlayer:', event);
+          showToast('Erro de conexão com o editor. Verifique sua conexão com a internet e o Project ID do Unlayer.', 'error');
+        }
+      };
+
+      const handleRejection = (event) => {
+        if (event.reason && (event.reason.message?.includes('fetch') || event.reason.message?.includes('Failed'))) {
+          const stack = event.reason.stack || '';
+          if (stack.includes('unlayer') || event.reason.message.includes('unlayer')) {
+            console.error('❌ Erro não tratado do Unlayer:', event.reason);
+            showToast('Erro ao carregar recursos do editor. Verifique o Project ID do Unlayer.', 'error');
+          }
+        }
+      };
+
+      window.addEventListener('error', handleError, true);
+      window.addEventListener('unhandledrejection', handleRejection);
+
+      return () => {
+        window.removeEventListener('error', handleError, true);
+        window.removeEventListener('unhandledrejection', handleRejection);
+      };
+    }, [isOpen, showToast]);
 
     if (!isOpen) return null;
 
