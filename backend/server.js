@@ -39,41 +39,73 @@ console.log('🚀 Iniciando servidor WPPConnect + IA...');
 // Inicializar Firebase Admin
 let serviceAccount;
 
-// Tentar carregar de arquivo (desenvolvimento local)
-try {
-  serviceAccount = require('./serviceAccountKey.json');
-  console.log('✅ serviceAccountKey.json carregado do arquivo');
-} catch (error) {
+// Função para inicializar Firebase (chamada apenas quando necessário)
+function initializeFirebase() {
+  if (serviceAccount) {
+    return; // Já inicializado
+  }
+
+  // Tentar carregar de arquivo (desenvolvimento local)
+  const serviceAccountPath = path.join(__dirname, 'serviceAccountKey.json');
+  if (fs.existsSync(serviceAccountPath)) {
+    try {
+      const serviceAccountFile = fs.readFileSync(serviceAccountPath, 'utf8');
+      serviceAccount = JSON.parse(serviceAccountFile);
+      console.log('✅ serviceAccountKey.json carregado do arquivo');
+      return;
+    } catch (error) {
+      console.error('⚠️ Erro ao ler serviceAccountKey.json:', error.message);
+      // Continuar para tentar variável de ambiente
+    }
+  }
+
   // Se não encontrar arquivo, tentar variável de ambiente (produção)
   if (process.env.SERVICE_ACCOUNT_KEY) {
     try {
       serviceAccount = JSON.parse(process.env.SERVICE_ACCOUNT_KEY);
       console.log('✅ serviceAccountKey carregado da variável de ambiente');
+      return;
     } catch (parseError) {
       console.error('❌ Erro ao fazer parse da variável SERVICE_ACCOUNT_KEY:', parseError.message);
-      process.exit(1);
+      throw new Error('Erro ao fazer parse da variável SERVICE_ACCOUNT_KEY');
     }
-  } else {
-    console.error('❌ Erro: serviceAccountKey não encontrado!');
-    console.log('📝 Para desenvolvimento local, baixe o arquivo do Firebase Console:');
-    console.log('   1. Vá para: https://console.firebase.google.com');
-    console.log('   2. Selecione seu projeto: ia-agente-b2f46');
-    console.log('   3. Project Settings → Service Accounts');
-    console.log('   4. "Generate New Private Key"');
-    console.log('   5. Salve como: backend/serviceAccountKey.json');
-    console.log('');
-    console.log('📝 Para produção (Railway/Render), adicione a variável de ambiente:');
-    console.log('   SERVICE_ACCOUNT_KEY = [conteúdo completo do JSON]');
+  }
+
+  // Se chegou aqui, não encontrou nenhuma credencial
+  console.error('❌ Erro: serviceAccountKey não encontrado!');
+  console.log('📝 Para desenvolvimento local, baixe o arquivo do Firebase Console:');
+  console.log('   1. Vá para: https://console.firebase.google.com');
+  console.log('   2. Selecione seu projeto: ia-agente-b2f46');
+  console.log('   3. Project Settings → Service Accounts');
+  console.log('   4. "Generate New Private Key"');
+  console.log('   5. Salve como: backend/serviceAccountKey.json');
+  console.log('');
+  console.log('📝 Para produção (Railway/Render), adicione a variável de ambiente:');
+  console.log('   SERVICE_ACCOUNT_KEY = [conteúdo completo do JSON]');
+  throw new Error('serviceAccountKey não encontrado');
+}
+
+// Inicializar Firebase (chamado apenas quando o servidor iniciar)
+try {
+  initializeFirebase();
+  
+  // IMPORTANTE: Forçar uso do banco secundário onde estão os dados do Firestore
+  // NÃO usar a variável de ambiente que pode estar apontando para o banco default vazio
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: 'https://ia-agente-b2f46.firebaseio.com' // Banco secundário com dados
+  });
+  console.log('✅ Firebase Admin inicializado');
+} catch (error) {
+  console.error('❌ Erro ao inicializar Firebase:', error.message);
+  console.log('⚠️ O servidor não pode iniciar sem as credenciais do Firebase.');
+  console.log('   Configure SERVICE_ACCOUNT_KEY no Railway antes de fazer deploy.');
+  // Não fazer exit durante o build, apenas logar o erro
+  if (process.env.NODE_ENV === 'production' && !process.env.SERVICE_ACCOUNT_KEY) {
+    console.error('❌ Deploy falhou: SERVICE_ACCOUNT_KEY não configurado no Railway');
     process.exit(1);
   }
 }
-
-// IMPORTANTE: Forçar uso do banco secundário onde estão os dados do Firestore
-// NÃO usar a variável de ambiente que pode estar apontando para o banco default vazio
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: 'https://ia-agente-b2f46.firebaseio.com' // Banco secundário com dados
-});
 
 const db = admin.database();
 const firestore = admin.firestore();
