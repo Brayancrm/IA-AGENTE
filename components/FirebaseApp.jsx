@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useFirebase } from '../hooks/useFirebase';
 
 // Suprimir erros não críticos de scripts externos (Firebase/Vercel feedback)
@@ -3073,6 +3073,12 @@ const DashboardWithFirebase = ({
       }
     }, [showToast]); // showToast é estável, não muda
 
+    // Guardar initializeEditor em ref para evitar dependência no useEffect
+    const initializeEditorRef = React.useRef(initializeEditor);
+    React.useEffect(() => {
+      initializeEditorRef.current = initializeEditor;
+    }, [initializeEditor]);
+
     // Aguardar script do Unlayer carregar (já está no head via layout.tsx)
     // IMPORTANTE: Só inicializa quando o modal abre, não a cada mudança de formData
     React.useEffect(() => {
@@ -3083,19 +3089,25 @@ const DashboardWithFirebase = ({
         return;
       }
 
-      // Se já inicializou para este modal, não fazer nada
+      // PROTEÇÃO: Se já inicializou para este modal, NÃO fazer nada
       if (hasInitializedForThisModalRef.current) {
-        console.log('⚠️ Já inicializado para este modal, ignorando');
+        console.log('⚠️ [PROTEÇÃO] Já inicializado para este modal, ignorando chamada');
+        return;
+      }
+
+      // PROTEÇÃO: Se editor já está inicializado, NÃO fazer nada
+      if (isEditorInitializedRef.current && unlayerInstanceRef.current) {
+        console.log('⚠️ [PROTEÇÃO] Editor já inicializado globalmente, ignorando');
+        hasInitializedForThisModalRef.current = true;
         return;
       }
 
       // Verificar se script já foi carregado
       if (window.unlayer) {
-        if (!hasInitializedForThisModalRef.current) {
-          hasInitializedForThisModalRef.current = true;
-          console.log('🔄 Iniciando inicialização do editor (script já carregado)...');
-          initializeEditor();
-        }
+        // Marcar ANTES de chamar para evitar chamadas duplicadas
+        hasInitializedForThisModalRef.current = true;
+        console.log('🔄 Iniciando inicialização do editor (script já carregado)...');
+        initializeEditorRef.current();
         return;
       }
 
@@ -3105,11 +3117,18 @@ const DashboardWithFirebase = ({
       const checkInterval = setInterval(() => {
         attempts++;
         
+        // Verificar novamente se já foi inicializado (proteção extra)
+        if (hasInitializedForThisModalRef.current || (isEditorInitializedRef.current && unlayerInstanceRef.current)) {
+          clearInterval(checkInterval);
+          console.log('⚠️ [PROTEÇÃO] Editor já inicializado durante polling, cancelando');
+          return;
+        }
+        
         if (window.unlayer && !hasInitializedForThisModalRef.current) {
           clearInterval(checkInterval);
           hasInitializedForThisModalRef.current = true;
           console.log('✅ Unlayer detectado, inicializando editor...');
-          initializeEditor();
+          initializeEditorRef.current();
         } else if (attempts >= maxAttempts) {
           clearInterval(checkInterval);
           console.error('❌ Timeout: Unlayer não carregou após 5 segundos');
@@ -3129,7 +3148,7 @@ const DashboardWithFirebase = ({
           }
         }
       };
-    }, [isOpen, initializeEditor]); // initializeEditor é estável devido ao useCallback
+    }, [isOpen]); // SÓ depende de isOpen - não depende de initializeEditor
 
     // Resetar estado quando modal fechar
     React.useEffect(() => {
@@ -3455,15 +3474,23 @@ const DashboardWithFirebase = ({
   }, (prevProps, nextProps) => {
     // Comparação customizada para evitar re-renders desnecessários
     // Só re-renderiza se isOpen, template ou database mudarem
-    // Ignora mudanças em formData para evitar reinicialização do editor
-    return (
-      prevProps.isOpen === nextProps.isOpen &&
-      prevProps.template === nextProps.template &&
-      prevProps.database === nextProps.database &&
-      prevProps.showToast === nextProps.showToast &&
-      prevProps.onClose === nextProps.onClose &&
-      prevProps.setFormData === nextProps.setFormData
+    // IGNORA mudanças em formData, showToast, setFormData e onClose para evitar reinicialização do editor
+    // Essas funções podem mudar a cada render mas não devem causar re-render do modal
+    // React.memo: retorna true se props são iguais (NÃO re-renderiza), false se diferentes (re-renderiza)
+    const propsChanged = (
+      prevProps.isOpen !== nextProps.isOpen ||
+      prevProps.template !== nextProps.template ||
+      prevProps.database !== nextProps.database
     );
+    
+    if (propsChanged) {
+      console.log('🔄 EmailTemplateModal: Props importantes mudaram, re-renderizando');
+      return false; // Props mudaram, deve re-renderizar
+    }
+    
+    // Props importantes são iguais, NÃO re-renderiza (ignora mudanças em formData, funções, etc)
+    // Isso evita que o editor seja reinicializado quando o usuário digita
+    return true; // Props são iguais, NÃO re-renderiza
   });
   
   // Função auxiliar para padding responsivo
@@ -3564,6 +3591,13 @@ const DashboardWithFirebase = ({
   });
   const [emailSends, setEmailSends] = useState([]);
   const [showSendEmailModal, setShowSendEmailModal] = useState(false);
+  
+  // Função estável para fechar o modal de template (evita re-renders desnecessários)
+  const handleCloseEmailTemplateModal = useCallback(() => {
+    setShowEmailTemplateModal(false);
+    setEditingEmailTemplate(null);
+    setEmailTemplateForm({ name: '', subject: '', body: null });
+  }, []); // Sem dependências - função sempre a mesma
   
   // Listener para Email Templates (movido para dentro do DashboardWithFirebase)
   useEffect(() => {
@@ -8108,11 +8142,7 @@ const DashboardWithFirebase = ({
             {showEmailTemplateModal && (
               <EmailTemplateModal
                 isOpen={showEmailTemplateModal}
-                onClose={() => {
-                  setShowEmailTemplateModal(false);
-                  setEditingEmailTemplate(null);
-                  setEmailTemplateForm({ name: '', subject: '', body: null });
-                }}
+                onClose={handleCloseEmailTemplateModal}
                 template={editingEmailTemplate}
                 formData={emailTemplateForm}
                 setFormData={setEmailTemplateForm}
