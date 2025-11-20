@@ -2969,9 +2969,21 @@ const DashboardWithFirebase = ({
     const [editorReady, setEditorReady] = useState(false);
     const editorContainerRef = React.useRef(null);
     const unlayerInstanceRef = React.useRef(null);
+    const isEditorInitializedRef = React.useRef(false);
+    const templateBodyRef = React.useRef(null);
+
+    // Atualizar ref do template body quando mudar
+    React.useEffect(() => {
+      templateBodyRef.current = template?.body || null;
+    }, [template?.body]);
 
     // Função para inicializar o editor (definida antes do useEffect)
     const initializeEditor = React.useCallback(() => {
+      // Se já foi inicializado, não reinicializar
+      if (isEditorInitializedRef.current && unlayerInstanceRef.current) {
+        return;
+      }
+
       if (!editorContainerRef.current || !window.unlayer) {
         // Tentar novamente após um pequeno delay
         setTimeout(() => {
@@ -3005,26 +3017,29 @@ const DashboardWithFirebase = ({
           locale: 'pt-BR'
         });
 
+        // Marcar como inicializado
+        isEditorInitializedRef.current = true;
+
         // Adicionar listeners para erros do Unlayer
         if (unlayerInstanceRef.current) {
           unlayerInstanceRef.current.addEventListener('editor:ready', () => {
             console.log('✅ Editor Unlayer pronto');
             setEditorReady(true);
-          });
-        }
-
-        // Carregar template existente se houver
-        if (template?.body) {
-          setTimeout(() => {
-            if (unlayerInstanceRef.current && unlayerInstanceRef.current.loadDesign) {
-              try {
-                unlayerInstanceRef.current.loadDesign(template.body);
-              } catch (loadError) {
-                console.error('Erro ao carregar design:', loadError);
-                showToast('Erro ao carregar template existente', 'error');
-              }
+            
+            // Carregar template existente se houver (apenas na primeira inicialização)
+            if (templateBodyRef.current) {
+              setTimeout(() => {
+                if (unlayerInstanceRef.current && unlayerInstanceRef.current.loadDesign) {
+                  try {
+                    unlayerInstanceRef.current.loadDesign(templateBodyRef.current);
+                  } catch (loadError) {
+                    console.error('Erro ao carregar design:', loadError);
+                    showToast('Erro ao carregar template existente', 'error');
+                  }
+                }
+              }, 500);
             }
-          }, 500);
+          });
         } else {
           setEditorReady(true);
         }
@@ -3034,7 +3049,7 @@ const DashboardWithFirebase = ({
         console.error('Erro ao inicializar editor:', error);
         showToast('Erro ao inicializar editor de email: ' + (error.message || 'Erro desconhecido'), 'error');
       }
-    }, [template, showToast]);
+    }, [showToast]);
 
     // Aguardar script do Unlayer carregar (já está no head via layout.tsx)
     React.useEffect(() => {
@@ -3069,12 +3084,23 @@ const DashboardWithFirebase = ({
         if (unlayerInstanceRef.current) {
           try {
             unlayerInstanceRef.current.destroy();
+            isEditorInitializedRef.current = false;
           } catch (e) {
             console.error('Erro ao destruir editor:', e);
           }
         }
       };
     }, [isOpen, initializeEditor]);
+
+    // Resetar estado quando modal fechar
+    React.useEffect(() => {
+      if (!isOpen) {
+        // Resetar flags quando modal fechar
+        isEditorInitializedRef.current = false;
+        setEditorReady(false);
+        templateBodyRef.current = null;
+      }
+    }, [isOpen]);
 
     // Tratar erros globais de fetch do Unlayer
     React.useEffect(() => {
