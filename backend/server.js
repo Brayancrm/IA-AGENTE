@@ -615,6 +615,7 @@ async function handleIncomingMessage(userId, message, client) {
     // ============================================
     let messageText = message.body || '';
     let isAudioMessage = false;
+    let audioBase64 = null; // Armazenar áudio em Base64 para salvar no Firebase
     
     if (message.type === 'ptt' || message.type === 'audio') {
       console.log('🎤 Mensagem de áudio detectada!');
@@ -625,6 +626,9 @@ async function handleIncomingMessage(userId, message, client) {
         const audioBuffer = await client.decryptFile(message);
         
         if (audioBuffer) {
+          // Salvar áudio em Base64 para poder reproduzir depois
+          audioBase64 = audioBuffer.toString('base64');
+          
           // Transcrever áudio (sempre usa API Key do master)
           messageText = await transcribeAudio(audioBuffer);
           if (messageText && messageText.trim() !== '') {
@@ -664,7 +668,8 @@ async function handleIncomingMessage(userId, message, client) {
       type: message.type || 'chat',
       isFromMe: message.isFromMe || false,
       messageId: message.id || '',
-      isAudio: isAudioMessage
+      isAudio: isAudioMessage,
+      audioBase64: audioBase64 || null
     });
     
     console.log('💾 Mensagem salva no banco de dados');
@@ -772,6 +777,9 @@ async function handleIncomingMessage(userId, message, client) {
           return;
         }
         
+        // Variável para armazenar o áudio da resposta (se houver)
+        let responseAudioBase64 = null;
+        
         // Se a mensagem original foi áudio, tentar responder também em áudio
         if (isAudioMessage) {
           try {
@@ -784,6 +792,9 @@ async function handleIncomingMessage(userId, message, client) {
             const audioBuffer = await generateAudioFromText(aiResponse, audioLanguage, audioVoice);
             
             if (audioBuffer) {
+              // Salvar áudio em Base64 para salvar no Firebase
+              responseAudioBase64 = audioBuffer.toString('base64');
+              
               // Salvar áudio temporariamente
               const tempDir = os.tmpdir();
               const tempAudioFile = path.join(tempDir, `response_${Date.now()}.mp3`);
@@ -835,9 +846,11 @@ async function handleIncomingMessage(userId, message, client) {
           to: message.from || '',
           body: aiResponse || '',
           timestamp: new Date().toISOString(),
-          type: 'chat',
+          type: isAudioMessage ? 'ptt' : 'chat',
           isFromMe: true,
-          aiGenerated: true
+          aiGenerated: true,
+          isAudio: isAudioMessage,
+          audioBase64: responseAudioBase64 || null
         });
         
         // ============================================
@@ -4024,6 +4037,13 @@ app.post('/api/messages/send-audio', async (req, res) => {
       
       // Salvar mensagem enviada (sanitizar número para Firebase)
       const sanitizedNumber = sanitizePhoneNumber(to);
+      
+      // Salvar áudio em Base64 para poder reproduzir depois
+      let audioBase64 = null;
+      if (audioBuffer) {
+        audioBase64 = audioBuffer.toString('base64');
+      }
+      
       const messageRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
       await messageRef.set({
         from: 'me',
@@ -4033,7 +4053,8 @@ app.post('/api/messages/send-audio', async (req, res) => {
         type: 'ptt',
         isFromMe: true,
         manual: true,
-        isAudio: true
+        isAudio: true,
+        audioBase64: audioBase64 || null
       });
       
       res.json({ 

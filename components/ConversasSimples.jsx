@@ -637,6 +637,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
                   mensagens.map((msg) => {
                     const isFromMe = msg.isFromMe;
                     const msgTime = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+                    const isAudio = msg.isAudio && msg.audioBase64;
                     
                     return (
                       <div 
@@ -659,14 +660,65 @@ export default function ConversasSimples({ userId, backendUrl }) {
                             border: isFromMe ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255,255,255,0.1)',
                             wordBreak: 'break-word'
                           }}>
-                            <p style={{ 
-                              margin: 0, 
-                              color: '#ffffff', 
-                              fontSize: '0.9rem', 
-                              whiteSpace: 'pre-wrap' 
-                            }}>
-                              {msg.body || ''}
-                            </p>
+                            {/* Player de áudio se for mensagem de áudio */}
+                            {isAudio && msg.audioBase64 && (
+                              <div style={{ 
+                                marginBottom: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '8px',
+                                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                                borderRadius: '8px'
+                              }}>
+                                <audio 
+                                  controls 
+                                  style={{
+                                    flex: 1,
+                                    height: '32px',
+                                    outline: 'none'
+                                  }}
+                                  src={`data:audio/ogg;base64,${msg.audioBase64}`}
+                                  onError={(e) => {
+                                    // Tentar formato alternativo se OGG falhar
+                                    if (e.target.src.includes('audio/ogg')) {
+                                      e.target.src = `data:audio/mpeg;base64,${msg.audioBase64}`;
+                                    } else if (e.target.src.includes('audio/mpeg')) {
+                                      e.target.src = `data:audio/wav;base64,${msg.audioBase64}`;
+                                    }
+                                  }}
+                                >
+                                  Seu navegador não suporta o elemento de áudio.
+                                </audio>
+                                <span style={{ 
+                                  fontSize: '1.2rem',
+                                  color: '#10b981'
+                                }}>
+                                  🎤
+                                </span>
+                              </div>
+                            )}
+                            
+                            {/* Transcrição do áudio ou texto normal */}
+                            {msg.body && (
+                              <div style={{ 
+                                marginTop: isAudio ? '8px' : '0',
+                                paddingTop: isAudio ? '8px' : '0',
+                                borderTop: isAudio ? '1px solid rgba(255,255,255,0.1)' : 'none'
+                              }}>
+                                <p style={{ 
+                                  margin: 0, 
+                                  color: isAudio ? '#9ca3af' : '#ffffff', 
+                                  fontSize: isAudio ? '0.8rem' : '0.9rem', 
+                                  whiteSpace: 'pre-wrap',
+                                  fontStyle: isAudio ? 'italic' : 'normal'
+                                }}>
+                                  {isAudio && <span style={{ color: '#10b981', marginRight: '4px' }}>📝 Transcrição:</span>}
+                                  {msg.body}
+                                </p>
+                              </div>
+                            )}
+                            
                             {msg.aiGenerated && (
                               <span style={{ 
                                 fontSize: '0.7rem', 
