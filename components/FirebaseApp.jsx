@@ -1605,7 +1605,7 @@ const FirebaseApp = () => {
       
       const data = {
         ...itemData,
-        price: parseFloat(itemData.price) || 0,
+        price: itemData.price && itemData.price.trim() !== '' ? parseFloat(itemData.price) : null,
         stockQuantity: parseInt(itemData.stockQuantity) || 0,
         updatedAt: now
       };
@@ -1640,7 +1640,7 @@ const FirebaseApp = () => {
           id: itemId,
           name: data.name,
           description: data.description || '',
-          price: data.price,
+          price: data.price !== null && data.price !== undefined ? data.price : null,
           stock: data.stockQuantity,
           category: data.category || '',
           image: data.image || '',
@@ -1673,7 +1673,7 @@ const FirebaseApp = () => {
           id: itemId,
           name: data.name,
           description: data.description || '',
-          price: data.price,
+          price: data.price !== null && data.price !== undefined ? data.price : null,
           stock: data.stockQuantity,
           category: data.category || '',
           image: data.image || '',
@@ -3766,7 +3766,10 @@ const DashboardWithFirebase = ({
       total: products.length,
       products: products.length,
       services: validItems.filter(i => i.type === 'service').length,
-      totalValue: products.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * (parseInt(item.stockQuantity) || 0), 0),
+      totalValue: products.reduce((sum, item) => {
+        const price = item.price !== null && item.price !== undefined ? parseFloat(item.price) : 0;
+        return sum + (price * (parseInt(item.stockQuantity) || 0));
+      }, 0),
       lowStock: products.filter(i => (parseInt(i.stockQuantity) || 0) < (i.minStock || 5)).length,
       featured: products.filter(i => i.featured).length
     };
@@ -4010,9 +4013,15 @@ const DashboardWithFirebase = ({
 
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <p className="text-2xl font-bold text-green-400">
-                        R$ {parseFloat(item.price).toFixed(2)}
-                      </p>
+                      {item.price !== null && item.price !== undefined ? (
+                        <p className="text-2xl font-bold text-green-400">
+                          R$ {parseFloat(item.price).toFixed(2)}
+                        </p>
+                      ) : (
+                        <p className="text-lg font-bold text-blue-400">
+                          Preço no link
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-gray-500">Estoque</p>
@@ -4194,7 +4203,11 @@ const DashboardWithFirebase = ({
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm font-bold text-green-400">R$ {parseFloat(item.price).toFixed(2)}</span>
+                        {item.price !== null && item.price !== undefined ? (
+                          <span className="text-sm font-bold text-green-400">R$ {parseFloat(item.price).toFixed(2)}</span>
+                        ) : (
+                          <span className="text-sm font-bold text-blue-400">Preço no link</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`text-sm font-medium ${
@@ -8653,7 +8666,7 @@ const DashboardWithFirebase = ({
 
               <div>
                 <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
-                  Preço (R$)
+                  Preço (R$) <span style={{ fontSize: '0.875rem', color: '#9ca3af', fontWeight: 'normal' }}>(Opcional)</span>
                 </label>
                 <input
                   type="number"
@@ -8670,9 +8683,11 @@ const DashboardWithFirebase = ({
                     backgroundColor: '#111827',
                     color: '#ffffff'
                   }}
-                  placeholder="0.00"
-                  required
+                  placeholder="Deixe vazio para não mostrar preço"
                 />
+                <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>
+                  Se deixar vazio, o preço não será mostrado pelo agente. O cliente precisará acessar o link para ver o preço.
+                </p>
               </div>
 
               <div>

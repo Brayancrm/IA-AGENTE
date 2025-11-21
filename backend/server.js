@@ -869,11 +869,27 @@ async function handleIncomingMessage(userId, message, client) {
           for (const item of mentionedItems) {
             try {
               // Criar mensagem com informações do produto
-              let messageText = `📦 *${item.name}*\n💰 R$ ${item.price}\n\n${item.description || ''}`;
+              let messageText = `📦 *${item.name}*\n`;
+              
+              // Adicionar preço se disponível
+              if (item.price !== null && item.price !== undefined) {
+                messageText += `💰 R$ ${item.price}\n\n`;
+              } else {
+                messageText += `\n`;
+              }
+              
+              // Adicionar descrição se disponível
+              if (item.description) {
+                messageText += `${item.description}\n\n`;
+              }
               
               // Adicionar link se disponível
               if (item.link) {
-                messageText += `\n\n🔗 Link para adesão: ${item.link}`;
+                if (item.price === null || item.price === undefined) {
+                  messageText += `🔗 Acesse o link para ver o preço e mais informações:\n${item.link}`;
+                } else {
+                  messageText += `🔗 Link para adesão: ${item.link}`;
+                }
               }
               
               // Se tiver imagem, enviar imagem com legenda
@@ -1019,7 +1035,20 @@ async function handleIncomingMessage(userId, message, client) {
               console.log('📋 Dados do cliente:', savedCustomerData ? 'Encontrados ✅' : 'Não encontrados (usando padrão) ⚠️');
               
               // Preparar itens do pedido
-              const orderItems = mentionedItems.map(item => ({
+              // Filtrar apenas itens com preço definido (não criar pedido para itens sem preço)
+              const itemsWithPrice = mentionedItems.filter(item => 
+                item.price !== null && item.price !== undefined
+              );
+              
+              if (itemsWithPrice.length === 0) {
+                console.log('⚠️ Nenhum item com preço encontrado para criar pedido');
+                await client.sendText(message.from, 
+                  'Para finalizar a compra, acesse o link fornecido para ver os preços e realizar o pagamento.'
+                );
+                return;
+              }
+              
+              const orderItems = itemsWithPrice.map(item => ({
                 name: item.name,
                 price: item.price,
                 quantity: 1,
@@ -1056,7 +1085,12 @@ async function handleIncomingMessage(userId, message, client) {
                 // Enviar link de pagamento
                 const paymentMessage = `✅ *Pedido Criado!*\n\n` +
                   `📦 Itens:\n` +
-                  orderItems.map(item => `• ${item.quantity}x ${item.name} - R$ ${parseFloat(item.price).toFixed(2)}`).join('\n') +
+                  orderItems.map(item => {
+                    if (item.price !== null && item.price !== undefined) {
+                      return `• ${item.quantity}x ${item.name} - R$ ${parseFloat(item.price).toFixed(2)}`;
+                    }
+                    return `• ${item.quantity}x ${item.name} - Preço no link`;
+                  }).join('\n') +
                   `\n\n💰 *Total: R$ ${chargeResult.value.toFixed(2)}*\n\n` +
                   `🔗 *Link de Pagamento:*\n${chargeResult.invoiceUrl}\n\n` +
                   `💳 *Formas de pagamento:*\n` +
@@ -1149,7 +1183,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
           const productData = {
             name: item.name,
             description: item.description || '',
-            price: item.price,
+            price: item.price !== null && item.price !== undefined && item.price !== '' ? item.price : null,
             stock: item.stockQuantity || 0,
             image: item.image || null,
             link: item.link || null
@@ -1160,7 +1194,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
           const serviceData = {
             name: item.name,
             description: item.description || '',
-            price: item.price,
+            price: item.price !== null && item.price !== undefined && item.price !== '' ? item.price : null,
             capacity: item.stockQuantity || 0,
             image: item.image || null,
             link: item.link || null
@@ -1186,7 +1220,12 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
     if (catalogProducts.length > 0) {
       systemPrompt += `\n\n📦 PRODUTOS DISPONÍVEIS:\n`;
       catalogProducts.forEach((product, index) => {
-        systemPrompt += `${index + 1}. ${product.name} - R$ ${product.price}`;
+        systemPrompt += `${index + 1}. ${product.name}`;
+        if (product.price !== null && product.price !== undefined) {
+          systemPrompt += ` - R$ ${product.price}`;
+        } else {
+          systemPrompt += ` - Preço disponível no link`;
+        }
         if (product.description) systemPrompt += ` - ${product.description}`;
         if (product.stock > 0) systemPrompt += ` (Estoque: ${product.stock} unidades)`;
         if (product.image) systemPrompt += ` [TEM FOTO DISPONÍVEL]`;
@@ -1199,7 +1238,12 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
     if (catalogServices.length > 0) {
       systemPrompt += `\n\n🛠️ SERVIÇOS DISPONÍVEIS:\n`;
       catalogServices.forEach((service, index) => {
-        systemPrompt += `${index + 1}. ${service.name} - R$ ${service.price}`;
+        systemPrompt += `${index + 1}. ${service.name}`;
+        if (service.price !== null && service.price !== undefined) {
+          systemPrompt += ` - R$ ${service.price}`;
+        } else {
+          systemPrompt += ` - Preço disponível no link`;
+        }
         if (service.description) systemPrompt += ` - ${service.description}`;
         if (service.capacity > 0) systemPrompt += ` (Capacidade: ${service.capacity})`;
         if (service.image) systemPrompt += ` [TEM FOTO DISPONÍVEL]`;
@@ -2929,7 +2973,8 @@ async function createAsaasCharge(asaasApiKey, customerData, items, userId) {
     
     // Calcular valor total
     const totalValue = items.reduce((sum, item) => {
-      return sum + (parseFloat(item.price) * (item.quantity || 1));
+      const price = item.price !== null && item.price !== undefined ? parseFloat(item.price) : 0;
+      return sum + (price * (item.quantity || 1));
     }, 0);
     
     // Criar descrição do pedido
