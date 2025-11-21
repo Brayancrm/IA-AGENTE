@@ -8711,7 +8711,7 @@ const DashboardWithFirebase = ({
             borderRadius: '16px',
             padding: '24px',
             width: '90%',
-            maxWidth: '500px',
+            maxWidth: '1500px',
             maxHeight: '90vh',
             overflow: 'auto',
             border: '1px solid rgba(16, 185, 129, 0.3)'
