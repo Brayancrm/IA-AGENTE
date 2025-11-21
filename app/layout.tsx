@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { PWARegister } from '../components/PWARegister'
-import { UnlayerScript } from '../components/UnlayerScript'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -57,7 +56,6 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={inter.className}>
-        <UnlayerScript />
         <PWARegister />
         {children}
       </body>

@@ -27,6 +27,7 @@ import { ref, push, set, remove, onValue, off, get } from 'firebase/database';
 import SimpleLanding from './SimpleLanding';
 import dynamic from 'next/dynamic';
 import { convertStepsToPrompt } from '../hooks/useFlowBuilder';
+import BeefreeEditor from './BeefreeEditor';
 
 // Unlayer Editor será carregado via script tag (embed)
 
@@ -2965,230 +2966,51 @@ const DashboardWithFirebase = ({
   const [isActive, setIsActive] = useState(assistantSettings.isActive || true);
   
   // Componente EmailTemplateModal (movido para dentro do DashboardWithFirebase)
+  // MIGRADO PARA BEEFREE - Editor mais estável e gratuito
   const EmailTemplateModal = React.memo(({ isOpen, onClose, template, formData, setFormData, database, showToast }) => {
+    const beefreeEditorRef = React.useRef(null);
     const [editorReady, setEditorReady] = useState(false);
-    const editorContainerRef = React.useRef(null);
-    const unlayerInstanceRef = React.useRef(null);
-    const isEditorInitializedRef = React.useRef(false);
-    const templateBodyRef = React.useRef(null);
-    const hasInitializedForThisModalRef = React.useRef(false);
+    
+    // API Key do Beefree
+    const beefreeClientId = process.env.NEXT_PUBLIC_BEEFREE_CLIENT_ID;
+    const beefreeClientSecret = process.env.NEXT_PUBLIC_BEEFREE_CLIENT_SECRET;
 
-    // Atualizar ref do template body quando mudar (não causa re-render)
-    React.useEffect(() => {
-      templateBodyRef.current = template?.body || null;
-    }, [template?.body]);
+    // Callback quando editor estiver pronto
+    const handleEditorReady = React.useCallback((editorInstance) => {
+      console.log('✅ Editor Beefree pronto');
+      beefreeEditorRef.current = editorInstance;
+      setEditorReady(true);
+    }, []);
 
-    // Função para inicializar o editor (usando useCallback para estabilizar)
-    const initializeEditor = React.useCallback(() => {
-      // Se já foi inicializado, não reinicializar
-      if (isEditorInitializedRef.current && unlayerInstanceRef.current) {
-        console.log('⚠️ Editor já inicializado, ignorando chamada duplicada');
-        return;
+    // Preparar conteúdo inicial para o editor
+    const getInitialContent = React.useCallback(() => {
+      if (!template?.body) return null;
+      
+      // Se for formato Unlayer antigo, tentar extrair HTML
+      if (template.body.design) {
+        return template.body.design;
       }
-
-      if (!editorContainerRef.current || !window.unlayer) {
-        // Tentar novamente após um pequeno delay
-        setTimeout(() => {
-          if (editorContainerRef.current && window.unlayer && !isEditorInitializedRef.current) {
-            initializeEditor();
-          }
-        }, 100);
-        return;
+      
+      // Se for HTML direto
+      if (template.html) {
+        return template.html;
       }
-
-      try {
-        // Validar projectId antes de inicializar
-        const projectId = parseInt(process.env.NEXT_PUBLIC_UNLAYER_PROJECT_ID || '0');
-        if (!projectId || projectId === 0) {
-          console.error('❌ NEXT_PUBLIC_UNLAYER_PROJECT_ID não está configurado');
-          showToast('Erro: Project ID do Unlayer não está configurado. Configure a variável NEXT_PUBLIC_UNLAYER_PROJECT_ID no arquivo .env.local', 'error');
-          return;
-        }
-
-        // Verificar novamente antes de inicializar (double-check)
-        if (isEditorInitializedRef.current && unlayerInstanceRef.current) {
-          console.log('⚠️ Editor já inicializado (double-check), ignorando');
-          return;
-        }
-
-        // Inicializar editor Unlayer
-        const editorId = 'unlayer-editor-container-' + Date.now();
-        editorContainerRef.current.id = editorId;
-        
-        // Configuração do editor Unlayer
-        const editorConfig = {
-          id: editorId,
-          projectId: projectId,
-          displayMode: 'email',
-          appearance: {
-            theme: 'dark'
-          },
-          locale: 'pt-BR'
-        };
-
-        // Adicionar API key se estiver configurada (opcional, mas pode ajudar com autenticação)
-        const unlayerApiKey = process.env.NEXT_PUBLIC_UNLAYER_API_KEY;
-        if (unlayerApiKey) {
-          editorConfig.apiKey = unlayerApiKey;
-          console.log('✅ Unlayer API Key configurada');
-        } else {
-          console.log('ℹ️ Unlayer API Key não configurada (usando apenas Project ID)');
-        }
-        
-        console.log('🔄 Inicializando editor Unlayer...');
-        unlayerInstanceRef.current = window.unlayer.init(editorConfig);
-
-        // Marcar como inicializado IMEDIATAMENTE para evitar múltiplas inicializações
-        isEditorInitializedRef.current = true;
-
-        // Adicionar listeners para erros do Unlayer
-        if (unlayerInstanceRef.current) {
-          unlayerInstanceRef.current.addEventListener('editor:ready', () => {
-            console.log('✅ Editor Unlayer pronto');
-            setEditorReady(true);
-            
-            // Carregar template existente se houver (apenas na primeira inicialização)
-            if (templateBodyRef.current) {
-              setTimeout(() => {
-                if (unlayerInstanceRef.current && unlayerInstanceRef.current.loadDesign) {
-                  try {
-                    unlayerInstanceRef.current.loadDesign(templateBodyRef.current);
-                  } catch (loadError) {
-                    console.error('Erro ao carregar design:', loadError);
-                    showToast('Erro ao carregar template existente', 'error');
-                  }
-                }
-              }, 500);
-            }
-          });
-        } else {
-          setEditorReady(true);
-        }
-
-        console.log('✅ Editor Unlayer inicializado (ID:', editorId, ')');
-      } catch (error) {
-        console.error('Erro ao inicializar editor:', error);
-        isEditorInitializedRef.current = false; // Resetar em caso de erro
-        showToast('Erro ao inicializar editor de email: ' + (error.message || 'Erro desconhecido'), 'error');
+      
+      // Se for objeto com design
+      if (typeof template.body === 'object') {
+        return template.body;
       }
-    }, [showToast]); // showToast é estável, não muda
-
-    // Guardar initializeEditor em ref para evitar dependência no useEffect
-    const initializeEditorRef = React.useRef(initializeEditor);
-    React.useEffect(() => {
-      initializeEditorRef.current = initializeEditor;
-    }, [initializeEditor]);
-
-    // Aguardar script do Unlayer carregar (já está no head via layout.tsx)
-    // IMPORTANTE: Só inicializa quando o modal abre, não a cada mudança de formData
-    React.useEffect(() => {
-      if (!isOpen) {
-        // Resetar flags quando modal fechar
-        hasInitializedForThisModalRef.current = false;
-        isEditorInitializedRef.current = false;
-        return;
-      }
-
-      // PROTEÇÃO: Se já inicializou para este modal, NÃO fazer nada
-      if (hasInitializedForThisModalRef.current) {
-        console.log('⚠️ [PROTEÇÃO] Já inicializado para este modal, ignorando chamada');
-        return;
-      }
-
-      // PROTEÇÃO: Se editor já está inicializado, NÃO fazer nada
-      if (isEditorInitializedRef.current && unlayerInstanceRef.current) {
-        console.log('⚠️ [PROTEÇÃO] Editor já inicializado globalmente, ignorando');
-        hasInitializedForThisModalRef.current = true;
-        return;
-      }
-
-      // Verificar se script já foi carregado
-      if (window.unlayer) {
-        // Marcar ANTES de chamar para evitar chamadas duplicadas
-        hasInitializedForThisModalRef.current = true;
-        console.log('🔄 Iniciando inicialização do editor (script já carregado)...');
-        initializeEditorRef.current();
-        return;
-      }
-
-      // Aguardar script carregar do head
-      let attempts = 0;
-      const maxAttempts = 50; // 5 segundos máximo
-      const checkInterval = setInterval(() => {
-        attempts++;
-        
-        // Verificar novamente se já foi inicializado (proteção extra)
-        if (hasInitializedForThisModalRef.current || (isEditorInitializedRef.current && unlayerInstanceRef.current)) {
-          clearInterval(checkInterval);
-          console.log('⚠️ [PROTEÇÃO] Editor já inicializado durante polling, cancelando');
-          return;
-        }
-        
-        if (window.unlayer && !hasInitializedForThisModalRef.current) {
-          clearInterval(checkInterval);
-          hasInitializedForThisModalRef.current = true;
-          console.log('✅ Unlayer detectado, inicializando editor...');
-          initializeEditorRef.current();
-        } else if (attempts >= maxAttempts) {
-          clearInterval(checkInterval);
-          console.error('❌ Timeout: Unlayer não carregou após 5 segundos');
-          showToast('Erro ao carregar editor. Verifique sua conexão com a internet e recarregue a página.', 'error');
-        }
-      }, 100);
-
-      return () => {
-        clearInterval(checkInterval);
-        // Limpar ao fechar
-        if (unlayerInstanceRef.current) {
-          try {
-            unlayerInstanceRef.current.destroy();
-            isEditorInitializedRef.current = false;
-          } catch (e) {
-            console.error('Erro ao destruir editor:', e);
-          }
-        }
-      };
-    }, [isOpen]); // SÓ depende de isOpen - não depende de initializeEditor
-
+      
+      return null;
+    }, [template]);
+    
     // Resetar estado quando modal fechar
     React.useEffect(() => {
       if (!isOpen) {
-        // Resetar flags quando modal fechar
-        isEditorInitializedRef.current = false;
         setEditorReady(false);
-        templateBodyRef.current = null;
+        beefreeEditorRef.current = null;
       }
     }, [isOpen]);
-
-    // Tratar erros globais de fetch do Unlayer
-    React.useEffect(() => {
-      if (!isOpen) return;
-
-      const handleError = (event) => {
-        if (event.message && event.message.includes('Failed to fetch') && event.filename?.includes('unlayer')) {
-          console.error('❌ Erro de conexão com Unlayer:', event);
-          showToast('Erro de conexão com o editor. Verifique sua conexão com a internet e o Project ID do Unlayer.', 'error');
-        }
-      };
-
-      const handleRejection = (event) => {
-        if (event.reason && (event.reason.message?.includes('fetch') || event.reason.message?.includes('Failed'))) {
-          const stack = event.reason.stack || '';
-          if (stack.includes('unlayer') || event.reason.message.includes('unlayer')) {
-            console.error('❌ Erro não tratado do Unlayer:', event.reason);
-            showToast('Erro ao carregar recursos do editor. Verifique o Project ID do Unlayer.', 'error');
-          }
-        }
-      };
-
-      window.addEventListener('error', handleError, true);
-      window.addEventListener('unhandledrejection', handleRejection);
-
-      return () => {
-        window.removeEventListener('error', handleError, true);
-        window.removeEventListener('unhandledrejection', handleRejection);
-      };
-    }, [isOpen, showToast]);
 
     if (!isOpen) return null;
 
@@ -3331,36 +3153,34 @@ const DashboardWithFirebase = ({
             <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
               Corpo do Email
             </label>
-            <div style={{ flex: 1, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', overflow: 'hidden', position: 'relative' }}>
-              {!editorReady && (
+            <div style={{ flex: 1, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', overflow: 'hidden', position: 'relative', backgroundColor: '#ffffff' }}>
+              {beefreeClientId && beefreeClientSecret ? (
+                <BeefreeEditor
+                  ref={beefreeEditorRef}
+                  clientId={beefreeClientId}
+                  clientSecret={beefreeClientSecret}
+                  initialContent={getInitialContent()}
+                  onReady={handleEditorReady}
+                  height="100%"
+                />
+              ) : (
                 <div style={{ 
-                  position: 'absolute', 
-                  top: 0, 
-                  left: 0, 
-                  right: 0, 
-                  bottom: 0, 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  backgroundColor: '#0f1419',
-                  color: '#ffffff',
-                  zIndex: 1
+                  padding: '40px', 
+                  textAlign: 'center', 
+                  color: '#991b1b',
+                  backgroundColor: '#fee2e2'
                 }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '2rem', marginBottom: '12px' }}>⏳</div>
-                    <div>Carregando editor...</div>
-                  </div>
+                  <strong>Erro:</strong> Credenciais do Beefree não configuradas.
+                  <br />
+                  <small>
+                    1. Crie conta em <a href="https://developers.beefree.io" target="_blank" rel="noopener" style={{ color: '#059669' }}>developers.beefree.io</a>
+                    <br />
+                    2. Crie uma aplicação e obtenha Client ID e Client Secret
+                    <br />
+                    3. Configure NEXT_PUBLIC_BEEFREE_CLIENT_ID e NEXT_PUBLIC_BEEFREE_CLIENT_SECRET no .env.local
+                  </small>
                 </div>
               )}
-              <div 
-                ref={editorContainerRef}
-                style={{ 
-                  width: '100%', 
-                  height: '100%', 
-                  minHeight: '500px',
-                  display: editorReady ? 'block' : 'none'
-                }}
-              />
             </div>
           </div>
 
@@ -3385,7 +3205,7 @@ const DashboardWithFirebase = ({
             </button>
             <button
               onClick={async () => {
-                if (!unlayerInstanceRef.current) {
+                if (!beefreeEditorRef.current) {
                   showToast('Editor não está pronto. Aguarde o carregamento.', 'error');
                   return;
                 }
@@ -3401,43 +3221,52 @@ const DashboardWithFirebase = ({
                 }
                 
                 try {
-                  // Exportar HTML do editor
-                  unlayerInstanceRef.current.exportHtml(async (data) => {
-                    try {
-                      // Atualizar formData com o design
-                      setFormData(prev => ({ ...prev, body: data.design }));
-                      
-                      // Salvar template
-                      const templateToSave = {
-                        name: formData.name.trim(),
-                        subject: formData.subject.trim(),
-                        body: data.design, // JSON do Unlayer
-                        html: data.html, // HTML compilado
-                        createdAt: template?.createdAt || new Date().toISOString(),
-                        updatedAt: new Date().toISOString()
-                      };
-
-                      if (template) {
-                        // Atualizar template existente
-                        const templateRef = ref(database, `email_templates/${template.id}`);
-                        await set(templateRef, templateToSave);
-                        console.log('✅ Template atualizado:', template.id);
-                        showToast('Template atualizado com sucesso!', 'success');
-                      } else {
-                        // Criar novo template
-                        const templatesRef = ref(database, 'email_templates');
-                        const newTemplateRef = push(templatesRef);
-                        await set(newTemplateRef, templateToSave);
-                        console.log('✅ Template criado:', newTemplateRef.key);
-                        showToast('Template criado com sucesso!', 'success');
+                  // Exportar HTML do editor Beefree usando método do ref
+                  if (beefreeEditorRef.current && beefreeEditorRef.current.exportHtml) {
+                    beefreeEditorRef.current.exportHtml(async (data) => {
+                      if (!data) {
+                        showToast('Erro ao exportar conteúdo do editor. Tente novamente.', 'error');
+                        return;
                       }
 
-                      onClose();
-                    } catch (error) {
-                      console.error('❌ Erro ao salvar template:', error);
-                      showToast('Erro ao salvar template: ' + (error.message || 'Erro desconhecido'), 'error');
-                    }
-                  });
+                      try {
+                        // Atualizar formData com o design
+                        setFormData(prev => ({ ...prev, body: { design: data.design || data } }));
+                        
+                        // Salvar template
+                        const templateToSave = {
+                          name: formData.name.trim(),
+                          subject: formData.subject.trim(),
+                          body: { design: data.design || data }, // JSON do Beefree
+                          html: data.html, // HTML compilado
+                          createdAt: template?.createdAt || new Date().toISOString(),
+                          updatedAt: new Date().toISOString()
+                        };
+
+                        if (template) {
+                          // Atualizar template existente
+                          const templateRef = ref(database, `email_templates/${template.id}`);
+                          await set(templateRef, templateToSave);
+                          console.log('✅ Template atualizado:', template.id);
+                          showToast('Template atualizado com sucesso!', 'success');
+                        } else {
+                          // Criar novo template
+                          const templatesRef = ref(database, 'email_templates');
+                          const newTemplateRef = push(templatesRef);
+                          await set(newTemplateRef, templateToSave);
+                          console.log('✅ Template criado:', newTemplateRef.key);
+                          showToast('Template criado com sucesso!', 'success');
+                        }
+
+                        onClose();
+                      } catch (error) {
+                        console.error('❌ Erro ao salvar template:', error);
+                        showToast('Erro ao salvar template: ' + (error.message || 'Erro desconhecido'), 'error');
+                      }
+                    });
+                  } else {
+                    showToast('Editor não está pronto. Aguarde o carregamento completo.', 'error');
+                  }
                 } catch (error) {
                   console.error('❌ Erro ao exportar HTML do editor:', error);
                   showToast('Erro ao exportar conteúdo do editor: ' + (error.message || 'Erro desconhecido'), 'error');
