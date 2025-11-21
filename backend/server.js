@@ -863,62 +863,93 @@ async function handleIncomingMessage(userId, message, client) {
         const mentionedItems = detectMentionedProducts(aiResponse, aiResult.catalogItemsMap);
         
         if (mentionedItems.length > 0) {
-          console.log(`📸 Detectados ${mentionedItems.length} produto(s) com imagem na resposta`);
+          console.log(`📸 Detectados ${mentionedItems.length} produto(s) na resposta`);
           
-          // Enviar imagens dos produtos mencionados
+          // Enviar produtos/serviços mencionados
           for (const item of mentionedItems) {
             try {
-              console.log(`📤 Enviando imagem de: ${item.name}`);
+              // Criar mensagem com informações do produto
+              let messageText = `📦 *${item.name}*\n💰 R$ ${item.price}\n\n${item.description || ''}`;
               
-              // Criar legenda para a imagem
-              const caption = `📦 *${item.name}*\n💰 R$ ${item.price}\n\n${item.description || ''}`;
-              
-              // Verificar se é Base64 ou URL
-              const isBase64 = item.image.startsWith('data:image/');
-              
-              if (isBase64) {
-                console.log(`📸 Imagem em Base64 detectada para: ${item.name}`);
-                // Enviar imagem Base64 diretamente
-                await client.sendImageFromBase64(
-                  message.from,
-                  item.image,
-                  item.name,
-                  caption
-                );
-              } else {
-                console.log(`🌐 URL de imagem detectada para: ${item.name}`);
-                // Enviar imagem por URL
-                await client.sendImage(
-                  message.from,
-                  item.image,
-                  item.name,
-                  caption
-                );
+              // Adicionar link se disponível
+              if (item.link) {
+                messageText += `\n\n🔗 Link para adesão: ${item.link}`;
               }
               
-              console.log(`✅ Imagem enviada: ${item.name}`);
-              
-              // Salvar envio da imagem no histórico
-              const imageRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
-              await imageRef.set({
-                from: message.to || '',
-                to: message.from || '',
-                body: caption,
-                imageUrl: isBase64 ? '[Base64 Image]' : item.image,
-                imageBase64: isBase64 ? item.image.substring(0, 100) + '...' : null,
-                timestamp: new Date().toISOString(),
-                type: 'image',
-                isFromMe: true,
-                aiGenerated: true,
-                productName: item.name
-              });
-              
-              // Aguardar um pouco entre imagens para não sobrecarregar
-              await new Promise(resolve => setTimeout(resolve, 1000));
-              
-            } catch (imageError) {
-              console.error(`❌ Erro ao enviar imagem de ${item.name}:`, imageError.message);
-              // Continuar mesmo se houver erro em uma imagem
+              // Se tiver imagem, enviar imagem com legenda
+              if (item.image) {
+                console.log(`📤 Enviando imagem de: ${item.name}`);
+                
+                // Verificar se é Base64 ou URL
+                const isBase64 = item.image.startsWith('data:image/');
+                
+                if (isBase64) {
+                  console.log(`📸 Imagem em Base64 detectada para: ${item.name}`);
+                  // Enviar imagem Base64 diretamente
+                  await client.sendImageFromBase64(
+                    message.from,
+                    item.image,
+                    item.name,
+                    messageText
+                  );
+                } else {
+                  console.log(`🌐 URL de imagem detectada para: ${item.name}`);
+                  // Enviar imagem por URL
+                  await client.sendImage(
+                    message.from,
+                    item.image,
+                    item.name,
+                    messageText
+                  );
+                }
+                
+                console.log(`✅ Imagem enviada: ${item.name}`);
+                
+                // Salvar envio da imagem no histórico
+                const imageRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+                await imageRef.set({
+                  from: message.to || '',
+                  to: message.from || '',
+                  body: messageText,
+                  imageUrl: isBase64 ? '[Base64 Image]' : item.image,
+                  imageBase64: isBase64 ? item.image.substring(0, 100) + '...' : null,
+                  timestamp: new Date().toISOString(),
+                  type: 'image',
+                  isFromMe: true,
+                  aiGenerated: true,
+                  productName: item.name
+                });
+                
+                // Aguardar um pouco entre imagens para não sobrecarregar
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              } else if (item.link) {
+                // Se não tiver imagem mas tiver link, enviar apenas mensagem de texto
+                console.log(`📤 Enviando informações de: ${item.name} (sem imagem, com link)`);
+                
+                await client.sendText(message.from, messageText);
+                
+                console.log(`✅ Informações enviadas: ${item.name}`);
+                
+                // Salvar envio no histórico
+                const textRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+                await textRef.set({
+                  from: message.to || '',
+                  to: message.from || '',
+                  body: messageText,
+                  timestamp: new Date().toISOString(),
+                  type: 'text',
+                  isFromMe: true,
+                  aiGenerated: true,
+                  productName: item.name,
+                  productLink: item.link
+                });
+                
+                // Aguardar um pouco entre mensagens
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              }
+            } catch (itemError) {
+              console.error(`❌ Erro ao processar item ${item.name}:`, itemError.message);
+              // Continuar mesmo se houver erro
             }
           }
         }
@@ -1120,7 +1151,8 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
             description: item.description || '',
             price: item.price,
             stock: item.stockQuantity || 0,
-            image: item.image || null
+            image: item.image || null,
+            link: item.link || null
           };
           catalogProducts.push(productData);
           catalogItemsMap[item.name.toLowerCase()] = productData;
@@ -1130,7 +1162,8 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
             description: item.description || '',
             price: item.price,
             capacity: item.stockQuantity || 0,
-            image: item.image || null
+            image: item.image || null,
+            link: item.link || null
           };
           catalogServices.push(serviceData);
           catalogItemsMap[item.name.toLowerCase()] = serviceData;
@@ -1157,6 +1190,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
         if (product.description) systemPrompt += ` - ${product.description}`;
         if (product.stock > 0) systemPrompt += ` (Estoque: ${product.stock} unidades)`;
         if (product.image) systemPrompt += ` [TEM FOTO DISPONÍVEL]`;
+        if (product.link) systemPrompt += ` [TEM LINK PARA ADESÃO DISPONÍVEL]`;
         systemPrompt += '\n';
       });
     }
@@ -1169,6 +1203,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
         if (service.description) systemPrompt += ` - ${service.description}`;
         if (service.capacity > 0) systemPrompt += ` (Capacidade: ${service.capacity})`;
         if (service.image) systemPrompt += ` [TEM FOTO DISPONÍVEL]`;
+        if (service.link) systemPrompt += ` [TEM LINK PARA ADESÃO DISPONÍVEL]`;
         systemPrompt += '\n';
       });
     }
@@ -1286,13 +1321,17 @@ function detectMentionedProducts(responseText, catalogItemsMap) {
   for (const [itemName, itemData] of Object.entries(catalogItemsMap)) {
     // Verificar se o nome do produto aparece na resposta (case insensitive)
     const regex = new RegExp(`\\b${itemName}\\b`, 'i');
-    if (regex.test(responseText.toLowerCase()) && itemData.image) {
-      mentionedItems.push({
-        name: itemData.name,
-        image: itemData.image,
-        price: itemData.price,
-        description: itemData.description
-      });
+    if (regex.test(responseText.toLowerCase())) {
+      // Incluir item se tiver imagem ou link
+      if (itemData.image || itemData.link) {
+        mentionedItems.push({
+          name: itemData.name,
+          image: itemData.image || null,
+          price: itemData.price,
+          description: itemData.description,
+          link: itemData.link || null
+        });
+      }
     }
   }
   

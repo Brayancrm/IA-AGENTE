@@ -1644,6 +1644,7 @@ const FirebaseApp = () => {
           stock: data.stockQuantity,
           category: data.category || '',
           image: data.image || '',
+          link: data.link || '',
           type: data.type || 'product',
           active: true,
           createdAt: originalCreatedAt,
@@ -1676,6 +1677,7 @@ const FirebaseApp = () => {
           stock: data.stockQuantity,
           category: data.category || '',
           image: data.image || '',
+          link: data.link || '',
           type: data.type || 'product',
           active: true,
           createdAt: data.createdAt,
@@ -3336,6 +3338,7 @@ const DashboardWithFirebase = ({
     category: '',
     sku: '',
     image: '',
+    link: '',
     featured: false,
     minStock: 5
   });
@@ -3625,6 +3628,7 @@ const DashboardWithFirebase = ({
         category: item.category || '',
         sku: item.sku || '',
         image: item.image || '',
+        link: item.link || '',
         featured: item.featured || false,
         minStock: item.minStock || 5
       });
@@ -3639,6 +3643,7 @@ const DashboardWithFirebase = ({
         category: '',
         sku: '',
         image: '',
+        link: '',
         featured: false,
         minStock: 5
       });
@@ -8926,6 +8931,30 @@ const DashboardWithFirebase = ({
                     🗑️ Remover Imagem
                   </button>
                 )}
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
+                  🔗 Link para Adesão (Opcional)
+                </label>
+                <input
+                  type="url"
+                  value={catalogForm.link || ''}
+                  onChange={(e) => setCatalogForm(prev => ({ ...prev, link: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid #374151',
+                    fontSize: '1rem',
+                    backgroundColor: '#111827',
+                    color: '#ffffff'
+                  }}
+                  placeholder="https://exemplo.com/adesao"
+                />
+                <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>
+                  Link que será mostrado pelo agente junto com a descrição do produto/serviço quando oferecido
+                </p>
               </div>
 
               <div style={{
