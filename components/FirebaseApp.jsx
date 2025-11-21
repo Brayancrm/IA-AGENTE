@@ -5032,7 +5032,7 @@ const DashboardWithFirebase = ({
     // Se não tem acesso, mostrar mensagem e redirecionar para planos
     if (!hasAccess && !isMasterOnly) {
       return (
-        <div style={{ padding: getResponsivePadding(), maxWidth: '900px', margin: '0 auto', textAlign: 'center', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+        <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden', textAlign: 'center' }}>
           <div style={{ backgroundColor: '#1a1f36', borderRadius: '20px', padding: '48px', border: '2px solid rgba(239, 68, 68, 0.3)' }}>
             <div style={{ fontSize: '64px', marginBottom: '24px' }}>🔒</div>
             <h2 style={{ fontSize: '2rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px' }}>
