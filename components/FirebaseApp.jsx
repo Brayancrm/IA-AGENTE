@@ -5494,7 +5494,7 @@ const DashboardWithFirebase = ({
 
       case 'company':
         return (
-          <div style={{ padding: getResponsivePadding(), maxWidth: '900px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+          <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -5830,7 +5830,7 @@ const DashboardWithFirebase = ({
 
       case 'integrations':
         return (
-          <div style={{ padding: getResponsivePadding(), maxWidth: '1000px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+          <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -6341,7 +6341,7 @@ const DashboardWithFirebase = ({
         const currentIsConnecting = isConnecting || false;
         
         return (
-          <div style={{ padding: getResponsivePadding(), maxWidth: '1100px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+          <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -6672,7 +6672,7 @@ const DashboardWithFirebase = ({
 
       case 'assistant': 
         return (
-          <div style={{ padding: getResponsivePadding(), maxWidth: '1200px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+          <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -6890,7 +6890,7 @@ const DashboardWithFirebase = ({
 
       case 'plans':
         return (
-          <div style={{ padding: getResponsivePadding(), maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+          <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('plans')}
@@ -7359,7 +7359,7 @@ const DashboardWithFirebase = ({
 
       case 'tutorials':
         return (
-          <div style={{ padding: getResponsivePadding(), maxWidth: '1200px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+          <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
                 <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
