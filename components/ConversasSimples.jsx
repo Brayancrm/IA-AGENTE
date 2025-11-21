@@ -337,7 +337,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
   }
 
   return (
-    <div style={{ padding: isMobile ? '16px' : '40px', maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+    <div style={{ padding: isMobile ? '16px' : '40px', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
       {/* Header */}
       <div style={{ marginBottom: '32px' }}>
         <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>

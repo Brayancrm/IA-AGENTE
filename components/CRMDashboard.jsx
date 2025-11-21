@@ -1498,8 +1498,9 @@ const CRMDashboard = ({ user, database, showToast }) => {
   return (
     <div className="crm-dashboard" style={{
       padding: '32px',
-      maxWidth: '1600px',
-      margin: '0 auto'
+      width: '100%',
+      boxSizing: 'border-box',
+      overflowX: 'hidden'
     }}>
       {/* Header */}
       <div style={{ marginBottom: '32px' }}>

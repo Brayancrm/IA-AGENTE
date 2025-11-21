@@ -3790,7 +3790,7 @@ const DashboardWithFirebase = ({
     const categories = [...new Set(validItems.map(i => i.category).filter(Boolean))];
 
     return (
-      <div className={`${isMobile ? 'p-4' : 'p-6 lg:p-10'} space-y-6 max-w-[1400px] mx-auto`} style={{ width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+      <div className={`${isMobile ? 'p-4' : 'p-6 lg:p-10'} space-y-6`} style={{ width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
         {/* Header Modernizado */}
         <div className="mb-8">
           <div className={`flex ${isMobile ? 'flex-col' : 'justify-between'} items-start mb-2`} style={{ gap: isMobile ? '16px' : '0' }}>
@@ -4465,7 +4465,7 @@ const DashboardWithFirebase = ({
     };
     
     return (
-      <div style={{ padding: getResponsivePadding(), maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+      <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
         {/* Header */}
         <div style={{ marginBottom: '32px' }}>
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: '16px', gap: isMobile ? '16px' : '0' }}>
@@ -5074,7 +5074,7 @@ const DashboardWithFirebase = ({
     switch (currentPage) {
       case 'dashboard':
         return (
-          <div style={{ padding: getResponsivePadding(), maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+          <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
