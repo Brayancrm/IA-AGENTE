@@ -638,6 +638,21 @@ export default function ConversasSimples({ userId, backendUrl }) {
                     const isFromMe = msg.isFromMe;
                     const msgTime = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
                     const isAudio = msg.isAudio && msg.audioBase64;
+                    const hasImage = (msg.type === 'image' || msg.imageUrl || msg.imageBase64) && (msg.imageUrl || msg.imageBase64);
+                    
+                    // Determinar o tipo MIME da imagem Base64
+                    let imageSrc = null;
+                    if (msg.imageBase64) {
+                      // Verificar se já tem o prefixo data:image
+                      if (msg.imageBase64.startsWith('data:image/')) {
+                        imageSrc = msg.imageBase64;
+                      } else {
+                        // Tentar detectar o formato ou usar JPEG como padrão
+                        imageSrc = `data:image/jpeg;base64,${msg.imageBase64}`;
+                      }
+                    } else if (msg.imageUrl) {
+                      imageSrc = msg.imageUrl;
+                    }
                     
                     return (
                       <div 
@@ -660,6 +675,74 @@ export default function ConversasSimples({ userId, backendUrl }) {
                             border: isFromMe ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255,255,255,0.1)',
                             wordBreak: 'break-word'
                           }}>
+                            {/* Imagem se for mensagem com imagem */}
+                            {hasImage && imageSrc && (
+                              <div style={{ 
+                                marginBottom: '12px',
+                                borderRadius: '8px',
+                                overflow: 'hidden',
+                                maxWidth: '100%'
+                              }}>
+                                <img 
+                                  src={imageSrc}
+                                  alt={msg.productName || 'Imagem enviada'}
+                                  style={{
+                                    width: '100%',
+                                    maxWidth: '300px',
+                                    height: 'auto',
+                                    borderRadius: '8px',
+                                    display: 'block',
+                                    cursor: 'pointer'
+                                  }}
+                                  onClick={() => {
+                                    // Abrir imagem em tela cheia
+                                    const newWindow = window.open();
+                                    if (newWindow) {
+                                      newWindow.document.write(`
+                                        <html>
+                                          <head>
+                                            <title>Imagem</title>
+                                            <style>
+                                              body {
+                                                margin: 0;
+                                                padding: 20px;
+                                                background: #000;
+                                                display: flex;
+                                                justify-content: center;
+                                                align-items: center;
+                                                min-height: 100vh;
+                                              }
+                                              img {
+                                                max-width: 100%;
+                                                max-height: 100vh;
+                                                border-radius: 8px;
+                                              }
+                                            </style>
+                                          </head>
+                                          <body>
+                                            <img src="${imageSrc}" alt="Imagem" />
+                                          </body>
+                                        </html>
+                                      `);
+                                    }
+                                  }}
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                                {msg.productName && (
+                                  <p style={{
+                                    margin: '8px 0 0 0',
+                                    fontSize: '0.75rem',
+                                    color: '#9ca3af',
+                                    fontStyle: 'italic'
+                                  }}>
+                                    📦 {msg.productName}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            
                             {/* Player de áudio se for mensagem de áudio */}
                             {isAudio && msg.audioBase64 && (
                               <div style={{ 
@@ -702,9 +785,9 @@ export default function ConversasSimples({ userId, backendUrl }) {
                             {/* Transcrição do áudio ou texto normal */}
                             {msg.body && (
                               <div style={{ 
-                                marginTop: isAudio ? '8px' : '0',
-                                paddingTop: isAudio ? '8px' : '0',
-                                borderTop: isAudio ? '1px solid rgba(255,255,255,0.1)' : 'none'
+                                marginTop: (isAudio || hasImage) ? '8px' : '0',
+                                paddingTop: (isAudio || hasImage) ? '8px' : '0',
+                                borderTop: (isAudio || hasImage) ? '1px solid rgba(255,255,255,0.1)' : 'none'
                               }}>
                                 <p style={{ 
                                   margin: 0, 
