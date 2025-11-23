@@ -339,7 +339,8 @@ const SimpleLanding = ({ onLoginSuccess }) => {
     'crm': 'CRM',
     'integrations': 'Integrações',
     'whatsapp': 'Conexão WhatsApp',
-    'assistant': 'Configuração do Assistente'
+    'assistant': 'Configuração do Assistente',
+    'tutorials': 'Tutoriais'
   };
 
   // Função auxiliar para gerar features do plano baseado nas funcionalidades selecionadas
