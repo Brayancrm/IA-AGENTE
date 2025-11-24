@@ -25,6 +25,9 @@ const getInitialGuidedAnswers = () => ({
   escalateToHuman: '',
   paymentMethods: [],
   deliveryPolicy: '',
+  // Salvamento automático no CRM
+  crmAutoSave: false,
+  crmFields: [],
   // Média prioridade
   limitsRestrictions: '',
   companyInfo: '',
@@ -218,6 +221,33 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
           { value: 'Coletar dados para nota fiscal', label: 'Coletar dados fiscais' },
           { value: 'Registrar agendamentos confirmados', label: 'Registrar agendamentos' }
         ]
+      },
+      {
+        id: 'crmAutoSave',
+        type: 'single_select',
+        title: '💾 Salvar clientes automaticamente no CRM?',
+        description: 'Todos os clientes que entrarem em contato serão salvos automaticamente no CRM com os dados selecionados.',
+        options: [
+          { value: 'yes', label: 'Sim, salvar automaticamente no CRM' },
+          { value: 'no', label: 'Não, não é necessário salvar no CRM' }
+        ],
+        required: false
+      },
+      {
+        id: 'crmFields',
+        type: 'multi_select',
+        title: 'Quais dados devem ser salvos no CRM?',
+        description: 'Selecione os campos que o agente deve coletar e salvar automaticamente para cada cliente.',
+        options: [
+          { value: 'name', label: '👤 Nome (obrigatório)', description: 'Nome completo do cliente' },
+          { value: 'phone', label: '📱 Telefone (obrigatório)', description: 'Número de WhatsApp do cliente' },
+          { value: 'product', label: '📦 Produto ou Serviço', description: 'Produto/serviço de interesse mencionado' },
+          { value: 'email', label: '📧 Email', description: 'Endereço de email do cliente' }
+        ],
+        shouldShow: (answers) => {
+          const crmAutoSaveArray = Array.isArray(answers.crmAutoSave) ? answers.crmAutoSave : (answers.crmAutoSave ? [answers.crmAutoSave] : []);
+          return crmAutoSaveArray.includes('yes');
+        }
       },
       {
         id: 'integrations',
@@ -579,6 +609,36 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
       parts.push(`Siga este fluxo de etapas: ${workflowsFiltered.join(', ')}.`);
     } else if (workflowsArray.includes('NÃO_APLICA_WORKFLOWS')) {
       parts.push(`Não há etapas específicas a seguir.`);
+    }
+
+    // Salvamento automático no CRM
+    const crmAutoSaveArray = Array.isArray(guidedAnswers.crmAutoSave) ? guidedAnswers.crmAutoSave : (guidedAnswers.crmAutoSave ? [guidedAnswers.crmAutoSave] : []);
+    if (crmAutoSaveArray.includes('yes')) {
+      const crmFieldsArray = Array.isArray(guidedAnswers.crmFields) ? guidedAnswers.crmFields : (guidedAnswers.crmFields ? [guidedAnswers.crmFields] : []);
+      const fieldLabels = {
+        'name': 'Nome',
+        'phone': 'Telefone',
+        'product': 'Produto ou Serviço',
+        'email': 'Email'
+      };
+      
+      const fieldsToSave = crmFieldsArray.length > 0 ? crmFieldsArray : ['name', 'phone'];
+      const fieldsList = fieldsToSave.map(field => fieldLabels[field] || field).join(', ');
+      
+      parts.push(`\n💾 SALVAMENTO AUTOMÁTICO NO CRM:\n`);
+      parts.push(`IMPORTANTE: Todos os clientes que entrarem em contato devem ser salvos automaticamente no CRM.\n`);
+      parts.push(`Dados a serem salvos: ${fieldsList}.\n`);
+      parts.push(`INSTRUÇÕES CRÍTICAS:\n`);
+      parts.push(`1. SEMPRE colete o Nome e Telefone do cliente (obrigatórios)\n`);
+      if (fieldsToSave.includes('product')) {
+        parts.push(`2. Identifique qual produto ou serviço o cliente está interessado durante a conversa\n`);
+        parts.push(`3. Salve o produto/serviço mencionado pelo cliente\n`);
+      }
+      if (fieldsToSave.includes('email')) {
+        parts.push(`4. Se o cliente fornecer email, salve também\n`);
+      }
+      parts.push(`5. Os dados devem ser salvos automaticamente no sistema CRM após serem coletados\n`);
+      parts.push(`6. Não pergunte explicitamente sobre salvar no CRM - faça isso automaticamente`);
     }
 
     const integrationsArray = Array.isArray(guidedAnswers.integrations) ? guidedAnswers.integrations : (guidedAnswers.integrations ? [guidedAnswers.integrations] : []);

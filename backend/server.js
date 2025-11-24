@@ -5556,6 +5556,7 @@ Sua tarefa é analisar a descrição do usuário e gerar um fluxo de atendimento
 TIPOS DE AÇÃO DISPONÍVEIS:
 - greeting: Cumprimentar o cliente
 - ask_info: Perguntar informações ao cliente
+- collect_data: Coletar dados e salvar no CRM (use quando a descrição mencionar salvar clientes no CRM)
 - show_catalog: Mostrar produtos ou serviços
 - process_order: Processar pedido do cliente
 - request_payment: Solicitar pagamento
@@ -5641,6 +5642,43 @@ IMPORTANTE:
         id: Date.now() + index,
         condition: step.condition || ''
       }));
+      
+      // Se a descrição mencionar salvamento no CRM, adicionar ou atualizar passo collect_data
+      const descriptionLower = description.toLowerCase();
+      if (descriptionLower.includes('salvar') && (descriptionLower.includes('crm') || descriptionLower.includes('cliente'))) {
+        // Verificar se já existe um passo collect_data
+        const hasCollectData = template.steps.some(step => step.type === 'collect_data');
+        
+        if (!hasCollectData) {
+          // Adicionar passo de coleta de dados com salvamento no CRM
+          const crmStep = {
+            id: Date.now() + template.steps.length,
+            type: 'collect_data',
+            title: 'Salvar Cliente no CRM',
+            description: 'Coletar e salvar automaticamente os dados do cliente no CRM (Nome, Telefone, Produto/Serviço de interesse)',
+            condition: '',
+            crmAutoSave: true,
+            crmFields: ['name', 'phone', 'product']
+          };
+          
+          // Inserir após o passo de cumprimento (se houver) ou no início
+          const greetingIndex = template.steps.findIndex(step => step.type === 'greeting');
+          if (greetingIndex >= 0) {
+            template.steps.splice(greetingIndex + 1, 0, crmStep);
+          } else {
+            template.steps.unshift(crmStep);
+          }
+        } else {
+          // Atualizar passo existente para incluir salvamento no CRM
+          const collectDataStep = template.steps.find(step => step.type === 'collect_data');
+          if (collectDataStep) {
+            collectDataStep.crmAutoSave = true;
+            collectDataStep.crmFields = collectDataStep.crmFields || ['name', 'phone', 'product'];
+            collectDataStep.title = collectDataStep.title || 'Salvar Cliente no CRM';
+            collectDataStep.description = collectDataStep.description || 'Coletar e salvar automaticamente os dados do cliente no CRM';
+          }
+        }
+      }
     }
 
     console.log('✅ [AI Generator] Template gerado com sucesso');
