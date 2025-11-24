@@ -2118,7 +2118,92 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
     const contextSnapshot = await contextRef.once('value');
     const context = contextSnapshot.val();
     
+    // Verificar se há passo com salvamento automático no CRM habilitado
+    const assistantSettingsSnapshot = await db.ref(`users/data/${userId}/assistant_settings`).once('value');
+    const assistantSettings = assistantSettingsSnapshot.val() || {};
+    const flowSteps = assistantSettings.flowSteps || [];
+    
+    // Procurar por passo com crmAutoSave habilitado
+    let crmAutoSaveStep = null;
+    for (const step of flowSteps) {
+      if (step.type === 'collect_data' && step.crmAutoSave) {
+        crmAutoSaveStep = step;
+        break;
+      }
+    }
+    
     let dataUpdated = false;
+    
+    // Se crmAutoSave está habilitado, garantir que dados básicos sejam salvos
+    if (crmAutoSaveStep && crmAutoSaveStep.crmFields) {
+      const crmFields = crmAutoSaveStep.crmFields;
+      console.log('💾 [CRM AUTO-SAVE] Salvamento automático no CRM habilitado');
+      console.log('   Campos configurados:', crmFields.join(', '));
+      
+      // Sempre salvar telefone (obrigatório)
+      if (!customerData.phone) {
+        customerData.phone = phone;
+        dataUpdated = true;
+        console.log('✅ [CRM AUTO-SAVE] Telefone salvo:', phone);
+      }
+      
+      // Detectar e salvar nome se estiver nos campos configurados
+      if (crmFields.includes('name') && !customerData.name) {
+        // Detectar nome (palavras sem números, sem @, sem caracteres especiais)
+        const namePattern = /^[a-zA-ZÀ-ÿ\s]{2,50}$/;
+        if (namePattern.test(messageText.trim()) && messageText.trim().split(/\s+/).length <= 5) {
+          customerData.name = messageText.trim();
+          dataUpdated = true;
+          console.log('✅ [CRM AUTO-SAVE] Nome detectado e salvo:', customerData.name);
+        }
+      }
+      
+      // Detectar e salvar email se estiver nos campos configurados
+      if (crmFields.includes('email') && !customerData.email) {
+        const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+        const emailMatch = messageText.match(emailPattern);
+        if (emailMatch) {
+          customerData.email = emailMatch[0];
+          dataUpdated = true;
+          console.log('✅ [CRM AUTO-SAVE] Email detectado e salvo:', customerData.email);
+        }
+      }
+      
+      // Detectar e salvar produto/serviço se estiver nos campos configurados
+      if (crmFields.includes('product') && !customerData.productOrService) {
+        // Buscar produtos/serviços do catálogo
+        const productsSnapshot = await db.ref(`products/${userId}`).once('value');
+        const servicesSnapshot = await db.ref(`services/${userId}`).once('value');
+        
+        let foundProduct = null;
+        
+        if (productsSnapshot.exists()) {
+          const products = Object.values(productsSnapshot.val());
+          for (const product of products) {
+            if (product.name && lowerText.includes(product.name.toLowerCase())) {
+              foundProduct = product.name;
+              break;
+            }
+          }
+        }
+        
+        if (!foundProduct && servicesSnapshot.exists()) {
+          const services = Object.values(servicesSnapshot.val());
+          for (const service of services) {
+            if (service.name && lowerText.includes(service.name.toLowerCase())) {
+              foundProduct = service.name;
+              break;
+            }
+          }
+        }
+        
+        if (foundProduct) {
+          customerData.productOrService = foundProduct;
+          dataUpdated = true;
+          console.log('✅ [CRM AUTO-SAVE] Produto/Serviço detectado e salvo:', foundProduct);
+        }
+      }
+    }
     
     // Detectar se mensagem parece ser CEP sem contexto
     const cepRegex = /^\d{5}[-]?\d{3}$/;

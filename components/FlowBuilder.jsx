@@ -358,19 +358,55 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
         prompt += `⚠️ Condição: ${step.condition}\n`;
       }
       
-      // Se for coleta de dados customizados, adicionar as perguntas
-      if (step.type === 'collect_data' && step.customQuestions && step.customQuestions.length > 0) {
-        prompt += `\n📋 PERGUNTAS PERSONALIZADAS PARA COLETAR:\n`;
-        step.customQuestions.forEach((q, idx) => {
-          prompt += `${idx + 1}. ${q.question}`;
-          if (q.type !== 'text') {
-            prompt += ` (Tipo: ${q.type})`;
+      // Se for coleta de dados, adicionar configurações de CRM e perguntas
+      if (step.type === 'collect_data') {
+        // Salvamento automático no CRM
+        if (step.crmAutoSave) {
+          prompt += `\n💾 SALVAMENTO AUTOMÁTICO NO CRM:\n`;
+          prompt += `IMPORTANTE: Todos os clientes que entrarem em contato devem ser salvos automaticamente no CRM.\n`;
+          
+          const crmFields = step.crmFields || ['name', 'phone'];
+          const fieldLabels = {
+            'name': 'Nome',
+            'phone': 'Telefone',
+            'product': 'Produto ou Serviço',
+            'email': 'Email'
+          };
+          
+          prompt += `Dados a serem salvos:\n`;
+          crmFields.forEach(field => {
+            if (fieldLabels[field]) {
+              prompt += `- ${fieldLabels[field]}\n`;
+            }
+          });
+          
+          prompt += `\nINSTRUÇÕES CRÍTICAS:\n`;
+          prompt += `1. SEMPRE colete o Nome e Telefone do cliente (obrigatórios)\n`;
+          if (crmFields.includes('product')) {
+            prompt += `2. Identifique qual produto ou serviço o cliente está interessado durante a conversa\n`;
+            prompt += `3. Salve o produto/serviço mencionado pelo cliente\n`;
           }
-          if (q.required) {
-            prompt += ` [OBRIGATÓRIO]`;
+          if (crmFields.includes('email')) {
+            prompt += `4. Se o cliente fornecer email, salve também\n`;
           }
-          prompt += `\n`;
-        });
+          prompt += `5. Os dados devem ser salvos automaticamente no sistema CRM após serem coletados\n`;
+          prompt += `6. Não pergunte explicitamente sobre salvar no CRM - faça isso automaticamente\n`;
+        }
+        
+        // Perguntas customizadas
+        if (step.customQuestions && step.customQuestions.length > 0) {
+          prompt += `\n📋 PERGUNTAS PERSONALIZADAS PARA COLETAR:\n`;
+          step.customQuestions.forEach((q, idx) => {
+            prompt += `${idx + 1}. ${q.question}`;
+            if (q.type !== 'text') {
+              prompt += ` (Tipo: ${q.type})`;
+            }
+            if (q.required) {
+              prompt += ` [OBRIGATÓRIO]`;
+            }
+            prompt += `\n`;
+          });
+        }
       }
       
       // Se for criação de agendamento, adicionar as configurações
@@ -1349,12 +1385,114 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                               </div>
                             )}
 
-                            {/* Editor de Perguntas Customizadas (só para collect_data) */}
+                            {/* Configurações de Coleta de Dados para CRM (só para collect_data) */}
                             {editingStep.type === 'collect_data' && (
-                              <CustomQuestionsEditor
-                                questions={editingStep.customQuestions || []}
-                                onChange={(questions) => setEditingStep({ ...editingStep, customQuestions: questions })}
-                              />
+                              <div className="border-t pt-4 mt-4 space-y-4">
+                                {/* Opção de Salvamento Automático no CRM */}
+                                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '2px solid rgba(16, 185, 129, 0.3)', borderRadius: '8px', padding: '16px' }}>
+                                  <label style={{ display: 'flex', alignItems: 'start', gap: '12px', cursor: 'pointer' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={editingStep.crmAutoSave || false}
+                                      onChange={(e) => setEditingStep({ 
+                                        ...editingStep, 
+                                        crmAutoSave: e.target.checked,
+                                        crmFields: e.target.checked ? (editingStep.crmFields || ['name', 'phone']) : []
+                                      })}
+                                      style={{ marginTop: '4px' }}
+                                    />
+                                    <div style={{ flex: 1 }}>
+                                      <div style={{ fontWeight: '700', color: '#ffffff', fontSize: '0.9375rem', marginBottom: '4px' }}>
+                                        💾 Salvar Automaticamente no CRM
+                                      </div>
+                                      <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
+                                        Todos os clientes que entrarem em contato serão salvos automaticamente no CRM com os dados selecionados abaixo.
+                                      </div>
+                                    </div>
+                                  </label>
+
+                                  {editingStep.crmAutoSave && (
+                                    <div style={{ marginTop: '16px' }}>
+                                      <label style={{ display: 'block', fontWeight: '600', fontSize: '0.875rem', color: '#ffffff', marginBottom: '12px' }}>
+                                        Dados a serem salvos no CRM: *
+                                      </label>
+                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                                        {[
+                                          { value: 'name', label: '👤 Nome', required: true },
+                                          { value: 'phone', label: '📱 Telefone', required: true },
+                                          { value: 'product', label: '📦 Produto ou Serviço', required: false },
+                                          { value: 'email', label: '📧 Email', required: false }
+                                        ].map((field) => (
+                                          <label
+                                            key={field.value}
+                                            style={{
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '8px',
+                                              padding: '10px',
+                                              backgroundColor: '#0f1419',
+                                              border: field.required 
+                                                ? '2px solid rgba(16, 185, 129, 0.5)' 
+                                                : '1px solid rgba(255, 255, 255, 0.1)',
+                                              borderRadius: '8px',
+                                              cursor: field.required ? 'default' : 'pointer',
+                                              transition: 'all 0.2s',
+                                              opacity: field.required ? 0.7 : 1
+                                            }}
+                                            onMouseEnter={(e) => {
+                                              if (!field.required) {
+                                                e.currentTarget.style.backgroundColor = '#1a1f36';
+                                              }
+                                            }}
+                                            onMouseLeave={(e) => {
+                                              if (!field.required) {
+                                                e.currentTarget.style.backgroundColor = '#0f1419';
+                                              }
+                                            }}
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={editingStep.crmFields?.includes(field.value) || field.required}
+                                              disabled={field.required}
+                                              onChange={(e) => {
+                                                if (field.required) return;
+                                                const currentFields = editingStep.crmFields || [];
+                                                const newFields = e.target.checked
+                                                  ? [...currentFields, field.value]
+                                                  : currentFields.filter(f => f !== field.value);
+                                                setEditingStep({ ...editingStep, crmFields: newFields });
+                                              }}
+                                            />
+                                            <span style={{ fontSize: '0.875rem', color: '#ffffff' }}>
+                                              {field.label}
+                                              {field.required && <span style={{ color: '#10b981', marginLeft: '4px' }}>*</span>}
+                                            </span>
+                                          </label>
+                                        ))}
+                                      </div>
+                                      <div style={{ marginTop: '12px', padding: '12px', backgroundColor: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px' }}>
+                                        <p style={{ fontSize: '0.75rem', color: '#10b981' }}>
+                                          💡 <strong>Como funciona:</strong> Quando um cliente entrar em contato via WhatsApp, o agente coletará automaticamente os dados selecionados acima e salvará no CRM. Nome e Telefone são sempre salvos (obrigatórios).
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Editor de Perguntas Customizadas */}
+                                <div style={{ marginTop: '16px' }}>
+                                  <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '12px' }}>
+                                    📋 Perguntas Personalizadas (Opcional)
+                                  </div>
+                                  <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '12px' }}>
+                                    Adicione perguntas adicionais para coletar dados extras além dos campos do CRM.
+                                  </p>
+                                  <CustomQuestionsEditor
+                                    questions={editingStep.customQuestions || []}
+                                    onChange={(questions) => setEditingStep({ ...editingStep, customQuestions: questions })}
+                                  />
+                                </div>
+                              </div>
                             )}
 
                             {/* Configurações de Agendamento (só para create_appointment) */}
@@ -1561,11 +1699,48 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                 </div>
                               )}
 
+                              {/* Mostrar configurações de CRM se houver */}
+                              {step.type === 'collect_data' && step.crmAutoSave && (
+                                <div style={{ marginTop: '12px', fontSize: '0.875rem' }}>
+                                  <div style={{ fontWeight: '600', color: '#10b981', marginBottom: '8px' }}>
+                                    💾 Salvamento Automático no CRM Habilitado
+                                  </div>
+                                  <div style={{ color: '#9ca3af', marginBottom: '8px' }}>
+                                    Dados a serem salvos:
+                                  </div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                    {step.crmFields?.map((field) => {
+                                      const fieldLabels = {
+                                        'name': '👤 Nome',
+                                        'phone': '📱 Telefone',
+                                        'product': '📦 Produto/Serviço',
+                                        'email': '📧 Email'
+                                      };
+                                      return (
+                                        <span
+                                          key={field}
+                                          style={{
+                                            backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                                            color: '#10b981',
+                                            padding: '4px 8px',
+                                            borderRadius: '4px',
+                                            fontSize: '0.75rem',
+                                            border: '1px solid rgba(16, 185, 129, 0.3)'
+                                          }}
+                                        >
+                                          {fieldLabels[field] || field}
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
                               {/* Mostrar perguntas customizadas se houver */}
                               {step.type === 'collect_data' && step.customQuestions && step.customQuestions.length > 0 && (
                                 <div style={{ marginTop: '12px', fontSize: '0.875rem' }}>
                                   <div style={{ fontWeight: '600', color: '#10b981', marginBottom: '8px' }}>
-                                    📋 {step.customQuestions.length} Pergunta(s) Configurada(s):
+                                    📋 {step.customQuestions.length} Pergunta(s) Personalizada(s):
                                   </div>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                     {step.customQuestions.map((q, idx) => (
