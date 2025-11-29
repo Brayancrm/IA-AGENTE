@@ -678,7 +678,23 @@ async function handleIncomingMessage(userId, message, client) {
     // DETECÇÃO E SALVAMENTO AUTOMÁTICO DE DADOS DO CLIENTE
     // ============================================
     if (!message.isFromMe && messageText) {
-      await detectAndSaveCustomerData(userId, message.from, messageText, sanitizedNumber);
+      // Obter nome do perfil do WhatsApp (pushName ou notifyName)
+      let whatsappProfileName = null;
+      try {
+        whatsappProfileName = message.pushName || message.notifyName || null;
+        if (!whatsappProfileName) {
+          // Tentar obter do contato
+          const contact = await client.getContactById(message.from);
+          whatsappProfileName = contact?.pushname || contact?.name || null;
+        }
+        if (whatsappProfileName) {
+          console.log('👤 Nome do perfil WhatsApp:', whatsappProfileName);
+        }
+      } catch (error) {
+        console.log('⚠️ Não foi possível obter nome do perfil WhatsApp:', error.message);
+      }
+      
+      await detectAndSaveCustomerData(userId, message.from, messageText, sanitizedNumber, whatsappProfileName);
     }
     
     // Se não for mensagem enviada pelo usuário, processar com IA
@@ -2097,7 +2113,7 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
 }
 
 // Função MELHORADA para detectar e salvar dados do cliente (baseada no contexto)
-async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNumber) {
+async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNumber, whatsappProfileName = null) {
   try {
     // Verificar se messageText existe
     if (!messageText || typeof messageText !== 'string') {
@@ -2134,6 +2150,13 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
     
     let dataUpdated = false;
     
+    // PRIORIDADE MÁXIMA: Sempre salvar nome do perfil do WhatsApp se disponível e não tiver nome salvo
+    if (whatsappProfileName && whatsappProfileName.trim() && whatsappProfileName.trim() !== 'undefined' && !customerData.name) {
+      customerData.name = whatsappProfileName.trim();
+      dataUpdated = true;
+      console.log('✅ [PRIORIDADE] Nome do perfil WhatsApp salvo:', customerData.name);
+    }
+    
     // Se crmAutoSave está habilitado, garantir que dados básicos sejam salvos
     if (crmAutoSaveStep && crmAutoSaveStep.crmFields) {
       const crmFields = crmAutoSaveStep.crmFields;
@@ -2147,15 +2170,26 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
         console.log('✅ [CRM AUTO-SAVE] Telefone salvo:', phone);
       }
       
-      // Detectar e salvar nome se estiver nos campos configurados
+      // Salvar nome do perfil do WhatsApp se estiver nos campos configurados
       if (crmFields.includes('name') && !customerData.name) {
-        // Detectar nome (palavras sem números, sem @, sem caracteres especiais)
-        const namePattern = /^[a-zA-ZÀ-ÿ\s]{2,50}$/;
-        if (namePattern.test(messageText.trim()) && messageText.trim().split(/\s+/).length <= 5) {
-          customerData.name = messageText.trim();
+        // PRIORIDADE 1: Usar nome do perfil do WhatsApp (mais confiável)
+        if (whatsappProfileName && whatsappProfileName.trim() && whatsappProfileName.trim() !== 'undefined') {
+          customerData.name = whatsappProfileName.trim();
           dataUpdated = true;
-          console.log('✅ [CRM AUTO-SAVE] Nome detectado e salvo:', customerData.name);
+          console.log('✅ [CRM AUTO-SAVE] Nome do perfil WhatsApp salvo:', customerData.name);
         }
+        // PRIORIDADE 2: Só usar mensagem como nome se não tiver nome do perfil E se parecer um nome válido
+        // E se o agente explicitamente perguntou o nome (context.waitingFor === 'name')
+        else if (context && context.waitingFor === 'name') {
+          // Detectar nome (palavras sem números, sem @, sem caracteres especiais)
+          const namePattern = /^[a-zA-ZÀ-ÿ\s]{2,50}$/;
+          if (namePattern.test(messageText.trim()) && messageText.trim().split(/\s+/).length <= 5) {
+            customerData.name = messageText.trim();
+            dataUpdated = true;
+            console.log('✅ [CRM AUTO-SAVE] Nome da resposta do cliente salvo:', customerData.name);
+          }
+        }
+        // NÃO salvar primeira mensagem como nome automaticamente
       }
       
       // Detectar e salvar email se estiver nos campos configurados
@@ -2407,19 +2441,27 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
       
       // Cliente está respondendo à pergunta do NOME
       else if (context.waitingFor === 'name' && !customerData.name) {
-        const words = messageText.trim().split(/\s+/);
-        const hasNoNumbers = !/\d/.test(messageText);
-        const hasNoSpecialChars = !/[@#$%&*()_+=\[\]{}|\\:;"'<>,.?/]/.test(messageText);
-        const isReasonableLength = messageText.length >= 2 && messageText.length <= 100;
-        
-        if (words.length >= 1 && hasNoNumbers && hasNoSpecialChars && isReasonableLength) {
-          customerData.name = messageText.trim();
+        // PRIORIDADE: Se tiver nome do perfil WhatsApp, usar ele primeiro
+        if (whatsappProfileName && whatsappProfileName.trim() && whatsappProfileName.trim() !== 'undefined') {
+          customerData.name = whatsappProfileName.trim();
           dataUpdated = true;
-          console.log('✅ Nome detectado e salvo:', customerData.name);
+          console.log('✅ Nome do perfil WhatsApp salvo (prioridade):', customerData.name);
+        } else {
+          // Só usar a resposta se não tiver nome do perfil
+          const words = messageText.trim().split(/\s+/);
+          const hasNoNumbers = !/\d/.test(messageText);
+          const hasNoSpecialChars = !/[@#$%&*()_+=\[\]{}|\\:;"'<>,.?/]/.test(messageText);
+          const isReasonableLength = messageText.length >= 2 && messageText.length <= 100;
           
-          // Limpar contexto após salvar
-          await contextRef.remove();
+          if (words.length >= 1 && hasNoNumbers && hasNoSpecialChars && isReasonableLength) {
+            customerData.name = messageText.trim();
+            dataUpdated = true;
+            console.log('✅ Nome da resposta do cliente salvo:', customerData.name);
+          }
         }
+        
+        // Limpar contexto após salvar
+        await contextRef.remove();
       }
       
       // Cliente está respondendo à pergunta do CPF/CNPJ
