@@ -290,7 +290,18 @@ async function createSession(userId) {
           '--disable-background-networking',
           '--disable-sync',
           '--metrics-recording-only',
-          '--mute-audio'
+          '--mute-audio',
+          // 🔥 Flags adicionais para reduzir dependências de bibliotecas do sistema
+          '--single-process', // Executa em processo único, reduz dependências de IPC
+          '--disable-gpu-sandbox', // Desabilita sandbox do GPU
+          '--disable-breakpad', // Desabilita sistema de crash reporting
+          '--disable-crash-reporter', // Desabilita reporte de crashes
+          '--disable-crashpad', // Desabilita sistema Crashpad
+          '--disable-background-timer-throttling', // Reduz uso de recursos de background
+          '--disable-backgrounding-occluded-windows', // Desabilita otimizações de janelas
+          '--disable-renderer-backgrounding', // Desabilita backgrounding do renderer
+          '--disable-features=TranslateUI', // Desabilita UI de tradução
+          '--disable-ipc-flooding-protection' // Desabilita proteção contra flooding de IPC
         ]
       }
     };
