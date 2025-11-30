@@ -2175,10 +2175,16 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
       console.log('   Campos configurados:', crmFields.join(', '));
       
       // Sempre salvar telefone (obrigatório)
+      // Salvar o telefone original que entrou em contato (com @c.us para referência)
       if (!customerData.phone) {
-        customerData.phone = phone;
+        customerData.phone = phone; // Formato: 5511999999999@c.us
+        customerData.originalPhone = phone; // Manter original para referência
         dataUpdated = true;
         console.log('✅ [CRM AUTO-SAVE] Telefone salvo:', phone);
+      } else if (!customerData.originalPhone) {
+        // Se já tem phone mas não tem originalPhone, salvar também
+        customerData.originalPhone = phone;
+        dataUpdated = true;
       }
       
       // Salvar nome do perfil do WhatsApp se estiver nos campos configurados
