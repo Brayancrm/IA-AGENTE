@@ -2747,7 +2747,26 @@ const CRMDashboard = ({ user, database, showToast }) => {
                   </span>
                 </div>
                 <div style={{ fontSize: '0.875rem', color: '#ffffff', fontFamily: 'monospace' }}>
-                  {selectedCliente.phone.replace('@c.us', '')}
+                  {(() => {
+                    // Formatar telefone para exibição legível
+                    let phoneDisplay = selectedCliente.phone || selectedCliente.originalPhone || '';
+                    // Remover @c.us se existir
+                    phoneDisplay = phoneDisplay.replace('@c.us', '');
+                    // Se começar com 55 (código do Brasil), formatar como (XX) XXXXX-XXXX
+                    if (phoneDisplay.startsWith('55') && phoneDisplay.length >= 12) {
+                      const ddd = phoneDisplay.substring(2, 4);
+                      const numero = phoneDisplay.substring(4);
+                      if (numero.length === 9) {
+                        // Celular: (XX) 9XXXX-XXXX
+                        return `+55 (${ddd}) ${numero.substring(0, 5)}-${numero.substring(5)}`;
+                      } else if (numero.length === 8) {
+                        // Fixo: (XX) XXXX-XXXX
+                        return `+55 (${ddd}) ${numero.substring(0, 4)}-${numero.substring(4)}`;
+                      }
+                    }
+                    // Retornar número original se não conseguir formatar
+                    return phoneDisplay;
+                  })()}
                 </div>
               </div>
               
