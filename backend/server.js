@@ -118,6 +118,10 @@ app.use(cors({
     'http://localhost:3001',
     'https://ia-agente.vercel.app',
     'https://ia-agente.vercel.app/',
+    'https://www.dadosia.com.br',
+    'https://www.dadosia.com.br/',
+    'https://dadosia.com.br',
+    'https://dadosia.com.br/',
     /\.vercel\.app$/  // Permite todos os subdomínios da Vercel
   ],
   credentials: true,
