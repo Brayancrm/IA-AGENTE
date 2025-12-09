@@ -801,12 +801,15 @@ async function handleIncomingMessage(userId, message, client) {
         // Gerar resposta com IA usando o texto transcrito (ou texto original)
         console.log(`💬 Processando mensagem para IA: "${messageText}" (${isAudioMessage ? 'transcrita de áudio' : 'texto'})`);
         const aiResult = await generateAIResponse(userId, sanitizedNumber, messageText, aiConfig);
-        const aiResponse = aiResult.text;
+        let aiResponse = aiResult.text;
         
         if (!aiResponse || aiResponse.trim() === '') {
           console.log('⚠️ Resposta da IA vazia, não enviando');
           return;
         }
+        
+        // Substituir variáveis na resposta da IA antes de enviar
+        aiResponse = await replaceTemplateVariables(aiResponse, userId, sanitizedNumber);
         
         // Variável para armazenar o áudio da resposta (se houver)
         let responseAudioBase64 = null;
@@ -1181,6 +1184,92 @@ async function handleIncomingMessage(userId, message, client) {
   }
 }
 
+// Função para substituir variáveis de template pelos dados do cliente do CRM
+async function replaceTemplateVariables(text, userId, contactNumber) {
+  if (!text || typeof text !== 'string') {
+    return text;
+  }
+  
+  // Verificar se há variáveis no texto
+  if (!text.includes('{{')) {
+    return text;
+  }
+  
+  try {
+    // Buscar dados do cliente no CRM
+    const customerDataRef = db.ref(`customerData/${userId}/${contactNumber}`);
+    const customerSnapshot = await customerDataRef.once('value');
+    const customerData = customerSnapshot.val() || {};
+    
+    // Mapeamento de variáveis para dados do cliente
+    const variables = {
+      // Dados básicos
+      '{{nome}}': customerData.name || 'Cliente',
+      '{{name}}': customerData.name || 'Cliente',
+      '{{email}}': customerData.email || 'email não cadastrado',
+      '{{telefone}}': (customerData.phone || customerData.mobilePhone || '').replace('@c.us', '') || 'telefone não cadastrado',
+      '{{phone}}': (customerData.phone || customerData.mobilePhone || '').replace('@c.us', '') || 'telefone não cadastrado',
+      '{{cpf}}': customerData.cpfCnpj || 'CPF não cadastrado',
+      '{{cpfCnpj}}': customerData.cpfCnpj || 'CPF/CNPJ não cadastrado',
+      '{{cnpj}}': customerData.cpfCnpj || 'CNPJ não cadastrado',
+      
+      // Endereço
+      '{{endereco}}': customerData.address ? 
+        `${customerData.address.street || ''}, ${customerData.address.number || ''}`.trim() || 
+        'endereço não cadastrado' : 'endereço não cadastrado',
+      '{{address}}': customerData.address ? 
+        `${customerData.address.street || ''}, ${customerData.address.number || ''}`.trim() || 
+        'endereço não cadastrado' : 'endereço não cadastrado',
+      '{{rua}}': customerData.address?.street || 'rua não cadastrada',
+      '{{street}}': customerData.address?.street || 'rua não cadastrada',
+      '{{numero}}': customerData.address?.number || 'número não cadastrado',
+      '{{number}}': customerData.address?.number || 'número não cadastrado',
+      '{{complemento}}': customerData.address?.complement || 'sem complemento',
+      '{{complement}}': customerData.address?.complement || 'sem complemento',
+      '{{bairro}}': customerData.address?.neighborhood || 'bairro não cadastrado',
+      '{{neighborhood}}': customerData.address?.neighborhood || 'bairro não cadastrado',
+      '{{cidade}}': customerData.address?.city || 'cidade não cadastrada',
+      '{{city}}': customerData.address?.city || 'cidade não cadastrada',
+      '{{estado}}': customerData.address?.state || 'estado não cadastrado',
+      '{{state}}': customerData.address?.state || 'estado não cadastrado',
+      '{{cep}}': customerData.address?.cep || 'CEP não cadastrado',
+      
+      // Dados customizados do CRM (ex: {{campo_customizado}})
+    };
+    
+    // Substituir variáveis básicas
+    let replacedText = text;
+    for (const [variable, value] of Object.entries(variables)) {
+      const regex = new RegExp(variable.replace(/[{}]/g, '\\$&'), 'gi');
+      replacedText = replacedText.replace(regex, value);
+    }
+    
+    // Processar dados customizados do CRM (campos que o usuário criou)
+    if (customerData.customData && typeof customerData.customData === 'object') {
+      for (const [key, value] of Object.entries(customerData.customData)) {
+        // Permitir {{campo_customizado}} ou {{campoCustomizado}}
+        const variableName = key.replace(/([A-Z])/g, '_$1').toLowerCase(); // Converter camelCase para snake_case
+        const regex1 = new RegExp(`\\{\\{${key}\\}\\}`, 'gi');
+        const regex2 = new RegExp(`\\{\\{${variableName}\\}\\}`, 'gi');
+        replacedText = replacedText.replace(regex1, String(value || 'não cadastrado'));
+        replacedText = replacedText.replace(regex2, String(value || 'não cadastrado'));
+      }
+    }
+    
+    console.log('🔄 Variáveis substituídas no texto:', text !== replacedText ? 'Sim' : 'Não');
+    if (text !== replacedText) {
+      console.log('   Original:', text.substring(0, 100) + (text.length > 100 ? '...' : ''));
+      console.log('   Substituído:', replacedText.substring(0, 100) + (replacedText.length > 100 ? '...' : ''));
+    }
+    
+    return replacedText;
+  } catch (error) {
+    console.error('❌ Erro ao substituir variáveis de template:', error);
+    // Em caso de erro, retornar texto original
+    return text;
+  }
+}
+
 // Gerar resposta com IA
 async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) {
   try {
@@ -1251,6 +1340,9 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
     
     // Construir prompt do sistema com contexto
     let systemPrompt = aiConfig.systemPrompt || 'Você é um assistente virtual prestativo.';
+    
+    // Substituir variáveis no prompt do sistema (caso o usuário tenha usado nos steps)
+    systemPrompt = await replaceTemplateVariables(systemPrompt, userId, contactNumber);
     
     if (company.companyName) {
       systemPrompt += `\n\nVocê trabalha para a empresa: ${company.companyName}`;
