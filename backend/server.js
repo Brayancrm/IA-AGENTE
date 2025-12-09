@@ -5008,50 +5008,63 @@ app.post('/api/asaas/webhook', async (req, res) => {
         // Buscar TODAS as subscriptions e verificar múltiplos critérios
         const allSubsSnapshot = await db.ref('subscriptions').once('value');
         if (allSubsSnapshot.exists()) {
-          allSubsSnapshot.forEach((userSubs) => {
-            userSubs.forEach((sub) => {
-              const subVal = sub.val();
+          const allSubs = allSubsSnapshot.val();
+          
+          // Iterar sobre todas as subscriptions
+          for (const userId in allSubs) {
+            if (!subscriptionIdFromPayment) { // Só continuar se ainda não encontrou
+              const userSubs = allSubs[userId];
               
-              // MÉTODO 1: Verificar se payment.id está no paymentUrl ou invoiceUrl da subscription
-              if (subVal.paymentUrl && payment.id) {
-                // paymentUrl pode ser uma URL completa ou conter o payment ID
-                if (subVal.paymentUrl.includes(payment.id) || subVal.paymentUrl.includes(payment.id.replace('pay_', ''))) {
-                  subscriptionIdFromPayment = subVal.asaasSubscriptionId;
-                  console.log('✅ Assinatura encontrada pelo paymentUrl (payment.id):', subscriptionIdFromPayment);
-                  return;
-                }
-              }
-              
-              // MÉTODO 2: Verificar se invoiceUrl contém payment.id
-              if (payment.invoiceUrl && subVal.paymentUrl && payment.invoiceUrl.includes(subVal.paymentUrl.split('?')[0])) {
-                subscriptionIdFromPayment = subVal.asaasSubscriptionId;
-                console.log('✅ Assinatura encontrada pela invoiceUrl:', subscriptionIdFromPayment);
-                return;
-              }
-              
-              // MÉTODO 3: Verificar pelo externalReference do payment (formato: subscription_{userId}_{planId})
-              if (payment.externalReference && payment.externalReference.startsWith('subscription_')) {
-                const refParts = payment.externalReference.split('_');
-                if (refParts.length >= 3) {
-                  const refUserId = refParts[1];
-                  const refPlanId = refParts[2];
-                  // Verificar se userId e planId correspondem
-                  if (userSubs.key === refUserId && subVal.planId === refPlanId) {
+              for (const subKey in userSubs) {
+                if (!subscriptionIdFromPayment) { // Só continuar se ainda não encontrou
+                  const subVal = userSubs[subKey];
+                  
+                  // MÉTODO 1: Verificar se payment.id está no paymentUrl ou invoiceUrl da subscription
+                  if (subVal.paymentUrl && payment.id) {
+                    // paymentUrl pode ser uma URL completa ou conter o payment ID
+                    if (subVal.paymentUrl.includes(payment.id) || subVal.paymentUrl.includes(payment.id.replace('pay_', ''))) {
+                      subscriptionIdFromPayment = subVal.asaasSubscriptionId;
+                      console.log('✅ Assinatura encontrada pelo paymentUrl (payment.id):', subscriptionIdFromPayment);
+                      break; // Sair do loop interno
+                    }
+                  }
+                  
+                  // MÉTODO 2: Verificar se invoiceUrl contém payment.id
+                  if (!subscriptionIdFromPayment && payment.invoiceUrl && subVal.paymentUrl && payment.invoiceUrl.includes(subVal.paymentUrl.split('?')[0])) {
                     subscriptionIdFromPayment = subVal.asaasSubscriptionId;
-                    console.log('✅ Assinatura encontrada pelo externalReference:', subscriptionIdFromPayment);
-                    return;
+                    console.log('✅ Assinatura encontrada pela invoiceUrl:', subscriptionIdFromPayment);
+                    break; // Sair do loop interno
+                  }
+                  
+                  // MÉTODO 3: Verificar pelo externalReference do payment (formato: subscription_{userId}_{planId})
+                  if (!subscriptionIdFromPayment && payment.externalReference && payment.externalReference.startsWith('subscription_')) {
+                    const refParts = payment.externalReference.split('_');
+                    if (refParts.length >= 3) {
+                      const refUserId = refParts[1];
+                      const refPlanId = refParts[2];
+                      // Verificar se userId e planId correspondem
+                      if (userId === refUserId && subVal.planId === refPlanId) {
+                        subscriptionIdFromPayment = subVal.asaasSubscriptionId;
+                        console.log('✅ Assinatura encontrada pelo externalReference:', subscriptionIdFromPayment);
+                        break; // Sair do loop interno
+                      }
+                    }
+                  }
+                  
+                  // MÉTODO 4: Se subscription tem lastPayment ou invoiceUrl relacionada, verificar se corresponde
+                  if (!subscriptionIdFromPayment && subVal.lastPayment === payment.id) {
+                    subscriptionIdFromPayment = subVal.asaasSubscriptionId;
+                    console.log('✅ Assinatura encontrada pelo lastPayment:', subscriptionIdFromPayment);
+                    break; // Sair do loop interno
                   }
                 }
               }
               
-              // MÉTODO 4: Se subscription tem lastPayment ou invoiceUrl relacionada, verificar se corresponde
-              if (subVal.lastPayment === payment.id) {
-                subscriptionIdFromPayment = subVal.asaasSubscriptionId;
-                console.log('✅ Assinatura encontrada pelo lastPayment:', subscriptionIdFromPayment);
-                return;
+              if (subscriptionIdFromPayment) {
+                break; // Sair do loop externo se encontrou
               }
-            });
-          });
+            }
+          }
         }
         
         if (!subscriptionIdFromPayment) {
