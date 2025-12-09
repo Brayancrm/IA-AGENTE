@@ -1611,42 +1611,77 @@ const FirebaseApp = () => {
           }
           return; // Não renderizar mais nada, vai redirecionar
         } else {
-          // Se não tiver invoiceUrl, ainda mostrar página de pagamento informando que o link será enviado por email
-          // Ou tentar buscar o link da assinatura após alguns segundos
+          // Se não tiver invoiceUrl, tentar buscar do Firebase ou mostrar instruções
           console.warn('⚠️ Assinatura criada mas invoiceUrl não foi retornada');
           console.warn('   Result:', result);
-          showToast('Assinatura criada! Aguardando link de pagamento...', 'success');
           
-          // Tentar buscar o link após alguns segundos (pode levar um tempo para ser gerado)
+          // Tentar buscar o link do Firebase imediatamente
+          try {
+            const subscriptionsRef = ref(database, `subscriptions/${user.uid}`);
+            const snapshot = await get(subscriptionsRef);
+            if (snapshot.exists()) {
+              const subscriptions = snapshot.val();
+              // Buscar pela subscriptionId retornada ou pela asaasSubscriptionId
+              const subscription = Object.values(subscriptions).find(
+                sub => sub.subscriptionId === result.subscriptionId || 
+                       sub.asaasSubscriptionId === result.subscriptionId ||
+                       sub.asaasSubscriptionId === result.asaasSubscriptionId
+              );
+              
+              if (subscription && subscription.paymentUrl) {
+                console.log('✅ Link de pagamento encontrado no Firebase:', subscription.paymentUrl);
+                
+                // Salvar informações da assinatura no localStorage para verificar ao retornar
+                const paymentInfo = {
+                  planId: plan.id,
+                  subscriptionId: subscription.asaasSubscriptionId || result.subscriptionId,
+                  createdAt: Date.now()
+                };
+                localStorage.setItem('pendingPayment', JSON.stringify(paymentInfo));
+                
+                // Redirecionar para o link de pagamento
+                console.log('🔄 Redirecionando para link de pagamento do Firebase...');
+                window.location.href = subscription.paymentUrl;
+                return;
+              }
+            }
+          } catch (fetchError) {
+            console.error('Erro ao buscar link do Firebase:', fetchError);
+          }
+          
+          // Se ainda não encontrou, mostrar mensagem e tentar novamente após alguns segundos
+          showToast('Assinatura criada! Buscando link de pagamento...', 'success');
+          
+          // Tentar buscar novamente após 3 segundos
           setTimeout(async () => {
             try {
-              // Buscar assinatura no Firebase para ver se o link foi atualizado
               const subscriptionsRef = ref(database, `subscriptions/${user.uid}`);
               const snapshot = await get(subscriptionsRef);
               if (snapshot.exists()) {
                 const subscriptions = snapshot.val();
                 const subscription = Object.values(subscriptions).find(
-                  sub => sub.asaasSubscriptionId === result.subscriptionId
+                  sub => sub.subscriptionId === result.subscriptionId || 
+                         sub.asaasSubscriptionId === result.subscriptionId ||
+                         sub.asaasSubscriptionId === result.asaasSubscriptionId
                 );
                 if (subscription && subscription.paymentUrl) {
-                  // Salvar informações da assinatura no localStorage para verificar ao retornar
                   const paymentInfo = {
                     planId: plan.id,
-                    subscriptionId: result.subscriptionId,
+                    subscriptionId: subscription.asaasSubscriptionId || result.subscriptionId,
                     createdAt: Date.now()
                   };
                   localStorage.setItem('pendingPayment', JSON.stringify(paymentInfo));
-                  
-                  // Redirecionar diretamente para o Asaas
                   window.location.href = subscription.paymentUrl;
                   return;
                 }
               }
               
-              // Se ainda não tiver link, mostrar mensagem informando que será enviado por email
-              showToast('Link de pagamento será enviado por email. Verifique sua caixa de entrada.', 'success');
+              // Se ainda não tiver link, mostrar instruções
+              showToast('⚠️ Link de pagamento ainda não disponível. Após pagar, volte para o site manualmente.', 'error');
+              console.warn('⚠️ Link de pagamento não encontrado no Firebase após tentativas');
             } catch (error) {
               console.error('Erro ao buscar link de pagamento:', error);
+              showToast('⚠️ Erro ao buscar link. Após pagar, volte para www.dadosia.com.br manualmente.', 'error');
             }
           }, 3000);
         }

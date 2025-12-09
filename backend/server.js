@@ -3360,6 +3360,14 @@ async function createAsaasSubscription(asaasApiKey, customerData, planData, user
       const returnUrl = process.env.FRONTEND_URL || 'https://ia-agente.vercel.app';
       const returnUrlWithParams = `${returnUrl}?payment_return=true&subscriptionId=${subscriptionResponse.data.id}`;
       
+      // Extrair domínio para log (sem https:// e sem /)
+      const domainMatch = returnUrl.match(/https?:\/\/([^\/]+)/);
+      const domainOnly = domainMatch ? domainMatch[1] : returnUrl;
+      console.log('🌐 Domínio configurado no FRONTEND_URL:', domainOnly);
+      console.log('💡 IMPORTANTE: Este domínio deve estar cadastrado no Asaas (Minha Conta → Informações → Site)');
+      console.log('   Formato correto no Asaas: apenas o domínio, sem https:// e sem /');
+      console.log('   Exemplo: www.dadosia.com.br ou dadosia.com.br');
+      
       // Primeiro, tentar criar com callback (se domínio estiver autorizado no Asaas)
       const chargePayload = {
         customer: customerId,
