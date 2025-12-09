@@ -3360,6 +3360,7 @@ async function createAsaasSubscription(asaasApiKey, customerData, planData, user
       const returnUrl = process.env.FRONTEND_URL || 'https://ia-agente.vercel.app';
       const returnUrlWithParams = `${returnUrl}?payment_return=true&subscriptionId=${subscriptionResponse.data.id}`;
       
+      // Primeiro, tentar criar com callback (se domínio estiver autorizado no Asaas)
       const chargePayload = {
         customer: customerId,
         billingType: 'UNDEFINED', // Permite pix, cartão e boleto
@@ -3369,7 +3370,6 @@ async function createAsaasSubscription(asaasApiKey, customerData, planData, user
         externalReference: `subscription_initial_${userId}_${planData.id}`,
         subscription: subscriptionResponse.data.id, // Vincular à assinatura
         postalService: false,
-        // O Asaas não suporta returnUrl direto na API, mas vamos tentar adicionar na URL depois
         callback: {
           successUrl: returnUrlWithParams,
           autoRedirect: true
@@ -3378,18 +3378,63 @@ async function createAsaasSubscription(asaasApiKey, customerData, planData, user
       
       console.log('🔗 Return URL configurado:', returnUrlWithParams);
       
-      const chargeResponse = await axios.post(`${baseUrl}/payments`, chargePayload, {
-        headers: {
-          'access_token': asaasApiKey,
-          'Content-Type': 'application/json'
+      try {
+        const chargeResponse = await axios.post(`${baseUrl}/payments`, chargePayload, {
+          headers: {
+            'access_token': asaasApiKey,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        paymentUrl = chargeResponse.data.invoiceUrl || chargeResponse.data.url || null;
+        
+        console.log('✅ Cobrança inicial criada:', chargeResponse.data.id);
+        console.log('🔗 Link de pagamento:', paymentUrl);
+        console.log('📋 Callback configurado com successUrl:', returnUrlWithParams);
+      } catch (callbackError) {
+        // Se falhar por causa do domínio não autorizado, tentar sem callback
+        const errorMessage = callbackError.response?.data?.errors?.[0]?.description || '';
+        if (errorMessage.includes('domínio cadastrado') || errorMessage.includes('mesmo domínio')) {
+          console.log('⚠️ Domínio não autorizado no Asaas. Tentando criar cobrança sem callback...');
+          console.log('💡 SOLUÇÃO: Adicione www.dadosia.com.br nas configurações do Asaas (Minha Conta → Informações)');
+          
+          // Tentar criar sem callback
+          const chargePayloadWithoutCallback = {
+            customer: customerId,
+            billingType: 'UNDEFINED',
+            value: parseFloat(planData.price),
+            dueDate: subscriptionResponse.data.nextDueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            description: `Pagamento inicial - Assinatura: ${planData.name}`,
+            externalReference: `subscription_initial_${userId}_${planData.id}`,
+            subscription: subscriptionResponse.data.id,
+            postalService: false
+            // Sem callback - usuário precisará buscar o link manualmente
+          };
+          
+          try {
+            const chargeResponseRetry = await axios.post(`${baseUrl}/payments`, chargePayloadWithoutCallback, {
+              headers: {
+                'access_token': asaasApiKey,
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            paymentUrl = chargeResponseRetry.data.invoiceUrl || chargeResponseRetry.data.url || null;
+            
+            if (paymentUrl) {
+              console.log('✅ Cobrança criada sem callback (domínio não autorizado):', chargeResponseRetry.data.id);
+              console.log('🔗 Link de pagamento:', paymentUrl);
+              console.log('⚠️ ATENÇÃO: URL de retorno não configurada. Adicione o domínio no Asaas para habilitar.');
+            } else {
+              console.log('⚠️ Cobrança criada mas invoiceUrl não retornada');
+            }
+          } catch (retryError) {
+            console.error('❌ Erro ao criar cobrança mesmo sem callback:', retryError.response?.data || retryError.message);
+          }
+        } else {
+          throw callbackError; // Re-lançar se for outro tipo de erro
         }
-      });
-      
-      paymentUrl = chargeResponse.data.invoiceUrl || chargeResponse.data.url || null;
-      
-      console.log('✅ Cobrança inicial criada:', chargeResponse.data.id);
-      console.log('🔗 Link de pagamento:', paymentUrl);
-      console.log('📋 Callback configurado com successUrl:', returnUrlWithParams);
+      }
     } catch (chargeError) {
       console.error('⚠️ Erro ao criar cobrança inicial (continuando sem link):', chargeError.response?.data || chargeError.message);
       // Continuar mesmo sem o link, pois a assinatura foi criada com sucesso
