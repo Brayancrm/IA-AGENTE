@@ -882,7 +882,168 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                   ? 'Prompt Livre (Escreva o texto completo)'
                                   : 'Instruções Detalhadas'}
                               </label>
+                              
+                              {/* Seletor de Variáveis do CRM */}
+                              <div style={{ marginBottom: '12px', padding: '12px', backgroundColor: 'rgba(16, 185, 129, 0.05)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#10b981' }}>🔄 Variáveis do CRM:</span>
+                                  <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>Clique para inserir no texto</span>
+                                </div>
+                                
+                                {/* Variáveis Básicas */}
+                                <div style={{ marginBottom: '10px' }}>
+                                  <div style={{ fontSize: '0.7rem', fontWeight: '600', color: '#10b981', marginBottom: '6px' }}>📋 Dados Básicos:</div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                    {[
+                                      { var: '{{nome}}', label: 'Nome', icon: '👤' },
+                                      { var: '{{email}}', label: 'Email', icon: '📧' },
+                                      { var: '{{telefone}}', label: 'Telefone', icon: '📱' },
+                                      { var: '{{cpf}}', label: 'CPF/CNPJ', icon: '🆔' },
+                                    ].map((variable) => (
+                                      <button
+                                        key={variable.var}
+                                        type="button"
+                                        onClick={() => {
+                                          const textarea = document.getElementById(`description-textarea-${editingStep.id}`);
+                                          const currentText = editingStep.description || '';
+                                          
+                                          if (textarea) {
+                                            const start = textarea.selectionStart || currentText.length;
+                                            const end = textarea.selectionEnd || start;
+                                            const newText = currentText.substring(0, start) + variable.var + currentText.substring(end);
+                                            
+                                            setEditingStep({
+                                              ...editingStep,
+                                              description: newText,
+                                            });
+                                            
+                                            setTimeout(() => {
+                                              textarea.focus();
+                                              const newCursorPos = start + variable.var.length;
+                                              textarea.setSelectionRange(newCursorPos, newCursorPos);
+                                            }, 10);
+                                          } else {
+                                            setEditingStep({
+                                              ...editingStep,
+                                              description: currentText + variable.var,
+                                            });
+                                          }
+                                        }}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          padding: '6px 10px',
+                                          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                                          borderRadius: '6px',
+                                          color: '#10b981',
+                                          fontSize: '0.75rem',
+                                          fontWeight: '500',
+                                          cursor: 'pointer',
+                                          transition: 'all 0.2s',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
+                                          e.currentTarget.style.borderColor = '#10b981';
+                                          e.currentTarget.style.transform = 'translateY(-1px)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                                          e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                                          e.currentTarget.style.transform = 'translateY(0)';
+                                        }}
+                                        title={`Inserir ${variable.label} do cliente`}
+                                      >
+                                        <span>{variable.icon}</span>
+                                        <span style={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>{variable.var}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                                
+                                {/* Variáveis de Endereço */}
+                                <div>
+                                  <div style={{ fontSize: '0.7rem', fontWeight: '600', color: '#10b981', marginBottom: '6px' }}>📍 Endereço:</div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                    {[
+                                      { var: '{{endereco}}', label: 'Endereço Completo', icon: '📍' },
+                                      { var: '{{rua}}', label: 'Rua', icon: '🛣️' },
+                                      { var: '{{numero}}', label: 'Número', icon: '🔢' },
+                                      { var: '{{complemento}}', label: 'Complemento', icon: '🏠' },
+                                      { var: '{{bairro}}', label: 'Bairro', icon: '🏘️' },
+                                      { var: '{{cidade}}', label: 'Cidade', icon: '🏙️' },
+                                      { var: '{{estado}}', label: 'Estado', icon: '🗺️' },
+                                      { var: '{{cep}}', label: 'CEP', icon: '📮' },
+                                    ].map((variable) => (
+                                      <button
+                                        key={variable.var}
+                                        type="button"
+                                        onClick={() => {
+                                          const textarea = document.getElementById(`description-textarea-${editingStep.id}`);
+                                          const currentText = editingStep.description || '';
+                                          
+                                          if (textarea) {
+                                            const start = textarea.selectionStart || currentText.length;
+                                            const end = textarea.selectionEnd || start;
+                                            const newText = currentText.substring(0, start) + variable.var + currentText.substring(end);
+                                            
+                                            setEditingStep({
+                                              ...editingStep,
+                                              description: newText,
+                                            });
+                                            
+                                            setTimeout(() => {
+                                              textarea.focus();
+                                              const newCursorPos = start + variable.var.length;
+                                              textarea.setSelectionRange(newCursorPos, newCursorPos);
+                                            }, 10);
+                                          } else {
+                                            setEditingStep({
+                                              ...editingStep,
+                                              description: currentText + variable.var,
+                                            });
+                                          }
+                                        }}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          padding: '6px 10px',
+                                          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                                          borderRadius: '6px',
+                                          color: '#10b981',
+                                          fontSize: '0.75rem',
+                                          fontWeight: '500',
+                                          cursor: 'pointer',
+                                          transition: 'all 0.2s',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
+                                          e.currentTarget.style.borderColor = '#10b981';
+                                          e.currentTarget.style.transform = 'translateY(-1px)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                                          e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                                          e.currentTarget.style.transform = 'translateY(0)';
+                                        }}
+                                        title={`Inserir ${variable.label} do cliente`}
+                                      >
+                                        <span>{variable.icon}</span>
+                                        <span style={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>{variable.var}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div style={{ marginTop: '8px', fontSize: '0.7rem', color: '#9ca3af' }}>
+                                  💡 As variáveis serão substituídas automaticamente pelos dados do cliente do CRM
+                                </div>
+                              </div>
+                              
                               <textarea
+                                id={`description-textarea-${editingStep.id}`}
                                 value={editingStep.description}
                                 onChange={(e) =>
                                   setEditingStep({
@@ -892,7 +1053,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                 }
                                 placeholder={editingStep.type === 'free_text'
                                   ? "Ex: Você é um assistente prestativo. Quando o cliente perguntar sobre...\n\nEscreva aqui o prompt completo que deseja usar neste ponto do fluxo."
-                                  : "Ex: Cumprimente o cliente de forma amigável e pergunte como pode ajudar..."}
+                                  : "Ex: Olá {{nome}}! Cumprimente o cliente de forma amigável e pergunte como pode ajudar..."}
                                 rows={editingStep.type === 'free_text' ? 8 : 4}
                                 style={{
                                   width: '100%',
