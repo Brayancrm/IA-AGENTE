@@ -1341,8 +1341,9 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
     // Construir prompt do sistema com contexto
     let systemPrompt = aiConfig.systemPrompt || 'Você é um assistente virtual prestativo.';
     
-    // Substituir variáveis no prompt do sistema (caso o usuário tenha usado nos steps)
-    systemPrompt = await replaceTemplateVariables(systemPrompt, userId, contactNumber);
+    // IMPORTANTE: NÃO substituir variáveis no systemPrompt ainda!
+    // As variáveis {{nome}}, {{email}}, etc. devem permanecer no prompt
+    // para que a IA as inclua na resposta, e depois substituímos na resposta final
     
     if (company.companyName) {
       systemPrompt += `\n\nVocê trabalha para a empresa: ${company.companyName}`;

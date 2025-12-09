@@ -182,7 +182,23 @@ export function convertStepsToPrompt(steps) {
     }
     
     if (step.description) {
-      prompt += `**Instruções:**\n${step.description}\n\n`;
+      // Verificar se a descrição contém variáveis de template ({{...}})
+      const hasVariables = /{{[^}]+}}/.test(step.description);
+      
+      if (hasVariables) {
+        // Se tiver variáveis, instruir a IA a usar o texto LITERALMENTE
+        prompt += `**Instruções:**\n${step.description}\n\n`;
+        prompt += `🚨 **CRÍTICO - USO LITERAL OBRIGATÓRIO:**\n`;
+        prompt += `Esta instrução contém variáveis de template ({{nome}}, {{email}}, etc.).\n`;
+        prompt += `Você DEVE copiar e usar o texto EXATAMENTE como está escrito acima, incluindo TODAS as variáveis.\n`;
+        prompt += `NÃO interprete, NÃO adapte, NÃO substitua as variáveis por palavras genéricas.\n`;
+        prompt += `Mantenha EXATAMENTE o texto: "${step.description}"\n`;
+        prompt += `O sistema substituirá automaticamente {{nome}}, {{email}}, etc. pelos dados reais do cliente.\n`;
+        prompt += `Se você não usar o texto literalmente com as variáveis, o sistema não funcionará corretamente.\n\n`;
+      } else {
+        // Se não tiver variáveis, usar normalmente
+        prompt += `**Instruções:**\n${step.description}\n\n`;
+      }
     }
     
     if (step.condition) {
