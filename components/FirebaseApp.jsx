@@ -1524,23 +1524,71 @@ const FirebaseApp = () => {
       }
 
       // Chamar API do backend para criar assinatura
-      const response = await fetch(`${BACKEND_URL}/api/asaas/create-subscription`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId: user.uid,
-          customerData: customerData,
-          planData: plan
-        })
-      });
+      console.log('💳 Iniciando criação de assinatura...');
+      console.log('   BACKEND_URL:', BACKEND_URL);
+      console.log('   URL completa:', `${BACKEND_URL}/api/asaas/create-subscription`);
+      console.log('   Plan:', plan.name);
+      console.log('   User ID:', user.uid);
+      
+      let response;
+      try {
+        response = await fetch(`${BACKEND_URL}/api/asaas/create-subscription`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            userId: user.uid,
+            customerData: customerData,
+            planData: plan
+          })
+        });
+      } catch (fetchError) {
+        console.error('❌ Erro ao fazer requisição ao backend:', fetchError);
+        console.error('   Tipo:', fetchError.name);
+        console.error('   Mensagem:', fetchError.message);
+        console.error('   BACKEND_URL usado:', BACKEND_URL);
+        showToast('Erro de conexão com o servidor. Verifique se o backend está online.', 'error');
+        return;
+      }
 
-      const result = await response.json();
+      console.log('📥 Resposta do servidor recebida:', response.status, response.statusText);
+      console.log('   Headers:', Object.fromEntries(response.headers.entries()));
+      
+      if (!response.ok) {
+        console.error('❌ Erro na resposta do servidor:', response.status);
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          const text = await response.text();
+          errorData = { error: text || 'Erro desconhecido' };
+        }
+        console.error('   Erro:', errorData);
+        showToast('Erro ao criar assinatura: ' + (errorData.error || 'Erro desconhecido'), 'error');
+        return;
+      }
+
+      let result;
+      try {
+        result = await response.json();
+      } catch (parseError) {
+        console.error('❌ Erro ao fazer parse da resposta JSON:', parseError);
+        const text = await response.text();
+        console.error('   Resposta (texto):', text);
+        showToast('Erro ao processar resposta do servidor.', 'error');
+        return;
+      }
+      console.log('📋 Resultado da criação de assinatura:');
+      console.log('   Success:', result.success);
+      console.log('   Subscription ID:', result.subscriptionId);
+      console.log('   Invoice URL:', result.invoiceUrl);
+      console.log('   Result completo:', result);
 
       if (result.success) {
         // Se tiver invoiceUrl, redirecionar DIRETAMENTE para o Asaas
         if (result.invoiceUrl) {
+          console.log('✅ Invoice URL encontrada, preparando redirecionamento...');
           // Salvar informações da assinatura no localStorage para verificar ao retornar
           const paymentInfo = {
             planId: plan.id,
@@ -1551,11 +1599,22 @@ const FirebaseApp = () => {
           
           // Redirecionar diretamente para o Asaas
           console.log('✅ Assinatura criada, redirecionando para pagamento:', result.invoiceUrl);
-          window.location.href = result.invoiceUrl;
+          console.log('   Tentando redirecionar para:', result.invoiceUrl);
+          
+          // Tentar múltiplas formas de redirecionamento para garantir compatibilidade
+          try {
+            window.location.href = result.invoiceUrl;
+          } catch (redirectError) {
+            console.error('❌ Erro ao redirecionar:', redirectError);
+            // Tentar alternativa
+            window.location.assign(result.invoiceUrl);
+          }
           return; // Não renderizar mais nada, vai redirecionar
         } else {
           // Se não tiver invoiceUrl, ainda mostrar página de pagamento informando que o link será enviado por email
           // Ou tentar buscar o link da assinatura após alguns segundos
+          console.warn('⚠️ Assinatura criada mas invoiceUrl não foi retornada');
+          console.warn('   Result:', result);
           showToast('Assinatura criada! Aguardando link de pagamento...', 'success');
           
           // Tentar buscar o link após alguns segundos (pode levar um tempo para ser gerado)
