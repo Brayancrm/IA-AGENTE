@@ -667,17 +667,26 @@ const FirebaseApp = () => {
           console.log('   UpdatedAt:', activePlan.updatedAt);
           console.log('   SubscriptionId:', activePlan.asaasSubscriptionId);
           
-          // Se o activePlan já existe e corresponde ao plano sendo pago, pode ser que o pagamento já foi processado
-          if (activePlan.planId === pendingPayment.planId && 
-              activePlan.asaasSubscriptionId === pendingPayment.subscriptionId) {
-            console.log('✅ ActivePlan já corresponde ao plano pago! Pagamento pode ter sido processado.');
+          // Se o activePlan já existe e corresponde à assinatura sendo paga, o pagamento já foi processado
+          // IMPORTANTE: Verificar pela assinatura (asaasSubscriptionId) pois em upgrades o planId pode ser diferente
+          if (activePlan.asaasSubscriptionId === pendingPayment.subscriptionId) {
+            // Verificar se é upgrade ou se corresponde ao mesmo plano
+            const isUpgrade = activePlan.planId !== pendingPayment.planId;
+            
+            if (isUpgrade) {
+              console.log('✅ Upgrade detectado! ActivePlan foi atualizado com novo plano.');
+              console.log(`   Plano anterior: ${activePlan.planId} -> Novo plano: ${pendingPayment.planId}`);
+            } else {
+              console.log('✅ ActivePlan já corresponde ao plano pago! Pagamento foi processado.');
+            }
+            
             console.log('   Removendo pendingPayment e recarregando...');
             localStorage.removeItem('pendingPayment');
             if (window.location.search.includes('payment_return')) {
               window.history.replaceState({}, '', window.location.pathname);
             }
             setCurrentPage('plans');
-            showToast('Plano já está ativo!', 'success');
+            showToast(isUpgrade ? 'Upgrade concluído! Seu novo plano está ativo.' : 'Plano já está ativo!', 'success');
             setTimeout(() => {
               window.location.reload();
             }, 1000);
