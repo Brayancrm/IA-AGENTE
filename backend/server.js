@@ -4992,85 +4992,134 @@ app.post('/api/asaas/webhook', async (req, res) => {
       // NÃO processar eventos PAYMENT_CREATED ou PAYMENT_UPDATED que ainda não foram pagos
       
       // IMPORTANTE: O payment.subscription pode não estar presente no webhook
-      // Se não estiver, tentar buscar pelo externalReference que contém o subscriptionId
+      // Se não estiver, tentar buscar de múltiplas formas
       let subscriptionIdFromPayment = payment.subscription;
       
-      if (!subscriptionIdFromPayment && payment.externalReference) {
-        // externalReference formato: subscription_initial_{userId}_{planId}
-        // Ou pode ser apenas o subscriptionId se vier direto
-        console.log('⚠️ payment.subscription não encontrado, tentando buscar por externalReference:', payment.externalReference);
+      // Log detalhado do payload recebido
+      console.log('🔍 Analisando pagamento para encontrar assinatura:');
+      console.log('   payment.id:', payment.id);
+      console.log('   payment.subscription:', payment.subscription);
+      console.log('   payment.externalReference:', payment.externalReference);
+      console.log('   payment.invoiceUrl:', payment.invoiceUrl);
+      
+      if (!subscriptionIdFromPayment) {
+        console.log('⚠️ payment.subscription não encontrado, buscando por outras formas...');
         
-        // Tentar buscar todas as assinaturas e encontrar pelo externalReference ou paymentUrl
+        // Buscar TODAS as subscriptions e verificar múltiplos critérios
         const allSubsSnapshot = await db.ref('subscriptions').once('value');
         if (allSubsSnapshot.exists()) {
           allSubsSnapshot.forEach((userSubs) => {
             userSubs.forEach((sub) => {
               const subVal = sub.val();
-              // Verificar se o paymentUrl corresponde ou se o externalReference contém o planId
-              if (subVal.paymentUrl && payment.invoiceUrl && subVal.paymentUrl.includes(payment.id)) {
+              
+              // MÉTODO 1: Verificar se payment.id está no paymentUrl ou invoiceUrl da subscription
+              if (subVal.paymentUrl && payment.id) {
+                // paymentUrl pode ser uma URL completa ou conter o payment ID
+                if (subVal.paymentUrl.includes(payment.id) || subVal.paymentUrl.includes(payment.id.replace('pay_', ''))) {
+                  subscriptionIdFromPayment = subVal.asaasSubscriptionId;
+                  console.log('✅ Assinatura encontrada pelo paymentUrl (payment.id):', subscriptionIdFromPayment);
+                  return;
+                }
+              }
+              
+              // MÉTODO 2: Verificar se invoiceUrl contém payment.id
+              if (payment.invoiceUrl && subVal.paymentUrl && payment.invoiceUrl.includes(subVal.paymentUrl.split('?')[0])) {
                 subscriptionIdFromPayment = subVal.asaasSubscriptionId;
-                console.log('✅ Assinatura encontrada pelo paymentUrl:', subscriptionIdFromPayment);
-              } else if (payment.externalReference && payment.externalReference.includes(subVal.planId)) {
+                console.log('✅ Assinatura encontrada pela invoiceUrl:', subscriptionIdFromPayment);
+                return;
+              }
+              
+              // MÉTODO 3: Verificar pelo externalReference do payment (formato: subscription_{userId}_{planId})
+              if (payment.externalReference && payment.externalReference.startsWith('subscription_')) {
+                const refParts = payment.externalReference.split('_');
+                if (refParts.length >= 3) {
+                  const refUserId = refParts[1];
+                  const refPlanId = refParts[2];
+                  // Verificar se userId e planId correspondem
+                  if (userSubs.key === refUserId && subVal.planId === refPlanId) {
+                    subscriptionIdFromPayment = subVal.asaasSubscriptionId;
+                    console.log('✅ Assinatura encontrada pelo externalReference:', subscriptionIdFromPayment);
+                    return;
+                  }
+                }
+              }
+              
+              // MÉTODO 4: Se subscription tem lastPayment ou invoiceUrl relacionada, verificar se corresponde
+              if (subVal.lastPayment === payment.id) {
                 subscriptionIdFromPayment = subVal.asaasSubscriptionId;
-                console.log('✅ Assinatura encontrada pelo externalReference:', subscriptionIdFromPayment);
+                console.log('✅ Assinatura encontrada pelo lastPayment:', subscriptionIdFromPayment);
+                return;
               }
             });
           });
+        }
+        
+        if (!subscriptionIdFromPayment) {
+          console.log('❌ Não foi possível encontrar a assinatura relacionada ao pagamento');
+          console.log('   Tentando busca alternativa por payment ID em todas as subscriptions...');
         }
       }
       
       if (subscriptionIdFromPayment) {
-        console.log('💎 Pagamento relacionado a assinatura detectado!');
-        console.log('   Subscription ID:', subscriptionIdFromPayment);
-        console.log('   Event:', event);
-        console.log('   Payment Status:', payment.status);
-        console.log('   Payment Date:', payment.paymentDate);
-        console.log('   Confirmed Date:', payment.confirmedDate);
-        
-        // CRÍTICO: Verificar se o pagamento foi REALMENTE confirmado
-        // Só aceitar PAYMENT_RECEIVED ou PAYMENT_CONFIRMED
-        // NÃO aceitar PAYMENT_CREATED ou PAYMENT_UPDATED sem confirmação
-        const isPaymentConfirmed = 
-          (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') &&
-          (payment.status === 'RECEIVED' || payment.status === 'CONFIRMED' || payment.status === 'RECEIVED_IN_CASH' || payment.paymentDate || payment.confirmedDate);
-        
-        if (!isPaymentConfirmed) {
-          console.log('⏳ Pagamento ainda não confirmado. Status:', payment.status, 'Event:', event);
-          console.log('   Aguardando confirmação real do pagamento...');
-          return res.json({ received: true, processed: false, reason: 'Pagamento ainda não confirmado' });
-        }
-        
-        console.log('✅ Pagamento CONFIRMADO! Processando ativação do plano...');
-        
-        // Buscar assinatura pelo ID do Asaas
-        const subscriptionsSnapshot = await db.ref('subscriptions').once('value');
-        let subUserId = null;
-        let subKey = null;
-        
-        if (subscriptionsSnapshot.exists()) {
-          subscriptionsSnapshot.forEach((userSubs) => {
-            userSubs.forEach((sub) => {
-              if (sub.val().asaasSubscriptionId === subscriptionIdFromPayment) {
-                subUserId = userSubs.key;
-                subKey = sub.key;
-              }
+        try {
+          console.log('💎 Pagamento relacionado a assinatura detectado!');
+          console.log('   Subscription ID:', subscriptionIdFromPayment);
+          console.log('   Event:', event);
+          console.log('   Payment Status:', payment.status);
+          console.log('   Payment Date:', payment.paymentDate);
+          console.log('   Confirmed Date:', payment.confirmedDate);
+          
+          // CRÍTICO: Verificar se o pagamento foi REALMENTE confirmado
+          // Só aceitar PAYMENT_RECEIVED ou PAYMENT_CONFIRMED
+          // NÃO aceitar PAYMENT_CREATED ou PAYMENT_UPDATED sem confirmação
+          const isPaymentConfirmed = 
+            (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') &&
+            (payment.status === 'RECEIVED' || payment.status === 'CONFIRMED' || payment.status === 'RECEIVED_IN_CASH' || payment.paymentDate || payment.confirmedDate);
+          
+          if (!isPaymentConfirmed) {
+            console.log('⏳ Pagamento ainda não confirmado. Status:', payment.status, 'Event:', event);
+            console.log('   Aguardando confirmação real do pagamento...');
+            return res.json({ received: true, processed: false, reason: 'Pagamento ainda não confirmado' });
+          }
+          
+          console.log('✅ Pagamento CONFIRMADO! Processando ativação do plano...');
+          
+          // Buscar assinatura pelo ID do Asaas
+          const subscriptionsSnapshot = await db.ref('subscriptions').once('value');
+          let subUserId = null;
+          let subKey = null;
+          
+          if (subscriptionsSnapshot.exists()) {
+            subscriptionsSnapshot.forEach((userSubs) => {
+              userSubs.forEach((sub) => {
+                if (sub.val().asaasSubscriptionId === subscriptionIdFromPayment) {
+                  subUserId = userSubs.key;
+                  subKey = sub.key;
+                }
+              });
             });
-          });
-        }
-        
-        if (subUserId && subKey) {
+          }
+          
+          if (subUserId && subKey) {
           console.log(`✅ Assinatura encontrada para usuário: ${subUserId}`);
+          console.log(`   Subscription Key: ${subKey}`);
+          console.log(`   Asaas Subscription ID: ${subscriptionIdFromPayment}`);
           
           // Buscar dados da assinatura e do plano
           const subDataRef = db.ref(`subscriptions/${subUserId}/${subKey}`);
           const subDataSnapshot = await subDataRef.once('value');
           
           if (!subDataSnapshot.exists()) {
-            console.log('⚠️ Dados da assinatura não encontrados');
+            console.log('⚠️ Dados da assinatura não encontrados no Firebase');
+            console.log(`   Caminho: subscriptions/${subUserId}/${subKey}`);
             return res.json({ received: true, processed: true, type: 'subscription_payment', note: 'Assinatura não encontrada' });
           }
           
           const subData = subDataSnapshot.val();
+          console.log('📋 Dados da assinatura encontrados:');
+          console.log('   PlanId:', subData.planId);
+          console.log('   PlanName:', subData.planName);
+          console.log('   Status atual:', subData.status);
           const cycle = subData.cycle || 'MONTHLY';
           
           // Buscar dados completos do plano para verificar se é trial
@@ -5104,6 +5153,7 @@ app.post('/api/asaas/webhook', async (req, res) => {
           console.log('   payment.dateCreated:', payment.dateCreated);
           console.log('   Usando:', paymentDate);
           
+          console.log('📝 Atualizando assinatura no Firebase...');
           await subDataRef.update({
             lastPayment: payment.id,
             lastPaymentDate: paymentDate,
@@ -5111,14 +5161,23 @@ app.post('/api/asaas/webhook', async (req, res) => {
             status: 'ACTIVE',
             updatedAt: new Date().toISOString()
           });
+          console.log('✅ Assinatura atualizada no Firebase');
           
           // Buscar plano para ativar o usuário
+          console.log(`🔍 Verificando activePlan para usuário: ${subUserId}`);
           const activePlanRef = db.ref(`users/data/${subUserId}/activePlan`);
           const activePlanSnapshot = await activePlanRef.once('value');
           
           if (activePlanSnapshot.exists()) {
             // Atualizar plano existente - IMPORTANTE: sempre atualizar com dados do novo plano pago
-            await activePlanRef.update({
+            const existingPlan = activePlanSnapshot.val();
+            console.log('📋 ActivePlan existente encontrado:');
+            console.log('   PlanId atual:', existingPlan.planId);
+            console.log('   PlanName atual:', existingPlan.planName);
+            console.log('   Novo PlanId:', subData.planId);
+            console.log('   Novo PlanName:', planData?.name || subData.planName);
+            
+            const updateData = {
               planId: subData.planId, // Garantir que o planId corresponde ao plano pago
               planName: planData?.name || subData.planName,
               subscriptionId: subKey,
@@ -5130,11 +5189,15 @@ app.post('/api/asaas/webhook', async (req, res) => {
               allowedFeatures: planData?.allowedFeatures || [],
               limits: subData.limits || {},
               updatedAt: new Date().toISOString()
-            });
+            };
+            
+            console.log('📝 Atualizando activePlan existente...');
+            await activePlanRef.update(updateData);
             console.log(`✅ Plano existente atualizado com novo plano pago! Plano: ${planData?.name || subData.planName}, Próxima cobrança: ${nextDueDate}`);
           } else {
             // Criar activePlan pela primeira vez (primeira cobrança confirmada)
-            await activePlanRef.set({
+            console.log('📝 Criando activePlan pela primeira vez...');
+            const newPlanData = {
               planId: subData.planId,
               planName: planData?.name || subData.planName,
               subscriptionId: subKey,
@@ -5147,13 +5210,43 @@ app.post('/api/asaas/webhook', async (req, res) => {
               allowedFeatures: planData?.allowedFeatures || [],
               limits: subData.limits || {},
               updatedAt: new Date().toISOString()
-            });
+            };
+            
+            console.log('📋 Dados do activePlan que serão criados:');
+            console.log(JSON.stringify(newPlanData, null, 2));
+            
+            await activePlanRef.set(newPlanData);
             console.log(`✅ Plano ativado pela primeira vez! Próxima cobrança: ${nextDueDate}`);
           }
           
           console.log(`✅ Assinatura renovada! Status: ACTIVE`);
+          console.log(`✅ ActivePlan criado/atualizado com sucesso para usuário: ${subUserId}`);
           
           return res.json({ received: true, processed: true, type: 'subscription_payment' });
+          } else {
+            console.log('⚠️ Assinatura não encontrada no Firebase após encontrar subscriptionId');
+            console.log(`   Procurando subscriptionId: ${subscriptionIdFromPayment}`);
+            console.log(`   Verificando todas as subscriptions...`);
+            
+            // Listar todas as subscriptions para debug
+            if (subscriptionsSnapshot.exists()) {
+              subscriptionsSnapshot.forEach((userSubs) => {
+                userSubs.forEach((sub) => {
+                  const subVal = sub.val();
+                  console.log(`   - User: ${userSubs.key}, Key: ${sub.key}, AsaasId: ${subVal.asaasSubscriptionId}`);
+                });
+              });
+            }
+            
+            return res.json({ received: true, processed: false, type: 'subscription_payment', reason: 'Subscription não encontrada no Firebase' });
+          }
+        } catch (error) {
+          console.error('❌ ERRO ao processar pagamento de assinatura:', error);
+          console.error('   Stack:', error.stack);
+          console.error('   Payment ID:', payment.id);
+          console.error('   Subscription ID:', subscriptionIdFromPayment);
+          return res.json({ received: true, processed: false, type: 'subscription_payment', error: error.message });
+        }
       } else {
         console.log('⚠️ Pagamento não relacionado a assinatura ou subscriptionId não encontrado');
         console.log('   payment.subscription:', payment.subscription);
