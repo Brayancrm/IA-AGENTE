@@ -4987,22 +4987,22 @@ app.post('/api/asaas/webhook', async (req, res) => {
       return res.json({ received: true, ignored: true, reason: 'Sem dados de pagamento' });
     }
     
-      // 🔥 NOVO: Verificar se é pagamento de assinatura PRIMEIRO
-      // CRÍTICO: Só processar se o pagamento foi REALMENTE confirmado/recebido
-      // NÃO processar eventos PAYMENT_CREATED ou PAYMENT_UPDATED que ainda não foram pagos
+    // 🔥 NOVO: Verificar se é pagamento de assinatura PRIMEIRO
+    // CRÍTICO: Só processar se o pagamento foi REALMENTE confirmado/recebido
+    // NÃO processar eventos PAYMENT_CREATED ou PAYMENT_UPDATED que ainda não foram pagos
+    
+    // IMPORTANTE: O payment.subscription pode não estar presente no webhook
+    // Se não estiver, tentar buscar de múltiplas formas
+    let subscriptionIdFromPayment = payment.subscription;
       
-      // IMPORTANTE: O payment.subscription pode não estar presente no webhook
-      // Se não estiver, tentar buscar de múltiplas formas
-      let subscriptionIdFromPayment = payment.subscription;
-      
-      // Log detalhado do payload recebido
-      console.log('🔍 Analisando pagamento para encontrar assinatura:');
-      console.log('   payment.id:', payment.id);
-      console.log('   payment.subscription:', payment.subscription);
-      console.log('   payment.externalReference:', payment.externalReference);
-      console.log('   payment.invoiceUrl:', payment.invoiceUrl);
-      
-      if (!subscriptionIdFromPayment) {
+    // Log detalhado do payload recebido
+    console.log('🔍 Analisando pagamento para encontrar assinatura:');
+    console.log('   payment.id:', payment.id);
+    console.log('   payment.subscription:', payment.subscription);
+    console.log('   payment.externalReference:', payment.externalReference);
+    console.log('   payment.invoiceUrl:', payment.invoiceUrl);
+    
+    if (!subscriptionIdFromPayment) {
         console.log('⚠️ payment.subscription não encontrado, buscando por outras formas...');
         
         // Buscar TODAS as subscriptions e verificar múltiplos critérios
@@ -5065,15 +5065,15 @@ app.post('/api/asaas/webhook', async (req, res) => {
               }
             }
           }
-        }
-        
-        if (!subscriptionIdFromPayment) {
-          console.log('❌ Não foi possível encontrar a assinatura relacionada ao pagamento');
-          console.log('   Tentando busca alternativa por payment ID em todas as subscriptions...');
-        }
       }
       
-      if (subscriptionIdFromPayment) {
+      if (!subscriptionIdFromPayment) {
+        console.log('❌ Não foi possível encontrar a assinatura relacionada ao pagamento');
+        console.log('   Tentando busca alternativa por payment ID em todas as subscriptions...');
+      }
+    }
+    
+    if (subscriptionIdFromPayment) {
         try {
           console.log('💎 Pagamento relacionado a assinatura detectado!');
           console.log('   Subscription ID:', subscriptionIdFromPayment);
@@ -5262,10 +5262,9 @@ app.post('/api/asaas/webhook', async (req, res) => {
         }
       } else {
         console.log('⚠️ Pagamento não relacionado a assinatura ou subscriptionId não encontrado');
-        console.log('   payment.subscription:', payment.subscription);
-        console.log('   payment.externalReference:', payment.externalReference);
-        console.log('   Continuando processamento como pagamento normal de pedido...');
-      }
+      console.log('   payment.subscription:', payment.subscription);
+      console.log('   payment.externalReference:', payment.externalReference);
+      console.log('   Continuando processamento como pagamento normal de pedido...');
     }
     
     // Buscar pedido pelo externalReference (código original)
