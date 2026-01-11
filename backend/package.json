@@ -23,6 +23,10 @@
   ],
   "author": "",
   "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.934.0",
     "@wppconnect-team/wppconnect": "^1.30.0",
