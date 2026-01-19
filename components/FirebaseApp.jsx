@@ -2204,7 +2204,7 @@ const FirebaseApp = () => {
         // Manter os dados existentes e atualizar apenas os campos editados
         const updatedData = {
           ...editingUser,
-          name: userData.name || editingUser.name,
+          name: userData.name || userData.companyName || editingUser.name,
           email: userData.email || editingUser.email,
           photoURL: userData.photoURL || editingUser.photoURL || '',
           isActive: userData.isActive !== undefined ? userData.isActive : editingUser.isActive,
@@ -2252,7 +2252,7 @@ const FirebaseApp = () => {
         
         // Salvar dados adicionais no Realtime Database
         const userDoc = {
-          name: userData.name,
+          name: userData.name || userData.companyName || '',
           email: userData.email,
           uid: userCredential.user.uid,
           photoURL: userData.photoURL || '',
@@ -3758,7 +3758,11 @@ const DashboardWithFirebase = ({
   // Handlers para usuário
   const handleUserSubmit = (e) => {
     e.preventDefault();
-    saveUser(userForm);
+    const normalizedUserForm = {
+      ...userForm,
+      name: userForm.name || userForm.companyName || ''
+    };
+    saveUser(normalizedUserForm);
     setShowUserModal(false);
     setUserForm({
       name: '',
@@ -7379,7 +7383,7 @@ const DashboardWithFirebase = ({
                     <tbody>
                       {users.map((userItem) => (
                         <tr key={userItem.id} style={{ borderBottom: '1px solid rgba(16, 185, 129, 0.1)' }}>
-                          <td style={{ padding: '12px', color: '#ffffff' }}>{userItem.name}</td>
+                          <td style={{ padding: '12px', color: '#ffffff' }}>{userItem.name || userItem.companyName || '-'}</td>
                           <td style={{ padding: '12px', color: '#9ca3af' }}>{userItem.email}</td>
                           <td style={{ padding: '12px', color: '#9ca3af' }}>{userItem.whatsappNumber || '-'}</td>
                           <td style={{ padding: '12px', color: '#ffffff', fontWeight: '500' }}>{userItem.activePlan || '-'}</td>
