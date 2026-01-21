@@ -83,18 +83,18 @@ export function useFlowBuilder(userId) {
 }
 
 const toneRules = {
-  friendly: 'MANTENHA TOM AMIGÁVEL, CALOROSO E ACOLHEDOR.',
-  professional: 'MANTENHA TOM PROFISSIONAL, FORMAL E RESPEITOSO.',
-  casual: 'MANTENHA TOM CASUAL E NATURAL.',
-  enthusiastic: 'MANTENHA TOM ENTUSIASMADO E ENERGÉTICO.',
-  empathetic: 'MANTENHA TOM EMPÁTICO E ACOLHEDOR.'
+  friendly: 'SEMPRE MANTENHA TOM AMIGÁVEL, CALOROSO E ACOLHEDOR.',
+  professional: 'SEMPRE MANTENHA TOM PROFISSIONAL, FORMAL E RESPEITOSO.',
+  casual: 'SEMPRE MANTENHA TOM CASUAL E NATURAL.',
+  enthusiastic: 'SEMPRE MANTENHA TOM ENTUSIASMADO E ENERGÉTICO.',
+  empathetic: 'SEMPRE MANTENHA TOM EMPÁTICO E ACOLHEDOR.'
 };
 
 const styleRules = {
-  concise: 'MANTENHA RESPOSTAS CONCISAS E DIRETAS.',
-  detailed: 'FORNEÇA RESPOSTAS DETALHADAS E COMPLETAS.',
-  consultative: 'ADOTE ABORDAGEM CONSULTIVA E EDUCATIVA.',
-  persuasive: 'ADOTE ABORDAGEM PERSUASIVA, DESTACANDO BENEFÍCIOS.'
+  concise: 'SEMPRE MANTENHA RESPOSTAS CONCISAS E DIRETAS.',
+  detailed: 'SEMPRE FORNEÇA RESPOSTAS DETALHADAS E COMPLETAS.',
+  consultative: 'SEMPRE ADOTE ABORDAGEM CONSULTIVA E OBJETIVA.',
+  persuasive: 'SEMPRE ADOTE ABORDAGEM PERSUASIVA, DESTACANDO BENEFÍCIOS.'
 };
 
 const actionRules = {
@@ -128,7 +128,7 @@ function normalizeRuleText(text, defaultPrefix = 'SEMPRE') {
 
   rule = rule
     .replace(/não esqueça/gi, 'SEMPRE')
-    .replace(/explique que/gi, 'INFORME:')
+    .replace(/explique que/gi, 'SEMPRE INFORME:')
     .replace(/quando o cliente/gi, 'SE O CLIENTE')
     .replace(/quando o usuário/gi, 'SE O USUÁRIO')
     .replace(/quando a cliente/gi, 'SE A CLIENTE')
@@ -136,9 +136,12 @@ function normalizeRuleText(text, defaultPrefix = 'SEMPRE') {
     .replace(/^você deve/gi, 'DEVE')
     .replace(/^por favor[, ]*/gi, '');
 
-  const hasImperativePrefix = /^(SEMPRE|NUNCA|SE |DEVE|INFORME:|RESPONDA:|CUMPRIMENTE|PERGUNTE|COLETE|APRESENTE|OFEREÇA|SOLICITE|CONFIRME|ENVIE|CRIE|EXECUTE)/i.test(rule);
+  const hasImperativePrefix = /^(SEMPRE|NUNCA)/i.test(rule);
   if (!hasImperativePrefix) {
     rule = `${defaultPrefix} ${rule}`;
+  }
+  if (/^SE /i.test(rule)) {
+    rule = `SEMPRE ${rule}`;
   }
   return rule;
 }
@@ -149,15 +152,17 @@ function normalizeRuleText(text, defaultPrefix = 'SEMPRE') {
 export function compilePrompt(steps = []) {
   if (!steps || steps.length === 0) {
     return [
+      'SYSTEM PROMPT EXECUTÁVEL',
+      '',
       'IDENTIDADE DO ASSISTENTE',
       'NOME: ASSISTENTE VIRTUAL',
       'FUNÇÃO: ATENDIMENTO',
       '',
       'REGRAS ABSOLUTAS',
-      'SEMPRE SIGA AS REGRAS A SEGUIR.',
+      'SEMPRE SIGA AS REGRAS ABSOLUTAS.',
       '',
       'COMPORTAMENTO',
-      'MANTENHA RESPOSTAS CLARAS E OBJETIVAS.',
+      'PASSOS DEFINIDOS: NENHUM.',
       '',
       'PROIBIÇÕES',
       'NUNCA IGNORE AS REGRAS ABSOLUTAS.'
@@ -195,15 +200,13 @@ export function compilePrompt(steps = []) {
     if (step.type === 'agent_profile') return;
 
     stepNumber += 1;
-    const actionRule = actionRules[step.type] || 'EXECUTE A AÇÃO DEFINIDA.';
     const stepHeader = `PASSO ${stepNumber}: ${step.title?.toUpperCase() || 'SEM TÍTULO'}.`;
-    const stepLine = `${stepHeader} ${actionRule}`;
-    behaviorLines.push(stepLine);
+    behaviorLines.push(stepHeader);
 
     if (step.condition) {
       const condition = normalizeCondition(step.condition);
       if (condition) {
-        absoluteRules.push(`EXECUTE O PASSO ${stepNumber} SOMENTE SE: ${condition.toUpperCase()}.`);
+        absoluteRules.push(`SEMPRE EXECUTE O PASSO ${stepNumber} SOMENTE SE: ${condition.toUpperCase()}.`);
       }
     }
 
@@ -226,14 +229,14 @@ export function compilePrompt(steps = []) {
           absoluteRules.push('SEMPRE IDENTIFIQUE O PRODUTO OU SERVIÇO DE INTERESSE.');
         }
         if (crmFields.includes('email')) {
-          absoluteRules.push('SE O CLIENTE INFORMAR EMAIL, SALVE O EMAIL.');
+          absoluteRules.push('SEMPRE, SE O CLIENTE INFORMAR EMAIL, SALVE O EMAIL.');
         }
         absoluteRules.push('SEMPRE SALVE OS DADOS COLETADOS NO CRM AUTOMATICAMENTE.');
       }
 
       if (step.customQuestions && step.customQuestions.length > 0) {
         step.customQuestions.forEach((q) => {
-          absoluteRules.push(`PERGUNTE EXATAMENTE: "${q.question}".`);
+          absoluteRules.push(`SEMPRE PERGUNTE EXATAMENTE: "${q.question}".`);
           if (q.required) {
             prohibitions.push(`NUNCA PROSSIGA SEM RESPOSTA PARA: "${q.question}".`);
           }
@@ -243,17 +246,17 @@ export function compilePrompt(steps = []) {
 
     if (step.type === 'create_appointment' && step.appointmentEnabled) {
       if (step.appointmentTypes && step.appointmentTypes.length > 0) {
-        absoluteRules.push(`SOMENTE CRIE AGENDAMENTOS DOS TIPOS: ${step.appointmentTypes.join(', ').toUpperCase()}.`);
+        absoluteRules.push(`SEMPRE CRIE AGENDAMENTOS SOMENTE DOS TIPOS: ${step.appointmentTypes.join(', ').toUpperCase()}.`);
       }
-      absoluteRules.push('AO CRIAR AGENDAMENTO, INCLUA DATA, HORÁRIO, TIPO E DESCRIÇÃO.');
+      absoluteRules.push('SEMPRE, AO CRIAR AGENDAMENTO, INCLUA DATA, HORÁRIO, TIPO E DESCRIÇÃO.');
     }
 
     if (step.type === 'audio_config') {
       const audioLanguage = (step.audioLanguage || 'pt-BR').toUpperCase();
       const audioVoice = step.audioVoice ? step.audioVoice.toUpperCase() : 'PADRÃO';
-      absoluteRules.push(`SE RECEBER ÁUDIO, RESPONDA EM ÁUDIO.`);
-      absoluteRules.push(`IDIOMA DE ÁUDIO: ${audioLanguage}.`);
-      absoluteRules.push(`VOZ DE ÁUDIO: ${audioVoice}.`);
+      absoluteRules.push('SEMPRE, SE RECEBER ÁUDIO, RESPONDA EM ÁUDIO.');
+      absoluteRules.push(`SEMPRE USE IDIOMA DE ÁUDIO: ${audioLanguage}.`);
+      absoluteRules.push(`SEMPRE USE VOZ DE ÁUDIO: ${audioVoice}.`);
     }
   });
 
@@ -261,6 +264,8 @@ export function compilePrompt(steps = []) {
   prohibitions.push('NUNCA INVENTE DADOS DO CLIENTE.');
 
   return [
+    'SYSTEM PROMPT EXECUTÁVEL',
+    '',
     'IDENTIDADE DO ASSISTENTE',
     ...identityLines,
     '',
