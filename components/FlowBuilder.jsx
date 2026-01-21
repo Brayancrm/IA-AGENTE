@@ -1490,12 +1490,73 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                   >
                                     <option value="asaas">Asaas (automático)</option>
                                     <option value="manual">Manual (sem API)</option>
+                                    <option value="stripe">Stripe (futuro)</option>
                                     <option value="custom">Outro (futuro)</option>
                                   </select>
                                   <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '6px', marginBottom: 0 }}>
                                     O backend só gera link automático quando o provedor é Asaas.
                                   </p>
                                 </div>
+                                {editingStep.paymentSettings?.provider === 'manual' && (
+                                  <div style={{ marginTop: '12px' }}>
+                                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
+                                      Mensagem de Pagamento Manual
+                                    </label>
+                                    <textarea
+                                      value={editingStep.paymentSettings?.manualMessage || ''}
+                                      onChange={(e) =>
+                                        setEditingStep({
+                                          ...editingStep,
+                                          paymentSettings: {
+                                            ...editingStep.paymentSettings,
+                                            manualMessage: e.target.value
+                                          }
+                                        })
+                                      }
+                                      rows={3}
+                                      placeholder="Ex: Vou enviar o link de pagamento manualmente em instantes."
+                                      style={{
+                                        width: '100%',
+                                        padding: '10px 16px',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        borderRadius: '8px',
+                                        backgroundColor: '#0f1419',
+                                        color: '#ffffff',
+                                        outline: 'none'
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                                {editingStep.paymentSettings?.provider === 'stripe' && (
+                                  <div style={{ marginTop: '12px' }}>
+                                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
+                                      Mensagem do Stripe
+                                    </label>
+                                    <textarea
+                                      value={editingStep.paymentSettings?.stripeMessage || ''}
+                                      onChange={(e) =>
+                                        setEditingStep({
+                                          ...editingStep,
+                                          paymentSettings: {
+                                            ...editingStep.paymentSettings,
+                                            stripeMessage: e.target.value
+                                          }
+                                        })
+                                      }
+                                      rows={3}
+                                      placeholder="Ex: Integração Stripe selecionada. Aguarde o link."
+                                      style={{
+                                        width: '100%',
+                                        padding: '10px 16px',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        borderRadius: '8px',
+                                        backgroundColor: '#0f1419',
+                                        color: '#ffffff',
+                                        outline: 'none'
+                                      }}
+                                    />
+                                  </div>
+                                )}
                               </div>
                             )}
 

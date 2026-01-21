@@ -3477,6 +3477,7 @@ const DashboardWithFirebase = ({
   const [integrationsForm, setIntegrationsForm] = useState({
     openaiApiKey: '',
     asaasApiKey: '',
+    stripeApiKey: '',
     municipalRegistration: '',
     fiscalEnabled: false,
     issRate: 0,
@@ -3502,7 +3503,9 @@ const DashboardWithFirebase = ({
     flowSteps: [], // Steps do flow builder
     enableAppointments: false,
     appointmentTypes: [],
-    paymentProvider: 'asaas'
+    paymentProvider: 'asaas',
+    paymentManualMessage: '',
+    paymentStripeMessage: ''
   });
   const [userForm, setUserForm] = useState({
     name: '',
@@ -3652,6 +3655,7 @@ const DashboardWithFirebase = ({
     setIntegrationsForm({
       openaiApiKey: integrationsConfig.openaiApiKey || '',
       asaasApiKey: integrationsConfig.asaasApiKey || '',
+      stripeApiKey: integrationsConfig.stripeApiKey || '',
       municipalRegistration: integrationsConfig.municipalRegistration || ''
     });
   }, [integrationsConfig]);
@@ -3672,7 +3676,9 @@ const DashboardWithFirebase = ({
       appointmentTypes: assistantSettings.appointmentTypes || [],
       audioLanguage: assistantSettings.audioLanguage || 'pt-BR',
       audioVoice: assistantSettings.audioVoice || '',
-      paymentProvider: assistantSettings.paymentProvider || 'asaas'
+      paymentProvider: assistantSettings.paymentProvider || 'asaas',
+      paymentManualMessage: assistantSettings.paymentManualMessage || '',
+      paymentStripeMessage: assistantSettings.paymentStripeMessage || ''
     });
   }, [assistantSettings]);
 
@@ -6125,6 +6131,52 @@ const DashboardWithFirebase = ({
                   </div>
                 </div>
 
+                {/* Stripe */}
+                <div style={{ 
+                  padding: '24px', 
+                  backgroundColor: 'rgba(124, 58, 237, 0.08)', 
+                  borderRadius: '16px',
+                  border: '2px solid rgba(124, 58, 237, 0.3)'
+                }}>
+                  <h3 style={{ fontSize: '1.375rem', fontWeight: '700', marginBottom: '8px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.75rem' }}>💠</span>
+                    Stripe (Pagamentos)
+                  </h3>
+                  <p style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '20px' }}>
+                    Integração Stripe (uso futuro)
+                  </p>
+                  <div>
+                    <label style={{ display: 'block', fontWeight: '600', marginBottom: '10px', color: '#7c3aed', fontSize: '0.9375rem' }}>
+                      API Key
+                    </label>
+                    <input
+                      type="password"
+                      value={integrationsForm.stripeApiKey}
+                      onChange={(e) => setIntegrationsForm(prev => ({ ...prev, stripeApiKey: e.target.value }))}
+                      style={{
+                        width: '100%',
+                        padding: '14px 16px',
+                        borderRadius: '12px',
+                        border: '2px solid rgba(124, 58, 237, 0.3)',
+                        fontSize: '1rem',
+                        transition: 'all 0.2s ease',
+                        outline: 'none',
+                        backgroundColor: '#0f1419',
+                        color: '#ffffff'
+                      }}
+                      placeholder="sk_live_..."
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#8b5cf6';
+                        e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.2)';
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = 'rgba(124, 58, 237, 0.3)';
+                        e.target.style.boxShadow = 'none';
+                      }}
+                    />
+                  </div>
+                </div>
+
                 {/* Nota Fiscal */}
                 <div style={{ 
                   padding: '24px', 
@@ -6986,6 +7038,8 @@ const DashboardWithFirebase = ({
                       // Buscar step de processar venda para sincronizar configuração de pagamento
                       const paymentStep = newSteps.find(step => step.type === 'process_order');
                       const paymentProvider = paymentStep?.paymentSettings?.provider || 'asaas';
+                      const paymentManualMessage = paymentStep?.paymentSettings?.manualMessage || '';
+                      const paymentStripeMessage = paymentStep?.paymentSettings?.stripeMessage || '';
                       
                       setAssistantForm(prev => ({
                         ...prev,
@@ -7003,7 +7057,9 @@ const DashboardWithFirebase = ({
                         audioLanguage: audioLanguage,
                         audioVoice: audioVoice,
                         // Sincronizar configuração de pagamento
-                        paymentProvider: paymentProvider
+                        paymentProvider: paymentProvider,
+                        paymentManualMessage: paymentManualMessage,
+                        paymentStripeMessage: paymentStripeMessage
                       }));
                     }}
                     onPromptChange={(improvedPrompt) => {

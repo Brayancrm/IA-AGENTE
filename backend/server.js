@@ -1173,6 +1173,31 @@ async function handleIncomingMessage(userId, message, client) {
           } else {
             console.log('⚠️ API Key do Asaas não configurada');
           }
+        } else if ((paymentProviderForIntent === 'manual' || paymentProviderForIntent === 'stripe') && hasPurchaseIntent && mentionedItems.length > 0) {
+          const integrations = await getIntegrationsConfig(userId);
+          const stripeApiKey = integrations?.stripeApiKey || null;
+          const manualMessage = aiConfig?.paymentManualMessage || 'Pagamento manual selecionado. Aguarde o envio do link.';
+          const stripeMessage = aiConfig?.paymentStripeMessage || 'Pagamento via Stripe selecionado. Aguarde o link.';
+
+          let paymentNotice = manualMessage;
+          if (paymentProviderForIntent === 'stripe') {
+            paymentNotice = stripeMessage;
+            if (!stripeApiKey) {
+              paymentNotice = 'Integração Stripe não configurada. Aguarde contato para envio do link.';
+            }
+          }
+
+          await client.sendText(message.from, paymentNotice);
+
+          const paymentMsgRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+          await paymentMsgRef.set({
+            from: message.to || '',
+            to: message.from || '',
+            body: paymentNotice,
+            timestamp: new Date().toISOString(),
+            type: 'payment_notice',
+            isFromMe: true
+          });
         }
       } else {
         console.log('⚠️ Configuração de IA não encontrada ou incompleta');
