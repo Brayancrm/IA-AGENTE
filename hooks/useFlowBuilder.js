@@ -143,6 +143,15 @@ function buildDeterministicCondition(condition, step, stepNumber) {
   if (lower.includes('nota fiscal') || lower.includes('nf')) {
     return '{{exigir_nota_fiscal}} == true';
   }
+  if (lower.includes('endereço') || lower.includes('endereco')) {
+    return '{{exigir_endereco}} == true';
+  }
+  if (lower.includes('catálogo') || lower.includes('catalogo')) {
+    return '{{exigir_catalogo}} == true';
+  }
+  if (lower.includes('pedido') || lower.includes('carrinho')) {
+    return '{{exigir_pedido}} == true';
+  }
 
   const fallbackKey = step?.title
     ? step.title
