@@ -136,13 +136,14 @@ function normalizeRuleText(text, defaultPrefix = 'SEMPRE') {
     .replace(/^você deve/gi, 'DEVE')
     .replace(/^por favor[, ]*/gi, '');
 
-  const hasImperativePrefix = /^(SEMPRE|NUNCA)/i.test(rule);
+  const hasImperativePrefix = /^(SEMPRE|NUNCA|APENAS|EXATAMENTE)/i.test(rule);
   if (!hasImperativePrefix) {
     rule = `${defaultPrefix} ${rule}`;
   }
   if (/^SE /i.test(rule)) {
     rule = `SEMPRE ${rule}`;
   }
+  rule = rule.replace(/^DEVE /i, 'SEMPRE ');
   return rule;
 }
 
@@ -158,14 +159,14 @@ export function compilePrompt(steps = []) {
       'NOME: ASSISTENTE VIRTUAL',
       'FUNÇÃO: ATENDIMENTO',
       '',
-      'REGRAS ABSOLUTAS',
-      'SEMPRE SIGA AS REGRAS ABSOLUTAS.',
+      'REGRAS ABSOLUTAS (NUMERADAS)',
+      '1. SEMPRE SIGA AS REGRAS ABSOLUTAS.',
       '',
-      'COMPORTAMENTO',
+      'COMPORTAMENTO EXECUTÁVEL (PASSOS)',
       'PASSOS DEFINIDOS: NENHUM.',
       '',
-      'PROIBIÇÕES',
-      'NUNCA IGNORE AS REGRAS ABSOLUTAS.'
+      'PROIBIÇÕES ABSOLUTAS',
+      '1. NUNCA IGNORE AS REGRAS ABSOLUTAS.'
     ].join('\n');
   }
 
@@ -206,37 +207,37 @@ export function compilePrompt(steps = []) {
     if (step.condition) {
       const condition = normalizeCondition(step.condition);
       if (condition) {
-        absoluteRules.push(`SEMPRE EXECUTE O PASSO ${stepNumber} SOMENTE SE: ${condition.toUpperCase()}.`);
+        absoluteRules.push(`SEMPRE EXECUTE O PASSO ${stepNumber} APENAS SE: ${condition.toUpperCase()}.`);
       }
     }
 
     if (step.description) {
       const hasVariables = /{{[^}]+}}/.test(step.description);
       if (hasVariables) {
-        absoluteRules.push(`SEMPRE USE O TEXTO LITERAL: "${step.description}".`);
+        absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} USE EXATAMENTE O TEXTO LITERAL: "${step.description}".`);
         prohibitions.push('NUNCA ALTERE OU SUBSTITUA VARIÁVEIS DE TEMPLATE ({{...}}).');
       } else {
         const rule = normalizeRuleText(step.description);
-        if (rule) absoluteRules.push(rule);
+        if (rule) absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} ${rule.replace(/^(SEMPRE|NUNCA|APENAS|EXATAMENTE)\s+/i, '')}`);
       }
     }
 
     if (step.type === 'collect_data') {
       if (step.crmAutoSave) {
-        absoluteRules.push('SEMPRE COLETE NOME E TELEFONE.');
+        absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} COLETE NOME E TELEFONE.`);
         const crmFields = step.crmFields || ['name', 'phone'];
         if (crmFields.includes('product')) {
-          absoluteRules.push('SEMPRE IDENTIFIQUE O PRODUTO OU SERVIÇO DE INTERESSE.');
+          absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} IDENTIFIQUE O PRODUTO OU SERVIÇO DE INTERESSE.`);
         }
         if (crmFields.includes('email')) {
-          absoluteRules.push('SEMPRE, SE O CLIENTE INFORMAR EMAIL, SALVE O EMAIL.');
+          absoluteRules.push(`SEMPRE NO PASSO ${stepNumber}, SE O CLIENTE INFORMAR EMAIL, REGISTRE A INTENÇÃO DE SALVAR O EMAIL.`);
         }
-        absoluteRules.push('SEMPRE SALVE OS DADOS COLETADOS NO CRM AUTOMATICAMENTE.');
+        absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} REGISTRE A INTENÇÃO DE SALVAR DADOS NO CRM.`);
       }
 
       if (step.customQuestions && step.customQuestions.length > 0) {
         step.customQuestions.forEach((q) => {
-          absoluteRules.push(`SEMPRE PERGUNTE EXATAMENTE: "${q.question}".`);
+          absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} PERGUNTE EXATAMENTE: "${q.question}".`);
           if (q.required) {
             prohibitions.push(`NUNCA PROSSIGA SEM RESPOSTA PARA: "${q.question}".`);
           }
@@ -246,22 +247,23 @@ export function compilePrompt(steps = []) {
 
     if (step.type === 'create_appointment' && step.appointmentEnabled) {
       if (step.appointmentTypes && step.appointmentTypes.length > 0) {
-        absoluteRules.push(`SEMPRE CRIE AGENDAMENTOS SOMENTE DOS TIPOS: ${step.appointmentTypes.join(', ').toUpperCase()}.`);
+        absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} CRIE AGENDAMENTOS APENAS DOS TIPOS: ${step.appointmentTypes.join(', ').toUpperCase()}.`);
       }
-      absoluteRules.push('SEMPRE, AO CRIAR AGENDAMENTO, INCLUA DATA, HORÁRIO, TIPO E DESCRIÇÃO.');
+      absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} INCLUA DATA, HORÁRIO, TIPO E DESCRIÇÃO.`);
     }
 
     if (step.type === 'audio_config') {
       const audioLanguage = (step.audioLanguage || 'pt-BR').toUpperCase();
       const audioVoice = step.audioVoice ? step.audioVoice.toUpperCase() : 'PADRÃO';
-      absoluteRules.push('SEMPRE, SE RECEBER ÁUDIO, RESPONDA EM ÁUDIO.');
-      absoluteRules.push(`SEMPRE USE IDIOMA DE ÁUDIO: ${audioLanguage}.`);
-      absoluteRules.push(`SEMPRE USE VOZ DE ÁUDIO: ${audioVoice}.`);
+      absoluteRules.push(`SEMPRE NO PASSO ${stepNumber}, SE RECEBER ÁUDIO, RESPONDA APENAS EM ÁUDIO.`);
+      absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} USE IDIOMA DE ÁUDIO: ${audioLanguage}.`);
+      absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} USE VOZ DE ÁUDIO: ${audioVoice}.`);
     }
   });
 
   prohibitions.push('NUNCA IGNORE AS REGRAS ABSOLUTAS.');
   prohibitions.push('NUNCA INVENTE DADOS DO CLIENTE.');
+  prohibitions.push('NUNCA DECLARE AÇÕES TÉCNICAS EXECUTADAS; APENAS REGISTRE INTENÇÃO.');
 
   return [
     'SYSTEM PROMPT EXECUTÁVEL',
@@ -269,14 +271,14 @@ export function compilePrompt(steps = []) {
     'IDENTIDADE DO ASSISTENTE',
     ...identityLines,
     '',
-    'REGRAS ABSOLUTAS',
-    ...absoluteRules,
+    'REGRAS ABSOLUTAS (NUMERADAS)',
+    ...absoluteRules.map((rule, index) => `${index + 1}. ${rule}`),
     '',
-    'COMPORTAMENTO',
+    'COMPORTAMENTO EXECUTÁVEL (PASSOS)',
     ...behaviorLines,
     '',
-    'PROIBIÇÕES',
-    ...prohibitions
+    'PROIBIÇÕES ABSOLUTAS',
+    ...prohibitions.map((rule, index) => `${index + 1}. ${rule}`)
   ].join('\n');
 }
 
