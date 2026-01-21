@@ -122,6 +122,40 @@ function normalizeCondition(condition) {
     .replace(/\bquando\b/gi, 'SE');
 }
 
+function buildDeterministicCondition(condition, step, stepNumber) {
+  if (!condition) return null;
+  const normalized = normalizeCondition(condition);
+  const hasSystemVar = /{{[^}]+}}/.test(normalized);
+  if (hasSystemVar) {
+    return normalized;
+  }
+
+  const lower = normalized.toLowerCase();
+  if (lower.includes('cadastro')) {
+    return '{{exigir_cadastro}} == true';
+  }
+  if (lower.includes('pagamento')) {
+    return '{{exigir_pagamento}} == true';
+  }
+  if (lower.includes('agendamento')) {
+    return '{{exigir_agendamento}} == true';
+  }
+  if (lower.includes('nota fiscal') || lower.includes('nf')) {
+    return '{{exigir_nota_fiscal}} == true';
+  }
+
+  const fallbackKey = step?.title
+    ? step.title
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+    : `passo_${stepNumber}`;
+
+  return `{{condicao_${fallbackKey || `passo_${stepNumber}`}}} == true`;
+}
+
 function normalizeRuleText(text, defaultPrefix = 'SEMPRE') {
   if (!text) return null;
   let rule = text.trim().replace(/\s+/g, ' ');
@@ -195,6 +229,7 @@ export function compilePrompt(steps = []) {
 
   absoluteRules.push('SEMPRE SIGA OS PASSOS NA ORDEM DEFINIDA.');
   absoluteRules.push('SEMPRE CONFIRME INFORMAÇÕES CRÍTICAS ANTES DE PROSSEGUIR.');
+  absoluteRules.push('SEMPRE USE VARIÁVEIS DE SISTEMA PARA DECISÕES CRÍTICAS.');
 
   let stepNumber = 0;
   steps.forEach((step) => {
@@ -205,7 +240,7 @@ export function compilePrompt(steps = []) {
     behaviorLines.push(stepHeader);
 
     if (step.condition) {
-      const condition = normalizeCondition(step.condition);
+      const condition = buildDeterministicCondition(step.condition, step, stepNumber);
       if (condition) {
         absoluteRules.push(`SEMPRE EXECUTE O PASSO ${stepNumber} APENAS SE: ${condition.toUpperCase()}.`);
       }
@@ -241,6 +276,7 @@ export function compilePrompt(steps = []) {
           if (q.required) {
             prohibitions.push(`NUNCA PROSSIGA SEM RESPOSTA PARA: "${q.question}".`);
           }
+          prohibitions.push(`NUNCA REPITA A PERGUNTA "${q.question}" APÓS RESPOSTA VÁLIDA.`);
         });
       }
     }
@@ -264,6 +300,7 @@ export function compilePrompt(steps = []) {
   prohibitions.push('NUNCA IGNORE AS REGRAS ABSOLUTAS.');
   prohibitions.push('NUNCA INVENTE DADOS DO CLIENTE.');
   prohibitions.push('NUNCA DECLARE AÇÕES TÉCNICAS EXECUTADAS; APENAS REGISTRE INTENÇÃO.');
+  prohibitions.push('NUNCA DECIDA FLUXO CRÍTICO SEM VARIÁVEL DE SISTEMA.');
 
   return [
     'SYSTEM PROMPT EXECUTÁVEL',
