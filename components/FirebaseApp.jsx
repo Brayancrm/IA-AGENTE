@@ -3501,7 +3501,8 @@ const DashboardWithFirebase = ({
     flowMode: 'visual', // Sempre visual agora
     flowSteps: [], // Steps do flow builder
     enableAppointments: false,
-    appointmentTypes: []
+    appointmentTypes: [],
+    paymentProvider: 'asaas'
   });
   const [userForm, setUserForm] = useState({
     name: '',
@@ -3670,7 +3671,8 @@ const DashboardWithFirebase = ({
       enableAppointments: assistantSettings.enableAppointments || false,
       appointmentTypes: assistantSettings.appointmentTypes || [],
       audioLanguage: assistantSettings.audioLanguage || 'pt-BR',
-      audioVoice: assistantSettings.audioVoice || ''
+      audioVoice: assistantSettings.audioVoice || '',
+      paymentProvider: assistantSettings.paymentProvider || 'asaas'
     });
   }, [assistantSettings]);
 
@@ -6981,6 +6983,10 @@ const DashboardWithFirebase = ({
                       const audioLanguage = audioStep?.audioLanguage || 'pt-BR';
                       const audioVoice = audioStep?.audioVoice || '';
                       
+                      // Buscar step de processar venda para sincronizar configuração de pagamento
+                      const paymentStep = newSteps.find(step => step.type === 'process_order');
+                      const paymentProvider = paymentStep?.paymentSettings?.provider || 'asaas';
+                      
                       setAssistantForm(prev => ({
                         ...prev,
                         flowSteps: newSteps,
@@ -6995,7 +7001,9 @@ const DashboardWithFirebase = ({
                         includeCatalogServices: hasServices,
                         // Sincronizar configurações de áudio
                         audioLanguage: audioLanguage,
-                        audioVoice: audioVoice
+                        audioVoice: audioVoice,
+                        // Sincronizar configuração de pagamento
+                        paymentProvider: paymentProvider
                       }));
                     }}
                     onPromptChange={(improvedPrompt) => {

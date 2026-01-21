@@ -1457,6 +1457,48 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                               </div>
                             )}
 
+                            {/* Configurações de Pagamento (só para process_order) */}
+                            {editingStep.type === 'process_order' && (
+                              <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '16px' }}>
+                                <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#ffffff', marginBottom: '12px' }}>
+                                  💳 Integração de Pagamento
+                                </h4>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
+                                    Provedor de Pagamento
+                                  </label>
+                                  <select
+                                    value={editingStep.paymentSettings?.provider || 'asaas'}
+                                    onChange={(e) =>
+                                      setEditingStep({
+                                        ...editingStep,
+                                        paymentSettings: {
+                                          ...editingStep.paymentSettings,
+                                          provider: e.target.value
+                                        }
+                                      })
+                                    }
+                                    style={{
+                                      width: '100%',
+                                      padding: '10px 16px',
+                                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                                      borderRadius: '8px',
+                                      backgroundColor: '#0f1419',
+                                      color: '#ffffff',
+                                      outline: 'none'
+                                    }}
+                                  >
+                                    <option value="asaas">Asaas (automático)</option>
+                                    <option value="manual">Manual (sem API)</option>
+                                    <option value="custom">Outro (futuro)</option>
+                                  </select>
+                                  <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '6px', marginBottom: 0 }}>
+                                    O backend só gera link automático quando o provedor é Asaas.
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+
                             {/* Configurações de Coleta de Dados para CRM (só para collect_data) */}
                             {editingStep.type === 'collect_data' && (
                               <div className="border-t pt-4 mt-4 space-y-4">

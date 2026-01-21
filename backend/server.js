@@ -895,8 +895,9 @@ async function handleIncomingMessage(userId, message, client) {
         // ============================================
         // DETECTAR MENSAGEM DE GATILHO PARA GERAR LINK
         // ============================================
+        const paymentProvider = (aiConfig?.paymentProvider || 'asaas').toLowerCase();
         const triggerMessage = 'Perfeito! Vou enviar abaixo seu Link para que efetue o Pagamento.';
-        if (aiResponse.includes(triggerMessage)) {
+        if (paymentProvider === 'asaas' && aiResponse.includes(triggerMessage)) {
           console.log('🎯 MENSAGEM DE GATILHO DETECTADA! Gerando link de pagamento...');
           await tryAutoGeneratePaymentLink(userId, message.from, sanitizedNumber);
         }
@@ -1015,9 +1016,10 @@ async function handleIncomingMessage(userId, message, client) {
         }
         
         // Detectar intenção de compra e gerar link de pagamento
+        const paymentProviderForIntent = (aiConfig?.paymentProvider || 'asaas').toLowerCase();
         const hasPurchaseIntent = detectPurchaseIntent(message.body);
         
-        if (hasPurchaseIntent && mentionedItems.length > 0) {
+        if (paymentProviderForIntent === 'asaas' && hasPurchaseIntent && mentionedItems.length > 0) {
           console.log('🛒 Intenção de compra detectada!');
           
           // Buscar configuração do Asaas no Firestore ou Realtime Database

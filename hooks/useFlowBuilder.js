@@ -305,6 +305,17 @@ export function compilePrompt(steps = []) {
       }
     }
 
+    if (step.type === 'process_order') {
+      const provider = step.paymentSettings?.provider || 'asaas';
+      if (provider === 'asaas') {
+        absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} REGISTRE A INTENÇÃO DE GERAR LINK DE PAGAMENTO VIA ASAAS.`);
+      } else if (provider === 'manual') {
+        absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} REGISTRE A INTENÇÃO DE USAR PAGAMENTO MANUAL.`);
+      } else {
+        absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} REGISTRE A INTENÇÃO DE USAR INTEGRAÇÃO DE PAGAMENTO PERSONALIZADA.`);
+      }
+    }
+
     if (step.type === 'create_appointment' && step.appointmentEnabled) {
       if (step.appointmentTypes && step.appointmentTypes.length > 0) {
         absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} CRIE AGENDAMENTOS APENAS DOS TIPOS: ${step.appointmentTypes.join(', ').toUpperCase()}.`);
