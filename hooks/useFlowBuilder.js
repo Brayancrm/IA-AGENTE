@@ -312,6 +312,12 @@ export function compilePrompt(steps = []) {
       absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} INCLUA DATA, HORÁRIO, TIPO E DESCRIÇÃO.`);
     }
 
+    if (step.type === 'show_catalog') {
+      absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} LISTE ITENS APENAS NO FORMATO: "1. NOME - R$ PREÇO".`);
+      absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} OMITA QUALQUER TEXTO INTRODUTÓRIO OU CONCLUSIVO.`);
+      prohibitions.push(`NUNCA NO PASSO ${stepNumber} ENVIE MENSAGENS FORA DA LISTAGEM.`);
+    }
+
     if (step.type === 'audio_config') {
       const audioLanguage = (step.audioLanguage || 'pt-BR').toUpperCase();
       const audioVoice = step.audioVoice ? step.audioVoice.toUpperCase() : 'PADRÃO';
