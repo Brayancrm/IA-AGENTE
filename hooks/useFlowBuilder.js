@@ -82,179 +82,205 @@ export function useFlowBuilder(userId) {
   };
 }
 
+const toneRules = {
+  friendly: 'MANTENHA TOM AMIGÁVEL, CALOROSO E ACOLHEDOR.',
+  professional: 'MANTENHA TOM PROFISSIONAL, FORMAL E RESPEITOSO.',
+  casual: 'MANTENHA TOM CASUAL E NATURAL.',
+  enthusiastic: 'MANTENHA TOM ENTUSIASMADO E ENERGÉTICO.',
+  empathetic: 'MANTENHA TOM EMPÁTICO E ACOLHEDOR.'
+};
+
+const styleRules = {
+  concise: 'MANTENHA RESPOSTAS CONCISAS E DIRETAS.',
+  detailed: 'FORNEÇA RESPOSTAS DETALHADAS E COMPLETAS.',
+  consultative: 'ADOTE ABORDAGEM CONSULTIVA E EDUCATIVA.',
+  persuasive: 'ADOTE ABORDAGEM PERSUASIVA, DESTACANDO BENEFÍCIOS.'
+};
+
+const actionRules = {
+  greeting: 'CUMPRIMENTE O CLIENTE.',
+  ask_info: 'PERGUNTE AS INFORMAÇÕES NECESSÁRIAS.',
+  collect_data: 'COLETE DADOS DO CLIENTE.',
+  show_catalog: 'APRESENTE PRODUTOS E SERVIÇOS DISPONÍVEIS.',
+  process_order: 'CONFIRME ITENS E QUANTIDADES ANTES DE FINALIZAR.',
+  request_payment: 'SOLICITE O PAGAMENTO E FORNEÇA INSTRUÇÕES.',
+  send_confirmation: 'ENVIE CONFIRMAÇÃO COM DETALHES.',
+  ask_invoice: 'PERGUNTE SOBRE NOTA FISCAL.',
+  collect_address: 'COLETE ENDEREÇO COMPLETO.',
+  create_appointment: 'CRIE AGENDAMENTOS CONFORME CONFIGURADO.',
+  free_text: 'EXECUTE A INSTRUÇÃO DEFINIDA.',
+  custom: 'EXECUTE A AÇÃO PERSONALIZADA DEFINIDA.'
+};
+
+function normalizeCondition(condition) {
+  if (!condition) return null;
+  return condition
+    .trim()
+    .replace(/quando o cliente/gi, 'SE O CLIENTE')
+    .replace(/quando o usuário/gi, 'SE O USUÁRIO')
+    .replace(/quando a cliente/gi, 'SE A CLIENTE')
+    .replace(/\bquando\b/gi, 'SE');
+}
+
+function normalizeRuleText(text, defaultPrefix = 'SEMPRE') {
+  if (!text) return null;
+  let rule = text.trim().replace(/\s+/g, ' ');
+
+  rule = rule
+    .replace(/não esqueça/gi, 'SEMPRE')
+    .replace(/explique que/gi, 'INFORME:')
+    .replace(/quando o cliente/gi, 'SE O CLIENTE')
+    .replace(/quando o usuário/gi, 'SE O USUÁRIO')
+    .replace(/quando a cliente/gi, 'SE A CLIENTE')
+    .replace(/\bquando\b/gi, 'SE')
+    .replace(/^você deve/gi, 'DEVE')
+    .replace(/^por favor[, ]*/gi, '');
+
+  const hasImperativePrefix = /^(SEMPRE|NUNCA|SE |DEVE|INFORME:|RESPONDA:|CUMPRIMENTE|PERGUNTE|COLETE|APRESENTE|OFEREÇA|SOLICITE|CONFIRME|ENVIE|CRIE|EXECUTE)/i.test(rule);
+  if (!hasImperativePrefix) {
+    rule = `${defaultPrefix} ${rule}`;
+  }
+  return rule;
+}
+
+/**
+ * Compila os steps em um prompt autoritário e executável.
+ */
+export function compilePrompt(steps = []) {
+  if (!steps || steps.length === 0) {
+    return [
+      'IDENTIDADE DO ASSISTENTE',
+      'NOME: ASSISTENTE VIRTUAL',
+      'FUNÇÃO: ATENDIMENTO',
+      '',
+      'REGRAS ABSOLUTAS',
+      'SEMPRE SIGA AS REGRAS A SEGUIR.',
+      '',
+      'COMPORTAMENTO',
+      'MANTENHA RESPOSTAS CLARAS E OBJETIVAS.',
+      '',
+      'PROIBIÇÕES',
+      'NUNCA IGNORE AS REGRAS ABSOLUTAS.'
+    ].join('\n');
+  }
+
+  const identityLines = [];
+  const absoluteRules = [];
+  const behaviorLines = [];
+  const prohibitions = [];
+
+  const agentProfileStep = steps.find(step => step.type === 'agent_profile');
+  const agentName = agentProfileStep?.agentName || 'ASSISTENTE VIRTUAL';
+  const agentRole = agentProfileStep?.agentRole || 'ATENDIMENTO';
+
+  identityLines.push(`NOME: ${agentName.toUpperCase()}`);
+  identityLines.push(`FUNÇÃO: ${agentRole.toUpperCase()}`);
+
+  if (agentProfileStep?.agentTone && toneRules[agentProfileStep.agentTone]) {
+    absoluteRules.push(toneRules[agentProfileStep.agentTone]);
+  }
+  if (agentProfileStep?.agentStyle && styleRules[agentProfileStep.agentStyle]) {
+    absoluteRules.push(styleRules[agentProfileStep.agentStyle]);
+  }
+  if (agentProfileStep?.description) {
+    const rule = normalizeRuleText(agentProfileStep.description);
+    if (rule) absoluteRules.push(rule);
+  }
+
+  absoluteRules.push('SEMPRE SIGA OS PASSOS NA ORDEM DEFINIDA.');
+  absoluteRules.push('SEMPRE CONFIRME INFORMAÇÕES CRÍTICAS ANTES DE PROSSEGUIR.');
+
+  let stepNumber = 0;
+  steps.forEach((step) => {
+    if (step.type === 'agent_profile') return;
+
+    stepNumber += 1;
+    const actionRule = actionRules[step.type] || 'EXECUTE A AÇÃO DEFINIDA.';
+    const stepHeader = `PASSO ${stepNumber}: ${step.title?.toUpperCase() || 'SEM TÍTULO'}.`;
+    const stepLine = `${stepHeader} ${actionRule}`;
+    behaviorLines.push(stepLine);
+
+    if (step.condition) {
+      const condition = normalizeCondition(step.condition);
+      if (condition) {
+        absoluteRules.push(`EXECUTE O PASSO ${stepNumber} SOMENTE SE: ${condition.toUpperCase()}.`);
+      }
+    }
+
+    if (step.description) {
+      const hasVariables = /{{[^}]+}}/.test(step.description);
+      if (hasVariables) {
+        absoluteRules.push(`SEMPRE USE O TEXTO LITERAL: "${step.description}".`);
+        prohibitions.push('NUNCA ALTERE OU SUBSTITUA VARIÁVEIS DE TEMPLATE ({{...}}).');
+      } else {
+        const rule = normalizeRuleText(step.description);
+        if (rule) absoluteRules.push(rule);
+      }
+    }
+
+    if (step.type === 'collect_data') {
+      if (step.crmAutoSave) {
+        absoluteRules.push('SEMPRE COLETE NOME E TELEFONE.');
+        const crmFields = step.crmFields || ['name', 'phone'];
+        if (crmFields.includes('product')) {
+          absoluteRules.push('SEMPRE IDENTIFIQUE O PRODUTO OU SERVIÇO DE INTERESSE.');
+        }
+        if (crmFields.includes('email')) {
+          absoluteRules.push('SE O CLIENTE INFORMAR EMAIL, SALVE O EMAIL.');
+        }
+        absoluteRules.push('SEMPRE SALVE OS DADOS COLETADOS NO CRM AUTOMATICAMENTE.');
+      }
+
+      if (step.customQuestions && step.customQuestions.length > 0) {
+        step.customQuestions.forEach((q) => {
+          absoluteRules.push(`PERGUNTE EXATAMENTE: "${q.question}".`);
+          if (q.required) {
+            prohibitions.push(`NUNCA PROSSIGA SEM RESPOSTA PARA: "${q.question}".`);
+          }
+        });
+      }
+    }
+
+    if (step.type === 'create_appointment' && step.appointmentEnabled) {
+      if (step.appointmentTypes && step.appointmentTypes.length > 0) {
+        absoluteRules.push(`SOMENTE CRIE AGENDAMENTOS DOS TIPOS: ${step.appointmentTypes.join(', ').toUpperCase()}.`);
+      }
+      absoluteRules.push('AO CRIAR AGENDAMENTO, INCLUA DATA, HORÁRIO, TIPO E DESCRIÇÃO.');
+    }
+
+    if (step.type === 'audio_config') {
+      const audioLanguage = (step.audioLanguage || 'pt-BR').toUpperCase();
+      const audioVoice = step.audioVoice ? step.audioVoice.toUpperCase() : 'PADRÃO';
+      absoluteRules.push(`SE RECEBER ÁUDIO, RESPONDA EM ÁUDIO.`);
+      absoluteRules.push(`IDIOMA DE ÁUDIO: ${audioLanguage}.`);
+      absoluteRules.push(`VOZ DE ÁUDIO: ${audioVoice}.`);
+    }
+  });
+
+  prohibitions.push('NUNCA IGNORE AS REGRAS ABSOLUTAS.');
+  prohibitions.push('NUNCA INVENTE DADOS DO CLIENTE.');
+
+  return [
+    'IDENTIDADE DO ASSISTENTE',
+    ...identityLines,
+    '',
+    'REGRAS ABSOLUTAS',
+    ...absoluteRules,
+    '',
+    'COMPORTAMENTO',
+    ...behaviorLines,
+    '',
+    'PROIBIÇÕES',
+    ...prohibitions
+  ].join('\n');
+}
+
 /**
  * Converte array de steps em prompt de texto
  * EXPORTADA para usar em outros componentes
  */
 export function convertStepsToPrompt(steps) {
-  if (!steps || steps.length === 0) {
-    return 'Você é um assistente virtual prestativo.';
-  }
-
-  let prompt = '';
-  let agentProfile = null;
-
-  // ============================================
-  // BUSCAR PERFIL DO AGENTE DOS STEPS
-  // ============================================
-  const agentProfileStep = steps.find(step => step.type === 'agent_profile');
-  
-  if (agentProfileStep && agentProfileStep.agentName) {
-    prompt += '# PERFIL DO AGENTE\n\n';
-    
-    prompt += `Seu nome é **${agentProfileStep.agentName}**`;
-    if (agentProfileStep.agentRole) {
-      prompt += ` e você é ${agentProfileStep.agentRole}`;
-    }
-    prompt += '.\n\n';
-
-    // Tom de Voz
-    const toneDescriptions = {
-      friendly: 'Seja amigável, caloroso e acolhedor. Use uma linguagem leve e simpática.',
-      professional: 'Mantenha um tom profissional, formal e respeitoso. Use linguagem técnica quando apropriado.',
-      casual: 'Seja casual, descontraído e natural. Converse como um amigo.',
-      enthusiastic: 'Seja entusiasmado, energético e motivador. Demonstre empolgação!',
-      empathetic: 'Seja empático, compreensivo e acolhedor. Demonstre que você se importa.'
-    };
-    
-    if (agentProfileStep.agentTone && toneDescriptions[agentProfileStep.agentTone]) {
-      prompt += `**Tom de Voz:** ${toneDescriptions[agentProfileStep.agentTone]}\n\n`;
-    }
-
-    // Estilo de Comunicação
-    const styleDescriptions = {
-      concise: 'Seja conciso e direto ao ponto. Evite textos longos.',
-      detailed: 'Seja detalhado e explicativo. Forneça informações completas.',
-      consultative: 'Seja consultivo e educativo. Explique o porquê das coisas.',
-      persuasive: 'Seja persuasivo e convincente. Mostre os benefícios claramente.'
-    };
-    
-    if (agentProfileStep.agentStyle && styleDescriptions[agentProfileStep.agentStyle]) {
-      prompt += `**Estilo:** ${styleDescriptions[agentProfileStep.agentStyle]}\n\n`;
-    }
-
-    // Personalidade (do campo description)
-    if (agentProfileStep.description) {
-      prompt += `**Personalidade:** ${agentProfileStep.description}\n\n`;
-    }
-
-    prompt += '---\n\n';
-    
-    agentProfile = {
-      name: agentProfileStep.agentName,
-      role: agentProfileStep.agentRole
-    };
-  }
-
-  // ============================================
-  // FLUXO DE ATENDIMENTO
-  // ============================================
-  prompt += '# FLUXO DE ATENDIMENTO\n\nSiga este fluxo de atendimento na ordem especificada:\n\n';
-
-  const actionDescriptions = {
-    agent_profile: 'Apresente-se com seu nome e função.', // Não aparece no prompt porque já foi processado acima
-    greeting: 'Cumprimente o cliente de forma amigável.',
-    ask_info: 'Pergunte as informações necessárias ao cliente.',
-    collect_data: 'Colete dados personalizados do cliente conforme configurado.',
-    show_catalog: 'Apresente os produtos/serviços disponíveis.',
-    process_order: 'Processe o pedido do cliente, confirmando itens e quantidades.',
-    request_payment: 'Solicite o pagamento e forneça instruções.',
-    send_confirmation: 'Envie uma mensagem de confirmação com os detalhes.',
-    ask_invoice: 'Pergunte se o cliente deseja nota fiscal.',
-    collect_address: 'Colete o endereço completo do cliente.',
-    create_appointment: 'Crie agendamentos com o cliente conforme configurado.',
-    custom: 'Execute a ação personalizada conforme descrito.',
-  };
-
-  let stepNumber = 0;
-  steps.forEach((step) => {
-    // Pular o step de agent_profile no fluxo (já foi processado acima)
-    if (step.type === 'agent_profile') {
-      return;
-    }
-    
-    stepNumber++;
-    prompt += `## ${stepNumber}. ${step.title}\n\n`;
-    
-    const actionDesc = actionDescriptions[step.type] || '';
-    if (actionDesc) {
-      prompt += `**Ação:** ${actionDesc}\n\n`;
-    }
-    
-    if (step.description) {
-      // Verificar se a descrição contém variáveis de template ({{...}})
-      const hasVariables = /{{[^}]+}}/.test(step.description);
-      
-      if (hasVariables) {
-        // Se tiver variáveis, instruir a IA a usar o texto LITERALMENTE
-        prompt += `**Instruções:**\n${step.description}\n\n`;
-        prompt += `🚨 **CRÍTICO - USO LITERAL OBRIGATÓRIO:**\n`;
-        prompt += `Esta instrução contém variáveis de template ({{nome}}, {{email}}, etc.).\n`;
-        prompt += `Você DEVE copiar e usar o texto EXATAMENTE como está escrito acima, incluindo TODAS as variáveis.\n`;
-        prompt += `NÃO interprete, NÃO adapte, NÃO substitua as variáveis por palavras genéricas.\n`;
-        prompt += `Mantenha EXATAMENTE o texto: "${step.description}"\n`;
-        prompt += `O sistema substituirá automaticamente {{nome}}, {{email}}, etc. pelos dados reais do cliente.\n`;
-        prompt += `Se você não usar o texto literalmente com as variáveis, o sistema não funcionará corretamente.\n\n`;
-      } else {
-        // Se não tiver variáveis, usar normalmente
-        prompt += `**Instruções:**\n${step.description}\n\n`;
-      }
-    }
-    
-    if (step.condition) {
-      prompt += `**Condição:** ${step.condition}\n\n`;
-    }
-    
-    // Se for coleta de dados customizados, adicionar as perguntas
-    if (step.type === 'collect_data' && step.customQuestions && step.customQuestions.length > 0) {
-      prompt += `**PERGUNTAS PERSONALIZADAS PARA COLETAR:**\n`;
-      step.customQuestions.forEach((q, idx) => {
-        prompt += `${idx + 1}. Faça esta pergunta EXATAMENTE como escrito: "${q.question}"`;
-        if (q.type !== 'text') {
-          prompt += ` (Tipo esperado: ${q.type})`;
-        }
-        if (q.required) {
-          prompt += ` [OBRIGATÓRIO]`;
-        }
-        prompt += `\n`;
-      });
-      prompt += `\n⚠️ IMPORTANTE: As respostas a essas perguntas serão salvas automaticamente no CRM do cliente. \n\n`;
-    }
-    
-    // Se for criação de agendamento, adicionar as configurações
-    if (step.type === 'create_appointment' && step.appointmentEnabled) {
-      prompt += `**SISTEMA DE AGENDAMENTOS:**\n`;
-      if (step.appointmentTypes && step.appointmentTypes.length > 0) {
-        prompt += `Você pode criar agendamentos dos seguintes tipos: ${step.appointmentTypes.join(', ')}\n`;
-      }
-      prompt += `Ao criar um agendamento, informe data, horário, tipo e descrição. O agendamento será salvo automaticamente.\n\n`;
-    }
-    
-    // Se for configuração de áudio, adicionar as configurações
-    if (step.type === 'audio_config') {
-      prompt += `**CONFIGURAÇÕES DE ÁUDIO:**\n`;
-      prompt += `Idioma: ${step.audioLanguage || 'pt-BR'}\n`;
-      if (step.audioVoice) {
-        prompt += `Voz: ${step.audioVoice}\n`;
-      } else {
-        prompt += `Voz: Padrão (automática)\n`;
-      }
-      prompt += `Quando o cliente enviar uma mensagem de áudio, você deve responder também em áudio usando essas configurações.\n\n`;
-    }
-    
-    prompt += '---\n\n';
-  });
-
-  prompt += '\n## REGRAS IMPORTANTES\n\n';
-  if (agentProfile && agentProfile.name) {
-    prompt += `- SEMPRE se apresente como ${agentProfile.name}${agentProfile.role ? ` (${agentProfile.role})` : ''} no início da conversa\n`;
-  }
-  prompt += '- Siga os passos na ordem especificada\n';
-  prompt += '- Se o cliente fizer uma pergunta fora do fluxo, responda e retorne ao passo atual\n';
-  prompt += '- Seja sempre educado e profissional\n';
-  prompt += '- Confirme as informações importantes antes de prosseguir\n';
-
-  return prompt;
+  return compilePrompt(steps);
 }
 
 /**

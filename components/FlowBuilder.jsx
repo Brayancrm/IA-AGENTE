@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Plus, Trash2, GripVertical, Edit2, Save, X, FileText, Sparkles, ChevronLeft, ChevronRight, Eye, ChevronUp, ChevronDown } from 'lucide-react';
+import { compilePrompt } from '../hooks/useFlowBuilder';
 import TemplateModal from './TemplateModal';
 import AIGeneratorModal from './AIGeneratorModal';
 
@@ -343,98 +344,8 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
     setImprovementTexts({ ...improvementTexts, [stepId]: text });
   };
 
-  // Gerar prompt a partir dos steps
-  const generatePrompt = () => {
-    let prompt = '';
-    
-    steps.forEach((step, index) => {
-      const actionType = actionTypes.find(t => t.value === step.type);
-      prompt += `\n## Passo ${index + 1}: ${step.title}\n`;
-      prompt += `${actionType?.icon} ${actionType?.label}\n`;
-      if (step.description) {
-        prompt += `${step.description}\n`;
-      }
-      if (step.condition) {
-        prompt += `⚠️ Condição: ${step.condition}\n`;
-      }
-      
-      // Se for coleta de dados, adicionar configurações de CRM e perguntas
-      if (step.type === 'collect_data') {
-        // Salvamento automático no CRM
-        if (step.crmAutoSave) {
-          prompt += `\n💾 SALVAMENTO AUTOMÁTICO NO CRM:\n`;
-          prompt += `IMPORTANTE: Todos os clientes que entrarem em contato devem ser salvos automaticamente no CRM.\n`;
-          
-          const crmFields = step.crmFields || ['name', 'phone'];
-          const fieldLabels = {
-            'name': 'Nome',
-            'phone': 'Telefone',
-            'product': 'Produto ou Serviço',
-            'email': 'Email'
-          };
-          
-          prompt += `Dados a serem salvos:\n`;
-          crmFields.forEach(field => {
-            if (fieldLabels[field]) {
-              prompt += `- ${fieldLabels[field]}\n`;
-            }
-          });
-          
-          prompt += `\nINSTRUÇÕES CRÍTICAS:\n`;
-          prompt += `1. SEMPRE colete o Nome e Telefone do cliente (obrigatórios)\n`;
-          if (crmFields.includes('product')) {
-            prompt += `2. Identifique qual produto ou serviço o cliente está interessado durante a conversa\n`;
-            prompt += `3. Salve o produto/serviço mencionado pelo cliente\n`;
-          }
-          if (crmFields.includes('email')) {
-            prompt += `4. Se o cliente fornecer email, salve também\n`;
-          }
-          prompt += `5. Os dados devem ser salvos automaticamente no sistema CRM após serem coletados\n`;
-          prompt += `6. Não pergunte explicitamente sobre salvar no CRM - faça isso automaticamente\n`;
-        }
-        
-        // Perguntas customizadas
-        if (step.customQuestions && step.customQuestions.length > 0) {
-          prompt += `\n📋 PERGUNTAS PERSONALIZADAS PARA COLETAR:\n`;
-          step.customQuestions.forEach((q, idx) => {
-            prompt += `${idx + 1}. ${q.question}`;
-            if (q.type !== 'text') {
-              prompt += ` (Tipo: ${q.type})`;
-            }
-            if (q.required) {
-              prompt += ` [OBRIGATÓRIO]`;
-            }
-            prompt += `\n`;
-          });
-        }
-      }
-      
-      // Se for criação de agendamento, adicionar as configurações
-      if (step.type === 'create_appointment' && step.appointmentEnabled) {
-        prompt += `\n📅 SISTEMA DE AGENDAMENTOS HABILITADO:\n`;
-        if (step.appointmentTypes && step.appointmentTypes.length > 0) {
-          prompt += `Tipos permitidos: ${step.appointmentTypes.join(', ')}\n`;
-        }
-        prompt += `O agente poderá criar agendamentos durante a conversa que aparecerão na seção Agendamentos.\n`;
-      }
-      
-      // Se for configuração de áudio, adicionar as configurações
-      if (step.type === 'audio_config') {
-        prompt += `\n🎤 CONFIGURAÇÕES DE ÁUDIO:\n`;
-        prompt += `Idioma: ${step.audioLanguage || 'pt-BR'}\n`;
-        if (step.audioVoice) {
-          prompt += `Voz: ${step.audioVoice}\n`;
-        } else {
-          prompt += `Voz: Padrão (automática)\n`;
-        }
-        prompt += `Quando o cliente enviar uma mensagem de áudio, o agente responderá também em áudio usando essas configurações.\n`;
-      }
-      
-      prompt += '\n';
-    });
-
-    return prompt;
-  };
+  // Gerar prompt executável a partir dos steps
+  const generatePrompt = () => compilePrompt(steps);
 
   // Estatísticas do fluxo
   const completedSteps = steps.filter(s => s.title && s.description).length;
