@@ -152,6 +152,21 @@ function buildDeterministicCondition(condition, step, stepNumber) {
   if (lower.includes('pedido') || lower.includes('carrinho')) {
     return '{{exigir_pedido}} == true';
   }
+  if (lower.includes('email')) {
+    return '{{exigir_email}} == true';
+  }
+  if (lower.includes('telefone') || lower.includes('whatsapp')) {
+    return '{{exigir_telefone}} == true';
+  }
+  if (lower.includes('pedido confirmado') || lower.includes('confirmar pedido')) {
+    return '{{pedido_confirmado}} == true';
+  }
+  if (lower.includes('pagamento confirmado') || lower.includes('confirmar pagamento')) {
+    return '{{pagamento_confirmado}} == true';
+  }
+  if (lower.includes('agendamento confirmado') || lower.includes('confirmar agendamento')) {
+    return '{{agendamento_confirmado}} == true';
+  }
 
   const fallbackKey = step?.title
     ? step.title
