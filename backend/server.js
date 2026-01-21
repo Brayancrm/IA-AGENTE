@@ -925,10 +925,7 @@ async function handleIncomingMessage(userId, message, client) {
                 messageText += `\n`;
               }
               
-              // Adicionar descrição se disponível
-              if (item.description) {
-                messageText += `${item.description}\n\n`;
-              }
+              // Descrição omitida para evitar mensagem informativa extra
               
               // Adicionar link se disponível
               if (item.link) {
@@ -1363,8 +1360,12 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
         } else {
           systemPrompt += ` - Preço disponível no link`;
         }
-        if (product.description) systemPrompt += ` - ${product.description}`;
-        if (product.stock > 0) systemPrompt += ` (Estoque: ${product.stock} unidades)`;
+        if (product.description) {
+          // Descrição omitida para evitar mensagens informativas extras no catálogo
+        }
+        if (product.stock > 0) {
+          // Estoque omitido para evitar mensagens informativas extras no catálogo
+        }
         if (product.image) systemPrompt += ` [TEM FOTO DISPONÍVEL]`;
         if (product.link) systemPrompt += ` [TEM LINK PARA ADESÃO DISPONÍVEL]`;
         systemPrompt += '\n';
@@ -1381,8 +1382,12 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
         } else {
           systemPrompt += ` - Preço disponível no link`;
         }
-        if (service.description) systemPrompt += ` - ${service.description}`;
-        if (service.capacity > 0) systemPrompt += ` (Capacidade: ${service.capacity})`;
+        if (service.description) {
+          // Descrição omitida para evitar mensagens informativas extras no catálogo
+        }
+        if (service.capacity > 0) {
+          // Capacidade omitida para evitar mensagens informativas extras no catálogo
+        }
         if (service.image) systemPrompt += ` [TEM FOTO DISPONÍVEL]`;
         if (service.link) systemPrompt += ` [TEM LINK PARA ADESÃO DISPONÍVEL]`;
         systemPrompt += '\n';
@@ -1394,8 +1399,8 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       systemPrompt += `\n⚠️ INSTRUÇÕES IMPORTANTES:
 - Você DEVE mencionar e oferecer esses produtos/serviços quando relevante
 - Seja proativo e sugira produtos/serviços que possam ajudar o cliente
-- Forneça informações detalhadas sobre preços e disponibilidade
-- Ajude o cliente a tomar a melhor decisão de compra
+- NUNCA envie descrições detalhadas dos itens
+- APENAS informe nome e preço quando listar itens
 - Quando mencionar produtos/serviços com foto disponível, eu enviarei a imagem automaticamente para o cliente
 
 🎯 **CRÍTICO - CONFIRMAÇÃO DE PRODUTO:**
