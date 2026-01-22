@@ -898,9 +898,14 @@ async function handleIncomingMessage(userId, message, client) {
         // ============================================
         const paymentProvider = (aiConfig?.paymentProvider || 'asaas').toLowerCase();
         const triggerMessage = 'Perfeito! Vou enviar abaixo seu Link para que efetue o Pagamento.';
-        if (paymentProvider === 'asaas' && aiResponse.includes(triggerMessage)) {
-          console.log('🎯 MENSAGEM DE GATILHO DETECTADA! Gerando link de pagamento...');
-          await tryAutoGeneratePaymentLink(userId, message.from, sanitizedNumber);
+        if (aiResponse.includes(triggerMessage)) {
+          if (paymentProvider === 'asaas') {
+            console.log('🎯 MENSAGEM DE GATILHO DETECTADA! Gerando link de pagamento (Asaas)...');
+            await tryAutoGeneratePaymentLink(userId, message.from, sanitizedNumber);
+          } else if (paymentProvider === 'stripe') {
+            console.log('🎯 MENSAGEM DE GATILHO DETECTADA! Gerando link de pagamento (Stripe)...');
+            await tryAutoGenerateStripeLink(userId, message.from, sanitizedNumber);
+          }
         }
         
         // ============================================
@@ -1174,20 +1179,12 @@ async function handleIncomingMessage(userId, message, client) {
           } else {
             console.log('⚠️ API Key do Asaas não configurada');
           }
-        } else if ((paymentProviderForIntent === 'manual' || paymentProviderForIntent === 'stripe') && hasPurchaseIntent && mentionedItems.length > 0) {
+        } else if (paymentProviderForIntent === 'stripe' && hasPurchaseIntent && mentionedItems.length > 0) {
+          await tryAutoGenerateStripeLink(userId, message.from, sanitizedNumber);
+        } else if (paymentProviderForIntent === 'manual' && hasPurchaseIntent && mentionedItems.length > 0) {
           const integrations = await getIntegrationsConfig(userId);
-          const stripeApiKey = integrations?.stripeApiKey || null;
           const manualMessage = aiConfig?.paymentManualMessage || 'Pagamento manual selecionado. Aguarde o envio do link.';
-          const stripeMessage = aiConfig?.paymentStripeMessage || 'Pagamento via Stripe selecionado. Aguarde o link.';
-
-          let paymentNotice = manualMessage;
-          if (paymentProviderForIntent === 'stripe') {
-            paymentNotice = stripeMessage;
-            if (!stripeApiKey) {
-              paymentNotice = 'Integração Stripe não configurada. Aguarde contato para envio do link.';
-            }
-          }
-
+          const paymentNotice = manualMessage;
           await client.sendText(message.from, paymentNotice);
 
           const paymentMsgRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
@@ -3418,6 +3415,111 @@ async function createStripeCheckoutSession(stripeApiKey, customerData, items, us
   } catch (error) {
     console.error('❌ Erro ao criar sessão Stripe:', error.message);
     return { success: false, error: error.message };
+  }
+}
+
+// 🎯 Função para tentar gerar link automático do Stripe quando houver intenção de compra
+async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
+  try {
+    const client = activeClients.get(userId);
+    if (!client) return;
+
+    const integrations = await getIntegrationsConfig(userId);
+    const stripeApiKey = integrations?.stripeApiKey || null;
+    if (!stripeApiKey) {
+      await client.sendText(phone, 'Integração Stripe não configurada. Aguarde contato para envio do link.');
+      return;
+    }
+
+    const successUrl = process.env.STRIPE_SUCCESS_URL;
+    const cancelUrl = process.env.STRIPE_CANCEL_URL;
+    if (!successUrl || !cancelUrl) {
+      await client.sendText(phone, 'Configuração do Stripe incompleta. Aguarde contato para envio do link.');
+      return;
+    }
+
+    const messagesSnapshot = await db.ref(`conversations/${userId}/${sanitizedNumber}/messages`)
+      .orderByChild('timestamp')
+      .limitToLast(10)
+      .once('value');
+
+    const productsSnapshot = await db.ref(`products/${userId}`).once('value');
+    const productsData = productsSnapshot.val();
+    if (!productsData || !messagesSnapshot.exists()) return;
+
+    const products = Object.values(productsData);
+    const mentionedProducts = [];
+    messagesSnapshot.forEach((messageSnap) => {
+      const msg = messageSnap.val();
+      const messageText = msg.body ? msg.body.toLowerCase() : '';
+      if (!messageText) return;
+      products.forEach(product => {
+        const safeName = String(product.name || '').toLowerCase();
+        if (safeName && messageText.includes(safeName)) {
+          mentionedProducts.push(product);
+        }
+      });
+    });
+
+    const itemsWithPrice = mentionedProducts.filter(item =>
+      item.price !== null && item.price !== undefined && item.price !== ''
+    );
+    if (itemsWithPrice.length === 0) {
+      await client.sendText(phone, 'Para finalizar a compra, preciso de um item com preço definido.');
+      return;
+    }
+
+    const orderItems = itemsWithPrice.map(item => ({
+      name: item.name,
+      price: item.price,
+      quantity: 1,
+      description: item.description
+    }));
+
+    const customerDataRef = db.ref(`customerData/${userId}/${phone.replace(/[^0-9]/g, '')}`);
+    const customerSnapshot = await customerDataRef.once('value');
+    const savedCustomerData = customerSnapshot.val();
+
+    const customerData = {
+      name: savedCustomerData?.name || 'Cliente WhatsApp',
+      email: savedCustomerData?.email || undefined,
+      originalPhone: phone
+    };
+
+    const result = await createStripeCheckoutSession(
+      stripeApiKey,
+      customerData,
+      orderItems,
+      userId,
+      successUrl,
+      cancelUrl
+    );
+
+    if (!result.success) {
+      await client.sendText(phone, 'Não foi possível gerar o link de pagamento. Tente novamente.');
+      return;
+    }
+
+    const paymentMessage = `✅ *Pedido Criado!*\n\n` +
+      `📦 Itens:\n` +
+      orderItems.map(item => `• ${item.quantity}x ${item.name} - R$ ${parseFloat(item.price).toFixed(2)}`).join('\n') +
+      `\n\n💰 *Total: R$ ${result.value.toFixed(2)}*\n\n` +
+      `🔗 *Link de Pagamento (Stripe):*\n${result.checkoutUrl}`;
+
+    await client.sendText(phone, paymentMessage);
+
+    const paymentMsgRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+    await paymentMsgRef.set({
+      from: '',
+      to: phone,
+      body: paymentMessage,
+      timestamp: new Date().toISOString(),
+      type: 'payment_link',
+      isFromMe: true,
+      stripeSessionId: result.sessionId
+    });
+  } catch (error) {
+    console.error('❌ Erro ao gerar link Stripe:', error);
   }
 }
 
