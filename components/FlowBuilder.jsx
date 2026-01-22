@@ -1759,7 +1759,8 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                           { value: 'name', label: '👤 Nome', required: true },
                                           { value: 'phone', label: '📱 Telefone', required: true },
                                           { value: 'product', label: '📦 Produto ou Serviço', required: false },
-                                          { value: 'email', label: '📧 Email', required: false }
+                                          { value: 'email', label: '📧 Email', required: false },
+                                          { value: 'cpfCnpj', label: '🆔 CPF/CNPJ', required: false }
                                         ].map((field) => (
                                           <label
                                             key={field.value}

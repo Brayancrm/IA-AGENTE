@@ -291,6 +291,9 @@ export function compilePrompt(steps = []) {
         if (crmFields.includes('email')) {
           absoluteRules.push(`SEMPRE NO PASSO ${stepNumber}, SE O CLIENTE INFORMAR EMAIL, REGISTRE A INTENÇÃO DE SALVAR O EMAIL.`);
         }
+        if (crmFields.includes('cpfCnpj')) {
+          absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} COLETE CPF OU CNPJ DO CLIENTE.`);
+        }
         absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} REGISTRE A INTENÇÃO DE SALVAR DADOS NO CRM.`);
       }
 
