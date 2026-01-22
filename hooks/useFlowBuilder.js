@@ -285,6 +285,8 @@ export function compilePrompt(steps = []) {
       if (step.crmAutoSave) {
         absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} COLETE NOME E TELEFONE.`);
         const crmFields = step.crmFields || ['name', 'phone'];
+        absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} PERGUNTE UM ÚNICO CAMPO POR VEZ.`);
+        prohibitions.push(`NUNCA NO PASSO ${stepNumber} SOLICITE MAIS DE UM CAMPO NA MESMA PERGUNTA.`);
         if (crmFields.includes('product')) {
           absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} IDENTIFIQUE O PRODUTO OU SERVIÇO DE INTERESSE.`);
         }

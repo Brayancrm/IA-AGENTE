@@ -2217,6 +2217,24 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
       return;
     }
     
+    // Detectar se o agente está perguntando TELEFONE
+    const phoneKeywords = [
+      'telefone',
+      'whatsapp',
+      'número do telefone',
+      'numero do telefone',
+      'telefone de contato',
+      'seu telefone',
+      'seu whatsapp',
+      'número do whatsapp',
+      'numero do whatsapp',
+      'celular',
+      'número do celular',
+      'numero do celular'
+    ];
+
+    const hasPhoneQuestion = phoneKeywords.some(keyword => lowerText.includes(keyword));
+
     // Detectar se o agente está perguntando CPF/CNPJ
     const cpfKeywords = [
       'cpf',
@@ -2225,8 +2243,29 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
       'número do documento',
       'informe seu cpf'
     ];
+
+    const hasCpfQuestion = cpfKeywords.some(keyword => lowerText.includes(keyword));
+
+    if (hasPhoneQuestion && hasCpfQuestion) {
+      await contextRef.set({ 
+        waitingFor: 'phone',
+        nextWaitingFor: 'cpfCnpj',
+        askedAt: new Date().toISOString()
+      });
+      console.log('🎯 Agente perguntou TELEFONE + CPF/CNPJ - aguardando TELEFONE primeiro');
+      return;
+    }
+
+    if (hasPhoneQuestion) {
+      await contextRef.set({ 
+        waitingFor: 'phone',
+        askedAt: new Date().toISOString()
+      });
+      console.log('🎯 Agente perguntou o TELEFONE - aguardando resposta do cliente');
+      return;
+    }
     
-    if (cpfKeywords.some(keyword => lowerText.includes(keyword))) {
+    if (hasCpfQuestion) {
       await contextRef.set({ 
         waitingFor: 'cpfCnpj',
         askedAt: new Date().toISOString()
@@ -2630,6 +2669,26 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
         }
       }
       
+      // Cliente está respondendo à pergunta do TELEFONE
+      else if (context.waitingFor === 'phone') {
+        const numbersOnly = messageText.replace(/[^0-9]/g, '');
+        if (numbersOnly.length >= 10 && numbersOnly.length <= 15) {
+          customerData.mobilePhone = numbersOnly;
+          dataUpdated = true;
+          console.log('✅ Telefone de contato salvo:', numbersOnly);
+          if (context.nextWaitingFor) {
+            await contextRef.set({
+              waitingFor: context.nextWaitingFor,
+              askedAt: new Date().toISOString()
+            });
+          } else {
+            await contextRef.remove();
+          }
+        } else {
+          console.log('⚠️ Telefone inválido recebido. Mantendo TELEFONE pendente.');
+        }
+      }
+      
       // Cliente está respondendo à pergunta do NOME
       else if (context.waitingFor === 'name') {
         // Se o agente perguntou o nome, SEMPRE atualizar com a resposta do cliente
@@ -2659,17 +2718,32 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
         
         // CPF: 11 dígitos
         if (numbersOnly.length === 11) {
-          customerData.cpfCnpj = numbersOnly;
-          dataUpdated = true;
-          console.log('✅ CPF detectado e salvo:', numbersOnly);
-          await contextRef.remove();
+          if (validateCPF(numbersOnly)) {
+            customerData.cpfCnpj = numbersOnly;
+            dataUpdated = true;
+            console.log('✅ CPF detectado e salvo:', numbersOnly);
+            await contextRef.remove();
+          } else {
+            // Evitar salvar telefone como CPF quando a pergunta inclui CPF/CNPJ
+            if (!customerData.mobilePhone) {
+              customerData.mobilePhone = numbersOnly;
+              dataUpdated = true;
+              console.log('⚠️ Resposta parece telefone. Salvando como telefone e mantendo CPF pendente:', numbersOnly);
+            } else {
+              console.log('⚠️ CPF inválido recebido. Mantendo CPF pendente.');
+            }
+          }
         }
         // CNPJ: 14 dígitos
         else if (numbersOnly.length === 14) {
-          customerData.cpfCnpj = numbersOnly;
-          dataUpdated = true;
-          console.log('✅ CNPJ detectado e salvo (14 dígitos):', numbersOnly);
-          await contextRef.remove();
+          if (validateCNPJ(numbersOnly)) {
+            customerData.cpfCnpj = numbersOnly;
+            dataUpdated = true;
+            console.log('✅ CNPJ detectado e salvo (14 dígitos):', numbersOnly);
+            await contextRef.remove();
+          } else {
+            console.log('⚠️ CNPJ inválido recebido. Mantendo CPF/CNPJ pendente.');
+          }
         }
       }
       
