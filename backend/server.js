@@ -3045,18 +3045,21 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
     const customerSnapshot = await customerDataRef.once('value');
     const savedCustomerData = customerSnapshot.val();
 
-    if (!savedCustomerData || !savedCustomerData.name || !savedCustomerData.email || !savedCustomerData.cpfCnpj) {
+    if (!savedCustomerData || !savedCustomerData.name || !savedCustomerData.email) {
       console.log('❌ [6/6] Dados do cliente incompletos:');
       console.log('   👤 Nome:', savedCustomerData?.name || '❌');
       console.log('   📧 Email:', savedCustomerData?.email || '❌');
-      console.log('   📄 CPF/CNPJ:', savedCustomerData?.cpfCnpj || '❌');
       return;
     }
 
     console.log('✅ [6/6] Dados do cliente completos:');
     console.log(`   👤 Nome: ${savedCustomerData.name}`);
     console.log(`   📧 Email: ${savedCustomerData.email}`);
-    console.log(`   📄 CPF/CNPJ: ${savedCustomerData.cpfCnpj}`);
+    if (savedCustomerData.cpfCnpj) {
+      console.log(`   📄 CPF/CNPJ: ${savedCustomerData.cpfCnpj}`);
+    } else {
+      console.log('   📄 CPF/CNPJ: (não informado)');
+    }
 
     // Telefone original (para WhatsApp)
     const originalPhone = phone; // Ex: 556191442727@c.us
@@ -3073,7 +3076,6 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
       phone: cleanPhone,  // Para Asaas (sem 55)
       mobilePhone: cleanPhone,  // Para Asaas (sem 55)
       originalPhone: originalPhone,  // Para WhatsApp (com @c.us)
-      cpfCnpj: savedCustomerData.cpfCnpj,
       email: savedCustomerData.email,
       ...(savedCustomerData.address && {
         address: savedCustomerData.address.street,
