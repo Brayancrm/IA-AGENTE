@@ -974,7 +974,10 @@ async function handleIncomingMessage(userId, message, client) {
                 messageText += `\n`;
               }
               
-              // Descrição omitida para evitar mensagem informativa extra
+              // Adicionar descrição se disponível
+              if (item.description) {
+                messageText += `${item.description}\n\n`;
+              }
               
               // Adicionar link se disponível
               if (item.link) {
@@ -1373,28 +1376,39 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
     const catalogServices = [];
     const catalogItemsMap = {}; // Mapa para buscar itens por nome
     
+    const catalogProductCategories = (assistantSettings.catalogProductCategories || []).map((c) => String(c).toLowerCase());
+    const catalogServiceCategories = (assistantSettings.catalogServiceCategories || []).map((c) => String(c).toLowerCase());
+
     if (catalogSnapshot.exists()) {
       catalogSnapshot.forEach((child) => {
         const item = child.val();
         if (item.type === 'product' && assistantSettings.includeCatalogProducts) {
+          const categoryMatch = !catalogProductCategories.length ||
+            (item.category && catalogProductCategories.includes(String(item.category).toLowerCase()));
+          if (!categoryMatch) return;
           const productData = {
             name: item.name,
             description: item.description || '',
             price: item.price !== null && item.price !== undefined && item.price !== '' ? item.price : null,
             stock: item.stockQuantity || 0,
             image: item.image || null,
-            link: item.link || null
+            link: item.link || null,
+            category: item.category || ''
           };
           catalogProducts.push(productData);
           catalogItemsMap[item.name.toLowerCase()] = productData;
         } else if (item.type === 'service' && assistantSettings.includeCatalogServices) {
+          const categoryMatch = !catalogServiceCategories.length ||
+            (item.category && catalogServiceCategories.includes(String(item.category).toLowerCase()));
+          if (!categoryMatch) return;
           const serviceData = {
             name: item.name,
             description: item.description || '',
             price: item.price !== null && item.price !== undefined && item.price !== '' ? item.price : null,
             capacity: item.stockQuantity || 0,
             image: item.image || null,
-            link: item.link || null
+            link: item.link || null,
+            category: item.category || ''
           };
           catalogServices.push(serviceData);
           catalogItemsMap[item.name.toLowerCase()] = serviceData;
@@ -1428,10 +1442,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
           systemPrompt += ` - Preço disponível no link`;
         }
         if (product.description) {
-          // Descrição omitida para evitar mensagens informativas extras no catálogo
-        }
-        if (product.stock > 0) {
-          // Estoque omitido para evitar mensagens informativas extras no catálogo
+          systemPrompt += ` - ${product.description}`;
         }
         if (product.image) systemPrompt += ` [TEM FOTO DISPONÍVEL]`;
         if (product.link) systemPrompt += ` [TEM LINK PARA ADESÃO DISPONÍVEL]`;
@@ -1450,10 +1461,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
           systemPrompt += ` - Preço disponível no link`;
         }
         if (service.description) {
-          // Descrição omitida para evitar mensagens informativas extras no catálogo
-        }
-        if (service.capacity > 0) {
-          // Capacidade omitida para evitar mensagens informativas extras no catálogo
+          systemPrompt += ` - ${service.description}`;
         }
         if (service.image) systemPrompt += ` [TEM FOTO DISPONÍVEL]`;
         if (service.link) systemPrompt += ` [TEM LINK PARA ADESÃO DISPONÍVEL]`;
@@ -1466,8 +1474,8 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       systemPrompt += `\n⚠️ INSTRUÇÕES IMPORTANTES:
 - Você DEVE mencionar e oferecer esses produtos/serviços quando relevante
 - Seja proativo e sugira produtos/serviços que possam ajudar o cliente
-- NUNCA envie descrições detalhadas dos itens
-- APENAS informe nome e preço quando listar itens
+- Inclua descrição curta de 1 linha quando listar itens
+- NUNCA mencione estoque, capacidade ou valores totais de estoque
 - Quando mencionar produtos/serviços com foto disponível, eu enviarei a imagem automaticamente para o cliente
 
 🎯 **CRÍTICO - CONFIRMAÇÃO DE PRODUTO:**
@@ -6205,6 +6213,9 @@ Você DEVE retornar APENAS um JSON válido no seguinte formato (sem markdown, se
 
 IMPORTANTE:
 - Crie entre 4 e 8 passos
+- Sempre inclua o passo "greeting" como o PRIMEIRO
+- No passo "greeting", escreva uma saudação clara e objetiva
+- Se houver pagamento, o link deve ser enviado no WhatsApp, nunca por email
 - Seja específico nas descrições
 - Use os tipos corretos de ação
 - Retorne APENAS o JSON, sem texto adicional`;

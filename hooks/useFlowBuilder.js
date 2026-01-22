@@ -316,6 +316,13 @@ export function compilePrompt(steps = []) {
       } else {
         absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} REGISTRE A INTENÇÃO DE USAR INTEGRAÇÃO DE PAGAMENTO PERSONALIZADA.`);
       }
+      absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} INFORME QUE O LINK DE PAGAMENTO SERÁ ENVIADO NO WHATSAPP.`);
+      prohibitions.push(`NUNCA NO PASSO ${stepNumber} ENVIE OU PROMETA ENVIO DE LINK DE PAGAMENTO POR EMAIL.`);
+    }
+
+    if (step.type === 'request_payment') {
+      absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} INFORME QUE O LINK DE PAGAMENTO SERÁ ENVIADO NO WHATSAPP.`);
+      prohibitions.push(`NUNCA NO PASSO ${stepNumber} ENVIE OU PROMETA ENVIO DE LINK DE PAGAMENTO POR EMAIL.`);
     }
 
     if (step.type === 'create_appointment' && step.appointmentEnabled) {
@@ -326,9 +333,9 @@ export function compilePrompt(steps = []) {
     }
 
     if (step.type === 'show_catalog') {
-      absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} LISTE ITENS APENAS NO FORMATO: "1. NOME - R$ PREÇO".`);
-      absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} OMITA QUALQUER TEXTO INTRODUTÓRIO OU CONCLUSIVO.`);
-      prohibitions.push(`NUNCA NO PASSO ${stepNumber} ENVIE MENSAGENS FORA DA LISTAGEM.`);
+      absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} LISTE ITENS NO FORMATO: "1. NOME - R$ PREÇO - DESCRIÇÃO CURTA".`);
+      absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} MENCIONE APENAS NOME, PREÇO E UMA DESCRIÇÃO CURTA.`);
+      prohibitions.push(`NUNCA NO PASSO ${stepNumber} MENCIONE ESTOQUE, CAPACIDADE OU VALOR TOTAL DE ESTOQUE.`);
     }
 
     if (step.type === 'audio_config') {

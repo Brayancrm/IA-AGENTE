@@ -3670,6 +3670,8 @@ const DashboardWithFirebase = ({
       enabledFeatures: assistantSettings.enabledFeatures || [],
       includeCatalogProducts: assistantSettings.includeCatalogProducts || false,
       includeCatalogServices: assistantSettings.includeCatalogServices || false,
+      catalogProductCategories: assistantSettings.catalogProductCategories || [],
+      catalogServiceCategories: assistantSettings.catalogServiceCategories || [],
       flowMode: 'visual', // Sempre visual
       flowSteps: assistantSettings.flowSteps || [], // ✅ Carregar steps salvos
       enableAppointments: assistantSettings.enableAppointments || false,
@@ -7029,6 +7031,8 @@ const DashboardWithFirebase = ({
                       const catalogStep = newSteps.find(step => step.type === 'show_catalog');
                       const hasProducts = catalogStep?.catalogSettings?.includeProducts || false;
                       const hasServices = catalogStep?.catalogSettings?.includeServices || false;
+                      const productCategories = catalogStep?.catalogSettings?.selectedProductCategories || [];
+                      const serviceCategories = catalogStep?.catalogSettings?.selectedServiceCategories || [];
                       
                       // Buscar step de áudio para sincronizar configuração global
                       const audioStep = newSteps.find(step => step.type === 'audio_config');
@@ -7053,6 +7057,8 @@ const DashboardWithFirebase = ({
                         // Sincronizar configurações de catálogo
                         includeCatalogProducts: hasProducts,
                         includeCatalogServices: hasServices,
+                        catalogProductCategories: productCategories,
+                        catalogServiceCategories: serviceCategories,
                         // Sincronizar configurações de áudio
                         audioLanguage: audioLanguage,
                         audioVoice: audioVoice,

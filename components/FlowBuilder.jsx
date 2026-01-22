@@ -41,6 +41,26 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
   const [editablePrompt, setEditablePrompt] = useState('');
   const [promptWasEdited, setPromptWasEdited] = useState(false);
 
+  const greetingExample = 'Olá, me chamo [NOME DO AGENTE] e sou [FUNÇÃO DO AGENTE]. Como posso ajudar?';
+
+  const productCategories = Array.from(
+    new Set(
+      (catalogItems || [])
+        .filter((item) => item?.type === 'product' && item?.category)
+        .map((item) => item.category.trim())
+        .filter(Boolean)
+    )
+  );
+
+  const serviceCategories = Array.from(
+    new Set(
+      (catalogItems || [])
+        .filter((item) => item?.type === 'service' && item?.category)
+        .map((item) => item.category.trim())
+        .filter(Boolean)
+    )
+  );
+
   // Tipos de ação disponíveis
   const actionTypes = [
     { value: 'agent_profile', label: '🤖 Perfil do Agente', icon: '🤖' },
@@ -65,14 +85,16 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
       id: Date.now(),
       type: 'greeting',
       title: 'Novo Passo',
-      description: '',
+      description: greetingExample,
       condition: null, // Condição para executar (opcional)
       actions: [],
       catalogSettings: {
         includeProducts: false,
         includeServices: false,
         selectedProducts: [],
-        selectedServices: []
+        selectedServices: [],
+        selectedProductCategories: [],
+        selectedServiceCategories: []
       }
     };
     const newSteps = [...steps, newStep];
@@ -107,7 +129,19 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
         includeProducts: false,
         includeServices: false,
         selectedProducts: [],
-        selectedServices: []
+        selectedServices: [],
+        selectedProductCategories: [],
+        selectedServiceCategories: []
+      };
+    } else {
+      step.catalogSettings = {
+        includeProducts: false,
+        includeServices: false,
+        selectedProducts: [],
+        selectedServices: [],
+        selectedProductCategories: [],
+        selectedServiceCategories: [],
+        ...step.catalogSettings
       };
     }
     setEditingStep(step);
@@ -719,12 +753,16 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                               </label>
                               <select
                                 value={editingStep.type}
-                                onChange={(e) =>
+                                onChange={(e) => {
+                                  const nextType = e.target.value;
                                   setEditingStep({
                                     ...editingStep,
-                                    type: e.target.value,
-                                  })
-                                }
+                                    type: nextType,
+                                    description: nextType === 'greeting' && !editingStep.description
+                                      ? greetingExample
+                                      : editingStep.description
+                                  });
+                                }}
                                 style={{
                                   width: '100%',
                                   padding: '10px 16px',
@@ -953,6 +991,31 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                 </div>
                               </div>
                               
+                              {editingStep.type === 'greeting' && (
+                                <div style={{ marginBottom: '10px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setEditingStep({
+                                        ...editingStep,
+                                        description: greetingExample
+                                      })
+                                    }
+                                    style={{
+                                      padding: '8px 12px',
+                                      borderRadius: '8px',
+                                      border: '1px solid rgba(16, 185, 129, 0.4)',
+                                      backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                      color: '#10b981',
+                                      fontSize: '0.8rem',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    Inserir exemplo de saudação
+                                  </button>
+                                </div>
+                              )}
+
                               <textarea
                                 id={`description-textarea-${editingStep.id}`}
                                 value={editingStep.description}
@@ -964,7 +1027,9 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                 }
                                 placeholder={editingStep.type === 'free_text'
                                   ? "Ex: Você é um assistente prestativo. Quando o cliente perguntar sobre...\n\nEscreva aqui o prompt completo que deseja usar neste ponto do fluxo."
-                                  : "Ex: Olá {{nome}}! Cumprimente o cliente de forma amigável e pergunte como pode ajudar..."}
+                                  : (editingStep.type === 'greeting'
+                                    ? greetingExample
+                                    : "Ex: Olá {{nome}}! Cumprimente o cliente de forma amigável e pergunte como pode ajudar...")}
                                 rows={editingStep.type === 'free_text' ? 8 : 4}
                                 style={{
                                   width: '100%',
@@ -1320,7 +1385,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                     <input
                                       type="checkbox"
                                       checked={editingStep.catalogSettings?.includeProducts || false}
-                                      onChange={(e) => {
+                                    onChange={(e) => {
                                         setEditingStep({
                                           ...editingStep,
                                           catalogSettings: {
@@ -1328,6 +1393,9 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                             includeProducts: e.target.checked,
                                             selectedProducts: e.target.checked 
                                               ? catalogItems.filter(i => i && i.type === 'product').map(i => i.id)
+                                              : [],
+                                            selectedProductCategories: e.target.checked
+                                              ? (editingStep.catalogSettings?.selectedProductCategories || [])
                                               : []
                                           }
                                         });
@@ -1351,7 +1419,52 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
 
                                   {/* Lista de Produtos com Checkboxes Individuais */}
                                   {editingStep.catalogSettings?.includeProducts && (
-                                    <div style={{ marginTop: '12px', marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
+                                    <div style={{ marginTop: '12px', marginLeft: '24px' }}>
+                                      {productCategories.length > 0 && (
+                                        <div style={{ marginBottom: '12px' }}>
+                                          <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#ffffff', marginBottom: '6px' }}>
+                                            Categorias de produtos (opcional)
+                                          </div>
+                                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                            {productCategories.map((category) => {
+                                              const selectedCategories = editingStep.catalogSettings?.selectedProductCategories || [];
+                                              const isSelected = selectedCategories.includes(category);
+                                              return (
+                                                <button
+                                                  key={category}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    const next = isSelected
+                                                      ? selectedCategories.filter((item) => item !== category)
+                                                      : [...selectedCategories, category];
+                                                    setEditingStep({
+                                                      ...editingStep,
+                                                      catalogSettings: {
+                                                        ...editingStep.catalogSettings,
+                                                        selectedProductCategories: next
+                                                      }
+                                                    });
+                                                  }}
+                                                  style={{
+                                                    border: '1px solid',
+                                                    borderColor: isSelected ? '#10b981' : 'rgba(255, 255, 255, 0.1)',
+                                                    background: isSelected ? 'rgba(16, 185, 129, 0.2)' : '#0f1419',
+                                                    borderRadius: '999px',
+                                                    padding: '6px 12px',
+                                                    color: isSelected ? '#10b981' : '#9ca3af',
+                                                    fontSize: '0.75rem',
+                                                    cursor: 'pointer'
+                                                  }}
+                                                >
+                                                  {category}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
                                       {catalogItems.filter(i => i && i.type === 'product').map(product => (
                                         <label key={product.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', backgroundColor: '#0f1419', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s' }}
                                           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1a1f36'}
@@ -1379,6 +1492,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                           </div>
                                         </label>
                                       ))}
+                                      </div>
                                     </div>
                                   )}
                                 </div>
@@ -1400,6 +1514,9 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                             includeServices: e.target.checked,
                                             selectedServices: e.target.checked 
                                               ? catalogItems.filter(i => i && i.type === 'service').map(i => i.id)
+                                              : [],
+                                            selectedServiceCategories: e.target.checked
+                                              ? (editingStep.catalogSettings?.selectedServiceCategories || [])
                                               : []
                                           }
                                         });
@@ -1423,7 +1540,52 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
 
                                   {/* Lista de Serviços com Checkboxes Individuais */}
                                   {editingStep.catalogSettings?.includeServices && (
-                                    <div style={{ marginTop: '12px', marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
+                                    <div style={{ marginTop: '12px', marginLeft: '24px' }}>
+                                      {serviceCategories.length > 0 && (
+                                        <div style={{ marginBottom: '12px' }}>
+                                          <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#ffffff', marginBottom: '6px' }}>
+                                            Categorias de serviços (opcional)
+                                          </div>
+                                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                            {serviceCategories.map((category) => {
+                                              const selectedCategories = editingStep.catalogSettings?.selectedServiceCategories || [];
+                                              const isSelected = selectedCategories.includes(category);
+                                              return (
+                                                <button
+                                                  key={category}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    const next = isSelected
+                                                      ? selectedCategories.filter((item) => item !== category)
+                                                      : [...selectedCategories, category];
+                                                    setEditingStep({
+                                                      ...editingStep,
+                                                      catalogSettings: {
+                                                        ...editingStep.catalogSettings,
+                                                        selectedServiceCategories: next
+                                                      }
+                                                    });
+                                                  }}
+                                                  style={{
+                                                    border: '1px solid',
+                                                    borderColor: isSelected ? '#10b981' : 'rgba(255, 255, 255, 0.1)',
+                                                    background: isSelected ? 'rgba(16, 185, 129, 0.2)' : '#0f1419',
+                                                    borderRadius: '999px',
+                                                    padding: '6px 12px',
+                                                    color: isSelected ? '#10b981' : '#9ca3af',
+                                                    fontSize: '0.75rem',
+                                                    cursor: 'pointer'
+                                                  }}
+                                                >
+                                                  {category}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
                                       {catalogItems.filter(i => i && i.type === 'service').map(service => (
                                         <label key={service.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', backgroundColor: '#0f1419', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s' }}
                                           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1a1f36'}
@@ -1451,6 +1613,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                           </div>
                                         </label>
                                       ))}
+                                      </div>
                                     </div>
                                   )}
                                 </div>
