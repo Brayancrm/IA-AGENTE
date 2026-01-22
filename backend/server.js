@@ -8,6 +8,7 @@ const path = require('path');
 const os = require('os');
 const FormData = require('form-data');
 const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
+const Stripe = require('stripe');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // Inicializar AWS SES
@@ -3367,6 +3368,59 @@ async function createAsaasCharge(asaasApiKey, customerData, items, userId) {
   }
 }
 
+// Função para criar sessão de checkout no Stripe
+async function createStripeCheckoutSession(stripeApiKey, customerData, items, userId, successUrl, cancelUrl) {
+  try {
+    const stripe = new Stripe(stripeApiKey, { apiVersion: '2023-10-16' });
+    const lineItems = items.map(item => {
+      const price = item.price !== null && item.price !== undefined ? parseFloat(item.price) : null;
+      if (price === null || Number.isNaN(price)) {
+        throw new Error(`Item sem preço: ${item.name}`);
+      }
+      return {
+        price_data: {
+          currency: 'brl',
+          product_data: {
+            name: item.name,
+            ...(item.description ? { description: item.description } : {})
+          },
+          unit_amount: Math.round(price * 100)
+        },
+        quantity: item.quantity || 1
+      };
+    });
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      line_items: lineItems,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      customer_email: customerData?.email || undefined,
+      locale: 'pt-BR',
+      metadata: {
+        userId: userId || '',
+        phone: customerData?.originalPhone || customerData?.phone || ''
+      }
+    });
+
+    const totalValue = items.reduce((sum, item) => {
+      const price = item.price !== null && item.price !== undefined ? parseFloat(item.price) : 0;
+      return sum + (price * (item.quantity || 1));
+    }, 0);
+
+    return {
+      success: true,
+      sessionId: session.id,
+      checkoutUrl: session.url,
+      value: totalValue,
+      currency: 'brl'
+    };
+  } catch (error) {
+    console.error('❌ Erro ao criar sessão Stripe:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
 // Função para criar assinatura no Asaas
 async function createAsaasSubscription(asaasApiKey, customerData, planData, userId) {
   try {
@@ -4882,6 +4936,66 @@ app.post('/api/asaas/create-charge', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Erro ao criar cobrança:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/stripe/create-checkout', async (req, res) => {
+  try {
+    const { userId, customerData, items } = req.body;
+
+    if (!userId || !customerData || !items) {
+      return res.status(400).json({ error: 'userId, customerData e items são obrigatórios' });
+    }
+
+    const integrations = await getIntegrationsConfig(userId);
+    const stripeApiKey = integrations?.stripeApiKey || null;
+
+    if (!stripeApiKey) {
+      return res.status(400).json({ error: 'API Key do Stripe não configurada' });
+    }
+
+    const successUrl = process.env.STRIPE_SUCCESS_URL;
+    const cancelUrl = process.env.STRIPE_CANCEL_URL;
+    if (!successUrl || !cancelUrl) {
+      return res.status(400).json({ error: 'STRIPE_SUCCESS_URL e STRIPE_CANCEL_URL são obrigatórios' });
+    }
+
+    const result = await createStripeCheckoutSession(stripeApiKey, customerData, items, userId, successUrl, cancelUrl);
+
+    if (result.success) {
+      const orderRef = db.ref(`orders/${userId}`).push();
+
+      const customerToSave = {
+        name: customerData.name || 'Cliente',
+        phone: customerData.originalPhone || customerData.phone || customerData.mobilePhone,
+        ...(customerData.cpfCnpj && { cpfCnpj: customerData.cpfCnpj }),
+        ...(customerData.email && { email: customerData.email }),
+        ...(customerData.address && { address: customerData.address })
+      };
+
+      await orderRef.set({
+        orderId: orderRef.key,
+        stripeSessionId: result.sessionId,
+        customer: customerToSave,
+        items: items,
+        totalValue: result.value,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        paymentUrl: result.checkoutUrl,
+        paymentProvider: 'stripe'
+      });
+
+      return res.json({
+        success: true,
+        orderId: orderRef.key,
+        ...result
+      });
+    }
+
+    return res.status(400).json(result);
+  } catch (error) {
+    console.error('❌ Erro ao criar checkout Stripe:', error);
     res.status(500).json({ error: error.message });
   }
 });
