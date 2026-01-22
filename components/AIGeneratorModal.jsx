@@ -2,42 +2,14 @@ import { useMemo, useState } from 'react';
 import { X, Sparkles, Loader } from 'lucide-react';
 
 const getInitialGuidedAnswers = () => ({
+  agentType: 'sales',
   agentName: '',
-  agentRole: '',
   agentTone: 'Amigável e profissional',
-  agentStyle: '',
   segment: '',
-  audience: '',
   mainGoal: '',
   offerings: [],
-  workflows: [],
-  tone: 'Amigável e profissional',
-  integrations: [],
-  extras: '',
-  schedulingNeed: '',
-  schedulingTypes: [],
-  schedulingNotes: '',
-  // Configurações de áudio
-  audioLanguage: 'pt-BR',
-  audioVoice: '',
-  // Alta prioridade
-  businessHours: '',
-  escalateToHuman: '',
-  paymentMethods: [],
-  deliveryPolicy: '',
-  // Salvamento automático no CRM
-  crmAutoSave: false,
-  crmFields: [],
-  // Média prioridade
-  limitsRestrictions: '',
-  companyInfo: '',
-  handleObjections: '',
-  returnPolicy: '',
-  // Baixa prioridade
-  coverageArea: '',
-  urgencyPriority: '',
-  languageStyle: '',
-  personalizationHistory: ''
+  paymentProvider: 'asaas',
+  schedulingTypes: []
 });
 
 export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogItems = [], agendamentos = [] }) {
@@ -94,15 +66,28 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
 
     return [
       {
+        id: 'agentType',
+        type: 'single_select',
+        title: 'Qual tipo de agente você quer criar?',
+        description: 'Escolha um modelo direto e objetivo.',
+        options: [
+          { value: 'sales', label: '💳 Vendas' },
+          { value: 'sales_appointment', label: '💳 Vendas + Agendamento' },
+          { value: 'appointment', label: '📅 Agendamento de Serviço' },
+          { value: 'other', label: '⚙️ Outro (fluxo simples)' }
+        ],
+        allowCustom: false,
+        required: true
+      },
+      {
         id: 'agentName',
         type: 'text',
-        title: 'Qual é o nome do assistente?',
-        description: 'Defina um nome para o seu assistente virtual. Isso ajuda a personalizar a experiência.',
-        placeholder: 'Ex: Ana, João, Assistente Virtual',
+        title: 'Nome do assistente (opcional)',
+        description: 'Se quiser, defina um nome curto.',
+        placeholder: 'Ex: Sofi, Vetra, Atendente IA',
         suggestions: [
-          'Ana',
-          'João',
-          'Assistente Virtual',
+          'Sofi',
+          'Vetra',
           'Atendente IA',
           'Consultor Digital'
         ],
@@ -126,16 +111,13 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
       {
         id: 'agentTone',
         type: 'single_select',
-        title: 'Qual tom de voz o assistente deve usar?',
-        description: 'Escolha o estilo de comunicação que melhor representa sua marca.',
+        title: 'Tom de voz',
+        description: 'Escolha um tom simples e direto.',
         options: [
           { value: 'Amigável e profissional', label: 'Amigável e profissional' },
-          { value: 'Consultivo e educativo', label: 'Consultivo e educativo' },
-          { value: 'Informal e descontraído', label: 'Informal e descontraído' },
-          { value: 'Direto e objetivo', label: 'Direto e objetivo' },
-          { value: 'Elegante e sofisticado', label: 'Elegante e sofisticado' }
+          { value: 'Direto e objetivo', label: 'Direto e objetivo' }
         ],
-        allowCustom: true,
+        allowCustom: false,
         required: false
       },
       {
@@ -184,28 +166,41 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
       {
         id: 'mainGoal',
         type: 'text',
-        title: 'Qual é o objetivo principal?',
-        description: 'Informe o resultado que o agente deve buscar em cada conversa.',
-        placeholder: 'Ex: qualificar leads e marcar consultas',
+        title: 'Objetivo único do agente',
+        description: 'Apenas um objetivo principal.',
+        placeholder: 'Ex: vender produtos e fechar o pedido',
         suggestions: [
-          'Qualificar leads e agendar uma visita',
-          'Vender planos mensais do serviço',
-          'Fechar pedidos e emitir cobranças',
-          'Direcionar clientes para o time humano'
+          'Vender produtos e fechar o pedido',
+          'Agendar serviço com data e horário',
+          'Vender e agendar após o pagamento'
         ],
         required: true
       },
       {
         id: 'offerings',
         type: 'multi_select',
-        title: 'Quais produtos ou serviços o agente deve oferecer?',
-        description: 'Selecione itens diretamente do seu catálogo ou escreva manualmente.',
-        options: [
-          { value: 'NÃO_APLICA_OFFERINGS', label: '❌ Não há oferta de Produtos/serviços', isNegative: true },
-          ...offerOptions
-        ],
+        title: 'Quais produtos ou serviços deve oferecer? (até 3)',
+        description: 'Selecione do catálogo para manter o foco.',
+        options: offerOptions,
         emptyState: catalogOptions.length === 0 ? 'Cadastre produtos e serviços no catálogo para facilitar.' : '',
-        required: false
+        maxSelections: 3,
+        allowCustom: false,
+        required: true,
+        shouldShow: (answers) => ['sales', 'sales_appointment'].includes(answers.agentType)
+      },
+      {
+        id: 'paymentProvider',
+        type: 'single_select',
+        title: 'Qual provedor de pagamento?',
+        description: 'Escolha apenas um.',
+        options: [
+          { value: 'asaas', label: 'Asaas (automático)' },
+          { value: 'stripe', label: 'Stripe (automático)' },
+          { value: 'manual', label: 'Manual (sem API)' }
+        ],
+        allowCustom: false,
+        required: true,
+        shouldShow: (answers) => ['sales', 'sales_appointment'].includes(answers.agentType)
       },
       {
         id: 'workflows',
@@ -277,16 +272,13 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
       {
         id: 'schedulingTypes',
         type: 'multi_select',
-        title: 'Quais tipos de compromisso devem ser agendados?',
-        description: 'Selecione os serviços que viram compromissos no calendário.',
-        options: [
-          { value: 'NÃO_APLICA_SCHEDULING', label: '❌ Não há tipos específicos de agendamento', isNegative: true },
-          ...appointmentOptions
-        ],
-        shouldShow: (answers) => {
-          const schedulingNeedArray = Array.isArray(answers.schedulingNeed) ? answers.schedulingNeed : (answers.schedulingNeed ? [answers.schedulingNeed] : []);
-          return schedulingNeedArray.includes('yes');
-        }
+        title: 'Quais tipos de agendamento? (até 3)',
+        description: 'Selecione os tipos disponíveis.',
+        options: appointmentOptions,
+        maxSelections: 3,
+        allowCustom: true,
+        required: true,
+        shouldShow: (answers) => ['sales_appointment', 'appointment'].includes(answers.agentType)
       },
       {
         id: 'audioLanguage',
@@ -539,8 +531,22 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
     ];
   }, [appointmentTypeOptions, catalogOptions]);
 
+  const allowedQuestionIds = [
+    'agentType',
+    'agentName',
+    'segment',
+    'mainGoal',
+    'offerings',
+    'paymentProvider',
+    'schedulingTypes',
+    'agentTone'
+  ];
+
   const visibleQuestions = useMemo(
-    () => guidedQuestions.filter((question) => !question.shouldShow || question.shouldShow(guidedAnswers)),
+    () =>
+      guidedQuestions
+        .filter((question) => allowedQuestionIds.includes(question.id))
+        .filter((question) => !question.shouldShow || question.shouldShow(guidedAnswers)),
     [guidedQuestions, guidedAnswers]
   );
 
@@ -554,195 +560,79 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
 
   const currentQuestion = visibleQuestions[currentQuestionIndex] || null;
 
-  const requiredGuidedMissing = ['segment', 'mainGoal'].filter((field) => {
-    const value = guidedAnswers[field];
-    return !value || (typeof value === 'string' && !value.trim());
-  });
+  const isQuestionAnswered = (question) => {
+    const value = guidedAnswers[question.id];
+    if (question.type === 'multi_select') {
+      return Array.isArray(value) ? value.length > 0 : Boolean(value);
+    }
+    if (question.type === 'single_select') {
+      return Array.isArray(value) ? value.length > 0 : Boolean(value);
+    }
+    return typeof value === 'string' ? value.trim().length > 0 : Boolean(value);
+  };
+
+  const requiredGuidedMissing = visibleQuestions
+    .filter((question) => question.required)
+    .filter((question) => !isQuestionAnswered(question))
+    .map((question) => question.id);
 
   const guidedPrompt = useMemo(() => {
     const parts = [];
+    const agentName = guidedAnswers.agentName.trim();
+    const agentTone = guidedAnswers.agentTone;
+    const segment = guidedAnswers.segment.trim();
+    const mainGoal = guidedAnswers.mainGoal.trim();
+    const offerings = Array.isArray(guidedAnswers.offerings) ? guidedAnswers.offerings : (guidedAnswers.offerings ? [guidedAnswers.offerings] : []);
+    const schedulingTypes = Array.isArray(guidedAnswers.schedulingTypes) ? guidedAnswers.schedulingTypes : (guidedAnswers.schedulingTypes ? [guidedAnswers.schedulingTypes] : []);
+    const paymentProvider = guidedAnswers.paymentProvider || 'asaas';
+    const agentType = guidedAnswers.agentType;
 
-    // Perfil do assistente (primeiro)
-    const profileParts = [];
-    if (guidedAnswers.agentName.trim()) {
-      profileParts.push(`Nome: ${guidedAnswers.agentName.trim()}`);
-    }
-    if (guidedAnswers.agentRole.trim()) {
-      profileParts.push(`Papel: ${guidedAnswers.agentRole.trim()}`);
-    }
-    // agentTone agora pode ser array
-    const agentToneArray = Array.isArray(guidedAnswers.agentTone) ? guidedAnswers.agentTone : (guidedAnswers.agentTone ? [guidedAnswers.agentTone] : []);
-    if (agentToneArray.length > 0) {
-      profileParts.push(`Tom: ${agentToneArray.join(', ')}`);
-    }
-    if (guidedAnswers.agentStyle.trim()) {
-      profileParts.push(`Estilo: ${guidedAnswers.agentStyle.trim()}`);
-    }
-    
-    if (profileParts.length > 0) {
-      parts.push(`PERFIL DO ASSISTENTE:\n${profileParts.join('\n')}`);
-    }
+    const flow = [];
+    flow.push('1) Saudação clara e direta.');
+    flow.push('2) Coleta imediata no CRM: nome e telefone (email se fornecido).');
 
-    if (guidedAnswers.segment.trim()) {
-      parts.push(`Quero um agente para ${guidedAnswers.segment.trim()}.`);
-    }
-
-    if (guidedAnswers.audience.trim()) {
-      parts.push(`Ele deve priorizar ${guidedAnswers.audience.trim()}.`);
-    }
-
-    if (guidedAnswers.mainGoal.trim()) {
-      parts.push(`O objetivo principal do atendimento é ${guidedAnswers.mainGoal.trim()}.`);
-    }
-
-    const offeringsArray = Array.isArray(guidedAnswers.offerings) ? guidedAnswers.offerings : (guidedAnswers.offerings ? [guidedAnswers.offerings] : []);
-    const offeringsFiltered = offeringsArray.filter(item => !item.startsWith('NÃO_APLICA_'));
-    if (offeringsFiltered.length > 0) {
-      parts.push(`Apresente e recomende estes produtos/serviços do catálogo: ${offeringsFiltered.join(', ')}.`);
-    } else if (offeringsArray.includes('NÃO_APLICA_OFFERINGS')) {
-      parts.push(`Não há oferta de Produtos/serviços.`);
-    }
-
-    const workflowsArray = Array.isArray(guidedAnswers.workflows) ? guidedAnswers.workflows : (guidedAnswers.workflows ? [guidedAnswers.workflows] : []);
-    const workflowsFiltered = workflowsArray.filter(item => !item.startsWith('NÃO_APLICA_'));
-    if (workflowsFiltered.length > 0) {
-      parts.push(`Siga este fluxo de etapas: ${workflowsFiltered.join(', ')}.`);
-    } else if (workflowsArray.includes('NÃO_APLICA_WORKFLOWS')) {
-      parts.push(`Não há etapas específicas a seguir.`);
-    }
-
-    // Salvamento automático no CRM
-    const crmAutoSaveArray = Array.isArray(guidedAnswers.crmAutoSave) ? guidedAnswers.crmAutoSave : (guidedAnswers.crmAutoSave ? [guidedAnswers.crmAutoSave] : []);
-    if (crmAutoSaveArray.includes('yes')) {
-      const crmFieldsArray = Array.isArray(guidedAnswers.crmFields) ? guidedAnswers.crmFields : (guidedAnswers.crmFields ? [guidedAnswers.crmFields] : []);
-      const fieldLabels = {
-        'name': 'Nome',
-        'phone': 'Telefone',
-        'product': 'Produto ou Serviço',
-        'email': 'Email'
-      };
-      
-      const fieldsToSave = crmFieldsArray.length > 0 ? crmFieldsArray : ['name', 'phone'];
-      const fieldsList = fieldsToSave.map(field => fieldLabels[field] || field).join(', ');
-      
-      parts.push(`\n💾 SALVAMENTO AUTOMÁTICO NO CRM:\n`);
-      parts.push(`IMPORTANTE: Todos os clientes que entrarem em contato devem ser salvos automaticamente no CRM.\n`);
-      parts.push(`Dados a serem salvos: ${fieldsList}.\n`);
-      parts.push(`INSTRUÇÕES CRÍTICAS:\n`);
-      parts.push(`1. SEMPRE colete o Nome e Telefone do cliente (obrigatórios)\n`);
-      if (fieldsToSave.includes('product')) {
-        parts.push(`2. Identifique qual produto ou serviço o cliente está interessado durante a conversa\n`);
-        parts.push(`3. Salve o produto/serviço mencionado pelo cliente\n`);
+    if (agentType === 'sales' || agentType === 'sales_appointment') {
+      flow.push('3) Mostrar catálogo de forma objetiva (lista curta).');
+      flow.push('4) Processar pedido e enviar link de pagamento.');
+      flow.push('5) Após pagamento confirmado, enviar confirmação.');
+      if (agentType === 'sales_appointment') {
+        flow.push('6) Criar agendamento no sistema.');
+        flow.push('7) Responder ao cliente e encerrar com despedida.');
+      } else {
+        flow.push('6) Responder ao cliente e encerrar com despedida.');
       }
-      if (fieldsToSave.includes('email')) {
-        parts.push(`4. Se o cliente fornecer email, salve também\n`);
-      }
-      parts.push(`5. Os dados devem ser salvos automaticamente no sistema CRM após serem coletados\n`);
-      parts.push(`6. Não pergunte explicitamente sobre salvar no CRM - faça isso automaticamente`);
+    } else if (agentType === 'appointment') {
+      flow.push('3) Coletar preferências de agenda e confirmar horário.');
+      flow.push('4) Criar agendamento no sistema.');
+      flow.push('5) Responder ao cliente e encerrar com despedida.');
+    } else {
+      flow.push('3) Executar o objetivo único e encerrar com despedida.');
     }
 
-    const integrationsArray = Array.isArray(guidedAnswers.integrations) ? guidedAnswers.integrations : (guidedAnswers.integrations ? [guidedAnswers.integrations] : []);
-    const integrationsFiltered = integrationsArray.filter(item => !item.startsWith('NÃO_APLICA_'));
-    if (integrationsFiltered.length > 0) {
-      parts.push(`Use os seguintes recursos e integrações: ${integrationsFiltered.join(', ')}.`);
-    } else if (integrationsArray.includes('NÃO_APLICA_INTEGRATIONS')) {
-      parts.push(`Não há recursos extras necessários.`);
+    parts.push('CRIE UM FLUXO COM 5 A 7 PASSOS, DESCRIÇÕES CURTAS E OBJETIVAS.');
+    parts.push(`TIPO DE AGENTE: ${agentType}.`);
+    if (agentName) {
+      parts.push(`NOME DO ASSISTENTE: ${agentName}.`);
+    }
+    if (agentTone) {
+      parts.push(`TOM DE VOZ: ${agentTone}.`);
+    }
+    parts.push(`SEGMENTO: ${segment}.`);
+    parts.push(`OBJETIVO ÚNICO: ${mainGoal}.`);
+
+    if (offerings.length > 0) {
+      parts.push(`ITENS DO CATÁLOGO (ATÉ 3): ${offerings.slice(0, 3).join(', ')}.`);
+    }
+    if (agentType === 'sales' || agentType === 'sales_appointment') {
+      parts.push(`PROVEDOR DE PAGAMENTO: ${paymentProvider}.`);
+    }
+    if (schedulingTypes.length > 0) {
+      parts.push(`TIPOS DE AGENDAMENTO: ${schedulingTypes.slice(0, 3).join(', ')}.`);
     }
 
-    // schedulingNeed agora pode ser array
-    const schedulingNeedArray = Array.isArray(guidedAnswers.schedulingNeed) ? guidedAnswers.schedulingNeed : (guidedAnswers.schedulingNeed ? [guidedAnswers.schedulingNeed] : []);
-    if (schedulingNeedArray.includes('yes')) {
-      const schedulingTypesArray = Array.isArray(guidedAnswers.schedulingTypes) ? guidedAnswers.schedulingTypes : (guidedAnswers.schedulingTypes ? [guidedAnswers.schedulingTypes] : []);
-      const schedulingTypesFiltered = schedulingTypesArray.filter(item => !item.startsWith('NÃO_APLICA_'));
-      const types = schedulingTypesFiltered.length > 0
-        ? ` para ${schedulingTypesFiltered.join(', ')}`
-        : '';
-      parts.push(
-        `Crie e confirme agendamentos${types}. Registre cada compromisso imediatamente no calendário oficial da agenda do usuário (tabela de agendamentos), incluindo data, horário, status e lembretes.`
-      );
-      if (guidedAnswers.schedulingNotes && guidedAnswers.schedulingNotes.trim()) {
-        parts.push(guidedAnswers.schedulingNotes.trim());
-      }
-    }
-
-    // tone agora pode ser array
-    const toneArray = Array.isArray(guidedAnswers.tone) ? guidedAnswers.tone : (guidedAnswers.tone ? [guidedAnswers.tone] : []);
-    if (toneArray.length > 0) {
-      parts.push(`Mantenha um tom ${toneArray.join(', ')}.`);
-    }
-
-    // ========== ALTA PRIORIDADE ==========
-    if (guidedAnswers.businessHours.trim()) {
-      parts.push(`HORÁRIOS DE ATENDIMENTO:\n${guidedAnswers.businessHours.trim()}`);
-    }
-
-    if (guidedAnswers.escalateToHuman.trim()) {
-      parts.push(`ESCALAÇÃO PARA HUMANO:\n${guidedAnswers.escalateToHuman.trim()}`);
-    }
-
-    const paymentMethodsArray = Array.isArray(guidedAnswers.paymentMethods) ? guidedAnswers.paymentMethods : (guidedAnswers.paymentMethods ? [guidedAnswers.paymentMethods] : []);
-    const paymentMethodsFiltered = paymentMethodsArray.filter(item => !item.startsWith('NÃO_APLICA_'));
-    if (paymentMethodsFiltered.length > 0) {
-      parts.push(`FORMAS DE PAGAMENTO ACEITAS:\n${paymentMethodsFiltered.join(', ')}`);
-    } else if (paymentMethodsArray.includes('NÃO_APLICA_PAYMENT')) {
-      parts.push(`FORMAS DE PAGAMENTO ACEITAS:\nNão há formas de pagamento específicas.`);
-    }
-
-    if (guidedAnswers.deliveryPolicy.trim()) {
-      parts.push(`POLÍTICA DE ENTREGA/FRETE:\n${guidedAnswers.deliveryPolicy.trim()}`);
-    }
-
-    // ========== MÉDIA PRIORIDADE ==========
-    if (guidedAnswers.limitsRestrictions.trim()) {
-      parts.push(`LIMITES E RESTRIÇÕES:\n${guidedAnswers.limitsRestrictions.trim()}`);
-    }
-
-    if (guidedAnswers.companyInfo.trim()) {
-      parts.push(`INFORMAÇÕES DA EMPRESA/MARCA:\n${guidedAnswers.companyInfo.trim()}`);
-    }
-
-    if (guidedAnswers.handleObjections.trim()) {
-      parts.push(`COMO LIDAR COM OBJEÇÕES:\n${guidedAnswers.handleObjections.trim()}`);
-    }
-
-    if (guidedAnswers.returnPolicy.trim()) {
-      parts.push(`POLÍTICA DE DEVOLUÇÃO/TROCA:\n${guidedAnswers.returnPolicy.trim()}`);
-    }
-
-    // ========== BAIXA PRIORIDADE ==========
-    if (guidedAnswers.coverageArea.trim()) {
-      parts.push(`ÁREA DE COBERTURA/ATUAÇÃO:\n${guidedAnswers.coverageArea.trim()}`);
-    }
-
-    if (guidedAnswers.urgencyPriority.trim()) {
-      parts.push(`URGÊNCIAS E PRIORIDADES:\n${guidedAnswers.urgencyPriority.trim()}`);
-    }
-
-    if (guidedAnswers.languageStyle.trim()) {
-      parts.push(`ESTILO DE LINGUAGEM:\n${guidedAnswers.languageStyle.trim()}`);
-    }
-
-    if (guidedAnswers.personalizationHistory.trim()) {
-      parts.push(`PERSONALIZAÇÃO BASEADA EM HISTÓRICO:\n${guidedAnswers.personalizationHistory.trim()}`);
-    }
-
-    // Configurações de áudio (agora podem ser arrays)
-    const audioLanguageArray = Array.isArray(guidedAnswers.audioLanguage) ? guidedAnswers.audioLanguage : (guidedAnswers.audioLanguage ? [guidedAnswers.audioLanguage] : []);
-    const audioVoiceArray = Array.isArray(guidedAnswers.audioVoice) ? guidedAnswers.audioVoice : (guidedAnswers.audioVoice ? [guidedAnswers.audioVoice] : []);
-    if (audioLanguageArray.length > 0) {
-      const languages = audioLanguageArray.join(', ');
-      const voices = audioVoiceArray.length > 0 ? audioVoiceArray.join(', ') : 'Padrão (automática)';
-      parts.push(`CONFIGURAÇÕES DE ÁUDIO:\nIdioma: ${languages}\nVoz: ${voices}`);
-    }
-
-    // extras agora pode ser array
-    const extrasArray = Array.isArray(guidedAnswers.extras) ? guidedAnswers.extras : (guidedAnswers.extras ? [guidedAnswers.extras] : []);
-    const extrasFiltered = extrasArray.filter(item => !item.startsWith('NÃO_APLICA_'));
-    if (extrasFiltered.length > 0) {
-      parts.push(`OBSERVAÇÕES ADICIONAIS:\n${extrasFiltered.join('\n')}`);
-    } else if (extrasArray.includes('NÃO_APLICA_EXTRAS')) {
-      parts.push(`OBSERVAÇÕES ADICIONAIS:\nNão há regras ou observações adicionais.`);
-    }
+    parts.push('FLUXO OBRIGATÓRIO:');
+    parts.push(flow.join('\n'));
+    parts.push('NÃO CRIE ETAPAS FORA DO OBJETIVO ÚNICO.');
 
     return parts.join('\n\n');
   }, [guidedAnswers]);
@@ -781,30 +671,38 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
   };
 
   const handleOptionSelect = (question, optionValue) => {
-    // Sempre tratar como multi_select quando houver opções
-    if (question.options && question.options.length > 0) {
-      setGuidedAnswers((prev) => {
-        const current = Array.isArray(prev[question.id]) ? prev[question.id] : (prev[question.id] ? [prev[question.id]] : []);
-        const exists = current.includes(optionValue);
-        const next = exists ? current.filter((item) => item !== optionValue) : [...current, optionValue];
-        return { ...prev, [question.id]: next };
-      });
-    } else {
+    if (!question.options || question.options.length === 0) {
       updateGuidedAnswers(question.id, optionValue);
+      return;
     }
+
+    if (question.type === 'single_select') {
+      updateGuidedAnswers(question.id, optionValue);
+      return;
+    }
+
+    setGuidedAnswers((prev) => {
+      const current = Array.isArray(prev[question.id]) ? prev[question.id] : (prev[question.id] ? [prev[question.id]] : []);
+      const exists = current.includes(optionValue);
+      let next = exists ? current.filter((item) => item !== optionValue) : [...current, optionValue];
+      if (question.maxSelections && next.length > question.maxSelections) {
+        next = next.slice(0, question.maxSelections);
+      }
+      return { ...prev, [question.id]: next };
+    });
   };
 
   const handleCustomAnswer = (question) => {
     const value = (customOptionDrafts[question.id] || '').trim();
     if (!value) return;
-    // Sempre tratar como multi_select quando houver opções
-    if (question.options && question.options.length > 0) {
+    if (question.options && question.options.length > 0 && question.type !== 'single_select') {
       setGuidedAnswers((prev) => {
         const current = Array.isArray(prev[question.id]) ? prev[question.id] : (prev[question.id] ? [prev[question.id]] : []);
         if (current.includes(value)) {
           return prev;
         }
-        return { ...prev, [question.id]: [...current, value] };
+        const next = question.maxSelections ? [...current, value].slice(0, question.maxSelections) : [...current, value];
+        return { ...prev, [question.id]: next };
       });
     } else {
       updateGuidedAnswers(question.id, value);
@@ -925,10 +823,9 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
   };
 
   const examples = [
-    'Quero um agente que atenda clientes de uma clínica odontológica, agende consultas e confirme horários',
-    'Preciso de um assistente para restaurante delivery que receba pedidos, colete endereço e processe pagamento',
-    'Quero um bot para escola de inglês que qualifique leads, ofereça aula experimental e faça matrícula',
-    'Preciso atender clientes de pet shop, vender produtos, agendar banho e tosa'
+    'Quero um agente de vendas para loja de joias que feche pedidos e envie pagamento',
+    'Preciso de um agente para agendar serviços de ar-condicionado',
+    'Quero um agente de vendas + agendamento para clínica estética'
   ];
 
   const renderOptions = (question) => {
@@ -1057,41 +954,43 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
         ) : (
           <>
             {renderOptions(currentQuestion)}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-              <input
-                type="text"
-                value={customValue}
-                onChange={(e) => setCustomOptionDrafts((prev) => ({ ...prev, [currentQuestion.id]: e.target.value }))}
-                placeholder="Escreva sua própria opção"
-                style={{
-                  flex: '1 1 200px',
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  fontSize: '13px',
-                  backgroundColor: '#0f1419',
-                  color: '#ffffff'
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => handleCustomAnswer(currentQuestion)}
-                style={{
-                  padding: '10px 18px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  backgroundColor: '#1a1f36',
-                  border: '1px solid #10b981',
-                  color: 'white',
-                  fontWeight: 600,
-                  cursor: customValue.trim() ? 'pointer' : 'not-allowed',
-                  opacity: customValue.trim() ? 1 : 0.6
-                }}
-                disabled={!customValue.trim()}
-              >
-                Usar resposta
-              </button>
-            </div>
+            {currentQuestion.allowCustom !== false && (
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  value={customValue}
+                  onChange={(e) => setCustomOptionDrafts((prev) => ({ ...prev, [currentQuestion.id]: e.target.value }))}
+                  placeholder="Escreva sua própria opção"
+                  style={{
+                    flex: '1 1 200px',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    fontSize: '13px',
+                    backgroundColor: '#0f1419',
+                    color: '#ffffff'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleCustomAnswer(currentQuestion)}
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: '#1a1f36',
+                    border: '1px solid #10b981',
+                    color: 'white',
+                    fontWeight: 600,
+                    cursor: customValue.trim() ? 'pointer' : 'not-allowed',
+                    opacity: customValue.trim() ? 1 : 0.6
+                  }}
+                  disabled={!customValue.trim()}
+                >
+                  Usar resposta
+                </button>
+              </div>
+            )}
             {currentQuestion.options && currentQuestion.options.length > 0 && (() => {
               const currentValue = guidedAnswers[currentQuestion.id];
               const valueArray = Array.isArray(currentValue) ? currentValue : (currentValue ? [currentValue] : []);
