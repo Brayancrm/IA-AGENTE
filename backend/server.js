@@ -3240,6 +3240,29 @@ async function tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber) {
       console.log('🎉 PROCESSO AUTOMÁTICO CONCLUÍDO COM SUCESSO!');
     } else {
       console.log('❌ Erro ao gerar cobrança:', chargeResult.error);
+
+      const cpfErrorText = (chargeResult.error || '').toLowerCase();
+      const cpfErrorCode = (chargeResult.errorCode || '').toLowerCase();
+      const isCpfError =
+        cpfErrorCode.includes('cpf') ||
+        cpfErrorCode.includes('cnpj') ||
+        cpfErrorText.includes('cpf') ||
+        cpfErrorText.includes('cnpj') ||
+        cpfErrorText.includes('documento');
+
+      if (isCpfError) {
+        console.log('⚠️ CPF/CNPJ rejeitado pelo Asaas. Solicitando correção ao cliente.');
+        const contextRef = db.ref(`collectionContext/${userId}/${sanitizedNumber}`);
+        await contextRef.set({
+          waitingFor: 'cpfCnpj',
+          askedAt: new Date().toISOString()
+        });
+
+        const cpfMessage =
+          '⚠️ O CPF/CNPJ informado foi rejeitado pelo sistema de pagamento.\n\n' +
+          'Por favor, envie novamente o CPF ou CNPJ correto (apenas números).';
+        await client.sendText(phone, cpfMessage);
+      }
     }
 
   } catch (error) {
@@ -3493,7 +3516,8 @@ async function createAsaasCharge(asaasApiKey, customerData, items, userId) {
     console.error('❌ Erro ao criar cobrança no Asaas:', error.response?.data || error.message);
     return {
       success: false,
-      error: error.response?.data?.errors?.[0]?.description || error.message
+      error: error.response?.data?.errors?.[0]?.description || error.message,
+      errorCode: error.response?.data?.errors?.[0]?.code || null
     };
   }
 }
