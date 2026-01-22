@@ -112,6 +112,48 @@ const db = admin.database();
 const firestore = admin.firestore();
 const app = express();
 
+// Stripe Webhook (precisa de body raw)
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const signature = req.headers['stripe-signature'];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      return res.status(400).send('STRIPE_WEBHOOK_SECRET não configurado');
+    }
+
+    const stripe = new Stripe(process.env.STRIPE_API_KEY || 'dummy', { apiVersion: '2023-10-16' });
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, signature, webhookSecret);
+    } catch (err) {
+      console.error('❌ Stripe webhook signature inválida:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const userId = session.metadata?.userId;
+      const orderId = session.metadata?.orderId;
+      if (userId && orderId) {
+        const orderRef = db.ref(`orders/${userId}/${orderId}`);
+        await orderRef.update({
+          status: 'paid',
+          paidAt: new Date().toISOString(),
+          paymentProvider: 'stripe'
+        });
+        console.log('✅ Pedido atualizado via Stripe webhook:', { userId, orderId });
+      } else {
+        console.log('⚠️ Stripe webhook sem metadata userId/orderId');
+      }
+    }
+
+    return res.json({ received: true });
+  } catch (error) {
+    console.error('❌ Erro no webhook Stripe:', error);
+    return res.status(500).send('Erro interno');
+  }
+});
+
 // Middlewares
 app.use(cors({
   origin: [
@@ -3366,7 +3408,7 @@ async function createAsaasCharge(asaasApiKey, customerData, items, userId) {
 }
 
 // Função para criar sessão de checkout no Stripe
-async function createStripeCheckoutSession(stripeApiKey, customerData, items, userId, successUrl, cancelUrl) {
+async function createStripeCheckoutSession(stripeApiKey, customerData, items, userId, successUrl, cancelUrl, metadata = {}) {
   try {
     const stripe = new Stripe(stripeApiKey, { apiVersion: '2023-10-16' });
     const lineItems = items.map(item => {
@@ -3396,7 +3438,8 @@ async function createStripeCheckoutSession(stripeApiKey, customerData, items, us
       locale: 'pt-BR',
       metadata: {
         userId: userId || '',
-        phone: customerData?.originalPhone || customerData?.phone || ''
+        phone: customerData?.originalPhone || customerData?.phone || '',
+        ...metadata
       }
     });
 
@@ -3486,19 +3529,38 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
       originalPhone: phone
     };
 
+    const orderRef = db.ref(`orders/${userId}`).push();
+    const orderId = orderRef.key;
     const result = await createStripeCheckoutSession(
       stripeApiKey,
       customerData,
       orderItems,
       userId,
       successUrl,
-      cancelUrl
+      cancelUrl,
+      { orderId }
     );
 
     if (!result.success) {
       await client.sendText(phone, 'Não foi possível gerar o link de pagamento. Tente novamente.');
       return;
     }
+
+    await orderRef.set({
+      orderId: orderId,
+      stripeSessionId: result.sessionId,
+      customer: {
+        name: customerData.name || 'Cliente',
+        phone: customerData.originalPhone || customerData.phone,
+        ...(customerData.email && { email: customerData.email })
+      },
+      items: orderItems,
+      totalValue: result.value,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      paymentUrl: result.checkoutUrl,
+      paymentProvider: 'stripe'
+    });
 
     const paymentMessage = `✅ *Pedido Criado!*\n\n` +
       `📦 Itens:\n` +
@@ -3516,7 +3578,8 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
       timestamp: new Date().toISOString(),
       type: 'payment_link',
       isFromMe: true,
-      stripeSessionId: result.sessionId
+      stripeSessionId: result.sessionId,
+      orderId: orderId
     });
   } catch (error) {
     console.error('❌ Erro ao gerar link Stripe:', error);
@@ -5063,11 +5126,20 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
       return res.status(400).json({ error: 'STRIPE_SUCCESS_URL e STRIPE_CANCEL_URL são obrigatórios' });
     }
 
-    const result = await createStripeCheckoutSession(stripeApiKey, customerData, items, userId, successUrl, cancelUrl);
+    const orderRef = db.ref(`orders/${userId}`).push();
+    const orderId = orderRef.key;
+
+    const result = await createStripeCheckoutSession(
+      stripeApiKey,
+      customerData,
+      items,
+      userId,
+      successUrl,
+      cancelUrl,
+      { orderId }
+    );
 
     if (result.success) {
-      const orderRef = db.ref(`orders/${userId}`).push();
-
       const customerToSave = {
         name: customerData.name || 'Cliente',
         phone: customerData.originalPhone || customerData.phone || customerData.mobilePhone,
@@ -5077,7 +5149,7 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
       };
 
       await orderRef.set({
-        orderId: orderRef.key,
+        orderId: orderId,
         stripeSessionId: result.sessionId,
         customer: customerToSave,
         items: items,
@@ -5090,7 +5162,7 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
 
       return res.json({
         success: true,
-        orderId: orderRef.key,
+        orderId: orderId,
         ...result
       });
     }
