@@ -2620,6 +2620,13 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
           
           dataUpdated = true;
           await contextRef.remove();
+
+          const paymentProvider = (assistantSettings?.paymentProvider || 'asaas').toLowerCase();
+          const hasQuantity = (customerData.quantities && Object.keys(customerData.quantities).length > 0) || customerData.lastQuantity;
+          if (paymentProvider === 'asaas' && hasQuantity) {
+            console.log('💳 Quantidade confirmada. Tentando gerar link de pagamento...');
+            await tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber);
+          }
         }
       }
       
