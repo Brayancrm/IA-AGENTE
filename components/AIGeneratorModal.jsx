@@ -637,19 +637,6 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
     return parts.join('\n\n');
   }, [guidedAnswers]);
 
-  const isQuestionAnswered = (question) => {
-    const value = guidedAnswers[question.id];
-    // Se tiver opções, sempre tratar como array
-    if (question.options && question.options.length > 0) {
-      const valueArray = Array.isArray(value) ? value : (value ? [value] : []);
-      return valueArray.length > 0;
-    }
-    if (question.type === 'text') {
-      return Boolean(value && value.trim());
-    }
-    return Boolean(value);
-  };
-
   const handleModeChange = (nextMode) => {
     if (nextMode === mode) return;
     setMode(nextMode);
