@@ -41,8 +41,6 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
   const [editablePrompt, setEditablePrompt] = useState('');
   const [promptWasEdited, setPromptWasEdited] = useState(false);
 
-  const greetingExample = 'Olá, me chamo [NOME DO AGENTE] e sou [FUNÇÃO DO AGENTE]. Como posso ajudar?';
-
   const productCategories = Array.from(
     new Set(
       (catalogItems || [])
@@ -65,27 +63,21 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
   const actionTypes = [
     { value: 'agent_profile', label: '🤖 Perfil do Agente', icon: '🤖' },
     { value: 'audio_config', label: '🎤 Configurações de Áudio', icon: '🎤' },
-    { value: 'greeting', label: '👋 Cumprimentar', icon: '👋' },
-    { value: 'ask_info', label: '❓ Perguntar Informação', icon: '❓' },
     { value: 'collect_data', label: '📋 Coleta de Dados (CRM)', icon: '📋' },
     { value: 'show_catalog', label: '📦 Mostrar Produtos/Serviços', icon: '📦' },
     { value: 'process_order', label: '🛒 Processar Pedido', icon: '🛒' },
-    { value: 'request_payment', label: '💳 Solicitar Pagamento', icon: '💳' },
     { value: 'send_confirmation', label: '✅ Enviar Confirmação', icon: '✅' },
-    { value: 'ask_invoice', label: '📄 Perguntar sobre Nota Fiscal', icon: '📄' },
-    { value: 'collect_address', label: '📍 Coletar Endereço', icon: '📍' },
     { value: 'create_appointment', label: '📅 Criar Agendamento', icon: '📅' },
-    { value: 'free_text', label: '📝 Texto Livre', icon: '📝' },
-    { value: 'custom', label: '⚙️ Ação Personalizada', icon: '⚙️' },
+    { value: 'custom', label: '⚙️ Ação Personalizada', icon: '⚙️' }
   ];
 
   // Adicionar novo step
   const addStep = () => {
     const newStep = {
       id: Date.now(),
-      type: 'greeting',
+      type: 'agent_profile',
       title: 'Novo Passo',
-      description: greetingExample,
+      description: '',
       condition: null, // Condição para executar (opcional)
       actions: [],
       catalogSettings: {
@@ -384,7 +376,6 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
   // Estatísticas do fluxo
   const completedSteps = steps.filter(s => s.title && s.description).length;
   const hasAgentProfile = steps.some(s => s.type === 'agent_profile');
-  const hasGreeting = steps.some(s => s.type === 'greeting');
   
   // Paginação - mostrar 2 steps por vez
   const stepsPerPage = 2;
@@ -430,15 +421,12 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
   const getTipsForStepType = (type) => {
     const tips = {
       'agent_profile': '💡 Defina a personalidade: nome, tom de voz, estilo de comunicação',
-      'greeting': '💡 Seja caloroso e acolhedor. Apresente o agente e ofereça ajuda',
       'show_catalog': '💡 Organize produtos por categoria e destaque promoções',
       'process_order': '💡 Confirme itens, quantidades e valores antes de finalizar',
-      'request_payment': '💡 Ofereça múltiplas opções (PIX, cartão, boleto)',
-      'collect_address': '💡 Solicite dados completos para evitar erros de entrega',
-      'ask_info': '💡 Use perguntas abertas para entender a necessidade do cliente',
       'collect_data': '💡 Defina as informações que precisam ser coletadas para o CRM',
       'create_appointment': '💡 Configure os tipos de agendamento permitidos',
-      'send_confirmation': '💡 Envie resumo claro com número de pedido para rastreamento'
+      'send_confirmation': '💡 Envie resumo claro com número de pedido para rastreamento',
+      'audio_config': '💡 Defina idioma e voz para respostas em áudio'
     };
     return tips[type] || '💡 Seja claro e específico nas instruções para o agente';
   };
@@ -758,9 +746,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                   setEditingStep({
                                     ...editingStep,
                                     type: nextType,
-                                    description: nextType === 'greeting' && !editingStep.description
-                                      ? greetingExample
-                                      : editingStep.description
+                                    description: editingStep.description
                                   });
                                 }}
                                 style={{
@@ -803,7 +789,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                     title: e.target.value,
                                   })
                                 }
-                                placeholder="Ex: Cumprimentar o cliente"
+                                placeholder="Ex: Perfil do agente"
                                 style={{
                                   width: '100%',
                                   padding: '10px 16px',
@@ -991,31 +977,6 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                 </div>
                               </div>
                               
-                              {editingStep.type === 'greeting' && (
-                                <div style={{ marginBottom: '10px' }}>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setEditingStep({
-                                        ...editingStep,
-                                        description: greetingExample
-                                      })
-                                    }
-                                    style={{
-                                      padding: '8px 12px',
-                                      borderRadius: '8px',
-                                      border: '1px solid rgba(16, 185, 129, 0.4)',
-                                      backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                      color: '#10b981',
-                                      fontSize: '0.8rem',
-                                      cursor: 'pointer'
-                                    }}
-                                  >
-                                    Inserir exemplo de saudação
-                                  </button>
-                                </div>
-                              )}
-
                               <textarea
                                 id={`description-textarea-${editingStep.id}`}
                                 value={editingStep.description}
@@ -1027,9 +988,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                 }
                                 placeholder={editingStep.type === 'free_text'
                                   ? "Ex: Você é um assistente prestativo. Quando o cliente perguntar sobre...\n\nEscreva aqui o prompt completo que deseja usar neste ponto do fluxo."
-                                  : (editingStep.type === 'greeting'
-                                    ? greetingExample
-                                    : "Ex: Olá {{nome}}! Cumprimente o cliente de forma amigável e pergunte como pode ajudar...")}
+                                  : "Ex: Descreva objetivamente o que o agente deve fazer neste passo."}
                                 rows={editingStep.type === 'free_text' ? 8 : 4}
                                 style={{
                                   width: '100%',

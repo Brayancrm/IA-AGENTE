@@ -589,24 +589,22 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
 
     const flow = [];
     flow.push('1) Perfil do agente (nome e função).');
-    flow.push('2) Qualificar necessidade do cliente.');
-    flow.push('3) Coleta no CRM: nome e CPF/CNPJ (telefone capturado automaticamente do WhatsApp).');
+    flow.push('2) Coleta no CRM: nome e CPF/CNPJ (telefone capturado automaticamente do WhatsApp).');
 
     if (agentType === 'sales' || agentType === 'sales_appointment') {
-      flow.push('4) Mostrar catálogo de forma objetiva (lista curta).');
-      flow.push('5) Confirmar itens e quantidades.');
-      flow.push('6) Gerar/enviar link de pagamento (WhatsApp).');
-      flow.push('7) Após pagamento confirmado, enviar confirmação.');
+      flow.push('3) Mostrar catálogo de forma objetiva (lista curta).');
+      flow.push('4) Confirmar itens e quantidades.');
+      flow.push('5) Gerar/enviar link de pagamento (WhatsApp).');
+      flow.push('6) Após pagamento confirmado, enviar confirmação.');
       if (agentType === 'sales_appointment') {
-        flow.push('8) Coletar data/horário e criar agendamento.');
-        flow.push('9) Responder ao cliente e encerrar.');
-      } else {
+        flow.push('7) Criar agendamento no sistema.');
         flow.push('8) Responder ao cliente e encerrar.');
+      } else {
+        flow.push('7) Responder ao cliente e encerrar.');
       }
     } else if (agentType === 'appointment') {
-      flow.push('3) Coletar preferências de agenda e confirmar horário.');
-      flow.push('4) Criar agendamento no sistema.');
-      flow.push('5) Responder ao cliente e encerrar com despedida.');
+      flow.push('3) Criar agendamento no sistema.');
+      flow.push('4) Responder ao cliente e encerrar com despedida.');
     } else {
       flow.push('3) Executar o objetivo único e encerrar com despedida.');
     }
