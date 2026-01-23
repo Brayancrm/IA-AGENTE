@@ -283,10 +283,14 @@ export function compilePrompt(steps = []) {
 
     if (step.type === 'collect_data') {
       if (step.crmAutoSave) {
-        absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} COLETE NOME E TELEFONE.`);
+        absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} COLETE NOME.`);
         const crmFields = step.crmFields || ['name', 'phone'];
         absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} PERGUNTE UM ÚNICO CAMPO POR VEZ.`);
         prohibitions.push(`NUNCA NO PASSO ${stepNumber} SOLICITE MAIS DE UM CAMPO NA MESMA PERGUNTA.`);
+        if (crmFields.includes('phone')) {
+          absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} REGISTRE A INTENÇÃO DE SALVAR O TELEFONE A PARTIR DO WHATSAPP.`);
+          prohibitions.push(`NUNCA NO PASSO ${stepNumber} SOLICITE O TELEFONE DO CLIENTE.`);
+        }
         if (crmFields.includes('product')) {
           absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} IDENTIFIQUE O PRODUTO OU SERVIÇO DE INTERESSE.`);
         }
