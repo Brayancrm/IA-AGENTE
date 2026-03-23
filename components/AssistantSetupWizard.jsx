@@ -138,6 +138,146 @@ export default function AssistantSetupWizard({
   const showCatalog = ['full_sales', 'catalog_leads'].includes(draft.templateId);
   const showOrder = ['full_sales', 'catalog_leads'].includes(draft.templateId);
   const showAppointment = draft.templateId === 'appointments';
+  const totalProducts = (catalogItems || []).filter((i) => i?.type === 'product').length;
+  const totalServices = (catalogItems || []).filter((i) => i?.type === 'service').length;
+
+  const validationIssues = useMemo(() => {
+    const issues = [];
+    const hasCatalogEnabled = draft.business.includeProducts || draft.business.includeServices;
+    const hasCatalogItems = totalProducts > 0 || totalServices > 0;
+
+    if (!draft.tone.agentName?.trim()) {
+      issues.push({ level: 'error', text: 'Defina o nome do agente no passo "Tom de voz".' });
+    }
+
+    if (!draft.tone.agentRole?.trim()) {
+      issues.push({ level: 'warning', text: 'Defina uma função para o agente (ex.: Consultor, Atendimento).' });
+    }
+
+    if (showCatalog && !hasCatalogEnabled) {
+      issues.push({
+        level: 'error',
+        text: 'Ative produtos ou serviços para usar um modelo com catálogo.'
+      });
+    }
+
+    if (showCatalog && hasCatalogEnabled && !hasCatalogItems) {
+      issues.push({
+        level: 'error',
+        text: 'Não há itens no catálogo. Cadastre produtos/serviços antes de aplicar este fluxo.'
+      });
+    }
+
+    if (showCatalog && draft.business.includeProducts && totalProducts === 0) {
+      issues.push({
+        level: 'error',
+        text: 'Produtos ativados, mas nenhum produto foi encontrado no catálogo.'
+      });
+    }
+
+    if (showCatalog && draft.business.includeServices && totalServices === 0) {
+      issues.push({
+        level: 'error',
+        text: 'Serviços ativados, mas nenhum serviço foi encontrado no catálogo.'
+      });
+    }
+
+    if (showAppointment && draft.business.enableAppointments && !(draft.business.appointmentTypes || []).length) {
+      issues.push({
+        level: 'error',
+        text: 'Selecione ao menos um tipo de agendamento permitido.'
+      });
+    }
+
+    if (showOrder && draft.business.paymentProvider === 'manual' && !draft.business.paymentManualMessage?.trim()) {
+      issues.push({
+        level: 'warning',
+        text: 'Recomendado: preencher uma mensagem para pagamento manual (PIX/transferência).'
+      });
+    }
+
+    if (
+      showOrder &&
+      draft.business.paymentProvider === 'stripe' &&
+      draft.business.paymentStripeMessage &&
+      draft.business.paymentStripeMessage.length > 240
+    ) {
+      issues.push({
+        level: 'warning',
+        text: 'Mensagem de pagamento Stripe está longa. Tente manter objetiva para WhatsApp.'
+      });
+    }
+
+    if (!draft.crm.crmAutoSave && !(draft.crm.crmFields || []).length) {
+      issues.push({
+        level: 'warning',
+        text: 'Sem auto-save e sem campos extras: você pode perder dados para o CRM.'
+      });
+    }
+
+    return issues;
+  }, [draft, showAppointment, showCatalog, showOrder, totalProducts, totalServices]);
+
+  const hasBlockingIssues = validationIssues.some((issue) => issue.level === 'error');
+
+  const previewConversation = useMemo(() => {
+    const lines = [];
+    const agentName = draft.tone.agentName?.trim() || 'Assistente';
+    const hasCatalogEnabled = draft.business.includeProducts || draft.business.includeServices;
+
+    lines.push({
+      from: 'bot',
+      text: `Olá! Eu sou ${agentName}. Posso te ajudar com ${showAppointment ? 'agendamentos' : 'produtos e serviços'} hoje?`
+    });
+    lines.push({ from: 'cliente', text: showAppointment ? 'Quero agendar um horário.' : 'Quero ver opções e preços.' });
+
+    if (showCatalog && hasCatalogEnabled) {
+      lines.push({
+        from: 'bot',
+        text: `Perfeito! Posso te mostrar ${
+          draft.business.includeProducts && draft.business.includeServices
+            ? 'produtos e serviços'
+            : draft.business.includeProducts
+              ? 'produtos'
+              : 'serviços'
+        } com valor e benefício principal.`
+      });
+      lines.push({ from: 'cliente', text: 'Gostei dessa opção, quero fechar.' });
+    }
+
+    if (showAppointment && draft.business.enableAppointments) {
+      lines.push({
+        from: 'bot',
+        text: `Temos estes tipos: ${(draft.business.appointmentTypes || []).join(', ') || 'serviço, consulta'}. Qual você prefere?`
+      });
+      lines.push({ from: 'cliente', text: 'Consulta, amanhã às 14h.' });
+    }
+
+    if (showOrder) {
+      lines.push({
+        from: 'bot',
+        text:
+          draft.business.paymentProvider === 'stripe'
+            ? 'Perfeito! Vou enviar o link de pagamento via WhatsApp para concluir.'
+            : 'Perfeito! Vou te passar os dados para pagamento manual agora.'
+      });
+    }
+
+    lines.push({
+      from: 'bot',
+      text: `Para finalizar, confirmo seus dados para o CRM (${[
+        'nome',
+        'telefone',
+        ...(draft.crm.crmFields || [])
+      ].join(', ')}).`
+    });
+    lines.push({
+      from: 'bot',
+      text: 'Resumo enviado! Se precisar, sigo com os próximos passos aqui no WhatsApp.'
+    });
+
+    return lines;
+  }, [draft, showAppointment, showCatalog, showOrder]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -538,9 +678,66 @@ export default function AssistantSetupWizard({
             </ol>
           </div>
 
+          <div
+            style={{
+              ...sectionBox,
+              borderColor: hasBlockingIssues ? 'rgba(239,68,68,0.35)' : 'rgba(245,158,11,0.35)'
+            }}
+          >
+            <h4 style={{ ...sectionTitle, marginBottom: '10px' }}>Validações automáticas</h4>
+            {!validationIssues.length ? (
+              <p style={{ fontSize: '0.9rem', color: '#10b981', margin: 0 }}>
+                ✅ Fluxo coerente. Pronto para aplicar.
+              </p>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: '20px', lineHeight: 1.6 }}>
+                {validationIssues.map((issue, idx) => (
+                  <li
+                    key={`${issue.level}-${idx}`}
+                    style={{
+                      color: issue.level === 'error' ? '#fca5a5' : '#fcd34d',
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    {issue.level === 'error' ? '⛔ ' : '⚠️ '}
+                    {issue.text}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div style={sectionBox}>
+            <h4 style={{ ...sectionTitle, marginBottom: '10px' }}>Preview de conversa</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {previewConversation.map((line, idx) => (
+                <div
+                  key={`${line.from}-${idx}`}
+                  style={{
+                    alignSelf: line.from === 'bot' ? 'flex-start' : 'flex-end',
+                    maxWidth: '90%',
+                    background: line.from === 'bot' ? '#1a1f36' : 'rgba(16,185,129,0.16)',
+                    border: `1px solid ${
+                      line.from === 'bot' ? 'rgba(255,255,255,0.1)' : 'rgba(16,185,129,0.28)'
+                    }`,
+                    color: '#e5e7eb',
+                    borderRadius: '12px',
+                    padding: '10px 12px',
+                    fontSize: '0.88rem',
+                    lineHeight: 1.45
+                  }}
+                >
+                  <strong style={{ color: '#fff' }}>{line.from === 'bot' ? 'Bot' : 'Cliente'}:</strong>{' '}
+                  {line.text}
+                </div>
+              ))}
+            </div>
+          </div>
+
           <button
             type="button"
             onClick={handleApply}
+            disabled={hasBlockingIssues}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -549,12 +746,14 @@ export default function AssistantSetupWizard({
               padding: '14px 22px',
               borderRadius: '14px',
               border: 'none',
-              background: 'linear-gradient(135deg, #10b981, #059669)',
+              background: hasBlockingIssues
+                ? 'linear-gradient(135deg, #9ca3af, #6b7280)'
+                : 'linear-gradient(135deg, #10b981, #059669)',
               color: '#fff',
               fontWeight: 700,
               fontSize: '1rem',
-              cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(16,185,129,0.35)'
+              cursor: hasBlockingIssues ? 'not-allowed' : 'pointer',
+              boxShadow: hasBlockingIssues ? 'none' : '0 4px 14px rgba(16,185,129,0.35)'
             }}
           >
             <Check size={20} />
