@@ -6048,6 +6048,34 @@ const DashboardWithFirebase = ({
           if (stripeOpsFilter === 'all') return true;
           return normalizeStripeStatus(item.status) === stripeOpsFilter;
         });
+        const pastDueItems = stripeOps.recent.filter((item) => normalizeStripeStatus(item.status) === 'past_due');
+
+        const copyPastDueList = async () => {
+          if (pastDueItems.length === 0) {
+            showToast('Nenhum cliente past_due para copiar no momento.', 'error');
+            return;
+          }
+
+          const uniqueRows = Array.from(
+            new Set(
+              pastDueItems.map((item) => {
+                const when = item?.timestamp ? new Date(item.timestamp).toLocaleString('pt-BR') : 'sem data';
+                const plan = item?.planName || 'Plano não informado';
+                const uid = item?.uid || 'UID não informado';
+                return `${plan} | UID: ${uid} | status: ${item.status} | atualizado: ${when}`;
+              })
+            )
+          );
+
+          const text = `Clientes past_due (${uniqueRows.length})\n\n${uniqueRows.join('\n')}`;
+
+          try {
+            await navigator.clipboard.writeText(text);
+            showToast(`Lista past_due copiada! (${uniqueRows.length} cliente(s))`, 'success');
+          } catch (error) {
+            showToast('Não foi possível copiar automaticamente. Verifique permissões do navegador.', 'error');
+          }
+        };
 
         return (
           <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
@@ -6102,6 +6130,25 @@ const DashboardWithFirebase = ({
                     {label}
                   </button>
                 ))}
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <button
+                  type="button"
+                  onClick={copyPastDueList}
+                  style={{
+                    backgroundColor: '#7c3aed',
+                    color: '#ffffff',
+                    border: '1px solid rgba(167, 139, 250, 0.9)',
+                    borderRadius: '10px',
+                    padding: '8px 14px',
+                    fontSize: '0.8125rem',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Copiar lista de clientes past_due (WhatsApp)
+                </button>
               </div>
 
               <div style={{
