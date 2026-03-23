@@ -50,6 +50,7 @@ const STEP_LABELS = [
 export default function AssistantSetupWizard({
   catalogItems = [],
   flowSteps = [],
+  fixedApproaches: fixedApproachesProp = [],
   onApplyFlow,
   resetKey = 0,
   showToast
