@@ -3079,6 +3079,7 @@ const DashboardWithFirebase = ({
     renewalsNext7Days: 0,
     recent: []
   });
+  const [stripeOpsFilter, setStripeOpsFilter] = useState('all');
 
   useEffect(() => {
     if (!user || !database) return;
@@ -5322,6 +5323,22 @@ const DashboardWithFirebase = ({
             </div>
 
             {/* Painel Operacional Stripe */}
+            {(() => {
+              const normalizeStripeStatus = (status) => {
+                const s = String(status || '').toLowerCase();
+                if (s === 'active') return 'active';
+                if (s === 'pending' || s === 'pending_payment') return 'pending';
+                if (s === 'past_due' || s === 'overdue' || s === 'unpaid') return 'past_due';
+                if (s === 'cancelled' || s === 'canceled') return 'cancelled';
+                return 'other';
+              };
+
+              const filteredRecent = stripeOps.recent.filter((item) => {
+                if (stripeOpsFilter === 'all') return true;
+                return normalizeStripeStatus(item.status) === stripeOpsFilter;
+              });
+
+              return (
             <div style={{
               backgroundColor: '#1a1f36',
               borderRadius: '16px',
@@ -5336,6 +5353,34 @@ const DashboardWithFirebase = ({
               <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '16px' }}>
                 Monitoramento rapido de assinaturas, renovacoes e falhas
               </p>
+
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
+                {[
+                  ['all', 'Todos'],
+                  ['active', 'Ativas'],
+                  ['pending', 'Pendentes'],
+                  ['past_due', 'Past Due'],
+                  ['cancelled', 'Canceladas']
+                ].map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setStripeOpsFilter(id)}
+                    style={{
+                      backgroundColor: stripeOpsFilter === id ? '#8b5cf6' : '#0f1419',
+                      color: stripeOpsFilter === id ? '#ffffff' : '#cbd5e1',
+                      border: stripeOpsFilter === id ? '1px solid #a78bfa' : '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: '9999px',
+                      padding: '6px 12px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
 
               <div style={{
                 display: 'grid',
@@ -5365,15 +5410,15 @@ const DashboardWithFirebase = ({
 
               <div style={{ backgroundColor: '#0f1419', borderRadius: '12px', padding: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <p style={{ margin: '0 0 10px 0', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff' }}>
-                  Ultimas movimentacoes
+                  Ultimas movimentacoes {stripeOpsFilter !== 'all' ? `(filtro: ${stripeOpsFilter})` : ''}
                 </p>
                 {stripeOps.loading ? (
                   <p style={{ margin: 0, fontSize: '0.8125rem', color: '#9ca3af' }}>Carregando...</p>
-                ) : stripeOps.recent.length === 0 ? (
+                ) : filteredRecent.length === 0 ? (
                   <p style={{ margin: 0, fontSize: '0.8125rem', color: '#9ca3af' }}>Nenhuma movimentacao encontrada ainda.</p>
                 ) : (
                   <div style={{ display: 'grid', gap: '8px' }}>
-                    {stripeOps.recent.map((item, idx) => (
+                    {filteredRecent.map((item, idx) => (
                       <div key={`${item.uid}-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', fontSize: '0.8125rem' }}>
                         <span style={{ color: '#e5e7eb' }}>{item.planName} - {item.status}</span>
                         <span style={{ color: '#9ca3af' }}>{new Date(item.timestamp).toLocaleString('pt-BR')}</span>
@@ -5383,6 +5428,8 @@ const DashboardWithFirebase = ({
                 )}
               </div>
             </div>
+            );
+            })()}
 
             {/* Toggle Assistente */}
             <div style={{ 
