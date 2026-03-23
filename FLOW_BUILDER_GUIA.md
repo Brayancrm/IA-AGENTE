@@ -11,6 +11,8 @@ A preferência de interface (`configUiMode`: `simple` | `advanced`) é guardada 
 
 - Campo `fixedApproaches` (array) em `assistant_settings`: cada item tem `placement` (tipo de passo alvo, ex. `show_catalog`) e `instruction` (texto obrigatório).
 - Ao **Gerar fluxo e aplicar**, o sistema chama `applyFixedApproachesToSteps` e injeta blocos `--- ABORDAGEM FIXA (NÃO ALTERAR) ---` nas `description` dos passos correspondentes, para o `compilePrompt` tratar como regra fixa.
+- Ao **Salvar configurações**, se existir `fixedApproaches`, o mesmo merge é aplicado de novo aos `flowSteps` antes de gravar (evita divergência entre lista e passos).
+- Ao mudar para **Modo avançado**, se houver `fixedApproaches` e passos, o merge é aplicado imediatamente para o Flow Builder mostrar o texto já injetado.
 
 ---
 

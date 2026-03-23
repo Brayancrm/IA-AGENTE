@@ -272,7 +272,7 @@ export default function AssistantSetupWizard({
     (draft.fixedApproaches || []).forEach((row, idx) => {
       if (row?.placement && !row?.instruction?.trim()) {
         issues.push({
-          level: 'warning',
+          level: 'error',
           text: `Abordagem fixa #${idx + 1}: preencha o texto ou remova a linha.`
         });
       }

@@ -27,7 +27,7 @@ import { ref, push, set, remove, onValue, off, get, update } from 'firebase/data
 import SimpleLanding from './SimpleLanding';
 import dynamic from 'next/dynamic';
 import { convertStepsToPrompt } from '../hooks/useFlowBuilder';
-import { mergeFlowStepsIntoAssistantForm } from '../utils/assistantWizardHelpers';
+import { mergeFlowStepsIntoAssistantForm, applyFixedApproachesToSteps } from '../utils/assistantWizardHelpers';
 import BeefreeEditor from './BeefreeEditor';
 
 // Unlayer Editor será carregado via script tag (embed)
@@ -4161,15 +4161,31 @@ const DashboardWithFirebase = ({
 
   const handleAssistantSubmit = (e) => {
     e.preventDefault();
-    
-    // Salvar exatamente o que está no form (não regenerar prompt dos steps)
-    // Isso permite que prompts melhorados/editados manualmente sejam salvos
-    const dataToSave = { 
-      ...assistantForm, 
+
+    let steps = assistantForm.flowSteps || [];
+    if (assistantForm.fixedApproaches?.length) {
+      steps = applyFixedApproachesToSteps(steps, assistantForm.fixedApproaches);
+    }
+
+    const dataToSave = {
+      ...assistantForm,
+      flowSteps: steps,
+      systemPrompt:
+        assistantForm.fixedApproaches?.length > 0
+          ? convertStepsToPrompt(steps)
+          : assistantForm.systemPrompt,
       isActive: isActive,
-      flowMode: 'visual' // Sempre modo visual
+      flowMode: 'visual'
     };
-    
+
+    if (assistantForm.fixedApproaches?.length) {
+      setAssistantForm((prev) => ({
+        ...prev,
+        flowSteps: dataToSave.flowSteps,
+        systemPrompt: dataToSave.systemPrompt
+      }));
+    }
+
     saveAssistantSettings(dataToSave);
   };
 
@@ -7499,7 +7515,26 @@ const DashboardWithFirebase = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setAssistantForm((prev) => ({ ...prev, configUiMode: 'advanced' }))}
+                      onClick={() => {
+                        const steps = assistantForm.flowSteps || [];
+                        const shouldSync =
+                          (assistantForm.fixedApproaches?.length || 0) > 0 && steps.length > 0;
+                        if (shouldSync) {
+                          setAssistantForm((prev) => {
+                            const nextSteps = applyFixedApproachesToSteps(
+                              prev.flowSteps || [],
+                              prev.fixedApproaches
+                            );
+                            return {
+                              ...mergeFlowStepsIntoAssistantForm(prev, nextSteps),
+                              configUiMode: 'advanced'
+                            };
+                          });
+                          showToast('Abordagens fixas sincronizadas nas descrições dos passos.', 'success');
+                        } else {
+                          setAssistantForm((prev) => ({ ...prev, configUiMode: 'advanced' }));
+                        }
+                      }}
                       style={{
                         padding: '12px 20px',
                         borderRadius: '12px',
