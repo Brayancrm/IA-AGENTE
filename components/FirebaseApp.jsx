@@ -5322,115 +5322,6 @@ const DashboardWithFirebase = ({
               </p>
             </div>
 
-            {/* Painel Operacional Stripe */}
-            {(() => {
-              const normalizeStripeStatus = (status) => {
-                const s = String(status || '').toLowerCase();
-                if (s === 'active') return 'active';
-                if (s === 'pending' || s === 'pending_payment') return 'pending';
-                if (s === 'past_due' || s === 'overdue' || s === 'unpaid') return 'past_due';
-                if (s === 'cancelled' || s === 'canceled') return 'cancelled';
-                return 'other';
-              };
-
-              const filteredRecent = stripeOps.recent.filter((item) => {
-                if (stripeOpsFilter === 'all') return true;
-                return normalizeStripeStatus(item.status) === stripeOpsFilter;
-              });
-
-              return (
-            <div style={{
-              backgroundColor: '#1a1f36',
-              borderRadius: '16px',
-              padding: '24px',
-              marginBottom: '24px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-              border: '1px solid rgba(139, 92, 246, 0.25)'
-            }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '6px' }}>
-                Stripe - Painel Operacional
-              </h3>
-              <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '16px' }}>
-                Monitoramento rapido de assinaturas, renovacoes e falhas
-              </p>
-
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
-                {[
-                  ['all', 'Todos'],
-                  ['active', 'Ativas'],
-                  ['pending', 'Pendentes'],
-                  ['past_due', 'Past Due'],
-                  ['cancelled', 'Canceladas']
-                ].map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setStripeOpsFilter(id)}
-                    style={{
-                      backgroundColor: stripeOpsFilter === id ? '#8b5cf6' : '#0f1419',
-                      color: stripeOpsFilter === id ? '#ffffff' : '#cbd5e1',
-                      border: stripeOpsFilter === id ? '1px solid #a78bfa' : '1px solid rgba(255,255,255,0.12)',
-                      borderRadius: '9999px',
-                      padding: '6px 12px',
-                      fontSize: '0.75rem',
-                      fontWeight: '600',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                gap: '12px',
-                marginBottom: '16px'
-              }}>
-                {[
-                  ['Total', stripeOps.total, '#94a3b8'],
-                  ['Ativas', stripeOps.active, '#10b981'],
-                  ['Pendentes', stripeOps.pending, '#f59e0b'],
-                  ['Past Due', stripeOps.pastDue, '#ef4444'],
-                  ['Canceladas', stripeOps.cancelled, '#64748b'],
-                  ['Renovam em 7d', stripeOps.renewalsNext7Days, '#a78bfa']
-                ].map(([label, value, color]) => (
-                  <div key={label} style={{
-                    backgroundColor: '#0f1419',
-                    borderRadius: '12px',
-                    padding: '14px',
-                    border: `1px solid ${color}33`
-                  }}>
-                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#9ca3af' }}>{label}</p>
-                    <p style={{ margin: '6px 0 0 0', fontSize: '1.375rem', fontWeight: '700', color }}>{value}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ backgroundColor: '#0f1419', borderRadius: '12px', padding: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <p style={{ margin: '0 0 10px 0', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff' }}>
-                  Ultimas movimentacoes {stripeOpsFilter !== 'all' ? `(filtro: ${stripeOpsFilter})` : ''}
-                </p>
-                {stripeOps.loading ? (
-                  <p style={{ margin: 0, fontSize: '0.8125rem', color: '#9ca3af' }}>Carregando...</p>
-                ) : filteredRecent.length === 0 ? (
-                  <p style={{ margin: 0, fontSize: '0.8125rem', color: '#9ca3af' }}>Nenhuma movimentacao encontrada ainda.</p>
-                ) : (
-                  <div style={{ display: 'grid', gap: '8px' }}>
-                    {filteredRecent.map((item, idx) => (
-                      <div key={`${item.uid}-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', fontSize: '0.8125rem' }}>
-                        <span style={{ color: '#e5e7eb' }}>{item.planName} - {item.status}</span>
-                        <span style={{ color: '#9ca3af' }}>{new Date(item.timestamp).toLocaleString('pt-BR')}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            );
-            })()}
-
             {/* Toggle Assistente */}
             <div style={{ 
               backgroundColor: '#1a1f36', 
@@ -6142,6 +6033,126 @@ const DashboardWithFirebase = ({
             </div>
           </div>
         );
+
+      case 'stripe': {
+        const normalizeStripeStatus = (status) => {
+          const s = String(status || '').toLowerCase();
+          if (s === 'active') return 'active';
+          if (s === 'pending' || s === 'pending_payment') return 'pending';
+          if (s === 'past_due' || s === 'overdue' || s === 'unpaid') return 'past_due';
+          if (s === 'cancelled' || s === 'canceled') return 'cancelled';
+          return 'other';
+        };
+
+        const filteredRecent = stripeOps.recent.filter((item) => {
+          if (stripeOpsFilter === 'all') return true;
+          return normalizeStripeStatus(item.status) === stripeOpsFilter;
+        });
+
+        return (
+          <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+            <div style={{ marginBottom: '32px' }}>
+              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {renderPageIcon('stripe')}
+                Stripe
+              </h2>
+              <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
+                Painel operacional de assinaturas, renovacoes e falhas
+              </p>
+            </div>
+
+            <div style={{
+              backgroundColor: '#1a1f36',
+              borderRadius: '16px',
+              padding: '24px',
+              marginBottom: '24px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              border: '1px solid rgba(139, 92, 246, 0.25)'
+            }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '6px' }}>
+                Stripe - Painel Operacional
+              </h3>
+              <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '16px' }}>
+                Monitoramento rapido de assinaturas, renovacoes e falhas
+              </p>
+
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
+                {[
+                  ['all', 'Todos'],
+                  ['active', 'Ativas'],
+                  ['pending', 'Pendentes'],
+                  ['past_due', 'Past Due'],
+                  ['cancelled', 'Canceladas']
+                ].map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setStripeOpsFilter(id)}
+                    style={{
+                      backgroundColor: stripeOpsFilter === id ? '#8b5cf6' : '#0f1419',
+                      color: stripeOpsFilter === id ? '#ffffff' : '#cbd5e1',
+                      border: stripeOpsFilter === id ? '1px solid #a78bfa' : '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: '9999px',
+                      padding: '6px 12px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: '12px',
+                marginBottom: '16px'
+              }}>
+                {[
+                  ['Total', stripeOps.total, '#94a3b8'],
+                  ['Ativas', stripeOps.active, '#10b981'],
+                  ['Pendentes', stripeOps.pending, '#f59e0b'],
+                  ['Past Due', stripeOps.pastDue, '#ef4444'],
+                  ['Canceladas', stripeOps.cancelled, '#64748b'],
+                  ['Renovam em 7d', stripeOps.renewalsNext7Days, '#a78bfa']
+                ].map(([label, value, color]) => (
+                  <div key={label} style={{
+                    backgroundColor: '#0f1419',
+                    borderRadius: '12px',
+                    padding: '14px',
+                    border: `1px solid ${color}33`
+                  }}>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#9ca3af' }}>{label}</p>
+                    <p style={{ margin: '6px 0 0 0', fontSize: '1.375rem', fontWeight: '700', color }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ backgroundColor: '#0f1419', borderRadius: '12px', padding: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <p style={{ margin: '0 0 10px 0', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff' }}>
+                  Ultimas movimentacoes {stripeOpsFilter !== 'all' ? `(filtro: ${stripeOpsFilter})` : ''}
+                </p>
+                {stripeOps.loading ? (
+                  <p style={{ margin: 0, fontSize: '0.8125rem', color: '#9ca3af' }}>Carregando...</p>
+                ) : filteredRecent.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: '0.8125rem', color: '#9ca3af' }}>Nenhuma movimentacao encontrada ainda.</p>
+                ) : (
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    {filteredRecent.map((item, idx) => (
+                      <div key={`${item.uid}-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', fontSize: '0.8125rem' }}>
+                        <span style={{ color: '#e5e7eb' }}>{item.planName} - {item.status}</span>
+                        <span style={{ color: '#9ca3af' }}>{new Date(item.timestamp).toLocaleString('pt-BR')}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      }
 
       case 'catalog':
         return renderCatalog();
@@ -8196,6 +8207,7 @@ const DashboardWithFirebase = ({
     { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' },
     { id: 'plans', label: 'Planos e Assinaturas', icon: '💎' },
     ...(user?.isMaster ? [
+      { id: 'stripe', label: 'Stripe', icon: '💳' },
       { id: 'users', label: 'Gerenciar Usuários', icon: '👤' },
       { id: 'email', label: 'Email', icon: '📧' }
     ] : [])
@@ -8203,7 +8215,7 @@ const DashboardWithFirebase = ({
 
   // Função helper para renderizar ícones de página (mesma lógica do sidebar)
   const renderPageIcon = (pageId, customSize = null) => {
-    const coloredIcons = ['dashboard', 'catalog', 'agendamentos', 'conversas', 'whatsapp', 'assistant', 'plans', 'tutorials', 'email'];
+    const coloredIcons = ['dashboard', 'catalog', 'agendamentos', 'conversas', 'whatsapp', 'assistant', 'plans', 'tutorials', 'email', 'stripe'];
     const shouldBeColored = coloredIcons.includes(pageId);
     const menuItem = menuItems.find(item => item.id === pageId);
     
