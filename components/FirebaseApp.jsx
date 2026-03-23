@@ -8583,7 +8583,7 @@ const DashboardWithFirebase = ({
                   const isLocked = !userHasAccess && !isMasterOnly;
 
                   // Ícones que devem manter suas cores originais
-                  const coloredIcons = ['dashboard', 'catalog', 'agendamentos', 'conversas', 'whatsapp', 'assistant', 'plans', 'tutorials'];
+                  const coloredIcons = ['dashboard', 'catalog', 'agendamentos', 'conversas', 'whatsapp', 'assistant', 'plans', 'tutorials', 'stripe'];
                   const shouldBeColored = coloredIcons.includes(item.id);
 
                   return (
@@ -8668,6 +8668,11 @@ const DashboardWithFirebase = ({
                               display: 'block',
                               visibility: 'visible'
                             }}
+                          />
+                        ) : item.icon === 'stripe' ? (
+                          <StripeIcon
+                            size={24}
+                            opacity={isLocked ? 0.4 : 1}
                           />
                         ) : (
                           <span style={{ 
