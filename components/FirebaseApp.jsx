@@ -1447,7 +1447,7 @@ const FirebaseApp = () => {
         }
       }
       
-      // Se for plano de teste, ativar diretamente sem passar pelo Asaas (independente do preço)
+      // Se for plano de teste, ativar diretamente sem passar por gateway (independente do preço)
       if (plan.isTrialPlan) {
         // Calcular data de expiração considerando horas e minutos
         const hours = plan.trialDurationHours || 0;
@@ -2903,7 +2903,7 @@ const FirebaseApp = () => {
     );
   }
 
-  // Componente PaymentPage removido - agora redirecionamos diretamente para o Asaas
+  // Componente PaymentPage removido - agora redirecionamos direto para o checkout
 
   // Se não está autenticado, mostrar landing page
   if (!isAuthenticated) {
@@ -2915,7 +2915,7 @@ const FirebaseApp = () => {
     );
   }
 
-  // Não precisa mais do componente PaymentPage - redirecionamos diretamente para o Asaas
+  // Não precisa mais do componente PaymentPage - redirecionamos direto para o checkout
 
   // Renderizar dashboard com Firebase integrado
   return (
@@ -6035,7 +6035,7 @@ const DashboardWithFirebase = ({
                   </div>
                 </div>
 
-                {/* Asaas */}
+                {/* Asaas (Legado) */}
                 <div style={{ 
                   padding: '24px', 
                   backgroundColor: 'rgba(16, 185, 129, 0.05)', 
@@ -6044,10 +6044,10 @@ const DashboardWithFirebase = ({
                 }}>
                   <h3 style={{ fontSize: '1.375rem', fontWeight: '700', marginBottom: '8px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ fontSize: '1.75rem' }}>💳</span>
-                    Asaas (Pagamentos)
+                    Asaas (Legado)
                   </h3>
                   <p style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '20px' }}>
-                    Gateway de pagamento e cobranças automáticas
+                    Compatibilidade temporária para fluxos antigos
                   </p>
                   <div>
                     <label style={{ display: 'block', fontWeight: '600', marginBottom: '10px', color: '#1e40af', fontSize: '0.9375rem' }}>
@@ -6085,7 +6085,7 @@ const DashboardWithFirebase = ({
                     <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '10px', alignItems: isMobile ? 'stretch' : 'center' }}>
                       <input
                         type="text"
-                        value={`https://your-api.com/webhook/${user?.uid}`}
+                        value={`https://your-api.com/api/asaas/webhook`}
                         readOnly
                         style={{
                           flex: 1,
@@ -6104,7 +6104,7 @@ const DashboardWithFirebase = ({
                       <button
                         type="button"
                         onClick={() => {
-                          navigator.clipboard.writeText(`https://your-api.com/webhook/${user?.uid}`);
+                          navigator.clipboard.writeText(`https://your-api.com/api/asaas/webhook`);
                           alert('✅ URL copiada para a área de transferência!');
                         }}
                         style={{
@@ -6134,7 +6134,7 @@ const DashboardWithFirebase = ({
                       </button>
                     </div>
                     <p style={{ fontSize: '0.8125rem', color: '#1d4ed8', marginTop: '8px' }}>
-                      💡 Configure este webhook no painel do Asaas
+                      💡 Use apenas para clientes legados no painel do Asaas
                     </p>
                   </div>
                 </div>
@@ -6151,7 +6151,7 @@ const DashboardWithFirebase = ({
                     Stripe (Pagamentos)
                   </h3>
                   <p style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '20px' }}>
-                    Integração Stripe (uso futuro)
+                    Gateway principal para pagamentos e assinaturas
                   </p>
                   <div>
                     <label style={{ display: 'block', fontWeight: '600', marginBottom: '10px', color: '#7c3aed', fontSize: '0.9375rem' }}>

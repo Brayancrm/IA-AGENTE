@@ -253,7 +253,7 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
           { value: 'NÃO_APLICA_INTEGRATIONS', label: '❌ Não há recursos extras necessários', isNegative: true },
           { value: 'Consultar estoque e disponibilidade em tempo real', label: 'Consultar estoque' },
           { value: 'Registrar pedidos no CRM e pipeline', label: 'Atualizar CRM' },
-          { value: 'Gerar boletos e cobranças pelo Asaas', label: 'Emitir cobrança Asaas' },
+          { value: 'Gerar checkout e cobranças pelo Stripe', label: 'Emitir cobrança Stripe' },
           { value: 'Enviar e-mail ou SMS com resumo do atendimento', label: 'Enviar resumo' },
           { value: 'Atualizar planilha/Google Sheets com novos leads', label: 'Atualizar planilha' }
         ]
