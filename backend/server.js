@@ -991,8 +991,8 @@ async function handleIncomingMessage(userId, message, client) {
         const triggerMessage = 'Perfeito! Vou enviar abaixo seu Link para que efetue o Pagamento.';
         if (aiResponse.includes(triggerMessage)) {
           if (paymentProvider === 'asaas') {
-            console.log('🎯 MENSAGEM DE GATILHO DETECTADA! Gerando link de pagamento (Asaas)...');
-            await tryAutoGeneratePaymentLink(userId, message.from, sanitizedNumber);
+            console.log('⚠️ Provedor Asaas em modo legado. Gerando link com Stripe...');
+            await tryAutoGenerateStripeLink(userId, message.from, sanitizedNumber);
           } else if (paymentProvider === 'stripe') {
             console.log('🎯 MENSAGEM DE GATILHO DETECTADA! Gerando link de pagamento (Stripe)...');
             await tryAutoGenerateStripeLink(userId, message.from, sanitizedNumber);
@@ -1119,7 +1119,7 @@ async function handleIncomingMessage(userId, message, client) {
         const paymentProviderForIntent = (aiConfig?.paymentProvider || 'stripe').toLowerCase();
         const hasPurchaseIntent = detectPurchaseIntent(message.body);
         
-        if (paymentProviderForIntent === 'asaas' && hasPurchaseIntent && mentionedItems.length > 0) {
+        if (paymentProviderForIntent === 'asaas_legacy_disabled' && hasPurchaseIntent && mentionedItems.length > 0) {
           console.log('🛒 Intenção de compra detectada!');
           
           // Buscar configuração do Asaas no Firestore ou Realtime Database
@@ -1273,7 +1273,7 @@ async function handleIncomingMessage(userId, message, client) {
           } else {
             console.log('⚠️ API Key do Asaas não configurada');
           }
-        } else if (paymentProviderForIntent === 'stripe' && hasPurchaseIntent && mentionedItems.length > 0) {
+        } else if ((paymentProviderForIntent === 'stripe' || paymentProviderForIntent === 'asaas') && hasPurchaseIntent && mentionedItems.length > 0) {
           await tryAutoGenerateStripeLink(userId, message.from, sanitizedNumber);
         } else if (paymentProviderForIntent === 'manual' && hasPurchaseIntent && mentionedItems.length > 0) {
           const integrations = await getIntegrationsConfig(userId);
@@ -2756,9 +2756,9 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
 
           const paymentProvider = (assistantSettings?.paymentProvider || 'stripe').toLowerCase();
           const hasQuantity = (customerData.quantities && Object.keys(customerData.quantities).length > 0) || customerData.lastQuantity;
-          if (paymentProvider === 'asaas' && hasQuantity) {
-            console.log('💳 Quantidade confirmada. Tentando gerar link de pagamento...');
-            await tryAutoGeneratePaymentLink(userId, phone, sanitizedNumber);
+          if ((paymentProvider === 'asaas' || paymentProvider === 'stripe') && hasQuantity) {
+            console.log('💳 Quantidade confirmada. Tentando gerar link de pagamento no Stripe...');
+            await tryAutoGenerateStripeLink(userId, phone, sanitizedNumber);
           }
         }
       }
@@ -5418,7 +5418,7 @@ app.post('/api/stripe/validate-document', async (req, res) => {
   }
 });
 
-app.post('/api/asaas/create-charge', async (req, res) => {
+async function handleCreateStripeCheckout(req, res) {
   try {
     const { userId, customerData, items } = req.body;
     
@@ -5426,75 +5426,6 @@ app.post('/api/asaas/create-charge', async (req, res) => {
       return res.status(400).json({ error: 'userId, customerData e items são obrigatórios' });
     }
     
-    // Buscar API Key do Asaas no Firestore ou Realtime Database
-    const integrations = await getIntegrationsConfig(userId);
-    
-    let asaasApiKey = null;
-    if (integrations) {
-      // Formato Firestore
-      if (integrations.asaasConfig && integrations.asaasConfig.asaasApiKey) {
-        asaasApiKey = integrations.asaasConfig.asaasApiKey;
-      }
-      // Formato Realtime Database
-      else if (integrations.asaasApiKey) {
-        asaasApiKey = integrations.asaasApiKey;
-      }
-    }
-    
-    if (!asaasApiKey) {
-      return res.status(400).json({ error: 'API Key do Asaas não configurada' });
-    }
-    
-    // Criar cobrança
-    const result = await createAsaasCharge(asaasApiKey, customerData, items, userId);
-    
-    if (result.success) {
-      // Salvar pedido no Firebase
-      const orderRef = db.ref(`orders/${userId}`).push();
-      
-      // Preparar dados do cliente (sem campos undefined)
-      const customerToSave = {
-        name: customerData.name || 'Cliente',
-        phone: customerData.originalPhone || customerData.phone || customerData.mobilePhone,  // Telefone com @c.us
-        ...(customerData.cpfCnpj && { cpfCnpj: customerData.cpfCnpj }),
-        ...(customerData.email && { email: customerData.email }),
-        ...(customerData.address && { address: customerData.address })
-      };
-      
-      await orderRef.set({
-        orderId: orderRef.key,
-        chargeId: result.chargeId,
-        customer: customerToSave,
-        items: items,
-        totalValue: result.value,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        paymentUrl: result.invoiceUrl
-      });
-      
-      res.json({
-        success: true,
-        orderId: orderRef.key,
-        ...result
-      });
-    } else {
-      res.status(400).json(result);
-    }
-    
-  } catch (error) {
-    console.error('❌ Erro ao criar cobrança:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/stripe/create-checkout', async (req, res) => {
-  try {
-    const { userId, customerData, items } = req.body;
-
-    if (!userId || !customerData || !items) {
-      return res.status(400).json({ error: 'userId, customerData e items são obrigatórios' });
-    }
-
     const integrations = await getIntegrationsConfig(userId);
     const stripeApiKey = integrations?.stripeApiKey || null;
 
@@ -5520,7 +5451,7 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
       cancelUrl,
       { orderId }
     );
-
+    
     if (result.success) {
       const customerToSave = {
         name: customerData.name || 'Cliente',
@@ -5529,7 +5460,7 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
         ...(customerData.email && { email: customerData.email }),
         ...(customerData.address && { address: customerData.address })
       };
-
+      
       await orderRef.set({
         orderId: orderId,
         stripeSessionId: result.sessionId,
@@ -5541,7 +5472,7 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
         paymentUrl: result.checkoutUrl,
         paymentProvider: 'stripe'
       });
-
+      
       return res.json({
         success: true,
         orderId: orderId,
@@ -5550,11 +5481,16 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
     }
 
     return res.status(400).json(result);
+    
   } catch (error) {
     console.error('❌ Erro ao criar checkout Stripe:', error);
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
-});
+}
+
+app.post('/api/stripe/create-checkout', handleCreateStripeCheckout);
+// Compatibilidade temporária com rota legada do Asaas
+app.post('/api/asaas/create-charge', handleCreateStripeCheckout);
 
 async function handleCreateStripeSubscription(req, res) {
   try {
