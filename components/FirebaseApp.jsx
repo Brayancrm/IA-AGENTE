@@ -8241,7 +8241,7 @@ const DashboardWithFirebase = ({
     </svg>
   );
 
-  // Ícone simples do Stripe em SVG (evita fallback de emoji no Windows)
+  // Ícone simples: "S" branco em círculo roxo
   const StripeIcon = ({ size = 24, opacity = 1 }) => (
     <svg
       width={size}
@@ -8251,12 +8251,19 @@ const DashboardWithFirebase = ({
       xmlns="http://www.w3.org/2000/svg"
       style={{ opacity }}
     >
-      <rect x="2" y="2" width="20" height="20" rx="5" fill="#635BFF" />
-      <path
-        d="M13.465 9.093c-1.523 0-2.496.724-2.496 1.922 0 1.72 2.66 1.448 2.66 2.365 0 .32-.29.535-.79.535-.716 0-1.623-.294-2.206-.61v1.694c.64.31 1.435.47 2.273.47 1.69 0 2.774-.747 2.774-1.983 0-1.833-2.673-1.5-2.673-2.397 0-.265.267-.44.695-.44.61 0 1.327.176 1.97.5V9.5a5.34 5.34 0 0 0-2.207-.407Z"
+      <circle cx="12" cy="12" r="10" fill="#635BFF" />
+      <text
+        x="12"
+        y="12"
         fill="#FFFFFF"
-      />
-      <path d="M8.47 8.63h1.605v6.77H8.47V8.63Z" fill="#FFFFFF" />
+        fontSize="12"
+        fontWeight="700"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontFamily="Arial, sans-serif"
+      >
+        S
+      </text>
     </svg>
   );
 
