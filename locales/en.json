@@ -1,0 +1,39 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "tutorials": "Tutorials",
+    "company": "User profile",
+    "catalog": "Catalog",
+    "agendamentos": "Scheduling",
+    "conversas": "WhatsApp chats",
+    "crm": "CRM",
+    "integrations": "Integrations",
+    "whatsapp": "WhatsApp connection",
+    "assistant": "Assistant settings",
+    "plans": "Plans & billing",
+    "stripe": "Stripe",
+    "users": "Manage users",
+    "email": "Email"
+  },
+  "common": {
+    "language": "Interface language",
+    "logout": "Log out",
+    "user": "User",
+    "master": "MASTER"
+  },
+  "toast": {
+    "featureLocked": "This feature is not available on your current plan. Upgrade to access it!"
+  },
+  "locked": {
+    "title": "Feature locked",
+    "body": "This feature is not available on your current plan. Upgrade to access it!",
+    "cta": "View available plans"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Overview of your AI sales system",
+    "aiTitle": "AI assistant",
+    "aiOn": "Active and replying to messages",
+    "aiOff": "Off"
+  }
+}

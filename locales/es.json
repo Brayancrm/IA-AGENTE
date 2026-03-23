@@ -1,0 +1,39 @@
+{
+  "nav": {
+    "dashboard": "Panel",
+    "tutorials": "Tutoriales",
+    "company": "Registro de usuario",
+    "catalog": "Catálogo",
+    "agendamentos": "Citas",
+    "conversas": "Chats de WhatsApp",
+    "crm": "CRM",
+    "integrations": "Integraciones",
+    "whatsapp": "Conexión WhatsApp",
+    "assistant": "Configuración del asistente",
+    "plans": "Planes y suscripciones",
+    "stripe": "Stripe",
+    "users": "Gestionar usuarios",
+    "email": "Email"
+  },
+  "common": {
+    "language": "Idioma de la interfaz",
+    "logout": "Salir",
+    "user": "Usuario",
+    "master": "MASTER"
+  },
+  "toast": {
+    "featureLocked": "Esta función no está disponible en tu plan actual. ¡Mejora el plan para acceder!"
+  },
+  "locked": {
+    "title": "Función bloqueada",
+    "body": "Esta función no está disponible en tu plan actual. ¡Mejora el plan para acceder!",
+    "cta": "Ver planes disponibles"
+  },
+  "dashboard": {
+    "title": "Panel",
+    "subtitle": "Resumen de tu sistema de ventas con IA",
+    "aiTitle": "Asistente de IA",
+    "aiOn": "Activo y respondiendo mensajes",
+    "aiOff": "Desactivado"
+  }
+}

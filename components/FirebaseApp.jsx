@@ -28,6 +28,7 @@ import SimpleLanding from './SimpleLanding';
 import dynamic from 'next/dynamic';
 import { convertStepsToPrompt } from '../hooks/useFlowBuilder';
 import { mergeFlowStepsIntoAssistantForm, applyFixedApproachesToSteps } from '../utils/assistantWizardHelpers';
+import { useI18n } from '../contexts/I18nContext';
 import BeefreeEditor from './BeefreeEditor';
 
 // Unlayer Editor será carregado via script tag (embed)
@@ -3081,6 +3082,7 @@ const DashboardWithFirebase = ({
 }) => {
   // Garantir que usedTrials sempre seja um objeto
   const safeUsedTrials = usedTrials || {};
+  const { t, locale, setLocale } = useI18n();
   const [isActive, setIsActive] = useState(assistantSettings.isActive || true);
   const [stripeOps, setStripeOps] = useState({
     loading: true,
@@ -5580,10 +5582,10 @@ const DashboardWithFirebase = ({
           <div style={{ backgroundColor: '#1a1f36', borderRadius: '20px', padding: '48px', border: '2px solid rgba(239, 68, 68, 0.3)' }}>
             <div style={{ fontSize: '64px', marginBottom: '24px' }}>🔒</div>
             <h2 style={{ fontSize: '2rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px' }}>
-              Funcionalidade Bloqueada
+              {t('locked.title')}
             </h2>
             <p style={{ fontSize: '1.125rem', color: '#9ca3af', marginBottom: '32px', lineHeight: '1.6' }}>
-              Esta funcionalidade não está disponível no seu plano atual. Faça upgrade para acessar!
+              {t('locked.body')}
             </p>
             <button
               onClick={() => setCurrentPage('plans')}
@@ -5608,7 +5610,7 @@ const DashboardWithFirebase = ({
                 e.target.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.3)';
               }}
             >
-              Ver Planos Disponíveis
+              {t('locked.cta')}
             </button>
           </div>
         </div>
@@ -5623,10 +5625,10 @@ const DashboardWithFirebase = ({
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('dashboard')}
-                Dashboard
+                {t('dashboard.title')}
               </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
-                Visão geral do seu sistema de vendas com IA
+                {t('dashboard.subtitle')}
               </p>
             </div>
 
@@ -5642,10 +5644,10 @@ const DashboardWithFirebase = ({
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#ffffff', marginBottom: '4px' }}>
-                    Assistente de IA
+                    {t('dashboard.aiTitle')}
                 </h3>
                   <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
-                    {isActive ? '🟢 Ativo e respondendo mensagens' : '🔴 Desativado'}
+                    {isActive ? `🟢 ${t('dashboard.aiOn')}` : `🔴 ${t('dashboard.aiOff')}`}
                   </p>
                 </div>
                 <label style={{ 
@@ -8630,24 +8632,29 @@ const DashboardWithFirebase = ({
     </svg>
   );
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
-    { id: 'tutorials', label: 'Tutoriais', icon: '📚' },
-    { id: 'company', label: 'Cadastro do Usuário', icon: '👤' },
-    { id: 'catalog', label: 'Catálogo', icon: '📦' },
-    { id: 'agendamentos', label: 'Agendamentos', icon: '📅' },
-    { id: 'conversas', label: 'Conversas WhatsApp', icon: 'whatsapp' },
-    { id: 'crm', label: 'CRM', icon: 'target' },
-    { id: 'integrations', label: 'Integrações', icon: '⚙️' },
-    { id: 'whatsapp', label: 'Conexão WhatsApp', icon: '📱' },
-    { id: 'assistant', label: 'Configuração do Assistente', icon: '🤖' },
-    { id: 'plans', label: 'Planos e Assinaturas', icon: '💎' },
-    ...(user?.isMaster ? [
-      { id: 'stripe', label: 'Stripe', icon: 'stripe' },
-      { id: 'users', label: 'Gerenciar Usuários', icon: '👤' },
-      { id: 'email', label: 'Email', icon: '📧' }
-    ] : [])
-  ];
+  const menuItems = useMemo(
+    () => [
+      { id: 'dashboard', label: t('nav.dashboard'), icon: '🏠' },
+      { id: 'tutorials', label: t('nav.tutorials'), icon: '📚' },
+      { id: 'company', label: t('nav.company'), icon: '👤' },
+      { id: 'catalog', label: t('nav.catalog'), icon: '📦' },
+      { id: 'agendamentos', label: t('nav.agendamentos'), icon: '📅' },
+      { id: 'conversas', label: t('nav.conversas'), icon: 'whatsapp' },
+      { id: 'crm', label: t('nav.crm'), icon: 'target' },
+      { id: 'integrations', label: t('nav.integrations'), icon: '⚙️' },
+      { id: 'whatsapp', label: t('nav.whatsapp'), icon: '📱' },
+      { id: 'assistant', label: t('nav.assistant'), icon: '🤖' },
+      { id: 'plans', label: t('nav.plans'), icon: '💎' },
+      ...(user?.isMaster
+        ? [
+            { id: 'stripe', label: t('nav.stripe'), icon: 'stripe' },
+            { id: 'users', label: t('nav.users'), icon: '👤' },
+            { id: 'email', label: t('nav.email'), icon: '📧' }
+          ]
+        : [])
+    ],
+    [t, user?.isMaster]
+  );
 
   // Função helper para renderizar ícones de página (mesma lógica do sidebar)
   const renderPageIcon = (pageId, customSize = null) => {
@@ -8913,7 +8920,7 @@ const DashboardWithFirebase = ({
                     width: 'fit-content',
                     marginTop: '4px'
                   }}>
-                    👑 MASTER
+                    👑 {t('common.master')}
                   </div>
                 )}
               </div>
@@ -8954,7 +8961,7 @@ const DashboardWithFirebase = ({
                       key={item.id}
                       onClick={() => {
                         if (isLocked) {
-                          showToast('Esta funcionalidade não está disponível no seu plano atual. Faça upgrade para acessar!', 'error');
+                          showToast(t('toast.featureLocked'), 'error');
                           setCurrentPage('plans');
                         } else {
                           setCurrentPage(item.id);
@@ -9091,6 +9098,39 @@ const DashboardWithFirebase = ({
                 gap: '12px',
                 flexShrink: 0
               }}>
+                <div style={{ padding: '0 12px 4px' }}>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '0.75rem',
+                      color: '#9ca3af',
+                      marginBottom: '6px',
+                      fontWeight: 600
+                    }}
+                  >
+                    {t('common.language')}
+                  </label>
+                  <select
+                    value={locale}
+                    onChange={(e) => setLocale(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      background: '#0f1419',
+                      color: '#fff',
+                      fontSize: '0.875rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="pt">Português (PT)</option>
+                    <option value="it">Italiano (IT)</option>
+                    <option value="es">Español (ES)</option>
+                    <option value="en">English (EN)</option>
+                  </select>
+                </div>
+
                 {/* Perfil do Usuário */}
                 <div style={{ 
                   display: 'flex', 
@@ -9155,7 +9195,7 @@ const DashboardWithFirebase = ({
                         textOverflow: 'ellipsis'
                       }}
                     >
-                      {companyProfile?.companyName || user?.displayName || 'Usuário'}
+                      {companyProfile?.companyName || user?.displayName || t('common.user')}
                     </div>
                     <div
                       style={{
@@ -9204,7 +9244,7 @@ const DashboardWithFirebase = ({
                   }}
                 >
                   <span>🚪</span>
-                  <span>Sair</span>
+                  <span>{t('common.logout')}</span>
                 </button>
               </div>
             </div>
