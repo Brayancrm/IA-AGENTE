@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useFirebase } from '../hooks/useFirebase';
 
 // Suprimir erros não críticos de scripts externos (Firebase/Vercel feedback)
@@ -23,7 +23,7 @@ if (typeof window !== 'undefined') {
 }
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as firebaseSignOut, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
-import { ref, push, set, remove, onValue, off, get } from 'firebase/database';
+import { ref, push, set, remove, onValue, off, get, update } from 'firebase/database';
 import SimpleLanding from './SimpleLanding';
 import dynamic from 'next/dynamic';
 import { convertStepsToPrompt } from '../hooks/useFlowBuilder';
@@ -1708,8 +1708,15 @@ const FirebaseApp = () => {
       
       const data = {
         ...itemData,
-        price: itemData.price && itemData.price.trim() !== '' ? parseFloat(itemData.price) : null,
-        stockQuantity: parseInt(itemData.stockQuantity) || 0,
+        name: String(itemData.name || '').trim(),
+        description: String(itemData.description || '').trim(),
+        price: String(itemData.price ?? '').trim() !== '' ? Number(String(itemData.price).replace(',', '.')) : null,
+        stockQuantity: Number.parseInt(itemData.stockQuantity, 10) || 0,
+        minStock: Number.parseInt(itemData.minStock, 10) || 0,
+        category: String(itemData.category || '').trim(),
+        sku: String(itemData.sku || '').trim(),
+        image: String(itemData.image || '').trim(),
+        link: String(itemData.link || '').trim(),
         updatedAt: now
       };
       
@@ -1733,12 +1740,6 @@ const FirebaseApp = () => {
         // Preservar data de criação original
         data.createdAt = originalCreatedAt;
         
-        // 1️⃣ Atualizar em catalog_items
-        await set(catalogRef, data);
-        console.log('✅ [SYNC] Item atualizado em catalog_items com ID:', itemId);
-        
-        // 2️⃣ Atualizar em products/ (para o backend usar)
-        const productRef = ref(database, `products/${user.uid}/${itemId}`);
         const productData = {
           id: itemId,
           name: data.name,
@@ -1753,25 +1754,20 @@ const FirebaseApp = () => {
           createdAt: originalCreatedAt,
           updatedAt: data.updatedAt
         };
-        
-        await set(productRef, productData);
-        console.log('✅ [SYNC] Item atualizado em products/' + user.uid + '/' + itemId);
+
+        const updates = {};
+        updates[`users/data/${user.uid}/catalog_items/${itemId}`] = data;
+        updates[`products/${user.uid}/${itemId}`] = productData;
+        await update(ref(database), updates);
+        console.log('✅ [SYNC] Item atualizado atomicamente em catalog_items e products:', itemId);
         
         const itemType = data.type === 'service' ? 'Serviço' : 'Produto';
         showToast(`${itemType} atualizado com sucesso!`);
       } else {
         // CRIAR novo item
-        // 1️⃣ Salvar em catalog_items (para exibição no dashboard)
         const catalogRef = ref(database, `users/data/${user.uid}/catalog_items`);
         const newItemRef = push(catalogRef);
-        await set(newItemRef, data);
         itemId = newItemRef.key;
-        
-        console.log('✅ [SYNC] Item salvo em catalog_items com ID:', itemId);
-        
-        // 2️⃣ SINCRONIZAR COM products/ (para o backend usar)
-        console.log('🔄 [SYNC] Sincronizando com products/...');
-        const productRef = ref(database, `products/${user.uid}/${itemId}`);
         const productData = {
           id: itemId,
           name: data.name,
@@ -1786,9 +1782,12 @@ const FirebaseApp = () => {
           createdAt: data.createdAt,
           updatedAt: data.updatedAt
         };
-        
-        await set(productRef, productData);
-        console.log('✅ [SYNC] Item sincronizado em products/' + user.uid + '/' + itemId);
+
+        const updates = {};
+        updates[`users/data/${user.uid}/catalog_items/${itemId}`] = data;
+        updates[`products/${user.uid}/${itemId}`] = productData;
+        await update(ref(database), updates);
+        console.log('✅ [SYNC] Item criado atomicamente em catalog_items e products:', itemId);
         
         // 3️⃣ Salvar categoria se fornecida
         if (data.category && data.category.trim()) {
@@ -1837,15 +1836,11 @@ const FirebaseApp = () => {
     console.log('🗑️ [DELETE] Excluindo item ID:', itemId);
     
     try {
-      // 1️⃣ Remover de catalog_items
-      const itemRef = ref(database, `users/data/${user.uid}/catalog_items/${itemId}`);
-      await remove(itemRef);
-      console.log('✅ [DELETE] Removido de catalog_items');
-      
-      // 2️⃣ Remover de products/ também
-      const productRef = ref(database, `products/${user.uid}/${itemId}`);
-      await remove(productRef);
-      console.log('✅ [DELETE] Removido de products/' + user.uid);
+      const updates = {};
+      updates[`users/data/${user.uid}/catalog_items/${itemId}`] = null;
+      updates[`products/${user.uid}/${itemId}`] = null;
+      await update(ref(database), updates);
+      console.log('✅ [DELETE] Item removido atomicamente de catalog_items e products');
       
       showToast('✅ Item excluído com sucesso!', 'success');
     } catch (error) {
@@ -3559,6 +3554,41 @@ const DashboardWithFirebase = ({
   useEffect(() => {
     setCatalogCurrentPage(0);
   }, [catalogSearch, catalogFilter, catalogCategory]);
+
+  const catalogValidItems = useMemo(
+    () => catalogItems.filter((i) => i && i.name),
+    [catalogItems]
+  );
+
+  const catalogStats = useMemo(() => {
+    const products = catalogValidItems.filter((i) => i.type === 'product');
+    return {
+      total: products.length,
+      products: products.length,
+      services: catalogValidItems.filter((i) => i.type === 'service').length,
+      totalValue: products.reduce((sum, item) => {
+        const price = item.price !== null && item.price !== undefined ? parseFloat(item.price) : 0;
+        return sum + (price * (parseInt(item.stockQuantity, 10) || 0));
+      }, 0),
+      lowStock: products.filter((i) => (parseInt(i.stockQuantity, 10) || 0) < (i.minStock || 5)).length,
+      featured: products.filter((i) => i.featured).length
+    };
+  }, [catalogValidItems]);
+
+  const catalogFilteredItems = useMemo(() => catalogValidItems.filter((item) => {
+    const searchTerm = catalogSearch.toLowerCase();
+    const matchesSearch = item.name.toLowerCase().includes(searchTerm) ||
+                         (item.description || '').toLowerCase().includes(searchTerm) ||
+                         (item.sku || '').toLowerCase().includes(searchTerm);
+    const matchesFilter = catalogFilter === 'all' || item.type === catalogFilter;
+    const matchesCategory = catalogCategory === 'all' || item.category === catalogCategory;
+    return matchesSearch && matchesFilter && matchesCategory;
+  }), [catalogValidItems, catalogSearch, catalogFilter, catalogCategory]);
+
+  const catalogCategories = useMemo(
+    () => [...new Set(catalogValidItems.map((i) => i.category).filter(Boolean))],
+    [catalogValidItems]
+  );
   const [tutorialsCurrentPage, setTutorialsCurrentPage] = useState(0);
   const [showImportModal, setShowImportModal] = useState(false);
 
@@ -3938,6 +3968,47 @@ const DashboardWithFirebase = ({
 
   const handleCatalogSubmit = (e) => {
     e.preventDefault();
+    const name = String(catalogForm.name || '').trim();
+    if (!name) {
+      showToast('Nome do item é obrigatório.', 'error');
+      return;
+    }
+
+    const stockValue = Number(catalogForm.stockQuantity);
+    if (!Number.isInteger(stockValue) || stockValue < 0) {
+      showToast('Estoque deve ser um número inteiro maior ou igual a 0.', 'error');
+      return;
+    }
+
+    const minStockValue = Number(catalogForm.minStock);
+    if (!Number.isInteger(minStockValue) || minStockValue < 0) {
+      showToast('Estoque mínimo deve ser um número inteiro maior ou igual a 0.', 'error');
+      return;
+    }
+
+    const priceRaw = String(catalogForm.price ?? '').trim();
+    if (priceRaw !== '') {
+      const priceValue = Number(priceRaw.replace(',', '.'));
+      const hasTooManyDecimals = !/^\d+([.,]\d{1,2})?$/.test(priceRaw);
+      if (!Number.isFinite(priceValue) || priceValue < 0 || hasTooManyDecimals) {
+        showToast('Preço inválido. Use valor >= 0 com no máximo 2 casas decimais.', 'error');
+        return;
+      }
+    }
+
+    const sku = String(catalogForm.sku || '').trim();
+    if (sku) {
+      const hasDuplicateSku = catalogItems.some((item) => (
+        item &&
+        item.id !== (editingItem?.id || null) &&
+        String(item.sku || '').trim().toLowerCase() === sku.toLowerCase()
+      ));
+      if (hasDuplicateSku) {
+        showToast('SKU já existe no catálogo. Use um código único.', 'error');
+        return;
+      }
+    }
+
     saveCatalogItem(catalogForm, editingItem?.id || null);
     setShowCatalogModal(false);
     setEditingItem(null);
@@ -3974,36 +4045,9 @@ const DashboardWithFirebase = ({
   
   // Função para renderizar o catálogo avançado
   const renderCatalog = () => {
-    // Calcular estatísticas (ignorando itens inválidos)
-    const validItems = catalogItems.filter(i => i && i.name);
-    // Filtrar apenas produtos para as estatísticas
-    const products = validItems.filter(i => i.type === 'product');
-    
-    const stats = {
-      total: products.length,
-      products: products.length,
-      services: validItems.filter(i => i.type === 'service').length,
-      totalValue: products.reduce((sum, item) => {
-        const price = item.price !== null && item.price !== undefined ? parseFloat(item.price) : 0;
-        return sum + (price * (parseInt(item.stockQuantity) || 0));
-      }, 0),
-      lowStock: products.filter(i => (parseInt(i.stockQuantity) || 0) < (i.minStock || 5)).length,
-      featured: products.filter(i => i.featured).length
-    };
-
-    // Filtrar itens (ignorando itens inválidos)
-    const filteredItems = catalogItems.filter(item => {
-      // Validação: verificar se item e name existem
-      if (!item || !item.name) {
-        return false;
-      }
-      const matchesSearch = item.name.toLowerCase().includes(catalogSearch.toLowerCase()) ||
-                           (item.description || '').toLowerCase().includes(catalogSearch.toLowerCase()) ||
-                           (item.sku || '').toLowerCase().includes(catalogSearch.toLowerCase());
-      const matchesFilter = catalogFilter === 'all' || item.type === catalogFilter;
-      const matchesCategory = catalogCategory === 'all' || item.category === catalogCategory;
-      return matchesSearch && matchesFilter && matchesCategory;
-    });
+    const validItems = catalogValidItems;
+    const stats = catalogStats;
+    const filteredItems = catalogFilteredItems;
 
     // Paginação - máximo 4 itens por página
     const catalogItemsPerPage = 4;
@@ -4013,7 +4057,7 @@ const DashboardWithFirebase = ({
     const catalogPaginatedItems = filteredItems.slice(catalogStartIndex, catalogEndIndex);
 
     // Obter categorias únicas (apenas de itens válidos)
-    const categories = [...new Set(validItems.map(i => i.category).filter(Boolean))];
+    const categories = catalogCategories;
 
     return (
       <div className={`${isMobile ? 'p-4' : 'p-6 lg:p-10'} space-y-6`} style={{ width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
