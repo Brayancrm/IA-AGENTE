@@ -59,6 +59,22 @@ import {
 
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsappsalesagent';
 
+const AGENDAMENTO_STATUS_CONFIG = {
+  pendente: { label: 'Pendente', color: '#eab308' },
+  confirmado: { label: 'Confirmado', color: '#3b82f6' },
+  em_andamento: { label: 'Em Andamento', color: '#8b5cf6' },
+  concluido: { label: 'Concluído', color: '#10b981' },
+  cancelado: { label: 'Cancelado', color: '#ef4444' }
+};
+
+const AGENDAMENTO_TIPO_ICON = {
+  retirada: '📦',
+  servico: '🔧',
+  visita: '🏢',
+  entrega: '🚚',
+  ligacao: '📞'
+};
+
 const FirebaseApp = () => {
   const { app, db, auth, database, isReady, error } = useFirebase();
   const [user, setUser] = useState(null);
@@ -108,6 +124,8 @@ const FirebaseApp = () => {
   const [agendamentoFilter, setAgendamentoFilter] = useState('todos'); // todos, pendente, confirmado, concluido, cancelado
   const [agendamentoTypeFilter, setAgendamentoTypeFilter] = useState('todos'); // todos, retirada, servico, visita, etc
   const [agendamentoViewMode, setAgendamentoViewMode] = useState('lista'); // lista ou calendario
+  const [agendamentoSearch, setAgendamentoSearch] = useState('');
+  const [agendamentoCurrentPage, setAgendamentoCurrentPage] = useState(0);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(null); // Data selecionada no calendário
   const [selectedDateAgendamentos, setSelectedDateAgendamentos] = useState([]); // Agendamentos da data selecionada
   
@@ -249,6 +267,98 @@ const FirebaseApp = () => {
   
   // URL do backend
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+
+  const getStatusColor = useCallback((status) => {
+    return AGENDAMENTO_STATUS_CONFIG[status]?.color || '#6b7280';
+  }, []);
+
+  const getStatusLabel = useCallback((status) => {
+    return AGENDAMENTO_STATUS_CONFIG[status]?.label || status || 'N/A';
+  }, []);
+
+  const getTipoIcon = useCallback((tipo) => {
+    return AGENDAMENTO_TIPO_ICON[tipo] || '📅';
+  }, []);
+
+  const parseAgendamentoDateTime = useCallback((data, horario = '00:00') => {
+    if (!data) return null;
+    const time = String(horario || '00:00');
+    if (String(data).includes('-')) {
+      const dt = new Date(`${data}T${time}:00`);
+      return Number.isNaN(dt.getTime()) ? null : dt;
+    }
+
+    const parts = String(data).split('/');
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      const dt = new Date(`${year}-${month}-${day}T${time}:00`);
+      return Number.isNaN(dt.getTime()) ? null : dt;
+    }
+    return null;
+  }, []);
+
+  const agendamentosOrdenados = useMemo(() => {
+    const list = [...(agendamentos || [])];
+    list.sort((a, b) => {
+      const dateA = parseAgendamentoDateTime(a.data, a.horario);
+      const dateB = parseAgendamentoDateTime(b.data, b.horario);
+      const timeA = dateA ? dateA.getTime() : 0;
+      const timeB = dateB ? dateB.getTime() : 0;
+      return timeA - timeB;
+    });
+    return list;
+  }, [agendamentos, parseAgendamentoDateTime]);
+
+  const agendamentosFiltradosOrdenados = useMemo(() => {
+    const query = String(agendamentoSearch || '').toLowerCase().trim();
+    return agendamentosOrdenados.filter((agend) => {
+      const matchStatus = (agendamentoFilter || 'todos') === 'todos' || agend.status === agendamentoFilter;
+      const matchType = (agendamentoTypeFilter || 'todos') === 'todos' || agend.tipo === agendamentoTypeFilter;
+      const text = `${agend.titulo || ''} ${agend.descricao || ''} ${agend.cliente || ''} ${agend.telefone || ''}`.toLowerCase();
+      const matchSearch = !query || text.includes(query);
+      return matchStatus && matchType && matchSearch;
+    });
+  }, [agendamentosOrdenados, agendamentoFilter, agendamentoTypeFilter, agendamentoSearch]);
+
+  const agendamentoStats = useMemo(() => {
+    const now = new Date();
+    const endOfToday = new Date(now);
+    endOfToday.setHours(23, 59, 59, 999);
+    const next7 = new Date(now);
+    next7.setDate(next7.getDate() + 7);
+    next7.setHours(23, 59, 59, 999);
+
+    const isOpenStatus = (s) => s !== 'concluido' && s !== 'cancelado';
+    const values = agendamentosOrdenados;
+    return {
+      total: values.length,
+      pendente: values.filter((a) => a.status === 'pendente').length,
+      confirmado: values.filter((a) => a.status === 'confirmado').length,
+      concluido: values.filter((a) => a.status === 'concluido').length,
+      cancelado: values.filter((a) => a.status === 'cancelado').length,
+      em_andamento: values.filter((a) => a.status === 'em_andamento').length,
+      atrasados: values.filter((a) => {
+        const dt = parseAgendamentoDateTime(a.data, a.horario);
+        return dt && dt < now && isOpenStatus(a.status);
+      }).length,
+      hoje: values.filter((a) => {
+        const dt = parseAgendamentoDateTime(a.data, a.horario);
+        return dt && dt >= new Date(now.getFullYear(), now.getMonth(), now.getDate()) && dt <= endOfToday;
+      }).length,
+      proximos7: values.filter((a) => {
+        const dt = parseAgendamentoDateTime(a.data, a.horario);
+        return dt && dt >= now && dt <= next7;
+      }).length
+    };
+  }, [agendamentosOrdenados, parseAgendamentoDateTime]);
+
+  const agendamentoItemsPerPage = 8;
+  const agendamentoTotalPages = Math.max(1, Math.ceil(agendamentosFiltradosOrdenados.length / agendamentoItemsPerPage));
+  const agendamentoPaginaAtual = Math.min(agendamentoCurrentPage, agendamentoTotalPages - 1);
+  const agendamentosPaginados = useMemo(() => {
+    const start = agendamentoPaginaAtual * agendamentoItemsPerPage;
+    return agendamentosFiltradosOrdenados.slice(start, start + agendamentoItemsPerPage);
+  }, [agendamentosFiltradosOrdenados, agendamentoPaginaAtual]);
 
   // Função para mostrar toast
   const showToast = (message, type = 'success') => {
@@ -3592,6 +3702,10 @@ const DashboardWithFirebase = ({
   const [tutorialsCurrentPage, setTutorialsCurrentPage] = useState(0);
   const [showImportModal, setShowImportModal] = useState(false);
 
+  useEffect(() => {
+    setAgendamentoCurrentPage(0);
+  }, [agendamentoFilter, agendamentoTypeFilter, agendamentoSearch]);
+
   // Estados do companyForm - usar props se disponíveis, senão criar locais
   const [companyForm, setCompanyForm] = useState({
     companyName: '',
@@ -4620,129 +4734,137 @@ const DashboardWithFirebase = ({
     );
   };
 
-  // Função para renderizar agendamentos (igual ao renderCatalog - tem acesso aos states!)
-  const renderAgendamentos = () => {
-    // ✅ Proteção segura - usar valores padrão se undefined
-    const agendamentosAtual = agendamentos || [];
-    const filterAtual = agendamentoFilter || 'todos';
-    const typeFilterAtual = agendamentoTypeFilter || 'todos';
-    
-    console.log('🎨 [renderAgendamentos] INÍCIO - agendamentos:', agendamentosAtual.length);
-    
-    // 🆕 FUNÇÕES LOCAIS (dentro do escopo de renderAgendamentos)
-    const handleOpenModal = () => {
-      console.log('🔘 [MODAL] Abrindo modal...');
-      setEditingAgendamento(null);
-      setShowAgendamentoModal(true);
-    };
+  const openAgendamentoModal = useCallback(() => {
+    setEditingAgendamento(null);
+    setShowAgendamentoModal(true);
+  }, []);
 
-    const handleEdit = (agendamento) => {
-      console.log('✏️ [EDIT] Editando:', agendamento);
-      setEditingAgendamento(agendamento);
-      setShowAgendamentoModal(true);
-    };
+  const editAgendamento = useCallback((agendamento) => {
+    setEditingAgendamento(agendamento);
+    setShowAgendamentoModal(true);
+  }, []);
 
-    const handleDelete = async (id) => {
-      if (!confirm('Tem certeza que deseja excluir?')) return;
-      
-      if (!user || !database) {
-        showToast('❌ Erro: Usuário não autenticado', 'error');
-        return;
-      }
-      
-      try {
-        console.log('🗑️ [DELETE] Excluindo agendamento:', id);
-        const agendamentoRef = ref(database, `users/data/${user.uid}/agendamentos/${id}`);
-        await remove(agendamentoRef);
-        console.log('✅ [FIREBASE] Agendamento excluído:', id);
-        showToast('Agendamento excluído!', 'success');
+  const deleteAgendamento = useCallback(async (id) => {
+    if (!window.confirm('Tem certeza que deseja excluir?')) return;
+    if (!user || !database) {
+      showToast('❌ Erro: Usuário não autenticado', 'error');
+      return;
+    }
+    try {
+      const agendamentoRef = ref(database, `users/data/${user.uid}/agendamentos/${id}`);
+      await remove(agendamentoRef);
+      showToast('Agendamento excluído!', 'success');
     } catch (error) {
-        console.error('❌ [FIREBASE] Erro ao excluir agendamento:', error);
-        showToast('❌ Erro ao excluir agendamento', 'error');
-      }
-    };
+      console.error('❌ [FIREBASE] Erro ao excluir agendamento:', error);
+      showToast('❌ Erro ao excluir agendamento', 'error');
+    }
+  }, [user, database]);
 
-    // Função para atualizar status rapidamente
-    const handleQuickStatusUpdate = async (agendamentoId, newStatus) => {
-      if (!user || !database) {
-        showToast('❌ Erro: Usuário não autenticado', 'error');
+  const updateAgendamentoStatus = useCallback(async (agendamentoId, newStatus) => {
+    if (!user || !database) {
+      showToast('❌ Erro: Usuário não autenticado', 'error');
+      return;
+    }
+    try {
+      const agendamentoRef = ref(database, `users/data/${user.uid}/agendamentos/${agendamentoId}`);
+      const snapshot = await get(agendamentoRef);
+      if (!snapshot.exists()) {
+        showToast('❌ Agendamento não encontrado', 'error');
         return;
       }
-      
-      try {
-        console.log('🔄 [QUICK UPDATE] Atualizando status:', { agendamentoId, newStatus });
-        const agendamentoRef = ref(database, `users/data/${user.uid}/agendamentos/${agendamentoId}`);
-        const snapshot = await get(agendamentoRef);
-        
-        if (!snapshot.exists()) {
-          showToast('❌ Agendamento não encontrado', 'error');
-          return;
-        }
-        
-        const agendamentoData = snapshot.val();
-        await set(agendamentoRef, {
-          ...agendamentoData,
-          status: newStatus,
-          updatedAt: new Date().toISOString()
-        });
-        
-        console.log('✅ [FIREBASE] Status atualizado:', newStatus);
-        showToast(`Status alterado para: ${getStatusLabel(newStatus)}`, 'success');
-      } catch (error) {
-        console.error('❌ [FIREBASE] Erro ao atualizar status:', error);
-        showToast('❌ Erro ao atualizar status', 'error');
-      }
-    };
-    
-    // Filtrar agendamentos
-    const agendamentosFiltrados = agendamentosAtual.filter(agend => {
-      const matchStatus = filterAtual === 'todos' || agend.status === filterAtual;
-      const matchType = typeFilterAtual === 'todos' || agend.tipo === typeFilterAtual;
-      return matchStatus && matchType;
+      const agendamentoData = snapshot.val();
+      const statusHistory = Array.isArray(agendamentoData.statusHistory) ? agendamentoData.statusHistory : [];
+      await set(agendamentoRef, {
+        ...agendamentoData,
+        status: newStatus,
+        statusHistory: [
+          ...statusHistory,
+          {
+            from: agendamentoData.status || 'pendente',
+            to: newStatus,
+            changedAt: new Date().toISOString(),
+            changedBy: user.uid
+          }
+        ],
+        updatedAt: new Date().toISOString()
+      });
+      showToast(`Status alterado para: ${getStatusLabel(newStatus)}`, 'success');
+    } catch (error) {
+      console.error('❌ [FIREBASE] Erro ao atualizar status:', error);
+      showToast('❌ Erro ao atualizar status', 'error');
+    }
+  }, [user, database, getStatusLabel]);
+
+  const exportAgendamentosCsv = useCallback(() => {
+    const rows = agendamentosFiltradosOrdenados.map((a) => ({
+      titulo: a.titulo || '',
+      tipo: a.tipo || '',
+      status: getStatusLabel(a.status),
+      data: a.data || '',
+      horario: a.horario || '',
+      cliente: a.cliente || '',
+      telefone: a.telefone || '',
+      descricao: a.descricao || '',
+      observacoes: a.observacoes || ''
+    }));
+
+    const header = ['titulo', 'tipo', 'status', 'data', 'horario', 'cliente', 'telefone', 'descricao', 'observacoes'];
+    const csvLines = [header.join(';')].concat(rows.map((row) => (
+      header.map((k) => `"${String(row[k]).replace(/"/g, '""')}"`).join(';')
+    )));
+
+    const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const dateTag = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.setAttribute('download', `agendamentos-${dateTag}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast('CSV exportado com sucesso!', 'success');
+  }, [agendamentosFiltradosOrdenados, getStatusLabel]);
+
+  const openWhatsAppReminder = useCallback((agendamento) => {
+    const phone = String(agendamento?.telefone || '').replace(/\D/g, '');
+    if (!phone) {
+      showToast('Agendamento sem telefone para enviar lembrete.', 'error');
+      return;
+    }
+    const mensagem = `Olá ${agendamento.cliente || ''}! Lembrete do seu agendamento "${agendamento.titulo || 'Compromisso'}" em ${agendamento.data || ''} às ${agendamento.horario || ''}.`;
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(mensagem)}`;
+    window.open(url, '_blank');
+  }, []);
+
+  const copyUpcomingReminders = useCallback((hoursAhead) => {
+    const now = new Date();
+    const limit = new Date(now.getTime() + (hoursAhead * 60 * 60 * 1000));
+    const list = agendamentosOrdenados.filter((a) => {
+      const dt = parseAgendamentoDateTime(a.data, a.horario);
+      return dt && dt >= now && dt <= limit && ['pendente', 'confirmado', 'em_andamento'].includes(a.status);
     });
 
-    // Estatísticas
-    const stats = {
-      total: agendamentosAtual.length,
-      pendente: agendamentosAtual.filter(a => a.status === 'pendente').length,
-      confirmado: agendamentosAtual.filter(a => a.status === 'confirmado').length,
-      concluido: agendamentosAtual.filter(a => a.status === 'concluido').length,
-      cancelado: agendamentosAtual.filter(a => a.status === 'cancelado').length,
-      em_andamento: agendamentosAtual.filter(a => a.status === 'em_andamento').length,
-    };
+    if (list.length === 0) {
+      showToast(`Nenhum agendamento para lembrete em ${hoursAhead}h.`, 'error');
+      return;
+    }
 
-    const getStatusColor = (status) => {
-      switch (status) {
-        case 'pendente': return '#eab308';
-        case 'confirmado': return '#3b82f6';
-        case 'em_andamento': return '#8b5cf6';
-        case 'concluido': return '#10b981';
-        case 'cancelado': return '#ef4444';
-        default: return '#6b7280';
-      }
-    };
+    const text = list.map((a) => {
+      const phone = String(a.telefone || '').replace(/\D/g, '');
+      return `${a.cliente || 'Cliente'} | ${a.data} ${a.horario} | tel: ${phone || 'sem telefone'}`;
+    }).join('\n');
 
-    const getStatusLabel = (status) => {
-      switch (status) {
-        case 'pendente': return 'Pendente';
-        case 'confirmado': return 'Confirmado';
-        case 'em_andamento': return 'Em Andamento';
-        case 'concluido': return 'Concluído';
-        case 'cancelado': return 'Cancelado';
-        default: return status;
-      }
-    };
+    navigator.clipboard.writeText(text)
+      .then(() => showToast(`Lista de lembretes (${hoursAhead}h) copiada!`, 'success'))
+      .catch(() => showToast('Não foi possível copiar a lista de lembretes.', 'error'));
+  }, [agendamentosOrdenados, parseAgendamentoDateTime]);
 
-    const getTipoIcon = (tipo) => {
-      switch (tipo) {
-        case 'retirada': return '📦';
-        case 'servico': return '🔧';
-        case 'visita': return '🏢';
-        case 'entrega': return '🚚';
-        case 'ligacao': return '📞';
-        default: return '📅';
-      }
-    };
+  // Função para renderizar agendamentos (igual ao renderCatalog - tem acesso aos states!)
+  const renderAgendamentos = () => {
+    const agendamentosAtual = agendamentosOrdenados;
+    const agendamentosFiltrados = agendamentosFiltradosOrdenados;
+    const stats = agendamentoStats;
     
     return (
       <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
@@ -4759,7 +4881,7 @@ const DashboardWithFirebase = ({
               </p>
             </div>
             <button
-              onClick={handleOpenModal}
+              onClick={openAgendamentoModal}
               style={{
                 backgroundColor: '#1a1f36',
                 border: '1px solid #10b981',
@@ -4816,10 +4938,43 @@ const DashboardWithFirebase = ({
               <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Cancelados</div>
               <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#ef4444' }}>{stats.cancelado}</div>
             </div>
+            <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Atrasados</div>
+              <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#ef4444' }}>{stats.atrasados}</div>
+            </div>
+            <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Hoje</div>
+              <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#3b82f6' }}>{stats.hoje}</div>
+            </div>
+            <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Próx. 7 dias</div>
+              <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#10b981' }}>{stats.proximos7}</div>
+            </div>
           </div>
 
           {/* Filtros e Toggle de Visualização */}
           <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div style={{ flex: '1', minWidth: '220px' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', color: '#ffffff', marginBottom: '8px', fontWeight: '600' }}>
+                Busca
+              </label>
+              <input
+                type="text"
+                value={agendamentoSearch}
+                onChange={(e) => setAgendamentoSearch(e.target.value)}
+                placeholder="Buscar por título, cliente, telefone..."
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  borderRadius: '10px',
+                  border: '2px solid rgba(255, 255, 255, 0.1)',
+                  fontSize: '0.875rem',
+                  backgroundColor: '#0f1419',
+                  color: '#ffffff',
+                  outline: 'none'
+                }}
+              />
+            </div>
             <div style={{ flex: '1', minWidth: '200px' }}>
               <label style={{ display: 'block', fontSize: '0.875rem', color: '#ffffff', marginBottom: '8px', fontWeight: '600' }}>
                 Status
@@ -4904,6 +5059,27 @@ const DashboardWithFirebase = ({
                 📅 Calendário
               </button>
             </div>
+            <button
+              onClick={exportAgendamentosCsv}
+              type="button"
+              style={{ backgroundColor: '#0f1419', color: '#ffffff', border: '1px solid rgba(59,130,246,0.5)', borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', fontWeight: '600' }}
+            >
+              Exportar CSV
+            </button>
+            <button
+              onClick={() => copyUpcomingReminders(24)}
+              type="button"
+              style={{ backgroundColor: '#0f1419', color: '#ffffff', border: '1px solid rgba(16,185,129,0.5)', borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', fontWeight: '600' }}
+            >
+              Copiar lembretes 24h
+            </button>
+            <button
+              onClick={() => copyUpcomingReminders(1)}
+              type="button"
+              style={{ backgroundColor: '#0f1419', color: '#ffffff', border: '1px solid rgba(168,85,247,0.5)', borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', fontWeight: '600' }}
+            >
+              Copiar lembretes 1h
+            </button>
           </div>
         </div>
 
@@ -4915,8 +5091,8 @@ const DashboardWithFirebase = ({
               setSelectedCalendarDate(date);
               setSelectedDateAgendamentos(agendamentosDoDia);
             }}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
+            onEdit={editAgendamento}
+            onDelete={deleteAgendamento}
             getStatusColor={getStatusColor}
             getStatusLabel={getStatusLabel}
             getTipoIcon={getTipoIcon}
@@ -4944,7 +5120,7 @@ const DashboardWithFirebase = ({
         ) : (
           <>
           <div style={{ display: 'grid', gap: '16px' }}>
-            {agendamentosFiltrados.map(agend => (
+            {agendamentosPaginados.map(agend => (
               <div
                 key={agend.id}
                 style={{
@@ -4981,7 +5157,7 @@ const DashboardWithFirebase = ({
                     {/* Campo rápido para alterar status */}
                     <select
                       value={agend.status || 'pendente'}
-                      onChange={(e) => handleQuickStatusUpdate(agend.id, e.target.value)}
+                      onChange={(e) => updateAgendamentoStatus(agend.id, e.target.value)}
                       onClick={(e) => e.stopPropagation()}
                       style={{
                         padding: '6px 10px',
@@ -5004,7 +5180,7 @@ const DashboardWithFirebase = ({
                       <option value="cancelado">🔴 Cancelado</option>
                     </select>
                     <button
-                      onClick={() => handleEdit(agend)}
+                      onClick={() => editAgendamento(agend)}
                       style={{
                         padding: '8px',
                         backgroundColor: '#f3f4f6',
@@ -5018,7 +5194,7 @@ const DashboardWithFirebase = ({
                       ✏️
                     </button>
                     <button
-                      onClick={() => handleDelete(agend.id)}
+                      onClick={() => deleteAgendamento(agend.id)}
                       style={{
                         padding: '8px',
                         backgroundColor: '#f3f4f6',
@@ -5030,6 +5206,20 @@ const DashboardWithFirebase = ({
                       title="Excluir"
                     >
                       🗑️
+                    </button>
+                    <button
+                      onClick={() => openWhatsAppReminder(agend)}
+                      style={{
+                        padding: '8px',
+                        backgroundColor: '#f3f4f6',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        color: '#10b981'
+                      }}
+                      title="Lembrete WhatsApp"
+                    >
+                      💬
                     </button>
                   </div>
                 </div>
@@ -5063,9 +5253,47 @@ const DashboardWithFirebase = ({
                     <strong>📝 Observações:</strong> {agend.observacoes}
                   </div>
                 )}
+                {Array.isArray(agend.statusHistory) && agend.statusHistory.length > 0 && (
+                  <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#6b7280' }}>
+                    Histórico de status: {agend.statusHistory.length} alteração(ões)
+                  </div>
+                )}
               </div>
             ))}
           </div>
+          {agendamentosFiltrados.length > agendamentoItemsPerPage && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '16px',
+              marginTop: '24px',
+              padding: '16px',
+              backgroundColor: '#1a1f36',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.1)'
+            }}>
+              <button
+                type="button"
+                onClick={() => setAgendamentoCurrentPage((prev) => Math.max(0, prev - 1))}
+                disabled={agendamentoPaginaAtual === 0}
+                style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid #10b981', backgroundColor: '#1a1f36', color: 'white', cursor: agendamentoPaginaAtual === 0 ? 'not-allowed' : 'pointer', opacity: agendamentoPaginaAtual === 0 ? 0.5 : 1 }}
+              >
+                Anterior
+              </button>
+              <span style={{ color: '#ffffff', fontSize: '0.875rem' }}>
+                Página <strong>{agendamentoPaginaAtual + 1}</strong> de <strong>{agendamentoTotalPages}</strong> ({agendamentosFiltrados.length} itens)
+              </span>
+              <button
+                type="button"
+                onClick={() => setAgendamentoCurrentPage((prev) => Math.min(agendamentoTotalPages - 1, prev + 1))}
+                disabled={agendamentoPaginaAtual >= agendamentoTotalPages - 1}
+                style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid #10b981', backgroundColor: '#1a1f36', color: 'white', cursor: agendamentoPaginaAtual >= agendamentoTotalPages - 1 ? 'not-allowed' : 'pointer', opacity: agendamentoPaginaAtual >= agendamentoTotalPages - 1 ? 0.5 : 1 }}
+              >
+                Próxima
+              </button>
+            </div>
+          )}
           </>
         )
         )}
@@ -9658,6 +9886,7 @@ const DashboardWithFirebase = ({
         editingAgendamento={editingAgendamento}
         user={user}
         database={database}
+        agendamentos={agendamentos}
         showToast={showToast}
       />
 
@@ -9711,39 +9940,6 @@ const DashboardWithFirebase = ({
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {selectedDateAgendamentos.map((agend) => {
-                const getStatusColor = (status) => {
-                  switch (status) {
-                    case 'pendente': return '#eab308';
-                    case 'confirmado': return '#3b82f6';
-                    case 'em_andamento': return '#8b5cf6';
-                    case 'concluido': return '#10b981';
-                    case 'cancelado': return '#ef4444';
-                    default: return '#6b7280';
-                  }
-                };
-
-                const getStatusLabel = (status) => {
-                  switch (status) {
-                    case 'pendente': return 'Pendente';
-                    case 'confirmado': return 'Confirmado';
-                    case 'em_andamento': return 'Em Andamento';
-                    case 'concluido': return 'Concluído';
-                    case 'cancelado': return 'Cancelado';
-                    default: return status;
-                  }
-                };
-
-                const getTipoIcon = (tipo) => {
-                  switch (tipo) {
-                    case 'retirada': return '📦';
-                    case 'servico': return '🔧';
-                    case 'visita': return '🏢';
-                    case 'entrega': return '🚚';
-                    case 'ligacao': return '📞';
-                    default: return '📅';
-                  }
-                };
-
                 return (
                   <div
                     key={agend.id}
@@ -9780,8 +9976,7 @@ const DashboardWithFirebase = ({
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button
                           onClick={() => {
-                            setEditingAgendamento(agend);
-                            setShowAgendamentoModal(true);
+                            editAgendamento(agend);
                             setSelectedCalendarDate(null);
                             setSelectedDateAgendamentos([]);
                           }}
@@ -9802,22 +9997,8 @@ const DashboardWithFirebase = ({
                         </button>
                         <button
                           onClick={async () => {
-                            if (!confirm('Tem certeza que deseja excluir este agendamento?')) return;
-                            
-                            if (!user || !database) {
-                              showToast('❌ Erro: Usuário não autenticado', 'error');
-                              return;
-                            }
-                            
-                            try {
-                              const agendamentoRef = ref(database, `users/data/${user.uid}/agendamentos/${agend.id}`);
-                              await remove(agendamentoRef);
-                              showToast('Agendamento excluído!', 'success');
-                              setSelectedDateAgendamentos(selectedDateAgendamentos.filter(a => a.id !== agend.id));
-                            } catch (error) {
-                              console.error('Erro ao excluir agendamento:', error);
-                              showToast('❌ Erro ao excluir agendamento', 'error');
-                            }
+                            await deleteAgendamento(agend.id);
+                            setSelectedDateAgendamentos((prev) => prev.filter((a) => a.id !== agend.id));
                           }}
                           style={{
                             padding: '8px 16px',

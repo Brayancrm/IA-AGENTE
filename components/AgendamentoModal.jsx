@@ -1,5 +1,5 @@
 import React from 'react';
-import { ref, set, push } from 'firebase/database';
+import { ref, set, push, get } from 'firebase/database';
 
 const AgendamentoModal = ({ 
   isOpen, 
@@ -7,6 +7,7 @@ const AgendamentoModal = ({
   editingAgendamento, 
   user, 
   database,
+  agendamentos = [],
   showToast 
 }) => {
   if (!isOpen) return null;
@@ -21,16 +22,58 @@ const AgendamentoModal = ({
     
     console.log('💾 [SAVE] Salvando agendamento no Firebase...');
     const formData = new FormData(e.target);
+    const titulo = String(formData.get('titulo') || '').trim();
+    const descricao = String(formData.get('descricao') || '').trim();
+    const cliente = String(formData.get('cliente') || '').trim();
+    const telefoneRaw = String(formData.get('telefone') || '').trim();
+    const telefone = telefoneRaw.replace(/\D/g, '');
+    const data = String(formData.get('data') || '').trim();
+    const horario = String(formData.get('horario') || '').trim();
+    const novoStatus = String(formData.get('status') || 'pendente');
+
+    if (titulo.length < 3) {
+      showToast('Título deve ter no mínimo 3 caracteres.', 'error');
+      return;
+    }
+
+    if (!data || !horario) {
+      showToast('Data e horário são obrigatórios.', 'error');
+      return;
+    }
+
+    const dataHora = new Date(`${data}T${horario}:00`);
+    if (Number.isNaN(dataHora.getTime())) {
+      showToast('Data ou horário inválidos.', 'error');
+      return;
+    }
+
+    if (telefone && telefone.length < 10) {
+      showToast('Telefone inválido. Informe DDD + número.', 'error');
+      return;
+    }
+
+    const hasConflict = agendamentos.some((item) => (
+      item?.id !== editingAgendamento?.id &&
+      item?.data === data &&
+      item?.horario === horario &&
+      (item?.cliente?.toLowerCase() === cliente.toLowerCase() || item?.telefone?.replace(/\D/g, '') === telefone)
+    ));
+
+    if (hasConflict) {
+      showToast('Conflito detectado: já existe agendamento nesse horário para este cliente/telefone.', 'error');
+      return;
+    }
+
     const agendamentoData = {
-      titulo: formData.get('titulo'),
-      descricao: formData.get('descricao'),
+      titulo,
+      descricao,
       tipo: formData.get('tipo'),
-      status: formData.get('status') || 'pendente',
-      data: formData.get('data'),
-      horario: formData.get('horario'),
-      cliente: formData.get('cliente'),
-      telefone: formData.get('telefone'),
-      observacoes: formData.get('observacoes') || '',
+      status: novoStatus,
+      data,
+      horario,
+      cliente,
+      telefone,
+      observacoes: String(formData.get('observacoes') || '').trim(),
       updatedAt: new Date().toISOString()
     };
     
@@ -38,7 +81,27 @@ const AgendamentoModal = ({
       if (editingAgendamento) {
         // ✏️ EDITAR agendamento existente
         const agendamentoRef = ref(database, `users/data/${user.uid}/agendamentos/${editingAgendamento.id}`);
-        await set(agendamentoRef, agendamentoData);
+        const existingSnapshot = await get(agendamentoRef);
+        const existing = existingSnapshot.exists() ? existingSnapshot.val() : {};
+        const statusHistory = Array.isArray(existing.statusHistory) ? existing.statusHistory : [];
+        const nextStatusHistory = existing.status !== novoStatus
+          ? [
+              ...statusHistory,
+              {
+                from: existing.status || 'pendente',
+                to: novoStatus,
+                changedAt: new Date().toISOString(),
+                changedBy: user.uid
+              }
+            ]
+          : statusHistory;
+
+        await set(agendamentoRef, {
+          ...existing,
+          ...agendamentoData,
+          createdAt: existing.createdAt || editingAgendamento.createdAt || new Date().toISOString(),
+          statusHistory: nextStatusHistory
+        });
         console.log('✅ [FIREBASE] Agendamento atualizado:', editingAgendamento.id);
         showToast('Agendamento atualizado!', 'success');
       } else {
@@ -47,7 +110,15 @@ const AgendamentoModal = ({
         const newAgendamentoRef = push(agendamentosRef);
         await set(newAgendamentoRef, {
           ...agendamentoData,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          statusHistory: [
+            {
+              from: null,
+              to: novoStatus,
+              changedAt: new Date().toISOString(),
+              changedBy: user.uid
+            }
+          ]
         });
         console.log('✅ [FIREBASE] Novo agendamento criado:', newAgendamentoRef.key);
         showToast('Agendamento criado!', 'success');
