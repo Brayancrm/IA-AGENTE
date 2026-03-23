@@ -2,13 +2,24 @@
 
 ## ✅ O Que Foi Criado
 
-Criei uma solução completa para transformar a configuração do agente de IA de **texto livre** para **interface visual de steps**!
+Solução em duas camadas:
+
+1. **Assistente guiado** (`AssistantSetupWizard.jsx` + `utils/assistantWizardHelpers.js`) — modelos de jornada (vendas completas, agendamentos, catálogo+leads, mínimo), separação **Negócio / CRM / Tom**, resumo e **botão “Gerar fluxo e aplicar”**.
+2. **Flow Builder** (`FlowBuilder.jsx`) — modo avançado com passos editáveis, drag-and-drop e tipos de ação alinhados ao código (ver `FLOW_BUILDER_GUIA.md`).
+
+A preferência **Assistente guiado** vs **Modo avançado** fica em `assistant_settings.configUiMode` (`simple` | `advanced`).
 
 ---
 
-## 📦 Arquivos Criados
+## 📦 Arquivos principais
 
-### 1. **`components/FlowBuilder.jsx`** (3.9 KB)
+### 1. **`components/AssistantSetupWizard.jsx`**
+Wizard em 5 passos; gera `flowSteps` compatíveis com o Flow Builder.
+
+### 2. **`utils/assistantWizardHelpers.js`**
+Templates, `buildFlowStepsFromWizardState`, `parseFlowStepsToWizardState`, `mergeFlowStepsIntoAssistantForm`.
+
+### 3. **`components/FlowBuilder.jsx`**
 Interface visual com drag & drop para criar o fluxo.
 
 **Funcionalidades:**
@@ -16,30 +27,20 @@ Interface visual com drag & drop para criar o fluxo.
 - ✅ Editar passos existentes  
 - ✅ Remover passos
 - ✅ Reordenar via arrastar e soltar
-- ✅ 9 tipos de ação pré-definidos
-- ✅ Preview do prompt gerado em tempo real
+- ✅ Tipos de ação: `agent_profile`, `audio_config`, `collect_data`, `show_catalog`, `process_order`, `send_confirmation`, `create_appointment`, `custom`
+- ✅ Compilação do prompt via `convertStepsToPrompt`
 
-### 2. **`hooks/useFlowBuilder.js`** (2.1 KB)
-Hook React para gerenciar estado e sincronização.
+### 4. **`hooks/useFlowBuilder.js`**
+Hook / utilitários: `compilePrompt`, `convertStepsToPrompt` (e hook opcional para APIs REST).
 
 **Funcionalidades:**
-- ✅ Carregar steps do backend
-- ✅ Salvar steps no backend
-- ✅ Converter steps → prompt automaticamente
-- ✅ Converter prompt → steps (importar configuração antiga)
-- ✅ Loading e error states
+- ✅ Converter steps → prompt automaticamente (`compilePrompt`)
+- ✅ Conversão prompt → steps (heurística, legado)
 
-### 3. **`FLOW_BUILDER_GUIA.md`** (Documentação Completa)
-Guia completo com exemplos de uso.
+### 5. **`FLOW_BUILDER_GUIA.md`**
+Guia atualizado com tipos de ação reais e fluxo do assistente guiado.
 
-**Conteúdo:**
-- Como funciona
-- Como usar
-- Exemplos de código
-- Troubleshooting
-- Referência completa
-
-### 4. **`backend/ENDPOINTS_FLOW_BUILDER.md`** (Código Backend)
+### 6. **`backend/ENDPOINTS_FLOW_BUILDER.md`** (Código Backend)
 Endpoints prontos para copiar e colar no backend.
 
 **Endpoints:**
@@ -148,75 +149,51 @@ export default function ConfigPage() {
 
 ---
 
-## 🎯 Tipos de Ação Disponíveis
+## 🎯 Tipos de ação (editor atual)
 
-| Ação | Descrição | Quando Usar |
-|------|-----------|-------------|
-| 👋 Cumprimentar | Mensagem inicial | Início da conversa |
-| ❓ Perguntar Info | Coletar dados | Quando precisar de dados |
-| 📦 Mostrar Catálogo | Exibir produtos | Cliente quer ver produtos |
-| 🛒 Processar Pedido | Confirmar itens | Cliente decide comprar |
-| 💳 Solicitar Pagamento | Pedir pagamento | Após confirmar pedido |
-| ✅ Enviar Confirmação | Confirmar compra | Após pagamento |
-| 📄 Perguntar NF | Sobre nota fiscal | Se emite NF |
-| 📍 Coletar Endereço | Pegar endereço | Para entrega ou NF |
-| ⚙️ Ação Customizada | Qualquer outra | Casos específicos |
+Ver tabela completa em **`FLOW_BUILDER_GUIA.md`**. Resumo: `agent_profile`, `audio_config`, `collect_data`, `show_catalog`, `process_order`, `send_confirmation`, `create_appointment`, `custom`.
 
 ---
 
-## 💡 Exemplo de Fluxo Completo
+## 💡 Exemplo de fluxo (vendas)
 
-```
-1. 👋 Cumprimentar Cliente
-   "Olá! Bem-vindo à nossa loja. Como posso ajudar?"
+Ordem típica gerada pelo **assistente guiado** “Vendas completas”:
 
-2. ❓ Perguntar Nome
-   "Para personalizar o atendimento, qual seu nome?"
-
-3. 📦 Mostrar Produtos
-   "Ótimo! Veja nossos produtos disponíveis..."
-
-4. 🛒 Processar Pedido
-   "Confirme seu pedido: 2x Produto A..."
-
-5. 💳 Solicitar Pagamento
-   "O total é R$ 100. Escolha a forma de pagamento..."
-
-6. 📄 Perguntar sobre Nota Fiscal
-   "Você deseja nota fiscal?"
-
-7. 📍 Coletar Endereço (se sim)
-   "Por favor, informe seu endereço completo..."
-
-8. ✅ Enviar Confirmação
-   "Pedido confirmado! Você receberá atualizações..."
-```
+1. **Perfil do agente** — identidade e tom  
+2. *(Opcional)* **Áudio** — respostas em áudio  
+3. **Catálogo** — produtos/serviços  
+4. **Pedido e pagamento** — Stripe ou manual  
+5. **CRM** — dados do cliente  
+6. **Confirmação** — resumo final  
 
 ---
 
-## 📊 Estrutura de Dados
-
-### Step Object
+## 📊 Estrutura de dados (Step)
 
 ```typescript
 {
-  id: number,                    // ID único
-  type: 'greeting' | 'ask_info' | ...,  // Tipo da ação
-  title: string,                 // Título do passo
-  description: string,           // Instruções detalhadas
-  condition: string | null,      // Condição opcional
-  actions: any[]                 // Ações adicionais
+  id: number;
+  type: string; // ex.: 'show_catalog', 'process_order'
+  title: string;
+  description?: string;
+  condition?: string | null;
+  actions?: any[];
+  // campos extra conforme o tipo (catalogSettings, paymentSettings, etc.)
 }
 ```
 
-### Exemplo
+### Exemplo (`agent_profile`)
 
 ```javascript
 {
   id: 1698765432,
-  type: 'greeting',
-  title: 'Cumprimentar Cliente',
-  description: 'Cumprimente de forma amigável e pergunte como pode ajudar.',
+  type: 'agent_profile',
+  title: 'Perfil do Agente',
+  description: 'Regras extras de personalidade.',
+  agentName: 'Sofia',
+  agentRole: 'Consultora',
+  agentTone: 'friendly',
+  agentStyle: 'concise',
   condition: null,
   actions: []
 }
@@ -224,36 +201,9 @@ export default function ConfigPage() {
 
 ---
 
-## 🔄 Conversão Automática
+## 🔄 Conversão automática (Steps → Prompt)
 
-### Steps → Prompt
-
-O sistema converte automaticamente:
-
-```javascript
-[
-  { type: 'greeting', title: 'Cumprimentar', description: '...' },
-  { type: 'ask_info', title: 'Perguntar Nome', description: '...' }
-]
-```
-
-Para:
-
-```
-# FLUXO DE ATENDIMENTO
-
-## 1. Cumprimentar
-
-**Ação:** Cumprimente o cliente de forma amigável.
-**Instruções:** ...
-
----
-
-## 2. Perguntar Nome
-
-**Ação:** Pergunte as informações necessárias.
-**Instruções:** ...
-```
+`convertStepsToPrompt` / `compilePrompt` geram um **prompt executável** em texto (seções IDENTIDADE, REGRAS ABSOLUTAS, PASSOS, PROIBIÇÕES), não o formato antigo em Markdown com `## 1.`.
 
 ### Prompt → Steps
 

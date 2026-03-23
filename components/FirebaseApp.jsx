@@ -27,12 +27,14 @@ import { ref, push, set, remove, onValue, off, get, update } from 'firebase/data
 import SimpleLanding from './SimpleLanding';
 import dynamic from 'next/dynamic';
 import { convertStepsToPrompt } from '../hooks/useFlowBuilder';
+import { mergeFlowStepsIntoAssistantForm } from '../utils/assistantWizardHelpers';
 import BeefreeEditor from './BeefreeEditor';
 
 // Unlayer Editor será carregado via script tag (embed)
 
 // Import dinâmico para evitar problemas de SSR
 const FlowBuilder = dynamic(() => import('./FlowBuilder'), { ssr: false });
+const AssistantSetupWizard = dynamic(() => import('./AssistantSetupWizard'), { ssr: false });
 const AgendamentoModal = dynamic(() => import('./AgendamentoModal'), { ssr: false });
 const ConversasSimples = dynamic(() => import('./ConversasSimples'), { ssr: false });
 const CRMDashboard = dynamic(() => import('./CRMDashboard'), { ssr: false });
@@ -3751,8 +3753,10 @@ const DashboardWithFirebase = ({
     appointmentTypes: [],
     paymentProvider: 'stripe',
     paymentManualMessage: '',
-    paymentStripeMessage: ''
+    paymentStripeMessage: '',
+    configUiMode: 'simple' // 'simple' = assistente guiado | 'advanced' = Flow Builder
   });
+  const [wizardResetKey, setWizardResetKey] = useState(0);
   const [userForm, setUserForm] = useState({
     name: '',
     email: '',
@@ -3925,7 +3929,8 @@ const DashboardWithFirebase = ({
       audioVoice: assistantSettings.audioVoice || '',
       paymentProvider: assistantSettings.paymentProvider || 'stripe',
       paymentManualMessage: assistantSettings.paymentManualMessage || '',
-      paymentStripeMessage: assistantSettings.paymentStripeMessage || ''
+      paymentStripeMessage: assistantSettings.paymentStripeMessage || '',
+      configUiMode: assistantSettings.configUiMode || 'simple'
     });
   }, [assistantSettings]);
 
@@ -4139,6 +4144,10 @@ const DashboardWithFirebase = ({
     e.preventDefault();
     saveIntegrationsConfig(integrationsForm);
   };
+
+  const applyAssistantFlowSteps = useCallback((newSteps) => {
+    setAssistantForm((prev) => mergeFlowStepsIntoAssistantForm(prev, newSteps));
+  }, []);
 
   const handleAssistantSubmit = (e) => {
     e.preventDefault();
@@ -7444,76 +7453,111 @@ const DashboardWithFirebase = ({
                   </>
                 )}
 
-                {/* Flow Builder Visual */}
-                <div>
-                  <FlowBuilder 
-                    initialSteps={assistantForm.flowSteps || []}
-                    catalogItems={catalogItems}
-                    agendamentos={agendamentos}
-                    onSave={() => {
-                      const form = document.getElementById('assistant-form');
-                      if (form) {
-                        const submitEvent = new Event('submit', { cancelable: true, bubbles: true });
-                        form.dispatchEvent(submitEvent);
-                      }
-                    }}
-                    onChange={(newSteps) => {
-                      // Buscar step de agendamento para sincronizar configuração global
-                      const appointmentStep = newSteps.find(step => step.type === 'create_appointment' && step.appointmentEnabled);
-                      const hasEnabledAppointment = !!appointmentStep;
-                      const appointmentTypes = appointmentStep?.appointmentTypes || [];
-                      
-                      // Buscar step de catálogo para sincronizar configuração global
-                      const catalogStep = newSteps.find(step => step.type === 'show_catalog');
-                      const hasProducts = catalogStep?.catalogSettings?.includeProducts || false;
-                      const hasServices = catalogStep?.catalogSettings?.includeServices || false;
-                      const productCategories = catalogStep?.catalogSettings?.selectedProductCategories || [];
-                      const serviceCategories = catalogStep?.catalogSettings?.selectedServiceCategories || [];
-                      
-                      // Buscar step de áudio para sincronizar configuração global
-                      const audioStep = newSteps.find(step => step.type === 'audio_config');
-                      const audioLanguage = audioStep?.audioLanguage || 'pt-BR';
-                      const audioVoice = audioStep?.audioVoice || '';
-                      
-                      // Buscar step de processar venda para sincronizar configuração de pagamento
-                      const paymentStep = newSteps.find(step => step.type === 'process_order');
-                      const paymentProvider = paymentStep?.paymentSettings?.provider || 'stripe';
-                      const paymentManualMessage = paymentStep?.paymentSettings?.manualMessage || '';
-                      const paymentStripeMessage = paymentStep?.paymentSettings?.stripeMessage || '';
-                      
-                      setAssistantForm(prev => ({
-                        ...prev,
-                        flowSteps: newSteps,
-                        flowMode: 'visual',
-                        // Gerar prompt automaticamente dos steps
-                        systemPrompt: convertStepsToPrompt(newSteps),
-                        // Sincronizar configurações de agendamento
-                        enableAppointments: hasEnabledAppointment,
-                        appointmentTypes: appointmentTypes,
-                        // Sincronizar configurações de catálogo
-                        includeCatalogProducts: hasProducts,
-                        includeCatalogServices: hasServices,
-                        catalogProductCategories: productCategories,
-                        catalogServiceCategories: serviceCategories,
-                        // Sincronizar configurações de áudio
-                        audioLanguage: audioLanguage,
-                        audioVoice: audioVoice,
-                        // Sincronizar configuração de pagamento
-                        paymentProvider: paymentProvider,
-                        paymentManualMessage: paymentManualMessage,
-                        paymentStripeMessage: paymentStripeMessage
-                      }));
-                    }}
-                    onPromptChange={(improvedPrompt) => {
-                      setAssistantForm(prev => ({
-                        ...prev,
-                        systemPrompt: improvedPrompt
-                      }));
-                    }}
-                  />
+                {/* Modo guiado vs Flow Builder avançado */}
+                <div style={{
+                  padding: '20px',
+                  borderRadius: '16px',
+                  background: 'rgba(15, 20, 25, 0.85)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  marginBottom: '8px'
+                }}>
+                  <div style={{ fontWeight: 700, color: '#fff', marginBottom: '10px', fontSize: '1.05rem' }}>
+                    Como deseja configurar o fluxo?
+                  </div>
+                  <p style={{ fontSize: '0.9rem', color: '#9ca3af', marginBottom: '16px', lineHeight: 1.5 }}>
+                    O <strong style={{ color: '#e5e7eb' }}>assistente guiado</strong> separa negócio, CRM e tom de voz em passos claros, com modelos prontos e resumo antes de aplicar.
+                    O <strong style={{ color: '#e5e7eb' }}>modo avançado</strong> mantém o editor completo de passos (arrastar, condições, IA).
+                  </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAssistantForm((prev) => ({ ...prev, configUiMode: 'simple' }));
+                        setWizardResetKey((k) => k + 1);
+                      }}
+                      style={{
+                        padding: '12px 20px',
+                        borderRadius: '12px',
+                        border: assistantForm.configUiMode !== 'advanced' ? '2px solid #10b981' : '1px solid rgba(255,255,255,0.15)',
+                        background: assistantForm.configUiMode !== 'advanced' ? 'rgba(16, 185, 129, 0.2)' : '#0f1419',
+                        color: '#fff',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ✨ Assistente guiado
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAssistantForm((prev) => ({ ...prev, configUiMode: 'advanced' }))}
+                      style={{
+                        padding: '12px 20px',
+                        borderRadius: '12px',
+                        border: assistantForm.configUiMode === 'advanced' ? '2px solid #10b981' : '1px solid rgba(255,255,255,0.15)',
+                        background: assistantForm.configUiMode === 'advanced' ? 'rgba(16, 185, 129, 0.2)' : '#0f1419',
+                        color: '#fff',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      🛠️ Modo avançado (Flow Builder)
+                    </button>
+                  </div>
                 </div>
 
-                {/* Botão Salvar */}
+                {assistantForm.configUiMode !== 'advanced' ? (
+                  <div style={{ marginTop: '8px' }}>
+                    <AssistantSetupWizard
+                      catalogItems={catalogItems}
+                      flowSteps={assistantForm.flowSteps || []}
+                      resetKey={wizardResetKey}
+                      showToast={showToast}
+                      onApplyFlow={(newSteps) => applyAssistantFlowSteps(newSteps)}
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <FlowBuilder 
+                      initialSteps={assistantForm.flowSteps || []}
+                      catalogItems={catalogItems}
+                      agendamentos={agendamentos}
+                      onSave={() => {
+                        const form = document.getElementById('assistant-form');
+                        if (form) {
+                          const submitEvent = new Event('submit', { cancelable: true, bubbles: true });
+                          form.dispatchEvent(submitEvent);
+                        }
+                      }}
+                      onChange={applyAssistantFlowSteps}
+                      onPromptChange={(improvedPrompt) => {
+                        setAssistantForm(prev => ({
+                          ...prev,
+                          systemPrompt: improvedPrompt
+                        }));
+                      }}
+                    />
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  style={{
+                    marginTop: '8px',
+                    width: '100%',
+                    maxWidth: '420px',
+                    padding: '16px 24px',
+                    borderRadius: '14px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: '#fff',
+                    fontWeight: 700,
+                    fontSize: '1.05rem',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 20px rgba(16, 185, 129, 0.35)'
+                  }}
+                >
+                  Salvar configurações do assistente
+                </button>
               </form>
             </div>
 
