@@ -111,6 +111,7 @@ try {
 const db = admin.database();
 const firestore = admin.firestore();
 const app = express();
+const ENABLE_ASAAS_LEGACY = process.env.ENABLE_ASAAS_LEGACY === 'true';
 
 // Stripe Webhook (precisa de body raw)
 app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -1627,82 +1628,13 @@ async function getIntegrationsConfig(userId) {
     
     console.log('❌ Configurações não encontradas em nenhum banco!');
     console.log('💡 Verifique:');
-    console.log('   1. Se você salvou a API Key do Asaas no site');
+    console.log('   1. Se você salvou a API Key do Stripe no site');
     console.log('   2. Se está logado com o mesmo usuário');
     console.log('   3. Se o userId está correto:', userId);
     
     return null;
   } catch (error) {
     console.error('❌ Erro ao buscar configurações:', error);
-    return null;
-  }
-}
-
-// Função para buscar API Key do Asaas do usuário master
-async function getMasterAsaasApiKey() {
-  try {
-    console.log('🔍 Buscando API Key do Asaas do master...');
-    
-    let masterUserId = null;
-    
-    // Estratégia 1: Buscar em users/registered
-    const usersSnapshot = await db.ref('users/registered').once('value');
-    
-    if (usersSnapshot.exists()) {
-      const users = usersSnapshot.val();
-      console.log('🔍 Buscando master entre', Object.keys(users).length, 'usuários...');
-      
-      const masterUser = Object.values(users).find(u => 
-        u.email === 'brayan.italy@gmail.com' || u.isMaster === true
-      );
-      
-      if (masterUser) {
-        masterUserId = masterUser.uid;
-        console.log('✅ Master encontrado:', masterUser.email, 'UID:', masterUserId);
-      }
-    }
-    
-    // Estratégia 2: Se não encontrou, buscar todas as configurações em users/data até encontrar uma com API Key do Asaas
-    if (!masterUserId) {
-      console.log('🔍 Master não encontrado em users/registered, buscando em users/data...');
-      
-      const allDataSnapshot = await db.ref('users/data').once('value');
-      
-      if (allDataSnapshot.exists()) {
-        const allUsersData = allDataSnapshot.val();
-        console.log('🔍 Verificando', Object.keys(allUsersData).length, 'usuários em users/data...');
-        
-        // Procurar o primeiro usuário que tem API Key do Asaas configurada
-        for (const [uid, userData] of Object.entries(allUsersData)) {
-          if (userData.integrations_config && userData.integrations_config.asaasApiKey) {
-            masterUserId = uid;
-            console.log('✅ Encontrada API Key do Asaas no UID:', uid);
-            break;
-          }
-        }
-      }
-    }
-    
-    // Se encontrou o master, buscar sua API Key do Asaas
-    if (masterUserId) {
-      const masterIntegrationsSnapshot = await db.ref(`users/data/${masterUserId}/integrations_config`).once('value');
-      const masterIntegrations = masterIntegrationsSnapshot.val();
-      
-      console.log('🔍 Configuração de integrações do master:', masterIntegrations ? 'Encontrada' : 'Não encontrada');
-      
-      if (masterIntegrations && masterIntegrations.asaasApiKey) {
-        console.log('✅ API Key do Asaas do master encontrada (primeiros 15 caracteres):', masterIntegrations.asaasApiKey.substring(0, 15) + '...');
-        return masterIntegrations.asaasApiKey;
-      } else {
-        console.log('❌ Master não tem API Key do Asaas configurada');
-      }
-    } else {
-      console.log('❌ Nenhum master encontrado no sistema');
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('❌ Erro ao buscar API Key do Asaas do master:', error);
     return null;
   }
 }
@@ -3465,6 +3397,9 @@ async function incrementMessageUsage(userId) {
 // Função para atualizar cadastro do cliente no Asaas com endereço
 async function updateAsaasCustomerAddress(asaasApiKey, customerId, customerData) {
   try {
+    if (!ENABLE_ASAAS_LEGACY) {
+      return { success: false, error: 'Asaas legado desabilitado' };
+    }
     console.log('📝 [ASAAS] Atualizando cadastro do cliente no Asaas...');
     console.log('   Customer ID:', customerId);
     
@@ -3534,6 +3469,9 @@ async function updateAsaasCustomerAddress(asaasApiKey, customerId, customerData)
 
 async function emitirNotaFiscal(userId, orderId, orderData, payment) {
   try {
+    if (!ENABLE_ASAAS_LEGACY) {
+      return { success: false, error: 'Emissão via Asaas desabilitada' };
+    }
     console.log('📄 [NF] Iniciando emissão de nota fiscal...');
     console.log('   Pedido:', orderId);
     console.log('   Valor:', payment.value);
@@ -4564,7 +4502,8 @@ async function handleCreateStripeSubscription(req, res) {
 // Novo endpoint Stripe para assinatura
 app.post('/api/stripe/create-subscription', handleCreateStripeSubscription);
 
-// Webhook Asaas (receber notificações de pagamento)
+// Webhook Asaas (legado opcional)
+if (ENABLE_ASAAS_LEGACY) {
 app.post('/api/asaas/webhook', async (req, res) => {
   try {
     console.log('\n╔════════════════════════════════════════╗');
@@ -5224,6 +5163,14 @@ app.post('/api/asaas/webhook', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+} else {
+  app.post('/api/asaas/webhook', async (req, res) => {
+    return res.status(410).json({
+      success: false,
+      error: 'Webhook Asaas desabilitado. Use apenas Stripe.'
+    });
+  });
+}
 
 // ============================================
 // ENDPOINTS DE DADOS DO CLIENTE
