@@ -1590,7 +1590,7 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                     Provedor de Pagamento
                                   </label>
                                   <select
-                                    value={editingStep.paymentSettings?.provider || 'asaas'}
+                                    value={editingStep.paymentSettings?.provider || 'stripe'}
                                     onChange={(e) =>
                                       setEditingStep({
                                         ...editingStep,
@@ -1610,13 +1610,13 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                       outline: 'none'
                                     }}
                                   >
-                                    <option value="asaas">Asaas (automático)</option>
+                                    <option value="stripe">Stripe (automático)</option>
                                     <option value="manual">Manual (sem API)</option>
-                                    <option value="stripe">Stripe (futuro)</option>
+                                    <option value="asaas">Asaas (legado)</option>
                                     <option value="custom">Outro (futuro)</option>
                                   </select>
                                   <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '6px', marginBottom: 0 }}>
-                                    O backend só gera link automático quando o provedor é Asaas.
+                                    O backend gera link automático quando o provedor for Stripe.
                                   </p>
                                 </div>
                                 {editingStep.paymentSettings?.provider === 'manual' && (

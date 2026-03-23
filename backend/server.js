@@ -134,6 +134,7 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
       const session = event.data.object;
       const userId = session.metadata?.userId;
       const orderId = session.metadata?.orderId;
+      const isSubscription = session.mode === 'subscription';
       if (userId && orderId) {
         const orderRef = db.ref(`orders/${userId}/${orderId}`);
         await orderRef.update({
@@ -144,6 +145,54 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
         console.log('✅ Pedido atualizado via Stripe webhook:', { userId, orderId });
       } else {
         console.log('⚠️ Stripe webhook sem metadata userId/orderId');
+      }
+
+      if (isSubscription && userId && session.subscription) {
+        const subscriptionsRef = db.ref(`subscriptions/${userId}`);
+        const subscriptionsSnapshot = await subscriptionsRef.once('value');
+        let subscriptionKey = null;
+        let subscriptionData = null;
+
+        if (subscriptionsSnapshot.exists()) {
+          subscriptionsSnapshot.forEach((sub) => {
+            const subVal = sub.val();
+            if (
+              subVal.stripeSessionId === session.id ||
+              subVal.stripeSubscriptionId === session.subscription
+            ) {
+              subscriptionKey = sub.key;
+              subscriptionData = subVal;
+            }
+          });
+        }
+
+        if (subscriptionKey && subscriptionData) {
+          await db.ref(`subscriptions/${userId}/${subscriptionKey}`).update({
+            status: 'active',
+            stripeSubscriptionId: session.subscription,
+            updatedAt: new Date().toISOString()
+          });
+
+          const now = new Date();
+          const isYearly = subscriptionData.cycle === 'YEARLY';
+          const nextDueDate = new Date(now);
+          nextDueDate.setDate(nextDueDate.getDate() + (isYearly ? 365 : 30));
+
+          await db.ref(`users/data/${userId}/activePlan`).set({
+            planId: subscriptionData.planId || session.metadata?.planId || null,
+            planName: subscriptionData.planName || session.metadata?.planName || 'Plano',
+            status: 'active',
+            startDate: now.toISOString(),
+            nextDueDate: nextDueDate.toISOString(),
+            subscriptionId: session.subscription,
+            paymentProvider: 'stripe',
+            limits: subscriptionData.limits || {},
+            updatedAt: now.toISOString()
+          });
+          console.log('✅ Assinatura Stripe ativada via webhook:', { userId, subscriptionKey });
+        } else {
+          console.log('⚠️ Assinatura Stripe não encontrada para sessão:', session.id);
+        }
       }
     }
 
@@ -938,7 +987,7 @@ async function handleIncomingMessage(userId, message, client) {
         // ============================================
         // DETECTAR MENSAGEM DE GATILHO PARA GERAR LINK
         // ============================================
-        const paymentProvider = (aiConfig?.paymentProvider || 'asaas').toLowerCase();
+        const paymentProvider = (aiConfig?.paymentProvider || 'stripe').toLowerCase();
         const triggerMessage = 'Perfeito! Vou enviar abaixo seu Link para que efetue o Pagamento.';
         if (aiResponse.includes(triggerMessage)) {
           if (paymentProvider === 'asaas') {
@@ -1067,7 +1116,7 @@ async function handleIncomingMessage(userId, message, client) {
         }
         
         // Detectar intenção de compra e gerar link de pagamento
-        const paymentProviderForIntent = (aiConfig?.paymentProvider || 'asaas').toLowerCase();
+        const paymentProviderForIntent = (aiConfig?.paymentProvider || 'stripe').toLowerCase();
         const hasPurchaseIntent = detectPurchaseIntent(message.body);
         
         if (paymentProviderForIntent === 'asaas' && hasPurchaseIntent && mentionedItems.length > 0) {
@@ -1712,6 +1761,51 @@ async function getMasterAsaasApiKey() {
     return null;
   } catch (error) {
     console.error('❌ Erro ao buscar API Key do Asaas do master:', error);
+    return null;
+  }
+}
+
+// Função para buscar API Key do Stripe do usuário master
+async function getMasterStripeApiKey() {
+  try {
+    console.log('🔍 Buscando API Key do Stripe do master...');
+
+    let masterUserId = null;
+    const usersSnapshot = await db.ref('users/registered').once('value');
+
+    if (usersSnapshot.exists()) {
+      const users = usersSnapshot.val();
+      const masterUser = Object.values(users).find(u =>
+        u.email === 'brayan.italy@gmail.com' || u.isMaster === true
+      );
+
+      if (masterUser) {
+        masterUserId = masterUser.uid;
+      }
+    }
+
+    if (!masterUserId) {
+      const allDataSnapshot = await db.ref('users/data').once('value');
+      if (allDataSnapshot.exists()) {
+        const allUsersData = allDataSnapshot.val();
+        for (const [uid, userData] of Object.entries(allUsersData)) {
+          if (userData.integrations_config?.stripeApiKey) {
+            masterUserId = uid;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!masterUserId) {
+      return null;
+    }
+
+    const masterIntegrationsSnapshot = await db.ref(`users/data/${masterUserId}/integrations_config`).once('value');
+    const masterIntegrations = masterIntegrationsSnapshot.val();
+    return masterIntegrations?.stripeApiKey || null;
+  } catch (error) {
+    console.error('❌ Erro ao buscar API Key do Stripe do master:', error);
     return null;
   }
 }
@@ -2660,7 +2754,7 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
           dataUpdated = true;
           await contextRef.remove();
 
-          const paymentProvider = (assistantSettings?.paymentProvider || 'asaas').toLowerCase();
+          const paymentProvider = (assistantSettings?.paymentProvider || 'stripe').toLowerCase();
           const hasQuantity = (customerData.quantities && Object.keys(customerData.quantities).length > 0) || customerData.lastQuantity;
           if (paymentProvider === 'asaas' && hasQuantity) {
             console.log('💳 Quantidade confirmada. Tentando gerar link de pagamento...');
@@ -3572,6 +3666,57 @@ async function createStripeCheckoutSession(stripeApiKey, customerData, items, us
     };
   } catch (error) {
     console.error('❌ Erro ao criar sessão Stripe:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+async function createStripeSubscriptionCheckoutSession(stripeApiKey, customerData, planData, userId, successUrl, cancelUrl) {
+  try {
+    const stripe = new Stripe(stripeApiKey, { apiVersion: '2023-10-16' });
+    const amount = Math.round(parseFloat(planData.price || 0) * 100);
+    if (!amount || Number.isNaN(amount) || amount <= 0) {
+      throw new Error('Valor do plano inválido para assinatura Stripe');
+    }
+
+    const interval = planData.billingCycle === 'yearly' ? 'year' : 'month';
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      customer_email: customerData?.email || undefined,
+      locale: 'pt-BR',
+      line_items: [
+        {
+          price_data: {
+            currency: 'eur',
+            recurring: { interval },
+            product_data: {
+              name: planData.name || 'Plano de Assinatura'
+            },
+            unit_amount: amount
+          },
+          quantity: 1
+        }
+      ],
+      metadata: {
+        userId: userId || '',
+        planId: planData?.id || '',
+        planName: planData?.name || '',
+        billingCycle: planData?.billingCycle || 'monthly'
+      }
+    });
+
+    return {
+      success: true,
+      subscriptionId: session.subscription || null,
+      stripeSessionId: session.id,
+      invoiceUrl: session.url,
+      value: parseFloat(planData.price || 0),
+      cycle: interval === 'year' ? 'YEARLY' : 'MONTHLY',
+      nextDueDate: null
+    };
+  } catch (error) {
+    console.error('❌ Erro ao criar assinatura Stripe:', error.message);
     return { success: false, error: error.message };
   }
 }
@@ -5031,6 +5176,80 @@ app.post('/api/asaas/create-customer', async (req, res) => {
   }
 });
 
+// Endpoint Stripe para criar cliente e validar CPF/CNPJ
+app.post('/api/stripe/create-customer', async (req, res) => {
+  try {
+    const { name, email, cpfCnpj, phone, mobilePhone } = req.body;
+
+    if (!name || !email || !cpfCnpj) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nome, email e CPF/CNPJ são obrigatórios'
+      });
+    }
+
+    const cleanCpfCnpj = cpfCnpj.replace(/[^\d]/g, '');
+    const isCPF = cleanCpfCnpj.length === 11;
+    const isCNPJ = cleanCpfCnpj.length === 14;
+
+    if (!isCPF && !isCNPJ) {
+      return res.status(400).json({
+        success: false,
+        error: 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos'
+      });
+    }
+
+    if (isCPF && !validateCPF(cleanCpfCnpj)) {
+      return res.json({
+        success: false,
+        valid: false,
+        type: 'CPF',
+        error: 'CPF inválido: dígitos verificadores incorretos'
+      });
+    }
+
+    if (isCNPJ && !validateCNPJ(cleanCpfCnpj)) {
+      return res.json({
+        success: false,
+        valid: false,
+        type: 'CNPJ',
+        error: 'CNPJ inválido: dígitos verificadores incorretos'
+      });
+    }
+
+    const stripeApiKey = await getMasterStripeApiKey();
+    if (!stripeApiKey) {
+      return res.status(400).json({
+        success: false,
+        error: 'API Key do Stripe não configurada no sistema'
+      });
+    }
+
+    const stripe = new Stripe(stripeApiKey, { apiVersion: '2023-10-16' });
+    const customer = await stripe.customers.create({
+      name,
+      email,
+      phone: (phone || mobilePhone || '').replace(/[^\d+]/g, '') || undefined,
+      metadata: { cpfCnpj: cleanCpfCnpj }
+    });
+
+    return res.json({
+      success: true,
+      valid: true,
+      customerId: customer.id,
+      customer,
+      type: isCPF ? 'CPF' : 'CNPJ',
+      message: `${isCPF ? 'CPF' : 'CNPJ'} válido e cliente criado no Stripe`
+    });
+  } catch (error) {
+    console.error('❌ Erro ao criar cliente no Stripe:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao criar cliente no Stripe'
+    });
+  }
+});
+
 // Endpoint para validar CPF/CNPJ usando a API do Asaas
 app.post('/api/asaas/validate-document', async (req, res) => {
   try {
@@ -5147,6 +5366,54 @@ app.post('/api/asaas/validate-document', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: error.response?.data?.message || error.message || 'Erro ao validar documento' 
+    });
+  }
+});
+
+// Endpoint Stripe para validar CPF/CNPJ (validação local)
+app.post('/api/stripe/validate-document', async (req, res) => {
+  try {
+    const { cpfCnpj } = req.body;
+    if (!cpfCnpj) {
+      return res.status(400).json({
+        success: false,
+        error: 'CPF/CNPJ é obrigatório'
+      });
+    }
+
+    const cleanCpfCnpj = cpfCnpj.replace(/[^\d]/g, '');
+    const isCPF = cleanCpfCnpj.length === 11;
+    const isCNPJ = cleanCpfCnpj.length === 14;
+
+    if (!isCPF && !isCNPJ) {
+      return res.status(400).json({
+        success: false,
+        error: 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos'
+      });
+    }
+
+    if (isCPF) {
+      const valid = validateCPF(cleanCpfCnpj);
+      return res.json({
+        success: true,
+        valid,
+        type: 'CPF',
+        ...(valid ? { message: 'CPF válido' } : { error: 'CPF inválido: dígitos verificadores incorretos' })
+      });
+    }
+
+    const valid = validateCNPJ(cleanCpfCnpj);
+    return res.json({
+      success: true,
+      valid,
+      type: 'CNPJ',
+      ...(valid ? { message: 'CNPJ válido' } : { error: 'CNPJ inválido: dígitos verificadores incorretos' })
+    });
+  } catch (error) {
+    console.error('❌ Erro ao validar documento (Stripe):', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao validar documento'
     });
   }
 });
@@ -5289,8 +5556,7 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
   }
 });
 
-// Endpoint para criar assinatura
-app.post('/api/asaas/create-subscription', async (req, res) => {
+async function handleCreateStripeSubscription(req, res) {
   try {
     const { userId, customerData, planData } = req.body;
     
@@ -5298,15 +5564,25 @@ app.post('/api/asaas/create-subscription', async (req, res) => {
       return res.status(400).json({ error: 'userId, customerData e planData são obrigatórios' });
     }
     
-    // Buscar API Key do Asaas do master (assinaturas de planos usam sempre a API do master)
-    const asaasApiKey = await getMasterAsaasApiKey();
-    
-    if (!asaasApiKey) {
-      return res.status(400).json({ error: 'API Key do Asaas não configurada no sistema' });
+    const stripeApiKey = await getMasterStripeApiKey();
+    if (!stripeApiKey) {
+      return res.status(400).json({ error: 'API Key do Stripe não configurada no sistema' });
     }
-    
-    // Criar assinatura
-    const result = await createAsaasSubscription(asaasApiKey, customerData, planData, userId);
+
+    const successUrl = process.env.STRIPE_SUCCESS_URL;
+    const cancelUrl = process.env.STRIPE_CANCEL_URL;
+    if (!successUrl || !cancelUrl) {
+      return res.status(400).json({ error: 'STRIPE_SUCCESS_URL e STRIPE_CANCEL_URL são obrigatórios' });
+    }
+
+    const result = await createStripeSubscriptionCheckoutSession(
+      stripeApiKey,
+      customerData,
+      planData,
+      userId,
+      successUrl,
+      cancelUrl
+    );
     
     if (result.success) {
       // Salvar assinatura no Firebase
@@ -5314,7 +5590,8 @@ app.post('/api/asaas/create-subscription', async (req, res) => {
       
       await subscriptionRef.set({
         subscriptionId: subscriptionRef.key,
-        asaasSubscriptionId: result.subscriptionId,
+        stripeSubscriptionId: result.subscriptionId,
+        stripeSessionId: result.stripeSessionId,
         planId: planData.id,
         planName: planData.name,
         customer: customerData,
@@ -5324,25 +5601,31 @@ app.post('/api/asaas/create-subscription', async (req, res) => {
         nextDueDate: result.nextDueDate,
         createdAt: new Date().toISOString(),
         paymentUrl: result.invoiceUrl,
+        paymentProvider: 'stripe',
         limits: planData.limits || {}
       });
       
       // NÃO vincular plano ao usuário ainda - só após pagamento confirmado via webhook
       
-      res.json({
+      return res.json({
         success: true,
         subscriptionId: subscriptionRef.key,
         ...result
       });
-    } else {
-      res.status(400).json(result);
     }
+
+    return res.status(400).json(result);
     
   } catch (error) {
     console.error('❌ Erro ao criar assinatura:', error);
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
-});
+}
+
+// Novo endpoint Stripe para assinatura
+app.post('/api/stripe/create-subscription', handleCreateStripeSubscription);
+// Compatibilidade temporária com frontend legado
+app.post('/api/asaas/create-subscription', handleCreateStripeSubscription);
 
 // Webhook Asaas (receber notificações de pagamento)
 app.post('/api/asaas/webhook', async (req, res) => {

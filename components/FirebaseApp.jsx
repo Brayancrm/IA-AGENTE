@@ -511,7 +511,7 @@ const FirebaseApp = () => {
     </div>
   );
 
-  // Verificar se retornou do pagamento do Asaas
+  // Verificar se retornou do pagamento (Stripe/legado)
   useEffect(() => {
     if (!user || !database || !isReady) return;
     
@@ -534,7 +534,7 @@ const FirebaseApp = () => {
           if (snapshot.exists()) {
             const subscriptions = snapshot.val();
             const subscription = Object.values(subscriptions).find(
-              sub => sub.asaasSubscriptionId === subscriptionIdFromUrl
+              sub => sub.stripeSubscriptionId === subscriptionIdFromUrl || sub.asaasSubscriptionId === subscriptionIdFromUrl
             );
             if (subscription) {
               localStorage.setItem('pendingPayment', JSON.stringify({
@@ -576,7 +576,7 @@ const FirebaseApp = () => {
       
       Object.keys(subscriptions).forEach((key) => {
         const subData = subscriptions[key];
-        if (subData.asaasSubscriptionId === pendingPayment.subscriptionId) {
+        if (subData.stripeSubscriptionId === pendingPayment.subscriptionId || subData.asaasSubscriptionId === pendingPayment.subscriptionId) {
           foundSubscription = subData;
           subscriptionKey = key;
         }
@@ -584,9 +584,10 @@ const FirebaseApp = () => {
       
       if (!foundSubscription) {
         console.log('⏳ Assinatura ainda não encontrada...');
-        console.log('   Esperado asaasSubscriptionId:', pendingPayment.subscriptionId);
+        console.log('   Esperado subscriptionId:', pendingPayment.subscriptionId);
         console.log('   Assinaturas disponíveis:', Object.keys(subscriptions).map(key => ({
           key,
+          stripeSubscriptionId: subscriptions[key].stripeSubscriptionId,
           asaasSubscriptionId: subscriptions[key].asaasSubscriptionId,
           status: subscriptions[key].status
         })));
@@ -597,7 +598,8 @@ const FirebaseApp = () => {
       console.log('🔍 ========== VERIFICAÇÃO DE PAGAMENTO ==========');
       console.log('📋 Dados da Assinatura no Firebase:');
       console.log('   Subscription Key:', subscriptionKey);
-      console.log('   Asaas Subscription ID:', foundSubscription.asaasSubscriptionId);
+      console.log('   Stripe Subscription ID:', foundSubscription.stripeSubscriptionId);
+      console.log('   Asaas Subscription ID (legado):', foundSubscription.asaasSubscriptionId);
       console.log('   Status:', foundSubscription.status);
       console.log('   LastPayment ID:', foundSubscription.lastPayment);
       console.log('   LastPaymentDate:', foundSubscription.lastPaymentDate);
@@ -665,11 +667,11 @@ const FirebaseApp = () => {
           console.log('   PlanId:', activePlan.planId);
           console.log('   PlanName:', activePlan.planName);
           console.log('   UpdatedAt:', activePlan.updatedAt);
-          console.log('   SubscriptionId:', activePlan.asaasSubscriptionId);
+          console.log('   SubscriptionId:', activePlan.stripeSubscriptionId || activePlan.asaasSubscriptionId);
           
           // Se o activePlan já existe e corresponde à assinatura sendo paga, o pagamento já foi processado
-          // IMPORTANTE: Verificar pela assinatura (asaasSubscriptionId) pois em upgrades o planId pode ser diferente
-          if (activePlan.asaasSubscriptionId === pendingPayment.subscriptionId) {
+          // IMPORTANTE: Verificar pela assinatura (stripeSubscriptionId/legado) pois em upgrades o planId pode ser diferente
+          if ((activePlan.stripeSubscriptionId || activePlan.asaasSubscriptionId) === pendingPayment.subscriptionId) {
             // Verificar se é upgrade ou se corresponde ao mesmo plano
             const isUpgrade = activePlan.planId !== pendingPayment.planId;
             
@@ -1526,13 +1528,13 @@ const FirebaseApp = () => {
       // Chamar API do backend para criar assinatura
       console.log('💳 Iniciando criação de assinatura...');
       console.log('   BACKEND_URL:', BACKEND_URL);
-      console.log('   URL completa:', `${BACKEND_URL}/api/asaas/create-subscription`);
+      console.log('   URL completa:', `${BACKEND_URL}/api/stripe/create-subscription`);
       console.log('   Plan:', plan.name);
       console.log('   User ID:', user.uid);
       
       let response;
       try {
-        response = await fetch(`${BACKEND_URL}/api/asaas/create-subscription`, {
+        response = await fetch(`${BACKEND_URL}/api/stripe/create-subscription`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -1586,7 +1588,7 @@ const FirebaseApp = () => {
       console.log('   Result completo:', result);
 
       if (result.success) {
-        // Se tiver invoiceUrl, redirecionar DIRETAMENTE para o Asaas
+        // Se tiver invoiceUrl, redirecionar DIRETAMENTE para o Stripe Checkout
         if (result.invoiceUrl) {
           console.log('✅ Invoice URL encontrada, preparando redirecionamento...');
           // Salvar informações da assinatura no localStorage para verificar ao retornar
@@ -1597,7 +1599,7 @@ const FirebaseApp = () => {
           };
           localStorage.setItem('pendingPayment', JSON.stringify(paymentInfo));
           
-          // Redirecionar diretamente para o Asaas
+          // Redirecionar diretamente para o Stripe Checkout
           console.log('✅ Assinatura criada, redirecionando para pagamento:', result.invoiceUrl);
           console.log('   Tentando redirecionar para:', result.invoiceUrl);
           
@@ -1621,9 +1623,11 @@ const FirebaseApp = () => {
             const snapshot = await get(subscriptionsRef);
             if (snapshot.exists()) {
               const subscriptions = snapshot.val();
-              // Buscar pela subscriptionId retornada ou pela asaasSubscriptionId
+              // Buscar pela subscriptionId retornada ou pelos IDs salvos (Stripe/Asaas legado)
               const subscription = Object.values(subscriptions).find(
                 sub => sub.subscriptionId === result.subscriptionId || 
+                       sub.stripeSubscriptionId === result.subscriptionId ||
+                       sub.stripeSubscriptionId === result.stripeSubscriptionId ||
                        sub.asaasSubscriptionId === result.subscriptionId ||
                        sub.asaasSubscriptionId === result.asaasSubscriptionId
               );
@@ -1634,7 +1638,7 @@ const FirebaseApp = () => {
                 // Salvar informações da assinatura no localStorage para verificar ao retornar
                 const paymentInfo = {
                   planId: plan.id,
-                  subscriptionId: subscription.asaasSubscriptionId || result.subscriptionId,
+                  subscriptionId: subscription.stripeSubscriptionId || subscription.asaasSubscriptionId || result.subscriptionId,
                   createdAt: Date.now()
                 };
                 localStorage.setItem('pendingPayment', JSON.stringify(paymentInfo));
@@ -1661,13 +1665,15 @@ const FirebaseApp = () => {
                 const subscriptions = snapshot.val();
                 const subscription = Object.values(subscriptions).find(
                   sub => sub.subscriptionId === result.subscriptionId || 
+                         sub.stripeSubscriptionId === result.subscriptionId ||
+                         sub.stripeSubscriptionId === result.stripeSubscriptionId ||
                          sub.asaasSubscriptionId === result.subscriptionId ||
                          sub.asaasSubscriptionId === result.asaasSubscriptionId
                 );
                 if (subscription && subscription.paymentUrl) {
                   const paymentInfo = {
                     planId: plan.id,
-                    subscriptionId: subscription.asaasSubscriptionId || result.subscriptionId,
+                    subscriptionId: subscription.stripeSubscriptionId || subscription.asaasSubscriptionId || result.subscriptionId,
                     createdAt: Date.now()
                   };
                   localStorage.setItem('pendingPayment', JSON.stringify(paymentInfo));
@@ -3503,7 +3509,7 @@ const DashboardWithFirebase = ({
     flowSteps: [], // Steps do flow builder
     enableAppointments: false,
     appointmentTypes: [],
-    paymentProvider: 'asaas',
+    paymentProvider: 'stripe',
     paymentManualMessage: '',
     paymentStripeMessage: ''
   });
@@ -3678,7 +3684,7 @@ const DashboardWithFirebase = ({
       appointmentTypes: assistantSettings.appointmentTypes || [],
       audioLanguage: assistantSettings.audioLanguage || 'pt-BR',
       audioVoice: assistantSettings.audioVoice || '',
-      paymentProvider: assistantSettings.paymentProvider || 'asaas',
+      paymentProvider: assistantSettings.paymentProvider || 'stripe',
       paymentManualMessage: assistantSettings.paymentManualMessage || '',
       paymentStripeMessage: assistantSettings.paymentStripeMessage || ''
     });
@@ -7041,7 +7047,7 @@ const DashboardWithFirebase = ({
                       
                       // Buscar step de processar venda para sincronizar configuração de pagamento
                       const paymentStep = newSteps.find(step => step.type === 'process_order');
-                      const paymentProvider = paymentStep?.paymentSettings?.provider || 'asaas';
+                      const paymentProvider = paymentStep?.paymentSettings?.provider || 'stripe';
                       const paymentManualMessage = paymentStep?.paymentSettings?.manualMessage || '';
                       const paymentStripeMessage = paymentStep?.paymentSettings?.stripeMessage || '';
                       

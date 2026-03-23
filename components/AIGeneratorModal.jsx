@@ -8,7 +8,7 @@ const getInitialGuidedAnswers = () => ({
   segment: '',
   mainGoal: '',
   offerings: [],
-  paymentProvider: 'asaas',
+  paymentProvider: 'stripe',
   schedulingTypes: []
 });
 
@@ -194,8 +194,8 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
         title: 'Qual provedor de pagamento?',
         description: 'Escolha apenas um.',
         options: [
-          { value: 'asaas', label: 'Asaas (automático)' },
           { value: 'stripe', label: 'Stripe (automático)' },
+          { value: 'asaas', label: 'Asaas (legado)' },
           { value: 'manual', label: 'Manual (sem API)' }
         ],
         allowCustom: false,
@@ -584,7 +584,7 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
     const mainGoal = guidedAnswers.mainGoal.trim();
     const offerings = Array.isArray(guidedAnswers.offerings) ? guidedAnswers.offerings : (guidedAnswers.offerings ? [guidedAnswers.offerings] : []);
     const schedulingTypes = Array.isArray(guidedAnswers.schedulingTypes) ? guidedAnswers.schedulingTypes : (guidedAnswers.schedulingTypes ? [guidedAnswers.schedulingTypes] : []);
-    const paymentProvider = guidedAnswers.paymentProvider || 'asaas';
+    const paymentProvider = guidedAnswers.paymentProvider || 'stripe';
     const agentType = guidedAnswers.agentType;
 
     const flow = [];

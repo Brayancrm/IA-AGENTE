@@ -234,7 +234,7 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
     
     try {
       const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
-      const response = await fetch(`${BACKEND_URL}/api/asaas/validate-document`, {
+      const response = await fetch(`${BACKEND_URL}/api/stripe/validate-document`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -258,7 +258,7 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
         const cleanCpfCnpj = cpfCnpj.replace(/[^\d]/g, '');
         if (cleanCpfCnpj.length === 11 || cleanCpfCnpj.length === 14) {
           // Se tem formato válido, permitir mas avisar
-          return { valid: true, warning: 'Não foi possível validar com a API do Asaas. O documento será validado ao criar o primeiro pagamento.' };
+          return { valid: true, warning: 'Não foi possível validar com a API do Stripe. O documento será validado ao criar o primeiro pagamento.' };
         } else {
           setDocumentValidationError('CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos');
           return { valid: false, error: 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos' };
@@ -270,7 +270,7 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
       const cleanCpfCnpj = cpfCnpj.replace(/[^\d]/g, '');
       if (cleanCpfCnpj.length === 11 || cleanCpfCnpj.length === 14) {
         // Se tem formato válido, permitir mas avisar
-        return { valid: true, warning: 'Não foi possível validar com a API do Asaas. O documento será validado ao criar o primeiro pagamento.' };
+        return { valid: true, warning: 'Não foi possível validar com a API do Stripe. O documento será validado ao criar o primeiro pagamento.' };
       } else {
         setDocumentValidationError('CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos');
         return { valid: false, error: 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos' };
@@ -314,10 +314,10 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
       return;
     }
 
-    // Criar cliente no Asaas ANTES de criar conta no Firebase
-    // Se não conseguir criar no Asaas, não permitir criar a conta
-    let asaasCustomerId = null;
-    console.log('🔍 [REGISTRO] Iniciando validação e criação de cliente no Asaas...');
+    // Criar cliente no Stripe ANTES de criar conta no Firebase
+    // Se não conseguir criar no Stripe, não permitir criar a conta
+    let stripeCustomerId = null;
+    console.log('🔍 [REGISTRO] Iniciando validação e criação de cliente no Stripe...');
     console.log('🔍 [REGISTRO] Dados do formulário:', {
       name: formData.companyName || formData.name,
       email: formData.email,
@@ -329,7 +329,7 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
       const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
       console.log('🔍 [REGISTRO] BACKEND_URL:', BACKEND_URL);
       
-      const createCustomerResponse = await fetch(`${BACKEND_URL}/api/asaas/create-customer`, {
+      const createCustomerResponse = await fetch(`${BACKEND_URL}/api/stripe/create-customer`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -349,7 +349,7 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
       console.log('🔍 [REGISTRO] Dados retornados:', customerData);
       
       if (!customerData.success || !customerData.valid) {
-        const errorMsg = `CPF/CNPJ inválido: ${customerData.error || 'Não foi possível criar cliente no Asaas. Verifique se o documento é válido.'}`;
+        const errorMsg = `CPF/CNPJ inválido: ${customerData.error || 'Não foi possível criar cliente no Stripe. Verifique se o documento é válido.'}`;
         console.error('❌ [REGISTRO] Falha na validação:', errorMsg);
         setError(errorMsg);
         setLoading(false);
@@ -357,25 +357,25 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
       }
       
       if (!customerData.customerId) {
-        const errorMsg = 'Erro: Cliente criado no Asaas mas ID não foi retornado. Tente novamente.';
+        const errorMsg = 'Erro: Cliente criado no Stripe mas ID não foi retornado. Tente novamente.';
         console.error('❌ [REGISTRO]', errorMsg);
         setError(errorMsg);
         setLoading(false);
         return;
       }
       
-      asaasCustomerId = customerData.customerId;
-      console.log('✅ [REGISTRO] Cliente criado no Asaas com sucesso! ID:', asaasCustomerId);
+      stripeCustomerId = customerData.customerId;
+      console.log('✅ [REGISTRO] Cliente criado no Stripe com sucesso! ID:', stripeCustomerId);
       
     } catch (error) {
-      console.error('❌ [REGISTRO] Erro ao criar cliente no Asaas:', error);
-      const errorMsg = `Erro ao validar CPF/CNPJ com o Asaas: ${error.message || 'Erro de conexão. Verifique se o documento é válido e tente novamente.'}`;
+      console.error('❌ [REGISTRO] Erro ao criar cliente no Stripe:', error);
+      const errorMsg = `Erro ao validar CPF/CNPJ com o Stripe: ${error.message || 'Erro de conexão. Verifique se o documento é válido e tente novamente.'}`;
       setError(errorMsg);
       setLoading(false);
       return;
     }
 
-    // Se chegou aqui, o cliente foi criado no Asaas com sucesso
+    // Se chegou aqui, o cliente foi criado no Stripe com sucesso
     // Agora pode criar a conta no Firebase
     console.log('✅ [REGISTRO] Validação concluída. Criando conta no Firebase...');
     try {
@@ -419,7 +419,7 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
           companyName: formData.companyName,
           cnpj: formData.cnpj,
           whatsappNumber: formData.whatsappNumber,
-          asaasCustomerId: asaasCustomerId, // Salvar ID do cliente no Asaas
+          stripeCustomerId: stripeCustomerId, // Salvar ID do cliente no Stripe
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
@@ -433,7 +433,7 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
       console.error('❌ [REGISTRO] Error code:', error.code);
       console.error('❌ [REGISTRO] Error message:', error.message);
       
-      // Se falhou ao criar no Firebase Authentication, MAS já criamos no Asaas,
+      // Se falhou ao criar no Firebase Authentication, MAS já criamos no Stripe,
       // precisamos informar o usuário sobre o problema
       switch (error.code) {
         case 'auth/email-already-in-use':
@@ -453,7 +453,7 @@ export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }) => {
       }
       
       // IMPORTANTE: Se falhou ao criar no Firebase Authentication, não devemos continuar
-      // O usuário NÃO foi criado, então não há nada para limpar no Asaas (o cliente já foi criado lá)
+      // O usuário NÃO foi criado, então não há nada para limpar no Stripe (o cliente já foi criado lá)
       // Mas informamos o usuário que precisa tentar novamente
     } finally {
       setLoading(false);
