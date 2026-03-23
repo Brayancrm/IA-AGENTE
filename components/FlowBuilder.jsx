@@ -1612,7 +1612,6 @@ export default function FlowBuilder({ initialSteps = [], catalogItems = [], agen
                                   >
                                     <option value="stripe">Stripe (automático)</option>
                                     <option value="manual">Manual (sem API)</option>
-                                    <option value="asaas">Asaas (legado)</option>
                                     <option value="custom">Outro (futuro)</option>
                                   </select>
                                   <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '6px', marginBottom: 0 }}>

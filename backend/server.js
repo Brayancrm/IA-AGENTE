@@ -1089,10 +1089,7 @@ async function handleIncomingMessage(userId, message, client) {
         const paymentProvider = (aiConfig?.paymentProvider || 'stripe').toLowerCase();
         const triggerMessage = 'Perfeito! Vou enviar abaixo seu Link para que efetue o Pagamento.';
         if (aiResponse.includes(triggerMessage)) {
-          if (paymentProvider === 'asaas') {
-            console.log('⚠️ Provedor Asaas em modo legado. Gerando link com Stripe...');
-            await tryAutoGenerateStripeLink(userId, message.from, sanitizedNumber);
-          } else if (paymentProvider === 'stripe') {
+          if (paymentProvider === 'stripe') {
             console.log('🎯 MENSAGEM DE GATILHO DETECTADA! Gerando link de pagamento (Stripe)...');
             await tryAutoGenerateStripeLink(userId, message.from, sanitizedNumber);
           }
@@ -1218,7 +1215,7 @@ async function handleIncomingMessage(userId, message, client) {
         const paymentProviderForIntent = (aiConfig?.paymentProvider || 'stripe').toLowerCase();
         const hasPurchaseIntent = detectPurchaseIntent(message.body);
         
-        if ((paymentProviderForIntent === 'stripe' || paymentProviderForIntent === 'asaas') && hasPurchaseIntent && mentionedItems.length > 0) {
+        if (paymentProviderForIntent === 'stripe' && hasPurchaseIntent && mentionedItems.length > 0) {
           await tryAutoGenerateStripeLink(userId, message.from, sanitizedNumber);
         } else if (paymentProviderForIntent === 'manual' && hasPurchaseIntent && mentionedItems.length > 0) {
           const integrations = await getIntegrationsConfig(userId);
@@ -2701,7 +2698,7 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
 
           const paymentProvider = (assistantSettings?.paymentProvider || 'stripe').toLowerCase();
           const hasQuantity = (customerData.quantities && Object.keys(customerData.quantities).length > 0) || customerData.lastQuantity;
-          if ((paymentProvider === 'asaas' || paymentProvider === 'stripe') && hasQuantity) {
+          if (paymentProvider === 'stripe' && hasQuantity) {
             console.log('💳 Quantidade confirmada. Tentando gerar link de pagamento no Stripe...');
             await tryAutoGenerateStripeLink(userId, phone, sanitizedNumber);
           }
@@ -4300,9 +4297,6 @@ function validateCNPJ(cnpj) {
   return true;
 }
 
-// Compatibilidade temporária: rota Asaas aponta para handler Stripe
-app.post('/api/asaas/create-customer', async (req, res) => handleCreateStripeCustomer(req, res));
-
 // Endpoint Stripe para criar cliente e validar CPF/CNPJ
 async function handleCreateStripeCustomer(req, res) {
   try {
@@ -4378,9 +4372,6 @@ async function handleCreateStripeCustomer(req, res) {
 }
 
 app.post('/api/stripe/create-customer', handleCreateStripeCustomer);
-
-// Compatibilidade temporária: rota Asaas aponta para handler Stripe
-app.post('/api/asaas/validate-document', async (req, res) => handleValidateDocumentStripe(req, res));
 
 // Endpoint Stripe para validar CPF/CNPJ (validação local)
 async function handleValidateDocumentStripe(req, res) {
@@ -4503,8 +4494,6 @@ async function handleCreateStripeCheckout(req, res) {
 }
 
 app.post('/api/stripe/create-checkout', handleCreateStripeCheckout);
-// Compatibilidade temporária com rota legada do Asaas
-app.post('/api/asaas/create-charge', handleCreateStripeCheckout);
 
 async function handleCreateStripeSubscription(req, res) {
   try {
@@ -4574,8 +4563,6 @@ async function handleCreateStripeSubscription(req, res) {
 
 // Novo endpoint Stripe para assinatura
 app.post('/api/stripe/create-subscription', handleCreateStripeSubscription);
-// Compatibilidade temporária com frontend legado
-app.post('/api/asaas/create-subscription', handleCreateStripeSubscription);
 
 // Webhook Asaas (receber notificações de pagamento)
 app.post('/api/asaas/webhook', async (req, res) => {

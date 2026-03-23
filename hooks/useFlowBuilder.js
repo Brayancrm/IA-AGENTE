@@ -315,10 +315,8 @@ export function compilePrompt(steps = []) {
     }
 
     if (step.type === 'process_order') {
-      const provider = step.paymentSettings?.provider || 'asaas';
-      if (provider === 'asaas') {
-        absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} REGISTRE A INTENÇÃO DE GERAR LINK DE PAGAMENTO VIA ASAAS.`);
-      } else if (provider === 'stripe') {
+      const provider = step.paymentSettings?.provider || 'stripe';
+      if (provider === 'stripe') {
         absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} REGISTRE A INTENÇÃO DE GERAR LINK DE PAGAMENTO VIA STRIPE.`);
       } else if (provider === 'manual') {
         absoluteRules.push(`SEMPRE NO PASSO ${stepNumber} REGISTRE A INTENÇÃO DE USAR PAGAMENTO MANUAL.`);

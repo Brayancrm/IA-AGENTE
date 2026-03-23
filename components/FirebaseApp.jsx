@@ -534,7 +534,7 @@ const FirebaseApp = () => {
           if (snapshot.exists()) {
             const subscriptions = snapshot.val();
             const subscription = Object.values(subscriptions).find(
-              sub => sub.stripeSubscriptionId === subscriptionIdFromUrl || sub.asaasSubscriptionId === subscriptionIdFromUrl
+              sub => sub.stripeSubscriptionId === subscriptionIdFromUrl
             );
             if (subscription) {
               localStorage.setItem('pendingPayment', JSON.stringify({
@@ -576,7 +576,7 @@ const FirebaseApp = () => {
       
       Object.keys(subscriptions).forEach((key) => {
         const subData = subscriptions[key];
-        if (subData.stripeSubscriptionId === pendingPayment.subscriptionId || subData.asaasSubscriptionId === pendingPayment.subscriptionId) {
+        if (subData.stripeSubscriptionId === pendingPayment.subscriptionId) {
           foundSubscription = subData;
           subscriptionKey = key;
         }
@@ -588,7 +588,6 @@ const FirebaseApp = () => {
         console.log('   Assinaturas disponíveis:', Object.keys(subscriptions).map(key => ({
           key,
           stripeSubscriptionId: subscriptions[key].stripeSubscriptionId,
-          asaasSubscriptionId: subscriptions[key].asaasSubscriptionId,
           status: subscriptions[key].status
         })));
         return;
@@ -599,7 +598,6 @@ const FirebaseApp = () => {
       console.log('📋 Dados da Assinatura no Firebase:');
       console.log('   Subscription Key:', subscriptionKey);
       console.log('   Stripe Subscription ID:', foundSubscription.stripeSubscriptionId);
-      console.log('   Asaas Subscription ID (legado):', foundSubscription.asaasSubscriptionId);
       console.log('   Status:', foundSubscription.status);
       console.log('   LastPayment ID:', foundSubscription.lastPayment);
       console.log('   LastPaymentDate:', foundSubscription.lastPaymentDate);
@@ -667,11 +665,11 @@ const FirebaseApp = () => {
           console.log('   PlanId:', activePlan.planId);
           console.log('   PlanName:', activePlan.planName);
           console.log('   UpdatedAt:', activePlan.updatedAt);
-          console.log('   SubscriptionId:', activePlan.stripeSubscriptionId || activePlan.asaasSubscriptionId);
+          console.log('   SubscriptionId:', activePlan.stripeSubscriptionId);
           
           // Se o activePlan já existe e corresponde à assinatura sendo paga, o pagamento já foi processado
-          // IMPORTANTE: Verificar pela assinatura (stripeSubscriptionId/legado) pois em upgrades o planId pode ser diferente
-          if ((activePlan.stripeSubscriptionId || activePlan.asaasSubscriptionId) === pendingPayment.subscriptionId) {
+          // IMPORTANTE: Verificar pela assinatura (stripeSubscriptionId) pois em upgrades o planId pode ser diferente
+          if (activePlan.stripeSubscriptionId === pendingPayment.subscriptionId) {
             // Verificar se é upgrade ou se corresponde ao mesmo plano
             const isUpgrade = activePlan.planId !== pendingPayment.planId;
             
@@ -1623,13 +1621,11 @@ const FirebaseApp = () => {
             const snapshot = await get(subscriptionsRef);
             if (snapshot.exists()) {
               const subscriptions = snapshot.val();
-              // Buscar pela subscriptionId retornada ou pelos IDs salvos (Stripe/Asaas legado)
+              // Buscar pela subscriptionId retornada ou pelos IDs salvos no Stripe
               const subscription = Object.values(subscriptions).find(
                 sub => sub.subscriptionId === result.subscriptionId || 
                        sub.stripeSubscriptionId === result.subscriptionId ||
-                       sub.stripeSubscriptionId === result.stripeSubscriptionId ||
-                       sub.asaasSubscriptionId === result.subscriptionId ||
-                       sub.asaasSubscriptionId === result.asaasSubscriptionId
+                       sub.stripeSubscriptionId === result.stripeSubscriptionId
               );
               
               if (subscription && subscription.paymentUrl) {
@@ -1638,7 +1634,7 @@ const FirebaseApp = () => {
                 // Salvar informações da assinatura no localStorage para verificar ao retornar
                 const paymentInfo = {
                   planId: plan.id,
-                  subscriptionId: subscription.stripeSubscriptionId || subscription.asaasSubscriptionId || result.subscriptionId,
+                  subscriptionId: subscription.stripeSubscriptionId || result.subscriptionId,
                   createdAt: Date.now()
                 };
                 localStorage.setItem('pendingPayment', JSON.stringify(paymentInfo));
@@ -1666,14 +1662,12 @@ const FirebaseApp = () => {
                 const subscription = Object.values(subscriptions).find(
                   sub => sub.subscriptionId === result.subscriptionId || 
                          sub.stripeSubscriptionId === result.subscriptionId ||
-                         sub.stripeSubscriptionId === result.stripeSubscriptionId ||
-                         sub.asaasSubscriptionId === result.subscriptionId ||
-                         sub.asaasSubscriptionId === result.asaasSubscriptionId
+                         sub.stripeSubscriptionId === result.stripeSubscriptionId
                 );
                 if (subscription && subscription.paymentUrl) {
                   const paymentInfo = {
                     planId: plan.id,
-                    subscriptionId: subscription.stripeSubscriptionId || subscription.asaasSubscriptionId || result.subscriptionId,
+                    subscriptionId: subscription.stripeSubscriptionId || result.subscriptionId,
                     createdAt: Date.now()
                   };
                   localStorage.setItem('pendingPayment', JSON.stringify(paymentInfo));
@@ -3482,7 +3476,6 @@ const DashboardWithFirebase = ({
   const finalUploadingCompanyPhoto = (uploadingCompanyPhoto !== undefined && uploadingCompanyPhoto !== null) ? uploadingCompanyPhoto : localUploadingCompanyPhoto;
   const [integrationsForm, setIntegrationsForm] = useState({
     openaiApiKey: '',
-    asaasApiKey: '',
     stripeApiKey: '',
     municipalRegistration: '',
     fiscalEnabled: false,
@@ -3660,7 +3653,6 @@ const DashboardWithFirebase = ({
   useEffect(() => {
     setIntegrationsForm({
       openaiApiKey: integrationsConfig.openaiApiKey || '',
-      asaasApiKey: integrationsConfig.asaasApiKey || '',
       stripeApiKey: integrationsConfig.stripeApiKey || '',
       municipalRegistration: integrationsConfig.municipalRegistration || ''
     });
@@ -6031,110 +6023,6 @@ const DashboardWithFirebase = ({
                     />
                     <p style={{ fontSize: '0.875rem', color: '#10b981', marginTop: '8px' }}>
                       💡 Obtenha sua chave em: https://platform.openai.com/api-keys
-                    </p>
-                  </div>
-                </div>
-
-                {/* Asaas (Legado) */}
-                <div style={{ 
-                  padding: '24px', 
-                  backgroundColor: 'rgba(16, 185, 129, 0.05)', 
-                  borderRadius: '16px',
-                  border: '2px solid rgba(16, 185, 129, 0.3)'
-                }}>
-                  <h3 style={{ fontSize: '1.375rem', fontWeight: '700', marginBottom: '8px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '1.75rem' }}>💳</span>
-                    Asaas (Legado)
-                  </h3>
-                  <p style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '20px' }}>
-                    Compatibilidade temporária para fluxos antigos
-                  </p>
-                  <div>
-                    <label style={{ display: 'block', fontWeight: '600', marginBottom: '10px', color: '#1e40af', fontSize: '0.9375rem' }}>
-                      API Key
-                    </label>
-                    <input
-                      type="password"
-                      value={integrationsForm.asaasApiKey}
-                      onChange={(e) => setIntegrationsForm(prev => ({ ...prev, asaasApiKey: e.target.value }))}
-                      style={{
-                        width: '100%',
-                        padding: '14px 16px',
-                        borderRadius: '12px',
-                        border: '2px solid #bfdbfe',
-                        fontSize: '1rem',
-                        transition: 'all 0.2s ease',
-                        outline: 'none',
-                        backgroundColor: 'white'
-                      }}
-                      placeholder="$aact_..."
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#3b82f6';
-                        e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = '#bfdbfe';
-                        e.target.style.boxShadow = 'none';
-                      }}
-                    />
-                  </div>
-                  <div style={{ marginTop: '20px', padding: '16px', backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: '12px', border: '1px dashed #93c5fd' }}>
-                    <label style={{ display: 'block', fontWeight: '600', marginBottom: '10px', color: '#1e40af', fontSize: '0.875rem' }}>
-                      📎 Webhook URL
-                    </label>
-                    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '10px', alignItems: isMobile ? 'stretch' : 'center' }}>
-                      <input
-                        type="text"
-                        value={`https://your-api.com/api/asaas/webhook`}
-                        readOnly
-                        style={{
-                          flex: 1,
-                          padding: '12px 14px',
-                          borderRadius: '10px',
-                          border: '1px solid #bfdbfe',
-                          fontSize: isMobile ? '0.75rem' : '0.875rem',
-                          backgroundColor: 'white',
-                          color: '#64748b',
-                          fontFamily: 'monospace',
-                          width: '100%',
-                          boxSizing: 'border-box',
-                          minWidth: 0
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(`https://your-api.com/api/asaas/webhook`);
-                          alert('✅ URL copiada para a área de transferência!');
-                        }}
-                        style={{
-                          background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                          color: 'white',
-                          padding: isMobile ? '10px 16px' : '12px 20px',
-                          borderRadius: '10px',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontWeight: '600',
-                          fontSize: isMobile ? '0.75rem' : '0.875rem',
-                          transition: 'all 0.2s ease',
-                          boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-                          whiteSpace: 'nowrap',
-                          width: isMobile ? '100%' : 'auto'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.target.style.transform = 'translateY(-2px)';
-                          e.target.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.target.style.transform = 'translateY(0)';
-                          e.target.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
-                        }}
-                      >
-                        📋 Copiar
-                      </button>
-                    </div>
-                    <p style={{ fontSize: '0.8125rem', color: '#1d4ed8', marginTop: '8px' }}>
-                      💡 Use apenas para clientes legados no painel do Asaas
                     </p>
                   </div>
                 </div>

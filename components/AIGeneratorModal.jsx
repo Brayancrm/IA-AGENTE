@@ -195,7 +195,6 @@ export default function AIGeneratorModal({ isOpen, onClose, onGenerate, catalogI
         description: 'Escolha apenas um.',
         options: [
           { value: 'stripe', label: 'Stripe (automático)' },
-          { value: 'asaas', label: 'Asaas (legado)' },
           { value: 'manual', label: 'Manual (sem API)' }
         ],
         allowCustom: false,
