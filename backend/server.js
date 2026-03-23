@@ -1643,6 +1643,7 @@ async function getIntegrationsConfig(userId) {
 async function getMasterStripeApiKey() {
   try {
     console.log('🔍 Buscando API Key do Stripe do master...');
+    const envStripeKey = process.env.STRIPE_API_KEY || null;
 
     let masterUserId = null;
     const usersSnapshot = await db.ref('users/registered').once('value');
@@ -1672,15 +1673,25 @@ async function getMasterStripeApiKey() {
     }
 
     if (!masterUserId) {
-      return null;
+      if (envStripeKey) {
+        console.log('ℹ️ Usando STRIPE_API_KEY do ambiente (fallback)');
+      }
+      return envStripeKey;
     }
 
     const masterIntegrationsSnapshot = await db.ref(`users/data/${masterUserId}/integrations_config`).once('value');
     const masterIntegrations = masterIntegrationsSnapshot.val();
-    return masterIntegrations?.stripeApiKey || null;
+    if (masterIntegrations?.stripeApiKey) {
+      return masterIntegrations.stripeApiKey;
+    }
+    if (envStripeKey) {
+      console.log('ℹ️ stripeApiKey não encontrada no Firebase. Usando STRIPE_API_KEY do ambiente (fallback)');
+      return envStripeKey;
+    }
+    return null;
   } catch (error) {
     console.error('❌ Erro ao buscar API Key do Stripe do master:', error);
-    return null;
+    return process.env.STRIPE_API_KEY || null;
   }
 }
 
@@ -4370,7 +4381,7 @@ async function handleCreateStripeCheckout(req, res) {
     }
     
     const integrations = await getIntegrationsConfig(userId);
-    const stripeApiKey = integrations?.stripeApiKey || null;
+    const stripeApiKey = integrations?.stripeApiKey || process.env.STRIPE_API_KEY || null;
 
     if (!stripeApiKey) {
       return res.status(400).json({ error: 'API Key do Stripe não configurada' });
