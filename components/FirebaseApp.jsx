@@ -124,8 +124,6 @@ const FirebaseApp = () => {
   const [agendamentoFilter, setAgendamentoFilter] = useState('todos'); // todos, pendente, confirmado, concluido, cancelado
   const [agendamentoTypeFilter, setAgendamentoTypeFilter] = useState('todos'); // todos, retirada, servico, visita, etc
   const [agendamentoViewMode, setAgendamentoViewMode] = useState('lista'); // lista ou calendario
-  const [agendamentoSearch, setAgendamentoSearch] = useState('');
-  const [agendamentoCurrentPage, setAgendamentoCurrentPage] = useState(0);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(null); // Data selecionada no calendário
   const [selectedDateAgendamentos, setSelectedDateAgendamentos] = useState([]); // Agendamentos da data selecionada
   
@@ -267,98 +265,6 @@ const FirebaseApp = () => {
   
   // URL do backend
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
-
-  const getStatusColor = useCallback((status) => {
-    return AGENDAMENTO_STATUS_CONFIG[status]?.color || '#6b7280';
-  }, []);
-
-  const getStatusLabel = useCallback((status) => {
-    return AGENDAMENTO_STATUS_CONFIG[status]?.label || status || 'N/A';
-  }, []);
-
-  const getTipoIcon = useCallback((tipo) => {
-    return AGENDAMENTO_TIPO_ICON[tipo] || '📅';
-  }, []);
-
-  const parseAgendamentoDateTime = useCallback((data, horario = '00:00') => {
-    if (!data) return null;
-    const time = String(horario || '00:00');
-    if (String(data).includes('-')) {
-      const dt = new Date(`${data}T${time}:00`);
-      return Number.isNaN(dt.getTime()) ? null : dt;
-    }
-
-    const parts = String(data).split('/');
-    if (parts.length === 3) {
-      const [day, month, year] = parts;
-      const dt = new Date(`${year}-${month}-${day}T${time}:00`);
-      return Number.isNaN(dt.getTime()) ? null : dt;
-    }
-    return null;
-  }, []);
-
-  const agendamentosOrdenados = useMemo(() => {
-    const list = [...(agendamentos || [])];
-    list.sort((a, b) => {
-      const dateA = parseAgendamentoDateTime(a.data, a.horario);
-      const dateB = parseAgendamentoDateTime(b.data, b.horario);
-      const timeA = dateA ? dateA.getTime() : 0;
-      const timeB = dateB ? dateB.getTime() : 0;
-      return timeA - timeB;
-    });
-    return list;
-  }, [agendamentos, parseAgendamentoDateTime]);
-
-  const agendamentosFiltradosOrdenados = useMemo(() => {
-    const query = String(agendamentoSearch || '').toLowerCase().trim();
-    return agendamentosOrdenados.filter((agend) => {
-      const matchStatus = (agendamentoFilter || 'todos') === 'todos' || agend.status === agendamentoFilter;
-      const matchType = (agendamentoTypeFilter || 'todos') === 'todos' || agend.tipo === agendamentoTypeFilter;
-      const text = `${agend.titulo || ''} ${agend.descricao || ''} ${agend.cliente || ''} ${agend.telefone || ''}`.toLowerCase();
-      const matchSearch = !query || text.includes(query);
-      return matchStatus && matchType && matchSearch;
-    });
-  }, [agendamentosOrdenados, agendamentoFilter, agendamentoTypeFilter, agendamentoSearch]);
-
-  const agendamentoStats = useMemo(() => {
-    const now = new Date();
-    const endOfToday = new Date(now);
-    endOfToday.setHours(23, 59, 59, 999);
-    const next7 = new Date(now);
-    next7.setDate(next7.getDate() + 7);
-    next7.setHours(23, 59, 59, 999);
-
-    const isOpenStatus = (s) => s !== 'concluido' && s !== 'cancelado';
-    const values = agendamentosOrdenados;
-    return {
-      total: values.length,
-      pendente: values.filter((a) => a.status === 'pendente').length,
-      confirmado: values.filter((a) => a.status === 'confirmado').length,
-      concluido: values.filter((a) => a.status === 'concluido').length,
-      cancelado: values.filter((a) => a.status === 'cancelado').length,
-      em_andamento: values.filter((a) => a.status === 'em_andamento').length,
-      atrasados: values.filter((a) => {
-        const dt = parseAgendamentoDateTime(a.data, a.horario);
-        return dt && dt < now && isOpenStatus(a.status);
-      }).length,
-      hoje: values.filter((a) => {
-        const dt = parseAgendamentoDateTime(a.data, a.horario);
-        return dt && dt >= new Date(now.getFullYear(), now.getMonth(), now.getDate()) && dt <= endOfToday;
-      }).length,
-      proximos7: values.filter((a) => {
-        const dt = parseAgendamentoDateTime(a.data, a.horario);
-        return dt && dt >= now && dt <= next7;
-      }).length
-    };
-  }, [agendamentosOrdenados, parseAgendamentoDateTime]);
-
-  const agendamentoItemsPerPage = 8;
-  const agendamentoTotalPages = Math.max(1, Math.ceil(agendamentosFiltradosOrdenados.length / agendamentoItemsPerPage));
-  const agendamentoPaginaAtual = Math.min(agendamentoCurrentPage, agendamentoTotalPages - 1);
-  const agendamentosPaginados = useMemo(() => {
-    const start = agendamentoPaginaAtual * agendamentoItemsPerPage;
-    return agendamentosFiltradosOrdenados.slice(start, start + agendamentoItemsPerPage);
-  }, [agendamentosFiltradosOrdenados, agendamentoPaginaAtual]);
 
   // Função para mostrar toast
   const showToast = (message, type = 'success') => {
@@ -3185,6 +3091,101 @@ const DashboardWithFirebase = ({
     recent: []
   });
   const [stripeOpsFilter, setStripeOpsFilter] = useState('all');
+
+  const [agendamentoSearch, setAgendamentoSearch] = useState('');
+  const [agendamentoCurrentPage, setAgendamentoCurrentPage] = useState(0);
+
+  const getStatusColor = useCallback((status) => {
+    return AGENDAMENTO_STATUS_CONFIG[status]?.color || '#6b7280';
+  }, []);
+
+  const getStatusLabel = useCallback((status) => {
+    return AGENDAMENTO_STATUS_CONFIG[status]?.label || status || 'N/A';
+  }, []);
+
+  const getTipoIcon = useCallback((tipo) => {
+    return AGENDAMENTO_TIPO_ICON[tipo] || '📅';
+  }, []);
+
+  const parseAgendamentoDateTime = useCallback((data, horario = '00:00') => {
+    if (!data) return null;
+    const time = String(horario || '00:00');
+    if (String(data).includes('-')) {
+      const dt = new Date(`${data}T${time}:00`);
+      return Number.isNaN(dt.getTime()) ? null : dt;
+    }
+
+    const parts = String(data).split('/');
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      const dt = new Date(`${year}-${month}-${day}T${time}:00`);
+      return Number.isNaN(dt.getTime()) ? null : dt;
+    }
+    return null;
+  }, []);
+
+  const agendamentosOrdenados = useMemo(() => {
+    const list = [...(agendamentos || [])];
+    list.sort((a, b) => {
+      const dateA = parseAgendamentoDateTime(a.data, a.horario);
+      const dateB = parseAgendamentoDateTime(b.data, b.horario);
+      const timeA = dateA ? dateA.getTime() : 0;
+      const timeB = dateB ? dateB.getTime() : 0;
+      return timeA - timeB;
+    });
+    return list;
+  }, [agendamentos, parseAgendamentoDateTime]);
+
+  const agendamentosFiltradosOrdenados = useMemo(() => {
+    const query = String(agendamentoSearch || '').toLowerCase().trim();
+    return agendamentosOrdenados.filter((agend) => {
+      const matchStatus = (agendamentoFilter || 'todos') === 'todos' || agend.status === agendamentoFilter;
+      const matchType = (agendamentoTypeFilter || 'todos') === 'todos' || agend.tipo === agendamentoTypeFilter;
+      const text = `${agend.titulo || ''} ${agend.descricao || ''} ${agend.cliente || ''} ${agend.telefone || ''}`.toLowerCase();
+      const matchSearch = !query || text.includes(query);
+      return matchStatus && matchType && matchSearch;
+    });
+  }, [agendamentosOrdenados, agendamentoFilter, agendamentoTypeFilter, agendamentoSearch]);
+
+  const agendamentoStats = useMemo(() => {
+    const now = new Date();
+    const endOfToday = new Date(now);
+    endOfToday.setHours(23, 59, 59, 999);
+    const next7 = new Date(now);
+    next7.setDate(next7.getDate() + 7);
+    next7.setHours(23, 59, 59, 999);
+
+    const isOpenStatus = (s) => s !== 'concluido' && s !== 'cancelado';
+    const values = agendamentosOrdenados;
+    return {
+      total: values.length,
+      pendente: values.filter((a) => a.status === 'pendente').length,
+      confirmado: values.filter((a) => a.status === 'confirmado').length,
+      concluido: values.filter((a) => a.status === 'concluido').length,
+      cancelado: values.filter((a) => a.status === 'cancelado').length,
+      em_andamento: values.filter((a) => a.status === 'em_andamento').length,
+      atrasados: values.filter((a) => {
+        const dt = parseAgendamentoDateTime(a.data, a.horario);
+        return dt && dt < now && isOpenStatus(a.status);
+      }).length,
+      hoje: values.filter((a) => {
+        const dt = parseAgendamentoDateTime(a.data, a.horario);
+        return dt && dt >= new Date(now.getFullYear(), now.getMonth(), now.getDate()) && dt <= endOfToday;
+      }).length,
+      proximos7: values.filter((a) => {
+        const dt = parseAgendamentoDateTime(a.data, a.horario);
+        return dt && dt >= now && dt <= next7;
+      }).length
+    };
+  }, [agendamentosOrdenados, parseAgendamentoDateTime]);
+
+  const agendamentoItemsPerPage = 8;
+  const agendamentoTotalPages = Math.max(1, Math.ceil(agendamentosFiltradosOrdenados.length / agendamentoItemsPerPage));
+  const agendamentoPaginaAtual = Math.min(agendamentoCurrentPage, agendamentoTotalPages - 1);
+  const agendamentosPaginados = useMemo(() => {
+    const start = agendamentoPaginaAtual * agendamentoItemsPerPage;
+    return agendamentosFiltradosOrdenados.slice(start, start + agendamentoItemsPerPage);
+  }, [agendamentosFiltradosOrdenados, agendamentoPaginaAtual]);
 
   useEffect(() => {
     if (!user || !database) return;
