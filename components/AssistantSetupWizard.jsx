@@ -9,13 +9,18 @@ import {
   Building2,
   Database,
   Mic,
-  ClipboardList
+  ClipboardList,
+  Wrench,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import {
   WIZARD_TEMPLATES,
   getDefaultWizardState,
   buildFlowStepsFromWizardState,
-  parseFlowStepsToWizardState
+  parseFlowStepsToWizardState,
+  autoFixWizardDraft,
+  getPlacementsForTemplate
 } from '../utils/assistantWizardHelpers';
 
 const OPTIONAL_CRM_FIELDS = [
@@ -79,8 +84,15 @@ export default function AssistantSetupWizard({
   );
 
   useEffect(() => {
-    setDraft(parseFlowStepsToWizardState(flowSteps, catalogItems));
+    setDraft((prev) => ({
+      ...parseFlowStepsToWizardState(flowSteps, catalogItems),
+      fixedApproaches: prev.fixedApproaches
+    }));
   }, [flowSteps, catalogItems]);
+
+  useEffect(() => {
+    setDraft((d) => ({ ...d, fixedApproaches: fixedApproachesProp || [] }));
+  }, [resetKey, fixedApproachesProp]);
 
   useEffect(() => {
     setStep(1);
@@ -95,8 +107,50 @@ export default function AssistantSetupWizard({
 
   const handleApply = () => {
     const steps = buildFlowStepsFromWizardState(draft, catalogItems);
-    onApplyFlow(steps);
+    onApplyFlow(steps, { fixedApproaches: draft.fixedApproaches || [] });
     if (showToast) showToast('Fluxo gerado e aplicado ao rascunho. Clique em Salvar para publicar.', 'success');
+  };
+
+  const handleAutoFix = () => {
+    setDraft((d) => autoFixWizardDraft(d, catalogItems));
+    if (showToast) {
+      showToast(
+        'Ajustes sugeridos aplicados. Revise o passo "Resumo" e clique em "Gerar fluxo e aplicar ao rascunho".',
+        'success'
+      );
+    }
+  };
+
+  const placementOptions = useMemo(
+    () => getPlacementsForTemplate(draft.templateId),
+    [draft.templateId]
+  );
+
+  const addFixedApproach = () => {
+    const first = placementOptions[0]?.value || 'agent_profile';
+    setDraft((d) => ({
+      ...d,
+      fixedApproaches: [
+        ...(d.fixedApproaches || []),
+        { id: Date.now() + Math.random(), placement: first, instruction: '' }
+      ]
+    }));
+  };
+
+  const updateFixedApproach = (id, patch) => {
+    setDraft((d) => ({
+      ...d,
+      fixedApproaches: (d.fixedApproaches || []).map((row) =>
+        row.id === id ? { ...row, ...patch } : row
+      )
+    }));
+  };
+
+  const removeFixedApproach = (id) => {
+    setDraft((d) => ({
+      ...d,
+      fixedApproaches: (d.fixedApproaches || []).filter((row) => row.id !== id)
+    }));
   };
 
   const toggleCrmField = (value) => {
@@ -214,6 +268,15 @@ export default function AssistantSetupWizard({
         text: 'Sem auto-save e sem campos extras: você pode perder dados para o CRM.'
       });
     }
+
+    (draft.fixedApproaches || []).forEach((row, idx) => {
+      if (row?.placement && !row?.instruction?.trim()) {
+        issues.push({
+          level: 'warning',
+          text: `Abordagem fixa #${idx + 1}: preencha o texto ou remova a linha.`
+        });
+      }
+    });
 
     return issues;
   }, [draft, showAppointment, showCatalog, showOrder, totalProducts, totalServices]);
@@ -628,6 +691,99 @@ export default function AssistantSetupWizard({
               placeholder="Ex.: nunca prometer desconto sem confirmar; usar emojis com moderação..."
             />
           </div>
+
+          <div style={{ ...sectionBox, gridColumn: '1 / -1', marginTop: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
+              <div>
+                <h4 style={{ ...sectionTitle, marginBottom: '6px' }}>Abordagens fixas (congeladas)</h4>
+                <p style={{ fontSize: '0.85rem', color: '#9ca3af', margin: 0, lineHeight: 1.5 }}>
+                  Escolha <strong style={{ color: '#e5e7eb' }}>em qual etapa</strong> o texto deve ser obrigatório e escreva a mensagem. Ao gerar o fluxo, o sistema injeta isso automaticamente no passo certo do prompt (marcado como não alterável).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={addFixedApproach}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 14px',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(16,185,129,0.4)',
+                  background: 'rgba(16,185,129,0.12)',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer'
+                }}
+              >
+                <Plus size={16} /> Adicionar
+              </button>
+            </div>
+
+            {(draft.fixedApproaches || []).length === 0 ? (
+              <p style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '12px', marginBottom: 0 }}>
+                Nenhuma abordagem fixa. Use &quot;Adicionar&quot; se quiser scripts obrigatórios por etapa.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}>
+                {(draft.fixedApproaches || []).map((row) => (
+                  <div
+                    key={row.id}
+                    style={{
+                      padding: '12px',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: '#0f1419'
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'flex-start' }}>
+                      <div style={{ flex: '1 1 200px' }}>
+                        <label style={labelStyle}>Onde aplicar (etapa do fluxo)</label>
+                        <select
+                          value={row.placement}
+                          onChange={(e) => updateFixedApproach(row.id, { placement: e.target.value })}
+                          style={selectStyle}
+                        >
+                          {placementOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFixedApproach(row.id)}
+                        title="Remover"
+                        style={{
+                          marginTop: '22px',
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(239,68,68,0.35)',
+                          background: 'rgba(239,68,68,0.12)',
+                          color: '#fecaca',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                    <label style={{ ...labelStyle, marginTop: '10px' }}>Texto da abordagem (obrigatório nesta etapa)</label>
+                    <textarea
+                      value={row.instruction}
+                      onChange={(e) => updateFixedApproach(row.id, { instruction: e.target.value })}
+                      rows={3}
+                      style={textareaStyle}
+                      placeholder='Ex.: "Ao apresentar o catálogo, sempre mencione que o frete é calculado no fechamento."'
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -675,8 +831,40 @@ export default function AssistantSetupWizard({
               <li>
                 <strong style={{ color: '#fff' }}>Encerramento:</strong> mensagem de confirmação
               </li>
+              {(draft.fixedApproaches || []).some((r) => r.instruction?.trim()) && (
+                <li>
+                  <strong style={{ color: '#fff' }}>Abordagens fixas:</strong>{' '}
+                  {(draft.fixedApproaches || []).filter((r) => r.instruction?.trim()).length} trecho(s) injetado(s) nos passos escolhidos
+                </li>
+              )}
             </ol>
           </div>
+
+          <button
+            type="button"
+            onClick={handleAutoFix}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '12px 18px',
+              borderRadius: '12px',
+              border: '1px solid rgba(245,158,11,0.45)',
+              background: 'rgba(245,158,11,0.12)',
+              color: '#fef3c7',
+              fontWeight: 600,
+              fontSize: '0.95rem',
+              cursor: 'pointer',
+              alignSelf: 'flex-start'
+            }}
+          >
+            <Wrench size={18} />
+            Corrigir automaticamente
+          </button>
+          <p style={{ fontSize: '0.78rem', color: '#6b7280', margin: '-8px 0 0 0' }}>
+            Aplica sugestões seguras (nome/função padrão, catálogo quando houver itens, tipos de agendamento, texto de PIX, CRM).
+          </p>
 
           <div
             style={{

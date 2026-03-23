@@ -7,6 +7,11 @@
 
 A preferência de interface (`configUiMode`: `simple` | `advanced`) é guardada em `assistant_settings` no Firebase.
 
+### Abordagens fixas (modo guiado)
+
+- Campo `fixedApproaches` (array) em `assistant_settings`: cada item tem `placement` (tipo de passo alvo, ex. `show_catalog`) e `instruction` (texto obrigatório).
+- Ao **Gerar fluxo e aplicar**, o sistema chama `applyFixedApproachesToSteps` e injeta blocos `--- ABORDAGEM FIXA (NÃO ALTERAR) ---` nas `description` dos passos correspondentes, para o `compilePrompt` tratar como regra fixa.
+
 ---
 
 ## Tipos de ação (fonte de verdade: `FlowBuilder.jsx`)

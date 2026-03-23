@@ -3754,7 +3754,8 @@ const DashboardWithFirebase = ({
     paymentProvider: 'stripe',
     paymentManualMessage: '',
     paymentStripeMessage: '',
-    configUiMode: 'simple' // 'simple' = assistente guiado | 'advanced' = Flow Builder
+    configUiMode: 'simple', // 'simple' = assistente guiado | 'advanced' = Flow Builder
+    fixedApproaches: [] // abordagens fixas do modo guiado (por etapa)
   });
   const [wizardResetKey, setWizardResetKey] = useState(0);
   const [userForm, setUserForm] = useState({
@@ -3930,7 +3931,10 @@ const DashboardWithFirebase = ({
       paymentProvider: assistantSettings.paymentProvider || 'stripe',
       paymentManualMessage: assistantSettings.paymentManualMessage || '',
       paymentStripeMessage: assistantSettings.paymentStripeMessage || '',
-      configUiMode: assistantSettings.configUiMode || 'simple'
+      configUiMode: assistantSettings.configUiMode || 'simple',
+      fixedApproaches: Array.isArray(assistantSettings.fixedApproaches)
+        ? assistantSettings.fixedApproaches
+        : []
     });
   }, [assistantSettings]);
 
@@ -4145,8 +4149,14 @@ const DashboardWithFirebase = ({
     saveIntegrationsConfig(integrationsForm);
   };
 
-  const applyAssistantFlowSteps = useCallback((newSteps) => {
-    setAssistantForm((prev) => mergeFlowStepsIntoAssistantForm(prev, newSteps));
+  const applyAssistantFlowSteps = useCallback((newSteps, meta) => {
+    setAssistantForm((prev) => {
+      const merged = mergeFlowStepsIntoAssistantForm(prev, newSteps);
+      if (meta && meta.fixedApproaches !== undefined) {
+        return { ...merged, fixedApproaches: meta.fixedApproaches };
+      }
+      return merged;
+    });
   }, []);
 
   const handleAssistantSubmit = (e) => {
@@ -7510,9 +7520,10 @@ const DashboardWithFirebase = ({
                     <AssistantSetupWizard
                       catalogItems={catalogItems}
                       flowSteps={assistantForm.flowSteps || []}
+                      fixedApproaches={assistantForm.fixedApproaches || []}
                       resetKey={wizardResetKey}
                       showToast={showToast}
-                      onApplyFlow={(newSteps) => applyAssistantFlowSteps(newSteps)}
+                      onApplyFlow={(newSteps, meta) => applyAssistantFlowSteps(newSteps, meta)}
                     />
                   </div>
                 ) : (

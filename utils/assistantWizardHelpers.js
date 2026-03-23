@@ -3,6 +3,30 @@
  */
 import { convertStepsToPrompt } from '../hooks/useFlowBuilder';
 
+/** Onde injetar texto de abordagem “congelada” (mapa → type do passo) */
+export const FIXED_APPROACH_PLACEMENTS = [
+  { value: 'agent_profile', label: '🤖 Perfil / primeira impressão' },
+  { value: 'show_catalog', label: '📦 Catálogo' },
+  { value: 'process_order', label: '🛒 Pedido e pagamento' },
+  { value: 'create_appointment', label: '📅 Agendamento' },
+  { value: 'collect_data', label: '📋 CRM (coleta de dados)' },
+  { value: 'send_confirmation', label: '✅ Confirmação final' }
+];
+
+export function getPlacementsForTemplate(templateId) {
+  const all = FIXED_APPROACH_PLACEMENTS;
+  if (templateId === 'minimal') {
+    return all.filter((p) => ['agent_profile', 'send_confirmation'].includes(p.value));
+  }
+  if (templateId === 'appointments') {
+    return all.filter((p) => !['show_catalog', 'process_order'].includes(p.value));
+  }
+  if (templateId === 'full_sales' || templateId === 'catalog_leads') {
+    return all;
+  }
+  return all;
+}
+
 export const WIZARD_TEMPLATES = [
   {
     id: 'full_sales',
@@ -78,8 +102,82 @@ export function getDefaultWizardState(catalogItems = []) {
       agentStyle: 'concise',
       personality:
         'Seja cordial, use emojis com moderação e confirme dados importantes antes de fechar.'
-    }
+    },
+    /** { id, placement: step type, instruction } — injetadas no passo correspondente ao gerar fluxo */
+    fixedApproaches: []
   };
+}
+
+const FIXED_BLOCK = '\n\n--- ABORDAGEM FIXA (NÃO ALTERAR) ---\n';
+
+/**
+ * Injeta abordagens fixas nas descrições dos passos (compatível com compilePrompt).
+ */
+export function applyFixedApproachesToSteps(steps, fixedApproaches = []) {
+  if (!steps?.length || !fixedApproaches?.length) return steps;
+
+  const byType = {};
+  fixedApproaches.forEach((fa) => {
+    if (!fa?.instruction?.trim() || !fa?.placement) return;
+    const t = fa.placement;
+    if (!byType[t]) byType[t] = [];
+    byType[t].push(fa.instruction.trim());
+  });
+
+  const out = steps.map((s) => ({ ...s }));
+  Object.keys(byType).forEach((type) => {
+    const idx = out.findIndex((s) => s.type === type);
+    if (idx === -1) return;
+    const combined = byType[type].map((text) => `${FIXED_BLOCK}${text}`).join('');
+    const step = { ...out[idx] };
+    const raw = step.description || '';
+    const base = raw.split('\n\n--- ABORDAGEM FIXA')[0].trim();
+    step.description = base ? `${base}${combined}` : combined.replace(/^\n+/, '').trim();
+    out[idx] = step;
+  });
+  return out;
+}
+
+/**
+ * Ajustes automáticos sugeridos para passar nas validações do modo guiado.
+ */
+export function autoFixWizardDraft(draft, catalogItems = []) {
+  const next = JSON.parse(JSON.stringify(draft || {}));
+  if (!next.tone) next.tone = {};
+  if (!next.business) next.business = {};
+  if (!next.crm) next.crm = {};
+
+  const totalP = (catalogItems || []).filter((i) => i?.type === 'product').length;
+  const totalS = (catalogItems || []).filter((i) => i?.type === 'service').length;
+  const tid = next.templateId || 'full_sales';
+
+  if (!next.tone.agentName?.trim()) next.tone.agentName = 'Assistente Virtual';
+  if (!next.tone.agentRole?.trim()) next.tone.agentRole = 'Atendimento';
+
+  if (['full_sales', 'catalog_leads'].includes(tid)) {
+    if (!next.business.includeProducts && !next.business.includeServices) {
+      if (totalP > 0) next.business.includeProducts = true;
+      else if (totalS > 0) next.business.includeServices = true;
+    }
+  }
+
+  if (tid === 'appointments' && next.business.enableAppointments && !(next.business.appointmentTypes || []).length) {
+    next.business.appointmentTypes = ['servico', 'consulta', 'visita'];
+  }
+
+  if (['full_sales', 'catalog_leads'].includes(tid) && next.business.paymentProvider === 'manual') {
+    if (!next.business.paymentManualMessage?.trim()) {
+      next.business.paymentManualMessage =
+        'Pagamento via PIX ou transferência. Envie o comprovante aqui no WhatsApp para confirmarmos.';
+    }
+  }
+
+  if (!next.crm.crmAutoSave && !(next.crm.crmFields || []).length) {
+    next.crm.crmAutoSave = true;
+    next.crm.crmFields = ['product', 'email'];
+  }
+
+  return next;
 }
 
 function createAgentProfile(tone) {
@@ -306,6 +404,7 @@ export function parseFlowStepsToWizardState(steps = [], catalogItems = []) {
   }
 
   base.templateId = guessTemplateFromSteps(steps);
+  base.fixedApproaches = base.fixedApproaches || [];
   return base;
 }
 
@@ -339,6 +438,7 @@ export function mergeFlowStepsIntoAssistantForm(prevForm, newSteps) {
     flowSteps: newSteps,
     flowMode: 'visual',
     systemPrompt: convertStepsToPrompt(newSteps),
+    // fixedApproaches permanece em prevForm (salvo em assistant_settings)
     enableAppointments: hasEnabledAppointment,
     appointmentTypes,
     includeCatalogProducts: hasProducts,
