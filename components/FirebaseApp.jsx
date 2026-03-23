@@ -3069,6 +3069,107 @@ const DashboardWithFirebase = ({
   // Garantir que usedTrials sempre seja um objeto
   const safeUsedTrials = usedTrials || {};
   const [isActive, setIsActive] = useState(assistantSettings.isActive || true);
+  const [stripeOps, setStripeOps] = useState({
+    loading: true,
+    total: 0,
+    active: 0,
+    pastDue: 0,
+    cancelled: 0,
+    pending: 0,
+    renewalsNext7Days: 0,
+    recent: []
+  });
+
+  useEffect(() => {
+    if (!user || !database) return;
+    let isCancelled = false;
+
+    const loadStripeOps = async () => {
+      try {
+        setStripeOps(prev => ({ ...prev, loading: true }));
+
+        const subsRef = user?.isMaster
+          ? ref(database, 'subscriptions')
+          : ref(database, `subscriptions/${user.uid}`);
+        const snapshot = await get(subsRef);
+        const raw = snapshot.val() || {};
+
+        const entries = [];
+        if (user?.isMaster) {
+          Object.entries(raw).forEach(([uid, userSubs]) => {
+            Object.entries(userSubs || {}).forEach(([subKey, subData]) => {
+              entries.push({ uid, subKey, ...(subData || {}) });
+            });
+          });
+        } else {
+          Object.entries(raw).forEach(([subKey, subData]) => {
+            entries.push({ uid: user.uid, subKey, ...(subData || {}) });
+          });
+        }
+
+        const now = new Date();
+        const next7 = new Date();
+        next7.setDate(next7.getDate() + 7);
+
+        let active = 0;
+        let pastDue = 0;
+        let cancelledCount = 0;
+        let pending = 0;
+        let renewalsNext7Days = 0;
+
+        entries.forEach((s) => {
+          const status = String(s.status || '').toLowerCase();
+          if (status === 'active') active += 1;
+          else if (status === 'past_due' || status === 'overdue' || status === 'unpaid') pastDue += 1;
+          else if (status === 'cancelled' || status === 'canceled') cancelledCount += 1;
+          else if (status === 'pending_payment' || status === 'pending') pending += 1;
+
+          if (s.nextDueDate && status === 'active') {
+            const due = new Date(s.nextDueDate);
+            if (!Number.isNaN(due.getTime()) && due >= now && due <= next7) {
+              renewalsNext7Days += 1;
+            }
+          }
+        });
+
+        const recent = entries
+          .map((s) => ({
+            uid: s.uid,
+            planName: s.planName || s.planId || 'Plano',
+            status: s.status || 'unknown',
+            timestamp: s.updatedAt || s.lastPaymentDate || s.createdAt || null
+          }))
+          .filter((r) => r.timestamp)
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+          .slice(0, 6);
+
+        if (!isCancelled) {
+          setStripeOps({
+            loading: false,
+            total: entries.length,
+            active,
+            pastDue,
+            cancelled: cancelledCount,
+            pending,
+            renewalsNext7Days,
+            recent
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao carregar painel Stripe:', error);
+        if (!isCancelled) {
+          setStripeOps(prev => ({ ...prev, loading: false }));
+        }
+      }
+    };
+
+    loadStripeOps();
+    const intervalId = setInterval(loadStripeOps, 120000);
+    return () => {
+      isCancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [user?.uid, user?.isMaster, database]);
   
   // Componente EmailTemplateModal (movido para dentro do DashboardWithFirebase)
   // MIGRADO PARA BEEFREE - Editor mais estável e gratuito
@@ -5218,6 +5319,69 @@ const DashboardWithFirebase = ({
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
                 Visão geral do seu sistema de vendas com IA
               </p>
+            </div>
+
+            {/* Painel Operacional Stripe */}
+            <div style={{
+              backgroundColor: '#1a1f36',
+              borderRadius: '16px',
+              padding: '24px',
+              marginBottom: '24px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              border: '1px solid rgba(139, 92, 246, 0.25)'
+            }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '6px' }}>
+                Stripe - Painel Operacional
+              </h3>
+              <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '16px' }}>
+                Monitoramento rapido de assinaturas, renovacoes e falhas
+              </p>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: '12px',
+                marginBottom: '16px'
+              }}>
+                {[
+                  ['Total', stripeOps.total, '#94a3b8'],
+                  ['Ativas', stripeOps.active, '#10b981'],
+                  ['Pendentes', stripeOps.pending, '#f59e0b'],
+                  ['Past Due', stripeOps.pastDue, '#ef4444'],
+                  ['Canceladas', stripeOps.cancelled, '#64748b'],
+                  ['Renovam em 7d', stripeOps.renewalsNext7Days, '#a78bfa']
+                ].map(([label, value, color]) => (
+                  <div key={label} style={{
+                    backgroundColor: '#0f1419',
+                    borderRadius: '12px',
+                    padding: '14px',
+                    border: `1px solid ${color}33`
+                  }}>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#9ca3af' }}>{label}</p>
+                    <p style={{ margin: '6px 0 0 0', fontSize: '1.375rem', fontWeight: '700', color }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ backgroundColor: '#0f1419', borderRadius: '12px', padding: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <p style={{ margin: '0 0 10px 0', fontSize: '0.875rem', fontWeight: '600', color: '#ffffff' }}>
+                  Ultimas movimentacoes
+                </p>
+                {stripeOps.loading ? (
+                  <p style={{ margin: 0, fontSize: '0.8125rem', color: '#9ca3af' }}>Carregando...</p>
+                ) : stripeOps.recent.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: '0.8125rem', color: '#9ca3af' }}>Nenhuma movimentacao encontrada ainda.</p>
+                ) : (
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    {stripeOps.recent.map((item, idx) => (
+                      <div key={`${item.uid}-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', fontSize: '0.8125rem' }}>
+                        <span style={{ color: '#e5e7eb' }}>{item.planName} - {item.status}</span>
+                        <span style={{ color: '#9ca3af' }}>{new Date(item.timestamp).toLocaleString('pt-BR')}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Toggle Assistente */}
