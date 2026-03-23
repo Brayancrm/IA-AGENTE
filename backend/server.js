@@ -135,16 +135,16 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
       const userId = session.metadata?.userId;
       const orderId = session.metadata?.orderId;
       const isSubscription = session.mode === 'subscription';
+      const nowIso = new Date().toISOString();
+
       if (userId && orderId) {
         const orderRef = db.ref(`orders/${userId}/${orderId}`);
         await orderRef.update({
           status: 'paid',
-          paidAt: new Date().toISOString(),
+          paidAt: nowIso,
           paymentProvider: 'stripe'
         });
         console.log('✅ Pedido atualizado via Stripe webhook:', { userId, orderId });
-      } else {
-        console.log('⚠️ Stripe webhook sem metadata userId/orderId');
       }
 
       if (isSubscription && userId && session.subscription) {
@@ -170,7 +170,8 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
           await db.ref(`subscriptions/${userId}/${subscriptionKey}`).update({
             status: 'active',
             stripeSubscriptionId: session.subscription,
-            updatedAt: new Date().toISOString()
+            lastPaymentDate: nowIso,
+            updatedAt: nowIso
           });
 
           const now = new Date();
@@ -182,17 +183,115 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
             planId: subscriptionData.planId || session.metadata?.planId || null,
             planName: subscriptionData.planName || session.metadata?.planName || 'Plano',
             status: 'active',
-            startDate: now.toISOString(),
+            startDate: nowIso,
             nextDueDate: nextDueDate.toISOString(),
             subscriptionId: session.subscription,
+            stripeSubscriptionId: session.subscription,
             paymentProvider: 'stripe',
             limits: subscriptionData.limits || {},
-            updatedAt: now.toISOString()
+            updatedAt: nowIso
           });
           console.log('✅ Assinatura Stripe ativada via webhook:', { userId, subscriptionKey });
         } else {
           console.log('⚠️ Assinatura Stripe não encontrada para sessão:', session.id);
         }
+      }
+    } else if (event.type === 'invoice.payment_succeeded' || event.type === 'invoice.payment_failed') {
+      const invoice = event.data.object;
+      const stripeSubscriptionId = invoice.subscription;
+      if (stripeSubscriptionId) {
+        const allSubscriptionsSnapshot = await db.ref('subscriptions').once('value');
+        let targetUserId = null;
+        let targetSubKey = null;
+        let targetSubData = null;
+
+        if (allSubscriptionsSnapshot.exists()) {
+          allSubscriptionsSnapshot.forEach((userSubs) => {
+            userSubs.forEach((sub) => {
+              const subVal = sub.val();
+              if (subVal?.stripeSubscriptionId === stripeSubscriptionId) {
+                targetUserId = userSubs.key;
+                targetSubKey = sub.key;
+                targetSubData = subVal;
+              }
+            });
+          });
+        }
+
+        if (targetUserId && targetSubKey) {
+          const paid = event.type === 'invoice.payment_succeeded';
+          const nowIso = new Date().toISOString();
+          const periodEndUnix = invoice.lines?.data?.[0]?.period?.end || null;
+          const nextDueDate = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
+
+          await db.ref(`subscriptions/${targetUserId}/${targetSubKey}`).update({
+            status: paid ? 'active' : 'past_due',
+            lastPayment: invoice.payment_intent || invoice.id,
+            ...(paid ? { lastPaymentDate: nowIso } : {}),
+            ...(nextDueDate ? { nextDueDate } : {}),
+            updatedAt: nowIso
+          });
+
+          if (paid) {
+            const activePlanRef = db.ref(`users/data/${targetUserId}/activePlan`);
+            const activePlanSnapshot = await activePlanRef.once('value');
+            const existingPlan = activePlanSnapshot.val() || {};
+            await activePlanRef.update({
+              status: 'active',
+              paymentProvider: 'stripe',
+              subscriptionId: stripeSubscriptionId,
+              stripeSubscriptionId: stripeSubscriptionId,
+              planId: existingPlan.planId || targetSubData?.planId || null,
+              planName: existingPlan.planName || targetSubData?.planName || 'Plano',
+              ...(nextDueDate ? { nextDueDate } : {}),
+              updatedAt: nowIso
+            });
+          }
+
+          console.log(`✅ Webhook Stripe ${event.type} processado:`, {
+            userId: targetUserId,
+            subscriptionKey: targetSubKey
+          });
+        } else {
+          console.log('⚠️ Assinatura Stripe não encontrada para invoice:', stripeSubscriptionId);
+        }
+      }
+    } else if (event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object;
+      const stripeSubscriptionId = subscription.id;
+      const allSubscriptionsSnapshot = await db.ref('subscriptions').once('value');
+      let targetUserId = null;
+      let targetSubKey = null;
+
+      if (allSubscriptionsSnapshot.exists()) {
+        allSubscriptionsSnapshot.forEach((userSubs) => {
+          userSubs.forEach((sub) => {
+            const subVal = sub.val();
+            if (subVal?.stripeSubscriptionId === stripeSubscriptionId) {
+              targetUserId = userSubs.key;
+              targetSubKey = sub.key;
+            }
+          });
+        });
+      }
+
+      if (targetUserId && targetSubKey) {
+        const nowIso = new Date().toISOString();
+        await db.ref(`subscriptions/${targetUserId}/${targetSubKey}`).update({
+          status: 'cancelled',
+          updatedAt: nowIso
+        });
+
+        const activePlanRef = db.ref(`users/data/${targetUserId}/activePlan`);
+        const activePlanSnapshot = await activePlanRef.once('value');
+        const activePlan = activePlanSnapshot.val();
+        if (activePlan && (activePlan.stripeSubscriptionId === stripeSubscriptionId || activePlan.subscriptionId === stripeSubscriptionId)) {
+          await activePlanRef.update({
+            status: 'cancelled',
+            updatedAt: nowIso
+          });
+        }
+        console.log('✅ Cancelamento de assinatura Stripe processado:', { targetUserId, targetSubKey });
       }
     }
 
