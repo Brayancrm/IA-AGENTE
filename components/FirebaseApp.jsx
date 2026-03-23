@@ -8671,7 +8671,7 @@ const DashboardWithFirebase = ({
                           />
                         ) : item.icon === 'stripe' ? (
                           <StripeIcon
-                            size={26}
+                            size={29}
                             opacity={isLocked ? 0.4 : 1}
                           />
                         ) : (
