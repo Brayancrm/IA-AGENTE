@@ -89,6 +89,23 @@ const formatPlanPrice = (plan) => (
   `${normalizePlanCurrency(plan?.currency)} ${parseFloat(plan?.price || 0).toFixed(2)}`
 );
 
+const CATALOG_CURRENCY_CODES = ['BRL', 'USD', 'EUR', 'GBP', 'ARS', 'MXN', 'CLP', 'COP', 'UYU', 'PYG', 'PEN', 'BOB'];
+
+function normalizeCatalogCurrency(code) {
+  const c = String(code || 'BRL').toUpperCase().trim();
+  return CATALOG_CURRENCY_CODES.includes(c) ? c : 'BRL';
+}
+
+function formatCatalogItemPrice(price, currencyCode) {
+  if (price === null || price === undefined || Number.isNaN(Number(price))) return null;
+  const code = normalizeCatalogCurrency(currencyCode);
+  try {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: code }).format(Number(price));
+  } catch {
+    return `${code} ${Number(price).toFixed(2)}`;
+  }
+}
+
 const FirebaseApp = () => {
   const { app, db, auth, database, isReady, error } = useFirebase();
   const { t } = useI18n();
@@ -1760,6 +1777,7 @@ const FirebaseApp = () => {
         link: String(itemData.link || '').trim(),
         tvLoginProduct: !!itemData.tvLoginProduct,
         tvPlanKey: String(itemData.tvPlanKey || '').trim(),
+        currency: normalizeCatalogCurrency(itemData.currency),
         updatedAt: now
       };
       
@@ -1796,6 +1814,7 @@ const FirebaseApp = () => {
           active: true,
           tvLoginProduct: data.tvLoginProduct,
           tvPlanKey: data.tvPlanKey || '',
+          currency: data.currency || 'BRL',
           createdAt: originalCreatedAt,
           updatedAt: data.updatedAt
         };
@@ -1826,6 +1845,7 @@ const FirebaseApp = () => {
           active: true,
           tvLoginProduct: data.tvLoginProduct,
           tvPlanKey: data.tvPlanKey || '',
+          currency: data.currency || 'BRL',
           createdAt: data.createdAt,
           updatedAt: data.updatedAt
         };
@@ -3755,7 +3775,8 @@ const DashboardWithFirebase = ({
     featured: false,
     minStock: 5,
     tvLoginProduct: false,
-    tvPlanKey: ''
+    tvPlanKey: '',
+    currency: 'BRL'
   });
 
   // Estados do Catálogo Avançado
@@ -3857,7 +3878,8 @@ const DashboardWithFirebase = ({
     paymentManualMessage: '',
     paymentStripeMessage: '',
     configUiMode: 'simple', // 'simple' = assistente guiado | 'advanced' = Flow Builder
-    fixedApproaches: [] // abordagens fixas do modo guiado (por etapa)
+    fixedApproaches: [], // abordagens fixas do modo guiado (por etapa)
+    showCatalogImagesWhenOffering: true
   });
   const [wizardResetKey, setWizardResetKey] = useState(0);
   const [userForm, setUserForm] = useState({
@@ -4039,7 +4061,8 @@ const DashboardWithFirebase = ({
       configUiMode: assistantSettings.configUiMode || 'simple',
       fixedApproaches: Array.isArray(assistantSettings.fixedApproaches)
         ? assistantSettings.fixedApproaches
-        : []
+        : [],
+      showCatalogImagesWhenOffering: assistantSettings.showCatalogImagesWhenOffering !== false
     });
   }, [assistantSettings]);
 
@@ -4110,7 +4133,8 @@ const DashboardWithFirebase = ({
         featured: item.featured || false,
         minStock: item.minStock || 5,
         tvLoginProduct: !!item.tvLoginProduct,
-        tvPlanKey: item.tvPlanKey || ''
+        tvPlanKey: item.tvPlanKey || '',
+        currency: normalizeCatalogCurrency(item.currency)
       });
       setEditingItem(item);
     } else {
@@ -4127,7 +4151,8 @@ const DashboardWithFirebase = ({
         featured: false,
         minStock: 5,
         tvLoginProduct: false,
-        tvPlanKey: ''
+        tvPlanKey: '',
+        currency: 'BRL'
       });
       setEditingItem(null);
     }
@@ -4250,6 +4275,12 @@ const DashboardWithFirebase = ({
 
     if (catalogForm.tvLoginProduct && !String(catalogForm.tvPlanKey || '').trim()) {
       showToast('Informe a chave do plano (tvPlanKey) para produtos TV.', 'error');
+      return;
+    }
+
+    const imgRaw = String(catalogForm.image || '').trim();
+    if (!imgRaw || (!imgRaw.startsWith('http') && !imgRaw.startsWith('data:image/'))) {
+      showToast(t('toast.catalogImageRequired'), 'error');
       return;
     }
 
@@ -4718,9 +4749,9 @@ const DashboardWithFirebase = ({
 
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      {item.price !== null && item.price !== undefined ? (
+                      {formatCatalogItemPrice(item.price, item.currency) ? (
                         <p className="text-2xl font-bold text-green-400">
-                          R$ {parseFloat(item.price).toFixed(2)}
+                          {formatCatalogItemPrice(item.price, item.currency)}
                         </p>
                       ) : (
                         <p className="text-lg font-bold text-blue-400">
@@ -4908,8 +4939,8 @@ const DashboardWithFirebase = ({
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        {item.price !== null && item.price !== undefined ? (
-                          <span className="text-sm font-bold text-green-400">R$ {parseFloat(item.price).toFixed(2)}</span>
+                        {formatCatalogItemPrice(item.price, item.currency) ? (
+                          <span className="text-sm font-bold text-green-400">{formatCatalogItemPrice(item.price, item.currency)}</span>
                         ) : (
                           <span className="text-sm font-bold text-blue-400">Preço no link</span>
                         )}
@@ -8163,6 +8194,37 @@ const DashboardWithFirebase = ({
                   </div>
                 )}
 
+                <div
+                  style={{
+                    padding: '16px 18px',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    background: 'rgba(15, 20, 25, 0.6)'
+                  }}
+                >
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer', color: '#e5e7eb' }}>
+                    <input
+                      type="checkbox"
+                      checked={assistantForm.showCatalogImagesWhenOffering !== false}
+                      onChange={(e) =>
+                        setAssistantForm((prev) => ({
+                          ...prev,
+                          showCatalogImagesWhenOffering: e.target.checked
+                        }))
+                      }
+                      style={{ width: '18px', height: '18px', marginTop: '2px', flexShrink: 0 }}
+                    />
+                    <span>
+                      <span style={{ fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                        {t('assistantConfig.showCatalogImages')}
+                      </span>
+                      <span style={{ fontSize: '0.875rem', color: '#9ca3af', lineHeight: 1.45 }}>
+                        {t('assistantConfig.showCatalogImagesHint')}
+                      </span>
+                    </span>
+                  </label>
+                </div>
+
                 <button
                   type="submit"
                   style={{
@@ -10059,30 +10121,59 @@ const DashboardWithFirebase = ({
                 </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
-                  {t('catalogModal.price')} <span style={{ fontSize: '0.875rem', color: '#9ca3af', fontWeight: 'normal' }}>({t('catalogModal.optional')})</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={catalogForm.price}
-                  onChange={(e) => setCatalogForm(prev => ({ ...prev, price: e.target.value }))}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    borderRadius: '8px',
-                    border: '1px solid #374151',
-                    fontSize: '1rem',
-                    backgroundColor: '#111827',
-                    color: '#ffffff'
-                  }}
-                  placeholder={t('catalogModal.pricePlaceholder')}
-                />
-                <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>
-                  {t('catalogModal.priceHint')}
-                </p>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 160px', gap: '16px', alignItems: 'end' }}>
+                <div>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
+                    {t('catalogModal.price')} <span style={{ fontSize: '0.875rem', color: '#9ca3af', fontWeight: 'normal' }}>({t('catalogModal.optional')})</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={catalogForm.price}
+                    onChange={(e) => setCatalogForm(prev => ({ ...prev, price: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '1px solid #374151',
+                      fontSize: '1rem',
+                      backgroundColor: '#111827',
+                      color: '#ffffff'
+                    }}
+                    placeholder={t('catalogModal.pricePlaceholder')}
+                  />
+                  <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>
+                    {t('catalogModal.priceHint')}
+                  </p>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
+                    {t('catalogModal.currency')} <span style={{ color: '#f87171' }}>*</span>
+                  </label>
+                  <select
+                    value={catalogForm.currency || 'BRL'}
+                    onChange={(e) => setCatalogForm(prev => ({ ...prev, currency: e.target.value }))}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: '1px solid #374151',
+                      fontSize: '1rem',
+                      backgroundColor: '#111827',
+                      color: '#ffffff',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {CATALOG_CURRENCY_CODES.map((code) => (
+                      <option key={code} value={code}>{code}</option>
+                    ))}
+                  </select>
+                  <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px', marginBottom: 0 }}>
+                    {t('catalogModal.currencyHint')}
+                  </p>
+                </div>
               </div>
 
               <div>
@@ -10223,8 +10314,11 @@ const DashboardWithFirebase = ({
 
               <div>
                 <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
-                  {t('catalogModal.productImage')}
+                  {t('catalogModal.productImage')} <span style={{ color: '#f87171' }}>*</span>
                 </label>
+                <p style={{ fontSize: '0.8rem', color: '#9ca3af', marginBottom: '10px' }}>
+                  {t('catalogModal.imageRequiredHint')}
+                </p>
                 
                 {/* Upload de arquivo */}
                 <div style={{ marginBottom: '12px' }}>

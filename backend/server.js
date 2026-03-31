@@ -1127,6 +1127,7 @@ async function handleIncomingMessage(userId, message, client) {
         
         // Detectar produtos mencionados e enviar imagens automaticamente
         const mentionedItems = detectMentionedProducts(aiResponse, aiResult.catalogItemsMap);
+        const sendProductImages = aiConfig?.showCatalogImagesWhenOffering !== false;
         
         if (mentionedItems.length > 0) {
           console.log(`📸 Detectados ${mentionedItems.length} produto(s) na resposta`);
@@ -1137,9 +1138,10 @@ async function handleIncomingMessage(userId, message, client) {
               // Criar mensagem com informações do produto
               let messageText = `📦 *${item.name}*\n`;
               
-              // Adicionar preço se disponível
-              if (item.price !== null && item.price !== undefined) {
-                messageText += `💰 R$ ${item.price}\n\n`;
+              // Adicionar preço se disponível (moeda do catálogo)
+              const priceLine = formatCatalogPriceForMessage(item.price, item.currency);
+              if (priceLine) {
+                messageText += `💰 ${priceLine}\n\n`;
               } else {
                 messageText += `\n`;
               }
@@ -1158,8 +1160,8 @@ async function handleIncomingMessage(userId, message, client) {
                 }
               }
               
-              // Se tiver imagem, enviar imagem com legenda
-              if (item.image) {
+              // Se tiver imagem e envio de fotos ativo, enviar imagem com legenda
+              if (item.image && sendProductImages) {
                 console.log(`📤 Enviando imagem de: ${item.name}`);
                 
                 // Verificar se é Base64 ou URL
@@ -1227,6 +1229,21 @@ async function handleIncomingMessage(userId, message, client) {
                 });
                 
                 // Aguardar um pouco entre mensagens
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              } else if (item.image && !sendProductImages) {
+                console.log(`📤 Enviando só texto (fotos desativadas no assistente): ${item.name}`);
+                await client.sendText(message.from, messageText);
+                const textRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+                await textRef.set({
+                  from: message.to || '',
+                  to: message.from || '',
+                  body: messageText,
+                  timestamp: new Date().toISOString(),
+                  type: 'text',
+                  isFromMe: true,
+                  aiGenerated: true,
+                  productName: item.name
+                });
                 await new Promise(resolve => setTimeout(resolve, 1000));
               }
             } catch (itemError) {
@@ -1354,6 +1371,18 @@ async function replaceTemplateVariables(text, userId, contactNumber) {
 }
 
 // Gerar resposta com IA
+function formatCatalogPriceForMessage(price, currencyCode) {
+  if (price === null || price === undefined || price === '') return null;
+  const num = Number(price);
+  if (!Number.isFinite(num)) return null;
+  const code = String(currencyCode || 'BRL').toUpperCase();
+  try {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: code }).format(num);
+  } catch {
+    return `${code} ${num.toFixed(2)}`;
+  }
+}
+
 async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) {
   try {
     // Buscar histórico da conversa (últimas 10 mensagens)
@@ -1406,6 +1435,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
             name: item.name,
             description: item.description || '',
             price: item.price !== null && item.price !== undefined && item.price !== '' ? item.price : null,
+            currency: String(item.currency || 'BRL').toUpperCase() || 'BRL',
             stock: item.stockQuantity || 0,
             image: item.image || null,
             link: item.link || null,
@@ -1423,6 +1453,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
             name: item.name,
             description: item.description || '',
             price: item.price !== null && item.price !== undefined && item.price !== '' ? item.price : null,
+            currency: String(item.currency || 'BRL').toUpperCase() || 'BRL',
             capacity: item.stockQuantity || 0,
             image: item.image || null,
             link: item.link || null,
@@ -1467,8 +1498,9 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       systemPrompt += `\n\n📦 PRODUTOS DISPONÍVEIS:\n`;
       catalogProducts.forEach((product, index) => {
         systemPrompt += `${index + 1}. ${product.name}`;
-        if (product.price !== null && product.price !== undefined) {
-          systemPrompt += ` - R$ ${product.price}`;
+        const priceLbl = formatCatalogPriceForMessage(product.price, product.currency);
+        if (priceLbl) {
+          systemPrompt += ` - ${priceLbl}`;
         } else {
           systemPrompt += ` - Preço disponível no link`;
         }
@@ -1489,8 +1521,9 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       systemPrompt += `\n\n🛠️ SERVIÇOS DISPONÍVEIS:\n`;
       catalogServices.forEach((service, index) => {
         systemPrompt += `${index + 1}. ${service.name}`;
-        if (service.price !== null && service.price !== undefined) {
-          systemPrompt += ` - R$ ${service.price}`;
+        const priceLbl = formatCatalogPriceForMessage(service.price, service.currency);
+        if (priceLbl) {
+          systemPrompt += ` - ${priceLbl}`;
         } else {
           systemPrompt += ` - Preço disponível no link`;
         }
@@ -1505,12 +1538,16 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
     
     // Instruções adicionais se houver produtos/serviços
     if (catalogProducts.length > 0 || catalogServices.length > 0) {
+      const sendCatalogImages = assistantSettings.showCatalogImagesWhenOffering !== false;
+      const imageInstruction = sendCatalogImages
+        ? '- Os itens do catálogo têm foto cadastrada: ao mencionar o nome completo do produto/serviço, o sistema pode enviar a imagem automaticamente no WhatsApp'
+        : '- O envio automático de fotos no WhatsApp está desativado nas configurações do assistente: descreva bem os itens em texto e não prometa envio automático de imagens';
       systemPrompt += `\n⚠️ INSTRUÇÕES IMPORTANTES:
 - Você DEVE mencionar e oferecer esses produtos/serviços quando relevante
 - Seja proativo e sugira produtos/serviços que possam ajudar o cliente
 - Inclua descrição curta de 1 linha quando listar itens
 - NUNCA mencione estoque, capacidade ou valores totais de estoque
-- Quando mencionar produtos/serviços com foto disponível, eu enviarei a imagem automaticamente para o cliente
+${imageInstruction}
 
 🎯 **CRÍTICO - CONFIRMAÇÃO DE PRODUTO:**
 - Quando o cliente escolher/clicar em um produto, você DEVE SEMPRE confirmar explicitamente o nome COMPLETO do produto na sua resposta

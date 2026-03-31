@@ -104,6 +104,7 @@
     "photoProcessed": "¡Foto procesada con éxito!",
     "databaseOrUserUnavailable": "Error: Base de datos o usuario no disponible",
     "itemNameRequired": "El nombre del ítem es obligatorio.",
+    "catalogImageRequired": "Añade una imagen del producto o servicio (URL o archivo). Es obligatorio.",
     "stockMustBeInteger": "El stock debe ser un número entero mayor o igual a 0.",
     "minStockMustBeInteger": "El stock mínimo debe ser un número entero mayor o igual a 0.",
     "invalidPriceFormat": "Precio inválido. Usa valor >= 0 con hasta 2 decimales.",
@@ -380,7 +381,7 @@
     "itemType": "Tipo de Ítem",
     "product": "Producto",
     "service": "Servicio",
-    "price": "Precio (R$)",
+    "price": "Precio",
     "optional": "Opcional",
     "pricePlaceholder": "Déjalo vacío para no mostrar el precio",
     "priceHint": "Si se deja vacío, el precio no será mostrado por el agente. El cliente necesitará acceder al enlace para ver el precio.",
@@ -406,6 +407,13 @@
     "cancel": "Cancelar",
     "update": "Actualizar",
     "add": "Agregar",
-    "importSuccess": "✓ ¡{{count}} ítems importados con éxito!"
+    "importSuccess": "✓ ¡{{count}} ítems importados con éxito!",
+    "currency": "Moneda",
+    "currencyHint": "Los precios y los mensajes usan esta moneda (ISO).",
+    "imageRequiredHint": "Obligatorio: sube un archivo o pega una URL de imagen válida."
+  },
+  "assistantConfig": {
+    "showCatalogImages": "Enviar foto automáticamente en WhatsApp al ofrecer producto/servicio",
+    "showCatalogImagesHint": "Desactiva para enviar solo texto al citar ítems. El catálogo sigue exigiendo imagen al guardar."
   }
 }

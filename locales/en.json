@@ -104,6 +104,7 @@
     "photoProcessed": "Photo processed successfully!",
     "databaseOrUserUnavailable": "Error: Database or user unavailable",
     "itemNameRequired": "Item name is required.",
+    "catalogImageRequired": "Add a product or service image (URL or file). It is required.",
     "stockMustBeInteger": "Stock must be an integer greater than or equal to 0.",
     "minStockMustBeInteger": "Minimum stock must be an integer greater than or equal to 0.",
     "invalidPriceFormat": "Invalid price. Use value >= 0 with up to 2 decimal places.",
@@ -380,7 +381,7 @@
     "itemType": "Item Type",
     "product": "Product",
     "service": "Service",
-    "price": "Price (R$)",
+    "price": "Price",
     "optional": "Optional",
     "pricePlaceholder": "Leave blank to hide price",
     "priceHint": "If left blank, the price will not be shown by the agent. The customer will need to access the link to see the price.",
@@ -406,6 +407,13 @@
     "cancel": "Cancel",
     "update": "Update",
     "add": "Add",
-    "importSuccess": "✓ {{count}} items imported successfully!"
+    "importSuccess": "✓ {{count}} items imported successfully!",
+    "currency": "Currency",
+    "currencyHint": "Prices and WhatsApp messages use this currency (ISO code).",
+    "imageRequiredHint": "Required: upload a file or paste a valid image URL."
+  },
+  "assistantConfig": {
+    "showCatalogImages": "Send product/service photo automatically on WhatsApp when offering",
+    "showCatalogImagesHint": "Turn off to send text only when mentioning items (saves media). Catalog items still require an image to be saved."
   }
 }
