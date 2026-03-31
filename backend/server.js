@@ -1679,24 +1679,6 @@ function detectMentionedProducts(responseText, catalogItemsMap) {
 
   return mentionedItems;
 }
-```
-
-Wait - messageMentionsProduct is defined much later in the file (after mergeProductPriceFromCatalog). detectMentionedProducts is at line 1661, messageMentionsProduct is around 3240. In JavaScript, function declarations are hoisted - so messageMentionsProduct exists when detectMentionedProducts runs. Good.
-
-But wait - detectMentionedProducts is defined BEFORE messageMentionsProduct in the file. Hoisting applies to both - at runtime both exist.
-
-Run node --check - circular dependency? No.
-
-One issue: messageMentionsProduct is defined AFTER detectMentionedProducts in source - hoisting still works for function declarations.
-
-Let me verify Node parses - detectMentionedProducts calls messageMentionsProduct - both are function declarations in same scope - hoisted.
-
-Shell check
-</think>
-
-
-<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
-Shell
 
 // Função para buscar configurações (Firestore e Realtime Database)
 async function getIntegrationsConfig(userId) {
