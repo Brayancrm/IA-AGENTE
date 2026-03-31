@@ -7636,10 +7636,10 @@ const DashboardWithFirebase = ({
             <div style={{ marginBottom: '32px' }}>
               <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('plans')}
-                Planos e Assinaturas
+                {t('plans.title')}
               </h2>
               <p style={{ fontSize: '1.125rem', color: '#9ca3af' }}>
-                {user?.isMaster ? 'Gerencie os planos disponíveis para seus clientes' : 'Escolha o plano ideal para sua empresa'}
+                {user?.isMaster ? t('plans.masterSubtitle') : t('plans.userSubtitle')}
               </p>
             </div>
 
@@ -7673,7 +7673,7 @@ const DashboardWithFirebase = ({
                   }}
                 >
                   <Plus size={20} />
-                  Criar Novo Plano
+                  {t('plans.createNew')}
                 </button>
               </div>
             )}
@@ -7683,10 +7683,10 @@ const DashboardWithFirebase = ({
                 <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '48px', textAlign: 'center', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                   <div style={{ fontSize: '64px', marginBottom: '16px' }}>💎</div>
                   <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
-                    Nenhum plano cadastrado
+                    {t('plans.emptyMasterTitle')}
                   </h3>
                   <p style={{ fontSize: '1rem', color: '#9ca3af', marginBottom: '24px' }}>
-                    Crie seu primeiro plano para começar a gerenciar assinaturas
+                    {t('plans.emptyMasterBody')}
                   </p>
                   <button
                     onClick={() => openPlanModal()}
@@ -7712,17 +7712,17 @@ const DashboardWithFirebase = ({
                       e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
                     }}
                   >
-                    Criar Primeiro Plano
+                    {t('plans.createFirst')}
                   </button>
                 </div>
               ) : (
                 <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '48px', textAlign: 'center', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
                   <div style={{ fontSize: '64px', marginBottom: '16px' }}>⚠️</div>
                   <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
-                    Nenhum plano disponível
+                    {t('plans.emptyUserTitle')}
                   </h3>
                   <p style={{ fontSize: '1rem', color: '#9ca3af', marginBottom: '24px' }}>
-                    Ainda não há planos cadastrados no sistema. Entre em contato com o administrador.
+                    {t('plans.emptyUserBody')}
                   </p>
                 </div>
               )
@@ -7767,7 +7767,7 @@ const DashboardWithFirebase = ({
                             fontWeight: '700',
                             whiteSpace: 'nowrap'
                           }}>
-                            ATIVO
+                            {t('plans.active')}
                           </div>
                         </div>
                       )}
@@ -7776,7 +7776,7 @@ const DashboardWithFirebase = ({
                         {plan.name}
                       </h3>
                       <p style={{ fontSize: '0.9375rem', color: '#9ca3af', wordBreak: 'break-word' }}>
-                        {plan.description || 'Sem descrição'}
+                        {plan.description || t('plans.noDescription')}
                       </p>
                     </div>
 
@@ -7785,7 +7785,7 @@ const DashboardWithFirebase = ({
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
                         {plan.isTrialPlan ? (
                           <span style={{ fontSize: '2rem', fontWeight: '700', color: '#f59e0b' }}>
-                            🎁 GRÁTIS
+                            🎁 {t('plans.free')}
                           </span>
                         ) : (
                           <>
@@ -7793,14 +7793,14 @@ const DashboardWithFirebase = ({
                           {formatPlanPrice(plan)}
                         </span>
                         <span style={{ fontSize: '1rem', color: '#9ca3af' }}>
-                          / {plan.billingCycle === 'yearly' ? 'ano' : 'mês'}
+                          / {plan.billingCycle === 'yearly' ? t('plans.perYear') : t('plans.perMonth')}
                         </span>
                           </>
                         )}
                       </div>
                       {plan.isTrialPlan && (
                         <p style={{ fontSize: '0.875rem', color: '#f59e0b', marginTop: '8px', fontWeight: '600' }}>
-                          Teste por {formatTrialDurationFull(plan.trialDurationHours, plan.trialDurationMinutes)}{plan.oneTimeUse ? ' • Uso único' : ''}
+                          {t('plans.trialFor')} {formatTrialDurationFull(plan.trialDurationHours, plan.trialDurationMinutes)}{plan.oneTimeUse ? ` • ${t('plans.oneTimeUse')}` : ''}
                         </p>
                       )}
                     </div>
@@ -7808,25 +7808,25 @@ const DashboardWithFirebase = ({
                     {/* Limites */}
                     <div style={{ marginBottom: '24px' }}>
                       <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#ffffff', marginBottom: '12px' }}>
-                        Limites do Plano:
+                        {t('plans.limitsTitle')}
                       </h4>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {plan.limits?.messagesPerMonth !== null && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d1d5db' }}>
                             <span>📨</span>
-                            <span>{plan.limits.messagesPerMonth === -1 ? 'Ilimitado' : `${plan.limits.messagesPerMonth} mensagens/mês`}</span>
+                            <span>{plan.limits.messagesPerMonth === -1 ? t('plans.unlimited') : `${plan.limits.messagesPerMonth} ${t('plans.messagesPerMonth')}`}</span>
                           </div>
                         )}
                         {plan.limits?.conversations !== null && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d1d5db' }}>
                             <span>💬</span>
-                            <span>{plan.limits.conversations === -1 ? 'Conversas ilimitadas' : `${plan.limits.conversations} conversas`}</span>
+                            <span>{plan.limits.conversations === -1 ? t('plans.unlimitedConversations') : `${plan.limits.conversations} ${t('plans.conversations')}`}</span>
                           </div>
                         )}
                         {plan.limits?.catalogItems !== null && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d1d5db' }}>
                             <span>📦</span>
-                            <span>{plan.limits.catalogItems === -1 ? 'Catálogo ilimitado' : `${plan.limits.catalogItems} itens no catálogo`}</span>
+                            <span>{plan.limits.catalogItems === -1 ? t('plans.unlimitedCatalog') : `${plan.limits.catalogItems} ${t('plans.catalogItems')}`}</span>
                           </div>
                         )}
                       </div>
@@ -7926,7 +7926,7 @@ const DashboardWithFirebase = ({
                                 e.target.style.boxShadow = isDisabled ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.3)';
                           }}
                         >
-                              {isCurrentPlan ? '✓ Plano Atual' : isUsedTrial ? '🔒 Já Utilizado' : 'Assinar Plano'}
+                              {isCurrentPlan ? `✓ ${t('plans.currentPlan')}` : isUsedTrial ? `🔒 ${t('plans.alreadyUsed')}` : t('plans.subscribe')}
                         </button>
                           );
                         })()}

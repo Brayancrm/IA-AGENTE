@@ -5,6 +5,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { getDatabase, ref, push, set, onValue, off } from 'firebase/database';
+import { useI18n } from '../contexts/I18nContext';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -32,6 +33,7 @@ if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
 }
 
 const SimpleLanding = ({ onLoginSuccess }) => {
+  const { t } = useI18n();
   const [showModal, setShowModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
@@ -329,7 +331,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
   // Função auxiliar para formatar preço
   const formatPrice = (price, isTrialPlan = false, currency = 'R$') => {
     // Planos trial são sempre gratuitos, independente do preço
-    if (isTrialPlan || !price || price === 0) return { main: 'GRÁTIS', decimal: '' };
+    if (isTrialPlan || !price || price === 0) return { main: t('plans.free'), decimal: '' };
     const numPrice = parseFloat(price);
     const parts = numPrice.toFixed(2).split('.');
     return { main: `${normalizePlanCurrency(currency)} ${parts[0]}`, decimal: `,${parts[1]}` };
@@ -909,7 +911,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
           marginBottom: '16px',
           color: '#ffffff'
         }}>
-          Escolha o Plano Ideal
+          {t('plans.choosePlan')}
         </h2>
         <p style={{
           fontSize: '1.125rem',
@@ -917,7 +919,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
           textAlign: 'center',
           marginBottom: '60px'
         }}>
-          Planos flexíveis para empresas de todos os tamanhos
+          {t('plans.choosePlanSubtitle')}
         </p>
 
         <div 
@@ -938,7 +940,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
               padding: '40px',
               color: '#9ca3af'
             }}>
-              Carregando planos...
+              {t('plans.loadingPlans')}
             </div>
           ) : (
             plans.map((plan, index) => {
@@ -988,7 +990,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                       fontWeight: '700',
                       letterSpacing: '0.5px'
                     }}>
-                      {isFree ? 'GRÁTIS' : 'MAIS POPULAR'}
+                      {isFree ? t('plans.free') : t('plans.mostPopular')}
                     </div>
                   )}
 
@@ -998,7 +1000,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                     </h3>
                     <div style={{ marginBottom: '8px' }}>
                       {isFree ? (
-                        <span style={{ fontSize: '3rem', fontWeight: '800', color: '#10b981' }}>GRÁTIS</span>
+                        <span style={{ fontSize: '3rem', fontWeight: '800', color: '#10b981' }}>{t('plans.free')}</span>
                       ) : (
                         <>
                           <span style={{ fontSize: '3rem', fontWeight: '800', color: '#10b981' }}>{price.main}</span>
@@ -1006,7 +1008,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                         </>
                       )}
                     </div>
-                    {!isFree && <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>por mês</div>}
+                    {!isFree && <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{t('plans.perMonth')}</div>}
                   </div>
                   
                   <ul style={{ listStyle: 'none', padding: 0, marginBottom: '32px' }}>
@@ -1062,7 +1064,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                       }
                     }}
                   >
-                    {isFree ? '🚀 Começar Teste Grátis' : 'Começar Agora'}
+                    {isFree ? `🚀 ${t('plans.startTrial')}` : t('plans.startNow')}
                   </button>
                 </div>
               );
@@ -2055,13 +2057,13 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                 marginBottom: '16px',
                 color: '#ffffff'
               }}>
-                Escolha seu Plano
+                {t('plans.choosePlan')}
               </h2>
               <p style={{
                 fontSize: '1.125rem',
                 color: '#9ca3af'
               }}>
-                Selecione o plano ideal para sua empresa
+                {t('plans.choosePlanSubtitle')}
               </p>
             </div>
 
@@ -2081,7 +2083,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                   padding: '40px',
                   color: '#9ca3af'
                 }}>
-                  Carregando planos...
+                  {t('plans.loadingPlans')}
                 </div>
               ) : (
                 plans.map((plan, index) => {
@@ -2131,7 +2133,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                           fontSize: '0.75rem',
                           fontWeight: '700'
                         }}>
-                          {isFree ? 'GRÁTIS' : 'POPULAR'}
+                          {isFree ? t('plans.free') : t('plans.popular')}
                         </div>
                       )}
                       <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px', textAlign: 'center' }}>
@@ -2140,11 +2142,11 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                       <div style={{ textAlign: 'center', marginBottom: '24px' }}>
                         <div>
                           {isFree ? (
-                            <span style={{ fontSize: '2.5rem', fontWeight: '800', color: '#10b981' }}>GRÁTIS</span>
+                            <span style={{ fontSize: '2.5rem', fontWeight: '800', color: '#10b981' }}>{t('plans.free')}</span>
                           ) : (
                             <>
                               <span style={{ fontSize: '2.5rem', fontWeight: '800', color: '#10b981' }}>{price.main}</span>
-                              <span style={{ fontSize: '1rem', color: '#9ca3af' }}>{price.decimal}/mês</span>
+                              <span style={{ fontSize: '1rem', color: '#9ca3af' }}>{price.decimal}/{t('plans.perMonth')}</span>
                             </>
                           )}
                         </div>
@@ -2175,7 +2177,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                         fontSize: '0.875rem',
                         fontWeight: '600'
                       }}>
-                        {isFree ? '🚀 Começar Teste Grátis' : 'Clique para selecionar'}
+                        {isFree ? `🚀 ${t('plans.startTrial')}` : t('plans.clickToSelect')}
                       </div>
                     </div>
                   );
