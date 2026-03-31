@@ -22,7 +22,26 @@
     "master": "MASTER"
   },
   "toast": {
-    "featureLocked": "This feature is not available on your current plan. Upgrade to access it!"
+    "featureLocked": "This feature is not available on your current plan. Upgrade to access it!",
+    "unauthenticated": "Error: User not authenticated",
+    "masterOnlyPlans": "Error: Only master users can manage plans",
+    "planUpdated": "Plan updated successfully!",
+    "planCreated": "Plan created successfully!",
+    "planDeleted": "Plan deleted successfully!",
+    "trialAlreadyUsed": "You have already used this trial plan. It is allowed only once.",
+    "alreadyOnPlan": "You are already on this plan!",
+    "userUpdated": "User updated successfully!",
+    "userCreated": "User created successfully!",
+    "userDeleted": "User deleted successfully!",
+    "itemDeleted": "Item deleted successfully!",
+    "scheduleDeleted": "Appointment deleted!",
+    "csvExported": "CSV exported successfully!",
+    "copyRemindersError": "Could not copy reminders list.",
+    "resetPasswordSent": "Password reset email sent!",
+    "catalogExported": "Catalog exported successfully!",
+    "invalidImportFormat": "Invalid format! The file must contain an items array.",
+    "noValidImportItems": "No valid items found in file!",
+    "importFileError": "Error importing file. Check format."
   },
   "locked": {
     "title": "Feature locked",

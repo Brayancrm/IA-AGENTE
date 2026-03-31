@@ -22,7 +22,26 @@
     "master": "MASTER"
   },
   "toast": {
-    "featureLocked": "Esta funcionalidade não está disponível no seu plano atual. Faça upgrade para acessar!"
+    "featureLocked": "Esta funcionalidade não está disponível no seu plano atual. Faça upgrade para acessar!",
+    "unauthenticated": "Erro: Usuário não autenticado",
+    "masterOnlyPlans": "Erro: Apenas usuários master podem gerenciar planos",
+    "planUpdated": "Plano atualizado com sucesso!",
+    "planCreated": "Plano criado com sucesso!",
+    "planDeleted": "Plano excluído com sucesso!",
+    "trialAlreadyUsed": "Você já utilizou este plano de teste. É permitido apenas uma vez.",
+    "alreadyOnPlan": "Você já está neste plano!",
+    "userUpdated": "Usuário atualizado com sucesso!",
+    "userCreated": "Usuário criado com sucesso!",
+    "userDeleted": "Usuário excluído com sucesso!",
+    "itemDeleted": "Item excluído com sucesso!",
+    "scheduleDeleted": "Agendamento excluído!",
+    "csvExported": "CSV exportado com sucesso!",
+    "copyRemindersError": "Não foi possível copiar a lista de lembretes.",
+    "resetPasswordSent": "Email de redefinição de senha enviado!",
+    "catalogExported": "Catálogo exportado com sucesso!",
+    "invalidImportFormat": "Formato inválido! O arquivo deve conter um array de itens.",
+    "noValidImportItems": "Nenhum item válido encontrado no arquivo!",
+    "importFileError": "Erro ao importar arquivo. Verifique o formato."
   },
   "locked": {
     "title": "Funcionalidade Bloqueada",

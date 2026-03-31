@@ -22,7 +22,26 @@
     "master": "MASTER"
   },
   "toast": {
-    "featureLocked": "Questa funzione non è inclusa nel tuo piano attuale. Passa a un piano superiore!"
+    "featureLocked": "Questa funzione non è inclusa nel tuo piano attuale. Passa a un piano superiore!",
+    "unauthenticated": "Errore: Utente non autenticato",
+    "masterOnlyPlans": "Errore: Solo gli utenti master possono gestire i piani",
+    "planUpdated": "Piano aggiornato con successo!",
+    "planCreated": "Piano creato con successo!",
+    "planDeleted": "Piano eliminato con successo!",
+    "trialAlreadyUsed": "Hai già utilizzato questo piano di prova. È consentito solo una volta.",
+    "alreadyOnPlan": "Sei già su questo piano!",
+    "userUpdated": "Utente aggiornato con successo!",
+    "userCreated": "Utente creato con successo!",
+    "userDeleted": "Utente eliminato con successo!",
+    "itemDeleted": "Elemento eliminato con successo!",
+    "scheduleDeleted": "Appuntamento eliminato!",
+    "csvExported": "CSV esportato con successo!",
+    "copyRemindersError": "Non è stato possibile copiare la lista promemoria.",
+    "resetPasswordSent": "Email di reimpostazione password inviata!",
+    "catalogExported": "Catalogo esportato con successo!",
+    "invalidImportFormat": "Formato non valido! Il file deve contenere un array di elementi.",
+    "noValidImportItems": "Nessun elemento valido trovato nel file!",
+    "importFileError": "Errore durante l'importazione del file. Verifica il formato."
   },
   "locked": {
     "title": "Funzione bloccata",

@@ -22,7 +22,26 @@
     "master": "MASTER"
   },
   "toast": {
-    "featureLocked": "Esta función no está disponible en tu plan actual. ¡Mejora el plan para acceder!"
+    "featureLocked": "Esta función no está disponible en tu plan actual. ¡Mejora el plan para acceder!",
+    "unauthenticated": "Error: Usuario no autenticado",
+    "masterOnlyPlans": "Error: Solo usuarios master pueden gestionar planes",
+    "planUpdated": "¡Plan actualizado con éxito!",
+    "planCreated": "¡Plan creado con éxito!",
+    "planDeleted": "¡Plan eliminado con éxito!",
+    "trialAlreadyUsed": "Ya utilizaste este plan de prueba. Solo se permite una vez.",
+    "alreadyOnPlan": "¡Ya estás en este plan!",
+    "userUpdated": "¡Usuario actualizado con éxito!",
+    "userCreated": "¡Usuario creado con éxito!",
+    "userDeleted": "¡Usuario eliminado con éxito!",
+    "itemDeleted": "¡Ítem eliminado con éxito!",
+    "scheduleDeleted": "¡Cita eliminada!",
+    "csvExported": "¡CSV exportado con éxito!",
+    "copyRemindersError": "No fue posible copiar la lista de recordatorios.",
+    "resetPasswordSent": "¡Correo de restablecimiento de contraseña enviado!",
+    "catalogExported": "¡Catálogo exportado con éxito!",
+    "invalidImportFormat": "¡Formato inválido! El archivo debe contener un array de ítems.",
+    "noValidImportItems": "¡No se encontraron ítems válidos en el archivo!",
+    "importFileError": "Error al importar archivo. Verifica el formato."
   },
   "locked": {
     "title": "Función bloqueada",

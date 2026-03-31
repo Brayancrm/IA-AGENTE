@@ -1339,7 +1339,7 @@ const FirebaseApp = () => {
   // Funções de gerenciamento de planos (apenas master)
   const savePlan = async (planData) => {
     if (!user?.isMaster || !database) {
-      showToast('Erro: Apenas usuários master podem gerenciar planos', 'error');
+      showToast(t('toast.masterOnlyPlans'), 'error');
       return;
     }
     
@@ -1405,10 +1405,10 @@ const FirebaseApp = () => {
               showToast(`Plano atualizado com sucesso! ${updatePromises.length} usuário(s) tiveram seus planos atualizados automaticamente.`, 'success');
             } else {
               console.log(`ℹ️ Nenhum plano ativo encontrado para atualizar`);
-              showToast('Plano atualizado com sucesso!');
+              showToast(t('toast.planUpdated'));
             }
           } else {
-            showToast('Plano atualizado com sucesso!');
+            showToast(t('toast.planUpdated'));
           }
         } catch (updateError) {
           console.error('❌ Erro ao atualizar planos ativos dos usuários:', updateError);
@@ -1420,7 +1420,7 @@ const FirebaseApp = () => {
         const plansRef = ref(database, 'plans');
         const newPlanRef = push(plansRef);
         await set(newPlanRef, data);
-        showToast('Plano criado com sucesso!');
+        showToast(t('toast.planCreated'));
       }
     } catch (error) {
       console.error('Erro ao salvar plano:', error);
@@ -1430,7 +1430,7 @@ const FirebaseApp = () => {
 
   const deletePlan = async (planId) => {
     if (!user?.isMaster || !database) {
-      showToast('Erro: Apenas usuários master podem gerenciar planos', 'error');
+      showToast(t('toast.masterOnlyPlans'), 'error');
       return;
     }
 
@@ -1441,7 +1441,7 @@ const FirebaseApp = () => {
     try {
       const planRef = ref(database, `plans/${planId}`);
       await remove(planRef);
-      showToast('Plano excluído com sucesso!');
+      showToast(t('toast.planDeleted'));
     } catch (error) {
       console.error('Erro ao excluir plano:', error);
       showToast('Erro ao excluir plano: ' + error.message, 'error');
@@ -1460,7 +1460,7 @@ const FirebaseApp = () => {
   // Função para assinar um plano
   const subscribeToPlan = async (plan) => {
     if (!user || !database) {
-      showToast('Erro: Usuário não autenticado', 'error');
+      showToast(t('toast.unauthenticated'), 'error');
       return;
     }
 
@@ -1472,7 +1472,7 @@ const FirebaseApp = () => {
         const usedTrials = usedTrialsSnapshot.exists() ? usedTrialsSnapshot.val() : {};
         
         if (usedTrials[plan.id]) {
-          showToast('Você já utilizou este plano de teste. É permitido apenas uma vez.', 'error');
+          showToast(t('toast.trialAlreadyUsed'), 'error');
           return;
         }
       }
@@ -1852,7 +1852,7 @@ const FirebaseApp = () => {
 
   const deleteCatalogItem = async (itemId) => {
     if (!user || !database) {
-      showToast('Erro: Usuário não autenticado', 'error');
+      showToast(t('toast.unauthenticated'), 'error');
       return;
     }
 
@@ -1875,7 +1875,7 @@ const FirebaseApp = () => {
       await update(ref(database), updates);
       console.log('✅ [DELETE] Item removido atomicamente de catalog_items e products');
       
-      showToast('✅ Item excluído com sucesso!', 'success');
+      showToast(t('toast.itemDeleted'), 'success');
     } catch (error) {
       console.error('❌ [DELETE] Erro ao excluir item:', error);
       showToast('❌ Erro ao excluir item: ' + error.message, 'error');
@@ -2258,7 +2258,7 @@ const FirebaseApp = () => {
         // Nota: A atualização de senha precisa ser feita separadamente via resetUserPassword
         // Por enquanto, a senha só pode ser atualizada através da função resetUserPassword
         
-        showToast('Usuário atualizado com sucesso!');
+        showToast(t('toast.userUpdated'));
       } else {
         console.log('Criando novo usuário:', userData.email);
         
@@ -2317,7 +2317,7 @@ const FirebaseApp = () => {
         await signInWithEmailAndPassword(auth, masterEmail, masterPassword);
         console.log('Master re-logado com sucesso');
         
-        showToast('Usuário criado com sucesso!');
+        showToast(t('toast.userCreated'));
       }
     } catch (error) {
       console.error('Erro ao salvar usuário:', error);
@@ -2333,7 +2333,7 @@ const FirebaseApp = () => {
       const userRef = ref(database, `users/registered/${userId}`);
       await remove(userRef);
       console.log('Usuário excluído do Realtime Database:', userId);
-      showToast('Usuário excluído com sucesso!');
+      showToast(t('toast.userDeleted'));
     } catch (error) {
       console.error('Erro ao excluir usuário:', error);
       showToast('Erro ao excluir usuário: ' + error.message, 'error');
@@ -2846,7 +2846,7 @@ const FirebaseApp = () => {
     
     try {
       await sendPasswordResetEmail(auth, email);
-      showToast('Email de redefinição de senha enviado!');
+      showToast(t('toast.resetPasswordSent'));
     } catch (error) {
       console.error('Erro ao enviar email:', error);
       showToast('Erro ao enviar email de redefinição', 'error');
@@ -4809,7 +4809,7 @@ const DashboardWithFirebase = ({
     try {
       const agendamentoRef = ref(database, `users/data/${user.uid}/agendamentos/${id}`);
       await remove(agendamentoRef);
-      showToast('Agendamento excluído!', 'success');
+      showToast(t('toast.scheduleDeleted'), 'success');
     } catch (error) {
       console.error('❌ [FIREBASE] Erro ao excluir agendamento:', error);
       showToast('❌ Erro ao excluir agendamento', 'error');
@@ -4879,7 +4879,7 @@ const DashboardWithFirebase = ({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    showToast('CSV exportado com sucesso!', 'success');
+    showToast(t('toast.csvExported'), 'success');
   }, [agendamentosFiltradosOrdenados, getStatusLabel]);
 
   const openWhatsAppReminder = useCallback((agendamento) => {
@@ -4913,7 +4913,7 @@ const DashboardWithFirebase = ({
 
     navigator.clipboard.writeText(text)
       .then(() => showToast(`Lista de lembretes (${hoursAhead}h) copiada!`, 'success'))
-      .catch(() => showToast('Não foi possível copiar a lista de lembretes.', 'error'));
+      .catch(() => showToast(t('toast.copyRemindersError'), 'error'));
   }, [agendamentosOrdenados, parseAgendamentoDateTime]);
 
   // Função para renderizar agendamentos (igual ao renderCatalog - tem acesso aos states!)
@@ -7893,9 +7893,9 @@ const DashboardWithFirebase = ({
                           onClick={(e) => {
                             e.stopPropagation();
                                 if (isCurrentPlan) {
-                              showToast('Você já está neste plano!', 'error');
+                              showToast(t('toast.alreadyOnPlan'), 'error');
                                 } else if (isUsedTrial) {
-                                  showToast('Você já utilizou este plano de teste. É permitido apenas uma vez.', 'error');
+                                  showToast(t('toast.trialAlreadyUsed'), 'error');
                             } else {
                               subscribeToPlan(plan);
                             }
@@ -9876,7 +9876,7 @@ const DashboardWithFirebase = ({
                     link.download = `catalogo-${new Date().toISOString().split('T')[0]}.json`;
                     link.click();
                     URL.revokeObjectURL(url);
-                    alert('✓ Catálogo exportado com sucesso!');
+                    showToast(t('toast.catalogExported'), 'success');
                   }}
                   style={{
                     width: '100%',
@@ -9920,14 +9920,14 @@ const DashboardWithFirebase = ({
                       const items = JSON.parse(text);
                       
                       if (!Array.isArray(items)) {
-                        alert('❌ Formato inválido! O arquivo deve conter um array de itens.');
+                        showToast(t('toast.invalidImportFormat'), 'error');
                         return;
                       }
 
                       const validItems = items.filter(item => item.name && item.price && item.type);
 
                       if (validItems.length === 0) {
-                        alert('❌ Nenhum item válido encontrado no arquivo!');
+                        showToast(t('toast.noValidImportItems'), 'error');
                         return;
                       }
 
@@ -9946,7 +9946,7 @@ const DashboardWithFirebase = ({
                       e.target.value = '';
                     } catch (error) {
                       console.error('Erro ao importar:', error);
-                      alert('❌ Erro ao importar arquivo. Verifique o formato.');
+                      showToast(t('toast.importFileError'), 'error');
                     }
                   }}
                   style={{
