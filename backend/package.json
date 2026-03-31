@@ -41,5 +41,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.0"
+  },
+  "overrides": {
+    "@wppconnect/wa-version": "1.5.3592"
   }
 }
