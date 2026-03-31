@@ -353,12 +353,28 @@ const activeClients = new Map();
 // FUNÇÕES AUXILIARES
 // ============================================
 
+/** Pasta base dos tokens WPPConnect (volume persistente no Railway: ex. /data/wpp-tokens) */
+function getWppTokensBase() {
+  const raw = (process.env.WPP_TOKENS_BASE || process.env.WPP_FOLDER_TOKEN || '/tokens').trim();
+  return path.resolve(raw);
+}
+
+function ensureDirSync(dir) {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch (e) {
+    console.warn('⚠️ ensureDirSync:', dir, e.message);
+  }
+}
+
 // Função para criar/restaurar sessão WhatsApp
 async function createSession(userId) {
   console.log(`📱 Verificando sessão WhatsApp para usuário: ${userId}`);
   
   const sessionRef = db.ref(`whatsapp_sessions/${userId}`);
-  
+  const tokensBase = getWppTokensBase();
+  ensureDirSync(tokensBase);
+
   try {
     // 🔥 NOVO: Verificar se já existe client ATIVO em memória
     const existingClient = activeClients.get(userId);
@@ -375,10 +391,8 @@ async function createSession(userId) {
       return existingClient; // ✅ RETORNA A SESSÃO EXISTENTE
     }
     
-    // 🔥 NOVO: Verificar se existe sessão salva nos arquivos do WPPConnect
-    const fs = require('fs');
-    const path = require('path');
-    const tokenDir = `/tokens/user_${userId}`;
+    console.log(`📂 WPP tokens base: ${tokensBase}`);
+    const tokenDir = path.join(tokensBase, `user_${userId}`);
     
     if (fs.existsSync(tokenDir)) {
       const files = fs.readdirSync(tokenDir);
@@ -390,8 +404,9 @@ async function createSession(userId) {
       console.log('🆕 Primeira conexão - criando nova sessão');
     }
     
-    // 🔥 Limpar arquivos de lock do Chromium antes de iniciar
-    const profileDir = `/tokens/chrome_profile_${userId}`;
+    // Perfil Chromium estável (antes: /tmp/... + Date.now() apagava a sessão a cada restart)
+    const profileDir = path.join(tokensBase, `chrome_profile_${userId}`);
+    ensureDirSync(profileDir);
     const lockFile = path.join(profileDir, 'SingletonLock');
     
     try {
@@ -410,7 +425,7 @@ async function createSession(userId) {
       session: `user_${userId}`,
       // 🔥 NOVO: Habilitar persistência de sessão
       tokenStore: 'file',
-      folderNameToken: '/tokens',
+      folderNameToken: tokensBase,
       // 🔥 CRÍTICO: Flags adicionais para evitar conflitos de perfil
       disableWelcome: true,
       updatesLog: false,
@@ -492,7 +507,7 @@ async function createSession(userId) {
       puppeteerOptions: {
         headless: true,
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || undefined,
-        userDataDir: `/tmp/wpp_${userId}_${Date.now()}`,
+        userDataDir: profileDir,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -6615,9 +6630,12 @@ app.listen(PORT, '0.0.0.0', async () => {
     console.log('');
     console.log('ℹ️  [WHATSAPP] Limpeza no deploy está DESLIGADA (padrão). Sessões não são resetadas ao reiniciar.');
     console.log('   Só desconecte pelo painel ou pelo telefone; para forçar limpeza em deploy, use WHATSAPP_CLEANUP_SESSIONS_ON_DEPLOY=true');
+    console.log(`   📂 WPP_TOKENS_BASE=${getWppTokensBase()} (monte um volume Railway neste caminho para manter login entre deploys)`);
   }
 
-  // Recriar clientes em memória para quem estava conectado (tokens em /tokens no disco do container)
+  console.log(`📂 [WHATSAPP] Pasta de tokens: ${getWppTokensBase()}`);
+
+  // Recriar clientes em memória para quem estava conectado (tokens em WPP_TOKENS_BASE no disco)
   if (process.env.WHATSAPP_AUTO_RESTORE_ON_STARTUP !== 'false') {
     try {
       const sessionsSnapshot = await db.ref('whatsapp_sessions').once('value');
@@ -6632,7 +6650,7 @@ app.listen(PORT, '0.0.0.0', async () => {
           console.log('');
           console.log('='.repeat(50));
           console.log(`🔄 [WHATSAPP] Restaurando ${toRestore.length} sessão(ões) em background (intervalo ${stagger}ms)...`);
-          console.log('   (Em PaaS sem volume persistente em /tokens, pode ser necessário escanear QR de novo.)');
+          console.log(`   📂 Tokens: ${getWppTokensBase()} — sem volume persistente aqui, QR de novo após cada deploy.`);
           console.log('='.repeat(50));
           toRestore.forEach((userId, idx) => {
             setTimeout(() => {
