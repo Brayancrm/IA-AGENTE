@@ -6583,49 +6583,76 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log(`   POST /api/messages/send            - Enviar mensagem`);
   console.log(`   GET  /api/conversations/:userId    - Listar conversas`);
   console.log('');
-  
-  // 🔥 LIMPEZA DE SESSÕES ANTIGAS NO STARTUP (v1.0.14)
-  // Desconecta todas as sessões antigas para forçar reconexão limpa
-  console.log('');
-  console.log('='.repeat(50));
-  console.log('🧹 [CLEANUP] Limpando sessões antigas...');
-  console.log('='.repeat(50));
-  
-  try {
-    // Buscar todas as sessões no Firebase
-    const sessionsSnapshot = await db.ref('whatsapp_sessions').once('value');
-    const sessions = sessionsSnapshot.val();
-    
-    if (sessions) {
-      const sessionCount = Object.keys(sessions).length;
-      console.log(`📊 Encontradas ${sessionCount} sessão(ões) no Firebase`);
-      
-      // Desconectar todas
-      for (const [userId, sessionData] of Object.entries(sessions)) {
-        console.log(`🔄 Desconectando sessão antiga: ${userId}`);
-        
-        await db.ref(`whatsapp_sessions/${userId}`).update({
-          status: 'disconnected',
-          qrCode: null,
-          sessionToken: null,
-          lastActivity: new Date().toISOString(),
-          disconnectedAt: new Date().toISOString(),
-          disconnectReason: 'deploy_cleanup'
-        });
+
+  // Limpeza agressiva no deploy (desligada por padrão — evita QR a cada push)
+  if (process.env.WHATSAPP_CLEANUP_SESSIONS_ON_DEPLOY === 'true') {
+    console.log('');
+    console.log('='.repeat(50));
+    console.log('🧹 [CLEANUP] WHATSAPP_CLEANUP_SESSIONS_ON_DEPLOY=true — desconectando todas as sessões...');
+    console.log('='.repeat(50));
+    try {
+      const sessionsSnapshot = await db.ref('whatsapp_sessions').once('value');
+      const sessions = sessionsSnapshot.val();
+      if (sessions) {
+        for (const userId of Object.keys(sessions)) {
+          console.log(`🔄 Desconectando: ${userId}`);
+          await db.ref(`whatsapp_sessions/${userId}`).update({
+            status: 'disconnected',
+            qrCode: null,
+            sessionToken: null,
+            lastActivity: new Date().toISOString(),
+            disconnectedAt: new Date().toISOString(),
+            disconnectReason: 'deploy_cleanup'
+          });
+        }
+        console.log(`✅ ${Object.keys(sessions).length} sessão(ões) marcadas como desconectadas`);
       }
-      
-      console.log(`✅ ${sessionCount} sessão(ões) desconectada(s) com sucesso`);
-    } else {
-      console.log('ℹ️  Nenhuma sessão encontrada no Firebase');
+    } catch (error) {
+      console.error('❌ Erro ao limpar sessões:', error.message);
     }
-    
-    console.log('🔄 Usuário deve clicar em "Conectar" para gerar novo QR Code');
-    console.log('✅ Isso garante conexão limpa e funcional');
-  } catch (error) {
-    console.error('❌ Erro ao limpar sessões:', error.message);
+    console.log('='.repeat(50));
+  } else {
+    console.log('');
+    console.log('ℹ️  [WHATSAPP] Limpeza no deploy está DESLIGADA (padrão). Sessões não são resetadas ao reiniciar.');
+    console.log('   Só desconecte pelo painel ou pelo telefone; para forçar limpeza em deploy, use WHATSAPP_CLEANUP_SESSIONS_ON_DEPLOY=true');
   }
-  
-  console.log('='.repeat(50));
+
+  // Recriar clientes em memória para quem estava conectado (tokens em /tokens no disco do container)
+  if (process.env.WHATSAPP_AUTO_RESTORE_ON_STARTUP !== 'false') {
+    try {
+      const sessionsSnapshot = await db.ref('whatsapp_sessions').once('value');
+      const sessions = sessionsSnapshot.val();
+      if (sessions) {
+        const stagger = Math.max(2000, parseInt(process.env.WHATSAPP_RESTORE_STAGGER_MS || '5000', 10) || 5000);
+        const toRestore = Object.keys(sessions).filter((uid) => {
+          const s = sessions[uid];
+          return s && s.status === 'connected';
+        });
+        if (toRestore.length > 0) {
+          console.log('');
+          console.log('='.repeat(50));
+          console.log(`🔄 [WHATSAPP] Restaurando ${toRestore.length} sessão(ões) em background (intervalo ${stagger}ms)...`);
+          console.log('   (Em PaaS sem volume persistente em /tokens, pode ser necessário escanear QR de novo.)');
+          console.log('='.repeat(50));
+          toRestore.forEach((userId, idx) => {
+            setTimeout(() => {
+              console.log(`🚀 [WHATSAPP] Restaurando sessão: ${userId}`);
+              createSession(userId).catch((err) => {
+                console.error(`❌ [WHATSAPP] Falha ao restaurar ${userId}:`, err.message);
+              });
+            }, idx * stagger);
+          });
+        } else {
+          console.log('ℹ️  [WHATSAPP] Nenhuma sessão com status "connected" para restaurar no startup.');
+        }
+      }
+    } catch (e) {
+      console.error('❌ [WHATSAPP] Erro ao agendar restauração:', e.message);
+    }
+  } else {
+    console.log('ℹ️  [WHATSAPP] Auto-restore desligado (WHATSAPP_AUTO_RESTORE_ON_STARTUP=false)');
+  }
+
   console.log('');
 });
 
