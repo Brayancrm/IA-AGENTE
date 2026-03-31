@@ -3218,6 +3218,66 @@ async function mergeProductPriceFromCatalog(userId, product) {
   return product;
 }
 
+/** Texto da mensagem vs nome do catálogo (espaços, barras, acentos) */
+function normalizeForProductNameMatch(text) {
+  return String(text || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/\s*\/\s*/g, '/')
+    .trim();
+}
+
+function messageMentionsProduct(bodyText, productName) {
+  const p = normalizeForProductNameMatch(productName);
+  if (!p) return false;
+  const m = normalizeForProductNameMatch(bodyText);
+  if (m.includes(p)) return true;
+  const parts = p.split('/').map((s) => s.trim()).filter((s) => s.length >= 2);
+  if (parts.length >= 2) {
+    return parts.every((part) => m.includes(part));
+  }
+  return false;
+}
+
+/**
+ * Lista produtos para casar com a conversa: une products/{uid} e catalog_items.
+ * Muitos ambientes só têm dados completos em catalog_items; products/ pode estar vazio.
+ */
+async function resolveProductsForStripeMatching(userId) {
+  const merged = new Map();
+  const ps = await db.ref(`products/${userId}`).once('value');
+  if (ps.exists()) {
+    ps.forEach((child) => {
+      merged.set(child.key, { id: child.key, ...child.val() });
+    });
+  }
+  const cs = await db.ref(`users/data/${userId}/catalog_items`).once('value');
+  if (cs.exists()) {
+    cs.forEach((child) => {
+      const c = child.val();
+      if (!c || !c.name) return;
+      const prev = merged.get(child.key);
+      if (prev) {
+        merged.set(child.key, {
+          ...c,
+          ...prev,
+          name: prev.name || c.name,
+          price: hasValidCatalogPrice(prev.price) ? prev.price : c.price,
+          currency: prev.currency || c.currency,
+          description: prev.description || c.description || '',
+          tvLoginProduct: prev.tvLoginProduct ?? !!c.tvLoginProduct,
+          tvPlanKey: prev.tvPlanKey || c.tvPlanKey || ''
+        });
+      } else {
+        merged.set(child.key, { id: child.key, ...c });
+      }
+    });
+  }
+  return Array.from(merged.values());
+}
+
 function normalizePlanKey(value) {
   return String(value || '')
     .normalize('NFD')
@@ -3676,30 +3736,48 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
 
     const messagesSnapshot = await db.ref(`conversations/${userId}/${sanitizedNumber}/messages`)
       .orderByChild('timestamp')
-      .limitToLast(10)
+      .limitToLast(15)
       .once('value');
 
-    const productsSnapshot = await db.ref(`products/${userId}`).once('value');
-    const productsData = productsSnapshot.val();
-    if (!productsData || !messagesSnapshot.exists()) return;
+    if (!messagesSnapshot.exists()) return;
 
-    const products = Object.values(productsData);
-    // Uma única linha no checkout por conversa: nas últimas mensagens, a última menção ao nome do produto vence.
-    // Antes empurrávamos o mesmo produto várias vezes (uma por mensagem que citava o nome) e o Stripe recebia N linhas iguais.
+    const products = await resolveProductsForStripeMatching(userId);
+    if (!products.length) {
+      console.warn('⚠️ [Stripe] Nenhum item em products/ nem catalog_items para userId:', userId);
+      await client.sendText(phone, 'Para finalizar a compra, preciso de um item com preço definido.');
+      return;
+    }
+
+    // Uma única linha no checkout: última menção ao produto nas mensagens recentes vence.
     let lastMentionedProduct = null;
     messagesSnapshot.forEach((messageSnap) => {
       const msg = messageSnap.val();
-      const messageText = msg.body ? msg.body.toLowerCase() : '';
-      if (!messageText) return;
+      const raw = msg.body ? String(msg.body) : '';
+      if (!raw.trim()) return;
       for (const product of products) {
-        const safeName = String(product.name || '').toLowerCase();
-        if (safeName && messageText.includes(safeName)) {
+        if (messageMentionsProduct(raw, product.name)) {
           lastMentionedProduct = product;
         }
       }
     });
 
     if (!lastMentionedProduct) {
+      const combined = [];
+      messagesSnapshot.forEach((messageSnap) => {
+        const b = messageSnap.val()?.body;
+        if (b) combined.push(String(b));
+      });
+      const blob = combined.join('\n');
+      for (const product of products) {
+        if (messageMentionsProduct(blob, product.name)) {
+          lastMentionedProduct = product;
+          break;
+        }
+      }
+    }
+
+    if (!lastMentionedProduct) {
+      console.warn('⚠️ [Stripe] Nenhum produto do catálogo citado nas últimas mensagens. Produtos:', products.map((p) => p.name));
       await client.sendText(phone, 'Para finalizar a compra, preciso de um item com preço definido.');
       return;
     }
