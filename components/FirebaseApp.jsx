@@ -10065,7 +10065,7 @@ const DashboardWithFirebase = ({
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ffffff' }}>
-                📅 Agendamentos - {selectedCalendarDate}
+                📅 {t('dayScheduleModal.title')} - {selectedCalendarDate}
               </h3>
               <button
                 onClick={() => {
@@ -10083,7 +10083,7 @@ const DashboardWithFirebase = ({
                   fontWeight: '600'
                 }}
               >
-                ✕ Fechar
+                ✕ {t('dayScheduleModal.close')}
               </button>
             </div>
 
@@ -10140,9 +10140,9 @@ const DashboardWithFirebase = ({
                             fontSize: '0.875rem',
                             fontWeight: '600'
                           }}
-                          title="Editar"
+                          title={t('dayScheduleModal.edit')}
                         >
-                          ✏️ Editar
+                          ✏️ {t('dayScheduleModal.edit')}
                         </button>
                         <button
                           onClick={async () => {
@@ -10159,26 +10159,26 @@ const DashboardWithFirebase = ({
                             fontSize: '0.875rem',
                             fontWeight: '600'
                           }}
-                          title="Excluir"
+                          title={t('dayScheduleModal.delete')}
                         >
-                          🗑️ Excluir
+                          🗑️ {t('dayScheduleModal.delete')}
                         </button>
                       </div>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '12px' }}>
                       <div>
-                        <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '2px' }}>⏰ Horário</div>
+                        <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '2px' }}>⏰ {t('dayScheduleModal.time')}</div>
                         <div style={{ fontSize: '0.875rem', color: '#ffffff', fontWeight: '500' }}>
                           {agend.horario}
                         </div>
                       </div>
                       <div>
-                        <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '2px' }}>👤 Cliente</div>
+                        <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '2px' }}>👤 {t('dayScheduleModal.client')}</div>
                         <div style={{ fontSize: '0.875rem', color: '#ffffff', fontWeight: '500' }}>{agend.cliente}</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '2px' }}>📞 Telefone</div>
+                        <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '2px' }}>📞 {t('dayScheduleModal.phone')}</div>
                         <div style={{ fontSize: '0.875rem', color: '#ffffff', fontWeight: '500' }}>{agend.telefone}</div>
                       </div>
                     </div>
@@ -10192,7 +10192,7 @@ const DashboardWithFirebase = ({
                         fontSize: '0.875rem',
                         color: '#9ca3af'
                       }}>
-                        <strong>📝 Observações:</strong> {agend.observacoes}
+                        <strong>📝 {t('dayScheduleModal.notes')}:</strong> {agend.observacoes}
                       </div>
                     )}
                   </div>
@@ -10229,7 +10229,7 @@ const DashboardWithFirebase = ({
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <h3 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#ffffff' }}>
-                {editingPlan ? '✏️ Editar Plano' : '💎 Criar Novo Plano'}
+                {editingPlan ? `✏️ ${t('planModal.editTitle')}` : `💎 ${t('planModal.createTitle')}`}
               </h3>
               <button
                 onClick={() => {
@@ -10290,7 +10290,7 @@ const DashboardWithFirebase = ({
               {/* Nome do Plano */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.9375rem', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-                  Nome do Plano *
+                  {t('planModal.name')} *
                 </label>
                 <input
                   type="text"
@@ -10305,7 +10305,7 @@ const DashboardWithFirebase = ({
                     backgroundColor: '#0f1419',
                     color: '#ffffff'
                   }}
-                  placeholder="Ex: Básico, Profissional, Enterprise"
+                  placeholder={t('planModal.namePlaceholder')}
                   required
                 />
               </div>
@@ -10313,7 +10313,7 @@ const DashboardWithFirebase = ({
               {/* Descrição */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.9375rem', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-                  Descrição
+                  {t('planModal.description')}
                 </label>
                 <textarea
                   value={planForm.description}
@@ -10329,7 +10329,7 @@ const DashboardWithFirebase = ({
                     minHeight: '80px',
                     resize: 'vertical'
                   }}
-                  placeholder="Descreva as características deste plano..."
+                  placeholder={t('planModal.descriptionPlaceholder')}
                 />
               </div>
 
@@ -10337,7 +10337,7 @@ const DashboardWithFirebase = ({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.9375rem', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-                    Preço ({planForm.currency || 'R$'}) *
+                    {t('planModal.price')} ({planForm.currency || 'R$'}) *
                   </label>
                   <input
                     type="number"
@@ -10360,7 +10360,7 @@ const DashboardWithFirebase = ({
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.9375rem', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-                    Moeda *
+                    {t('planModal.currency')} *
                   </label>
                   <select
                     value={normalizePlanCurrency(planForm.currency)}
@@ -10384,7 +10384,7 @@ const DashboardWithFirebase = ({
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.9375rem', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-                    Ciclo de Cobrança *
+                    {t('planModal.billingCycle')} *
                   </label>
                   <select
                     value={planForm.billingCycle}
@@ -10400,8 +10400,8 @@ const DashboardWithFirebase = ({
                       cursor: 'pointer'
                     }}
                   >
-                    <option value="monthly">Mensal</option>
-                    <option value="yearly">Anual</option>
+                    <option value="monthly">{t('planModal.monthly')}</option>
+                    <option value="yearly">{t('planModal.yearly')}</option>
                   </select>
                 </div>
               </div>
@@ -10409,7 +10409,7 @@ const DashboardWithFirebase = ({
               {/* Limites */}
               <div style={{ backgroundColor: 'rgba(139, 92, 246, 0.1)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
                 <h4 style={{ fontSize: '1.125rem', fontWeight: '700', color: '#a78bfa', marginBottom: '16px' }}>
-                  Limites do Plano
+                  {t('planModal.limitsTitle')}
                 </h4>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -10505,10 +10505,10 @@ const DashboardWithFirebase = ({
               {/* Funcionalidades Permitidas */}
               <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                 <h4 style={{ fontSize: '1.125rem', fontWeight: '700', color: '#10b981', marginBottom: '16px' }}>
-                  🔓 Funcionalidades Permitidas no Sidebar
+                  🔓 {t('planModal.allowedFeaturesTitle')}
                 </h4>
                 <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '16px' }}>
-                  Selecione quais funcionalidades estarão disponíveis para usuários com este plano. As funcionalidades não selecionadas aparecerão bloqueadas no sidebar.
+                  {t('planModal.allowedFeaturesBody')}
                 </p>
                 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
@@ -10746,11 +10746,11 @@ const DashboardWithFirebase = ({
                     style={{ width: '20px', height: '20px', cursor: 'pointer' }}
                   />
                   <span style={{ fontSize: '1rem', fontWeight: '600' }}>
-                    Plano Ativo
+                    {t('planModal.activePlan')}
                   </span>
                 </label>
                 <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginTop: '8px', marginLeft: '32px' }}>
-                  Apenas planos ativos aparecerão para os clientes
+                  {t('planModal.activePlanHint')}
                 </p>
               </div>
 
@@ -10792,7 +10792,7 @@ const DashboardWithFirebase = ({
                   onMouseEnter={(e) => e.target.style.backgroundColor = '#4b5563'}
                   onMouseLeave={(e) => e.target.style.backgroundColor = '#374151'}
                 >
-                  Cancelar
+                  {t('planModal.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -10812,7 +10812,7 @@ const DashboardWithFirebase = ({
                   onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
                   onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
                 >
-                  {editingPlan ? 'Salvar Alterações' : 'Criar Plano'}
+                  {editingPlan ? t('planModal.saveChanges') : t('planModal.create')}
                 </button>
               </div>
             </form>
@@ -10846,14 +10846,14 @@ const DashboardWithFirebase = ({
             border: '2px solid rgba(16, 185, 129, 0.3)'
           }}>
             <h3 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '24px', color: '#ffffff' }}>
-              {editingUser ? 'Editar Usuário' : 'Adicionar Usuário'}
+              {editingUser ? t('userModal.editTitle') : t('userModal.createTitle')}
             </h3>
             
             <form onSubmit={handleUserSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Upload de Foto de Perfil */}
               <div>
                 <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-                  Foto de Perfil
+                  {t('userModal.photo')}
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   {photoPreview ? (
@@ -10956,10 +10956,10 @@ const DashboardWithFirebase = ({
                         }
                       }}
                     >
-                      {uploadingPhoto ? 'Enviando...' : photoPreview ? 'Alterar Foto' : 'Escolher Foto'}
+                      {uploadingPhoto ? t('userModal.uploading') : photoPreview ? t('userModal.changePhoto') : t('userModal.choosePhoto')}
                     </label>
                     <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px', margin: 0 }}>
-                      Formatos: JPG, PNG, GIF (máx. 5MB)
+                      {t('userModal.photoFormats')}
                     </p>
                   </div>
                 </div>
@@ -10967,7 +10967,7 @@ const DashboardWithFirebase = ({
 
               <div>
                 <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-                  Nome do Cliente/Razão Social
+                  {t('userModal.companyName')}
                 </label>
                 <input
                   type="text"
@@ -10992,7 +10992,7 @@ const DashboardWithFirebase = ({
                     e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                     e.target.style.boxShadow = 'none';
                   }}
-                  placeholder="Digite o nome ou razão social"
+                  placeholder={t('userModal.companyPlaceholder')}
                   required
                 />
               </div>
@@ -11031,7 +11031,7 @@ const DashboardWithFirebase = ({
 
               <div>
                 <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-                  Número do WhatsApp
+                  {t('userModal.whatsappNumber')}
                 </label>
                 <input
                   type="text"
@@ -11095,7 +11095,7 @@ const DashboardWithFirebase = ({
 
               <div>
                 <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-                  Senha {editingUser && <span style={{ color: '#9ca3af', fontWeight: '400' }}>(deixe em branco para manter a atual)</span>}
+                  {t('userModal.password')} {editingUser && <span style={{ color: '#9ca3af', fontWeight: '400' }}>({t('userModal.keepCurrentPassword')})</span>}
                 </label>
                 <input
                   type="password"
@@ -11120,7 +11120,7 @@ const DashboardWithFirebase = ({
                     e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                     e.target.style.boxShadow = 'none';
                   }}
-                  placeholder="Digite a senha"
+                  placeholder={t('userModal.passwordPlaceholder')}
                   required={!editingUser}
                 />
               </div>
@@ -11151,7 +11151,7 @@ const DashboardWithFirebase = ({
                     e.target.style.transform = 'translateY(0)';
                   }}
                 >
-                  Cancelar
+                  {t('userModal.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -11175,7 +11175,7 @@ const DashboardWithFirebase = ({
                     e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
                   }}
                 >
-                  {editingUser ? 'Atualizar' : 'Criar Usuário'}
+                  {editingUser ? t('userModal.update') : t('userModal.create')}
                 </button>
               </div>
             </form>
