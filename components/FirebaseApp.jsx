@@ -9388,13 +9388,13 @@ const DashboardWithFirebase = ({
             border: '1px solid rgba(16, 185, 129, 0.3)'
           }}>
             <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '24px', color: '#ffffff' }}>
-              {editingItem ? 'Editar Item' : 'Adicionar Item'}
+              {editingItem ? t('catalogModal.editTitle') : t('catalogModal.createTitle')}
             </h3>
             
             <form onSubmit={handleCatalogSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
-                  Nome do Item
+                  {t('catalogModal.itemName')}
                 </label>
                 <input
                   type="text"
@@ -9409,14 +9409,14 @@ const DashboardWithFirebase = ({
                     backgroundColor: '#111827',
                     color: '#ffffff'
                   }}
-                  placeholder="Digite o nome do item"
+                  placeholder={t('catalogModal.itemNamePlaceholder')}
                   required
                 />
               </div>
 
               <div>
                 <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
-                  Descrição
+                  {t('catalogModal.description')}
                 </label>
                 <textarea
                   value={catalogForm.description}
@@ -9432,13 +9432,13 @@ const DashboardWithFirebase = ({
                     backgroundColor: '#111827',
                     color: '#ffffff'
                   }}
-                  placeholder="Descreva o item"
+                  placeholder={t('catalogModal.descriptionPlaceholder')}
                 />
               </div>
 
               <div>
                 <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
-                  Tipo do Item
+                  {t('catalogModal.itemType')}
                 </label>
                 <div style={{ display: 'flex', gap: '16px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ffffff', cursor: 'pointer' }}>
@@ -9450,7 +9450,7 @@ const DashboardWithFirebase = ({
                       onChange={(e) => setCatalogForm(prev => ({ ...prev, type: e.target.value }))}
                       style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                     />
-                    <span>Produto</span>
+                    <span>{t('catalogModal.product')}</span>
                   </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ffffff', cursor: 'pointer' }}>
                     <input
@@ -9461,14 +9461,14 @@ const DashboardWithFirebase = ({
                       onChange={(e) => setCatalogForm(prev => ({ ...prev, type: e.target.value }))}
                       style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                     />
-                    <span>Serviço</span>
+                    <span>{t('catalogModal.service')}</span>
                   </label>
                 </div>
               </div>
 
               <div>
                 <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
-                  Preço (R$) <span style={{ fontSize: '0.875rem', color: '#9ca3af', fontWeight: 'normal' }}>(Opcional)</span>
+                  {t('catalogModal.price')} <span style={{ fontSize: '0.875rem', color: '#9ca3af', fontWeight: 'normal' }}>({t('catalogModal.optional')})</span>
                 </label>
                 <input
                   type="number"
@@ -9485,16 +9485,16 @@ const DashboardWithFirebase = ({
                     backgroundColor: '#111827',
                     color: '#ffffff'
                   }}
-                  placeholder="Deixe vazio para não mostrar preço"
+                  placeholder={t('catalogModal.pricePlaceholder')}
                 />
                 <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>
-                  Se deixar vazio, o preço não será mostrado pelo agente. O cliente precisará acessar o link para ver o preço.
+                  {t('catalogModal.priceHint')}
                 </p>
               </div>
 
               <div>
                 <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
-                  {catalogForm.type === 'product' ? 'Qtd. em Estoque' : 'Capacidade/Horas (Simulado)'}
+                  {catalogForm.type === 'product' ? t('catalogModal.stockQuantity') : t('catalogModal.capacityHours')}
                 </label>
                 <input
                   type="number"
@@ -9518,7 +9518,7 @@ const DashboardWithFirebase = ({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
                   <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
-                    SKU / Código
+                    {t('catalogModal.sku')}
                   </label>
                   <input
                     type="text"
@@ -9540,7 +9540,7 @@ const DashboardWithFirebase = ({
 
                 <div>
                   <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
-                    Categoria
+                    {t('catalogModal.category')}
                   </label>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <select
@@ -9549,7 +9549,7 @@ const DashboardWithFirebase = ({
                         const value = e.target.value;
                         if (value === '__new__') {
                           // Usuário quer criar nova categoria
-                          const newCategory = prompt('Digite o nome da nova categoria:');
+                          const newCategory = prompt(t('catalogModal.categoryPrompt'));
                           if (newCategory && newCategory.trim()) {
                             setCatalogForm(prev => ({ ...prev, category: newCategory.trim() }));
                           } else {
@@ -9570,12 +9570,12 @@ const DashboardWithFirebase = ({
                         cursor: 'pointer'
                       }}
                     >
-                      <option value="">Selecione uma categoria</option>
+                      <option value="">{t('catalogModal.categorySelect')}</option>
                       {savedCategories.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                       <option value="__new__" style={{ color: '#10b981', fontWeight: 'bold' }}>
-                        + Criar Nova Categoria
+                        + {t('catalogModal.createCategory')}
                       </option>
                     </select>
                     {catalogForm.category && !savedCategories.includes(catalogForm.category) && (
@@ -9592,7 +9592,7 @@ const DashboardWithFirebase = ({
                       backgroundColor: '#111827',
                       color: '#ffffff'
                     }}
-                        placeholder="Digite o nome da categoria"
+                        placeholder={t('catalogModal.categoryPlaceholder')}
                       />
                     )}
                   </div>
@@ -9607,7 +9607,7 @@ const DashboardWithFirebase = ({
               {catalogForm.type === 'product' && (
                 <div>
                   <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
-                    Estoque Mínimo (para alertas)
+                    {t('catalogModal.minStock')}
                   </label>
                   <input
                     type="number"
@@ -9630,7 +9630,7 @@ const DashboardWithFirebase = ({
 
               <div>
                 <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
-                  Imagem do Produto
+                  {t('catalogModal.productImage')}
                 </label>
                 
                 {/* Upload de arquivo */}
@@ -9647,7 +9647,7 @@ const DashboardWithFirebase = ({
                     fontSize: '0.875rem',
                     border: '1px solid #059669'
                   }}>
-                    📁 Escolher Arquivo do PC
+                    📁 {t('catalogModal.chooseFile')}
                     <input
                       type="file"
                       accept="image/*"
@@ -9656,7 +9656,7 @@ const DashboardWithFirebase = ({
                         if (file) {
                           // Verificar tamanho (max 2MB)
                           if (file.size > 2 * 1024 * 1024) {
-                            alert('❌ Imagem muito grande! Máximo 2MB.');
+                            alert(`❌ ${t('catalogModal.imageTooLarge')}`);
                             return;
                           }
                           
@@ -9672,7 +9672,7 @@ const DashboardWithFirebase = ({
                     />
                   </label>
                   <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>
-                    Envie do seu computador (máx. 2MB)
+                    {t('catalogModal.fileHint')}
                   </p>
                 </div>
 
@@ -9684,7 +9684,7 @@ const DashboardWithFirebase = ({
                   gap: '8px'
                 }}>
                   <div style={{ flex: 1, height: '1px', backgroundColor: '#374151' }}></div>
-                  <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 'bold' }}>OU</span>
+                  <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 'bold' }}>{t('catalogModal.or')}</span>
                   <div style={{ flex: 1, height: '1px', backgroundColor: '#374151' }}></div>
                 </div>
 
@@ -9725,7 +9725,7 @@ const DashboardWithFirebase = ({
                   )}
                 </div>
                 <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>
-                  Cole a URL de uma imagem online (Imgur, Cloudinary, etc)
+                  {t('catalogModal.imageUrlHint')}
                 </p>
 
                 {/* Botão para remover imagem */}
@@ -9745,14 +9745,14 @@ const DashboardWithFirebase = ({
                       fontWeight: 'bold'
                     }}
                   >
-                    🗑️ Remover Imagem
+                    🗑️ {t('catalogModal.removeImage')}
                   </button>
                 )}
               </div>
 
               <div>
                 <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
-                  🔗 Link para Adesão (Opcional)
+                  🔗 {t('catalogModal.joinLink')} ({t('catalogModal.optional')})
                 </label>
                 <input
                   type="url"
@@ -9770,7 +9770,7 @@ const DashboardWithFirebase = ({
                   placeholder="https://exemplo.com/adesao"
                 />
                 <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>
-                  Link que será mostrado pelo agente junto com a descrição do produto/serviço quando oferecido
+                  {t('catalogModal.joinLinkHint')}
                 </p>
               </div>
 
@@ -9787,7 +9787,7 @@ const DashboardWithFirebase = ({
                     onChange={(e) => setCatalogForm(prev => ({ ...prev, featured: e.target.checked }))}
                     style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                   />
-                  <span style={{ fontWeight: 'bold', color: '#ffffff' }}>⭐ Marcar como Destaque</span>
+                  <span style={{ fontWeight: 'bold', color: '#ffffff' }}>⭐ {t('catalogModal.featured')}</span>
                 </label>
               </div>
 
@@ -9805,7 +9805,7 @@ const DashboardWithFirebase = ({
                     cursor: 'pointer'
                   }}
                 >
-                  Cancelar
+                  {t('catalogModal.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -9820,7 +9820,7 @@ const DashboardWithFirebase = ({
                     cursor: 'pointer'
                   }}
                 >
-                  {editingItem ? 'Atualizar' : 'Adicionar'}
+                  {editingItem ? t('catalogModal.update') : t('catalogModal.add')}
                 </button>
               </div>
             </form>
