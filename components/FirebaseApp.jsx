@@ -4930,10 +4930,10 @@ const DashboardWithFirebase = ({
             <div style={{ flex: 1, minWidth: 0 }}>
               <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('agendamentos')}
-                Agendamentos
+                {t('agendamentosPage.title')}
               </h2>
               <p style={{ fontSize: isMobile ? '0.875rem' : '1rem', color: '#9ca3af' }}>
-                Gerencie todos os agendamentos e compromissos
+                {t('agendamentosPage.subtitle')}
               </p>
             </div>
             <button
@@ -4964,46 +4964,46 @@ const DashboardWithFirebase = ({
                 e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
               }}
             >
-              <span style={{ fontSize: '1.2rem' }}>+</span> Novo Agendamento
+              <span style={{ fontSize: '1.2rem' }}>+</span> {t('agendamentosPage.new')}
             </button>
           </div>
 
           {/* Estatísticas */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '24px' }}>
             <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Total</div>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{t('agendamentosPage.total')}</div>
               <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#ffffff' }}>{stats.total}</div>
             </div>
             <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
-              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Pendentes</div>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{t('agendamentosPage.pending')}</div>
               <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#eab308' }}>{stats.pendente}</div>
             </div>
             <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Confirmados</div>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{t('agendamentosPage.confirmed')}</div>
               <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#10b981' }}>{stats.confirmado}</div>
             </div>
             <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Em Andamento</div>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{t('agendamentosPage.inProgress')}</div>
               <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#10b981' }}>{stats.em_andamento}</div>
             </div>
             <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Concluídos</div>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{t('agendamentosPage.completed')}</div>
               <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#10b981' }}>{stats.concluido}</div>
             </div>
             <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Cancelados</div>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{t('agendamentosPage.cancelled')}</div>
               <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#ef4444' }}>{stats.cancelado}</div>
             </div>
             <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Atrasados</div>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{t('agendamentosPage.late')}</div>
               <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#ef4444' }}>{stats.atrasados}</div>
             </div>
             <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
-              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Hoje</div>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{t('agendamentosPage.today')}</div>
               <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#3b82f6' }}>{stats.hoje}</div>
             </div>
             <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>Próx. 7 dias</div>
+              <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{t('agendamentosPage.next7')}</div>
               <div style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#10b981' }}>{stats.proximos7}</div>
             </div>
           </div>
@@ -5012,13 +5012,13 @@ const DashboardWithFirebase = ({
           <div style={{ backgroundColor: '#1a1f36', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div style={{ flex: '1', minWidth: '220px' }}>
               <label style={{ display: 'block', fontSize: '0.875rem', color: '#ffffff', marginBottom: '8px', fontWeight: '600' }}>
-                Busca
+                {t('agendamentosPage.search')}
               </label>
               <input
                 type="text"
                 value={agendamentoSearch}
                 onChange={(e) => setAgendamentoSearch(e.target.value)}
-                placeholder="Buscar por título, cliente, telefone..."
+                placeholder={t('agendamentosPage.searchPlaceholder')}
                 style={{
                   width: '100%',
                   padding: '10px',
@@ -5033,7 +5033,7 @@ const DashboardWithFirebase = ({
             </div>
             <div style={{ flex: '1', minWidth: '200px' }}>
               <label style={{ display: 'block', fontSize: '0.875rem', color: '#ffffff', marginBottom: '8px', fontWeight: '600' }}>
-                Status
+                {t('agendamentosPage.statusFilter')}
               </label>
               <select
                 value={agendamentoFilter}
@@ -5049,7 +5049,7 @@ const DashboardWithFirebase = ({
                   outline: 'none'
                 }}
               >
-                <option value="todos">Todos os Status</option>
+                <option value="todos">{t('agendamentosPage.allStatus')}</option>
                 <option value="pendente">Pendente</option>
                 <option value="confirmado">Confirmado</option>
                 <option value="em_andamento">Em Andamento</option>
@@ -5059,7 +5059,7 @@ const DashboardWithFirebase = ({
             </div>
             <div style={{ flex: '1', minWidth: '200px' }}>
               <label style={{ display: 'block', fontSize: '0.875rem', color: '#ffffff', marginBottom: '8px', fontWeight: '600' }}>
-                Tipo
+                {t('agendamentosPage.type')}
               </label>
               <select
                 value={agendamentoTypeFilter}
@@ -5075,7 +5075,7 @@ const DashboardWithFirebase = ({
                   outline: 'none'
                 }}
               >
-                <option value="todos">Todos os Tipos</option>
+                <option value="todos">{t('agendamentosPage.allTypes')}</option>
                 <option value="retirada">📦 Retirada</option>
                 <option value="servico">🔧 Serviço</option>
                 <option value="visita">🏢 Visita</option>
@@ -5097,7 +5097,7 @@ const DashboardWithFirebase = ({
                   transition: 'all 0.2s ease'
                 }}
               >
-                📋 Lista
+                📋 {t('agendamentosPage.list')}
               </button>
               <button
                 onClick={() => setAgendamentoViewMode('calendario')}
@@ -5112,7 +5112,7 @@ const DashboardWithFirebase = ({
                   transition: 'all 0.2s ease'
                 }}
               >
-                📅 Calendário
+                📅 {t('agendamentosPage.calendar')}
               </button>
             </div>
             <button
@@ -5120,21 +5120,21 @@ const DashboardWithFirebase = ({
               type="button"
               style={{ backgroundColor: '#0f1419', color: '#ffffff', border: '1px solid rgba(59,130,246,0.5)', borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', fontWeight: '600' }}
             >
-              Exportar CSV
+              {t('agendamentosPage.exportCsv')}
             </button>
             <button
               onClick={() => copyUpcomingReminders(24)}
               type="button"
               style={{ backgroundColor: '#0f1419', color: '#ffffff', border: '1px solid rgba(16,185,129,0.5)', borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', fontWeight: '600' }}
             >
-              Copiar lembretes 24h
+              {t('agendamentosPage.copy24h')}
             </button>
             <button
               onClick={() => copyUpcomingReminders(1)}
               type="button"
               style={{ backgroundColor: '#0f1419', color: '#ffffff', border: '1px solid rgba(168,85,247,0.5)', borderRadius: '10px', padding: '10px 14px', cursor: 'pointer', fontWeight: '600' }}
             >
-              Copiar lembretes 1h
+              {t('agendamentosPage.copy1h')}
             </button>
           </div>
         </div>
@@ -5165,12 +5165,12 @@ const DashboardWithFirebase = ({
           }}>
             <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📅</div>
             <h3 style={{ fontSize: '1.25rem', color: '#1f2937', marginBottom: '8px' }}>
-              Nenhum agendamento encontrado
+              {t('agendamentosPage.emptyTitle')}
             </h3>
             <p style={{ color: '#6b7280' }}>
               {agendamentosAtual.length === 0 
-                ? 'Crie seu primeiro agendamento clicando no botão acima'
-                : 'Nenhum agendamento corresponde aos filtros selecionados'}
+                ? t('agendamentosPage.emptyCreate')
+                : t('agendamentosPage.emptyFilter')}
             </p>
           </div>
         ) : (
@@ -7945,7 +7945,7 @@ const DashboardWithFirebase = ({
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: '24px', gap: isMobile ? '16px' : '0' }}>
               <h2 style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 'bold', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('users', isMobile ? '1.75rem' : '2.25rem')}
-                Gerenciar Usuários
+                {t('usersPage.title')}
               </h2>
               <button
                 onClick={() => handleOpenUserModal()}
@@ -7972,28 +7972,28 @@ const DashboardWithFirebase = ({
                   e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
                 }}
               >
-                + Adicionar Usuário
+                + {t('usersPage.addUser')}
               </button>
             </div>
             
             <div style={{ backgroundColor: '#1a1f36', borderRadius: '20px', padding: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
               {users.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '48px', color: '#9ca3af' }}>
-                  <p style={{ fontSize: '1.125rem', marginBottom: '8px', color: '#ffffff' }}>Nenhum usuário cadastrado</p>
-                  <p style={{ fontSize: '0.875rem' }}>Adicione usuários clicando no botão acima</p>
+                  <p style={{ fontSize: '1.125rem', marginBottom: '8px', color: '#ffffff' }}>{t('usersPage.emptyTitle')}</p>
+                  <p style={{ fontSize: '0.875rem' }}>{t('usersPage.emptyBody')}</p>
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '2px solid rgba(16, 185, 129, 0.2)' }}>
-                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Nome</th>
-                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Email</th>
-                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Número do WhatsApp</th>
-                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Plano</th>
-                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Status</th>
-                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Registrado via</th>
-                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>Ações</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>{t('usersPage.name')}</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>{t('usersPage.email')}</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>{t('usersPage.whatsappNumber')}</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>{t('usersPage.plan')}</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>{t('usersPage.status')}</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>{t('usersPage.registeredVia')}</th>
+                        <th style={{ textAlign: 'left', padding: '12px', fontWeight: '600', color: '#ffffff' }}>{t('usersPage.actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -8013,7 +8013,7 @@ const DashboardWithFirebase = ({
                               fontWeight: '600',
                               border: `1px solid ${userItem.isActive ? 'rgba(16, 185, 129, 0.3)' : 'rgba(220, 38, 38, 0.3)'}`
                             }}>
-                              {userItem.isActive ? 'Ativo' : 'Inativo'}
+                              {userItem.isActive ? t('usersPage.active') : t('usersPage.inactive')}
                             </span>
                           </td>
                           <td style={{ padding: '12px' }}>
@@ -8026,7 +8026,7 @@ const DashboardWithFirebase = ({
                               fontWeight: '600',
                               border: `1px solid ${userItem.registeredVia === 'landing_page' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(168, 85, 247, 0.3)'}`
                             }}>
-                              {userItem.registeredVia === 'landing_page' ? 'Landing Page' : 'Criado pelo Master'}
+                              {userItem.registeredVia === 'landing_page' ? t('usersPage.landingPage') : t('usersPage.createdByMaster')}
                             </span>
                           </td>
                           <td style={{ padding: '12px' }}>
@@ -8043,7 +8043,7 @@ const DashboardWithFirebase = ({
                                   cursor: 'pointer'
                                 }}
                               >
-                                Editar
+                                {t('usersPage.edit')}
                               </button>
                               <button
                                 onClick={() => resetUserPassword(userItem.email)}
@@ -8057,7 +8057,7 @@ const DashboardWithFirebase = ({
                                   cursor: 'pointer'
                                 }}
                               >
-                                Reset Senha
+                                {t('usersPage.resetPassword')}
                               </button>
                               <button
                                 onClick={() => toggleUserPlan(userItem)}
@@ -8071,7 +8071,7 @@ const DashboardWithFirebase = ({
                                   cursor: 'pointer'
                                 }}
                               >
-                                {userItem.hasActivePlan ? 'Desativar Plano' : 'Ativar Plano'}
+                                {userItem.hasActivePlan ? t('usersPage.deactivatePlan') : t('usersPage.activatePlan')}
                               </button>
                               <button
                                 onClick={() => deleteUser(userItem.id)}
@@ -8085,7 +8085,7 @@ const DashboardWithFirebase = ({
                                   cursor: 'pointer'
                                 }}
                               >
-                                Excluir
+                                {t('usersPage.delete')}
                               </button>
                             </div>
                           </td>
