@@ -145,6 +145,9 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
           paidAt: nowIso,
           paymentProvider: 'stripe'
         });
+        const paidOrderSnap = await orderRef.once('value');
+        const paidOrderData = paidOrderSnap.val() || {};
+        await autoMarkTvLoginAsSold(userId, orderId, paidOrderData);
         console.log('✅ Pedido atualizado via Stripe webhook:', { userId, orderId });
       }
 
@@ -1408,6 +1411,23 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       });
     }
     
+    // Buscar logins TV disponiveis (Wplay)
+    const tvLoginsSnapshot = await db.ref(`users/data/${userId}/tv_logins`).once('value');
+    const availableTvLogins = [];
+    if (tvLoginsSnapshot.exists()) {
+      tvLoginsSnapshot.forEach((child) => {
+        const item = child.val() || {};
+        if (item.status !== 'sold') {
+          availableTvLogins.push({
+            login: item.login || '',
+            password: item.password || '',
+            planName: item.planName || '',
+            notes: item.notes || ''
+          });
+        }
+      });
+    }
+
     // Construir prompt do sistema com contexto
     let systemPrompt = aiConfig.systemPrompt || 'Você é um assistente virtual prestativo.';
     
@@ -1518,6 +1538,19 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
 - NÃO peça todos os dados de uma vez
 - Seja EDUCADO e PACIENTE
 - O sistema salva automaticamente cada resposta`;
+    }
+
+    if (availableTvLogins.length > 0) {
+      systemPrompt += `\n\n📺 LOGINS WPLAY DISPONIVEIS (ESTOQUE EM TEMPO REAL):\n`;
+      availableTvLogins.forEach((item, index) => {
+        systemPrompt += `${index + 1}. Plano: ${item.planName || 'Plano nao informado'} | Login: ${item.login} | Senha: ${item.password}`;
+        if (item.notes) systemPrompt += ` | Obs: ${item.notes}`;
+        systemPrompt += '\n';
+      });
+      systemPrompt += `\nREGRAS PARA LOGINS WPLAY:
+- Ofereca SOMENTE os logins listados acima
+- NUNCA ofereca login fora desta lista
+- Se o cliente fechar compra de login, confirme claramente o plano escolhido`;
     }
     
     if (aiConfig.enabledFeatures && aiConfig.enabledFeatures.length > 0) {
@@ -3055,6 +3088,76 @@ function detectPurchaseIntent(messageText) {
   
   const lowerText = messageText.toLowerCase();
   return purchaseKeywords.some(keyword => lowerText.includes(keyword));
+}
+
+function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+async function autoMarkTvLoginAsSold(userId, orderId, orderData) {
+  try {
+    if (!userId || !orderId || !orderData?.items || !Array.isArray(orderData.items)) return;
+
+    const loginsRef = db.ref(`users/data/${userId}/tv_logins`);
+    const snap = await loginsRef.once('value');
+    if (!snap.exists()) return;
+
+    const available = [];
+    snap.forEach((child) => {
+      const item = child.val() || {};
+      if (item.status !== 'sold' && item.login && item.password) {
+        available.push({ id: child.key, ...item });
+      }
+    });
+    if (available.length === 0) return;
+
+    const itemNames = orderData.items.map((it) => normalizeText(it?.name));
+    const hasLikelyTvSale = itemNames.some((name) => (
+      name.includes('wplay') || name.includes('tv') || name.includes('assinatura')
+    ));
+
+    let selected = null;
+    for (const login of available) {
+      const plan = normalizeText(login.planName);
+      const loginName = normalizeText(login.login);
+      const matched = itemNames.some((name) => (
+        (plan.length >= 3 && name.includes(plan)) ||
+        (loginName.length >= 3 && name.includes(loginName))
+      ));
+      if (matched) {
+        selected = login;
+        break;
+      }
+    }
+
+    if (!selected) {
+      if (!hasLikelyTvSale) return;
+      selected = available[0];
+    }
+
+    const soldAt = new Date().toISOString();
+    await db.ref(`users/data/${userId}/tv_logins/${selected.id}`).update({
+      status: 'sold',
+      soldAt,
+      soldOrderId: orderId,
+      soldToPhone: orderData?.customer?.phone || null,
+      soldItemName: orderData?.items?.[0]?.name || null,
+      updatedAt: soldAt
+    });
+
+    console.log('✅ [TV LOGIN] Login marcado como vendido:', {
+      userId,
+      orderId,
+      tvLoginId: selected.id,
+      login: selected.login
+    });
+  } catch (error) {
+    console.error('❌ [TV LOGIN] Erro ao marcar login como vendido:', error.message);
+  }
 }
 
 // Função para criar sessão de checkout no Stripe
@@ -5056,6 +5159,10 @@ app.post('/api/asaas/webhook', async (req, res) => {
       updatedAt: new Date().toISOString(),
       paymentData: payment
     });
+
+    if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
+      await autoMarkTvLoginAsSold(userId, orderId, orderData);
+    }
     
     console.log(`✅ Pedido ${orderId} atualizado para status: ${newStatus}`);
     
