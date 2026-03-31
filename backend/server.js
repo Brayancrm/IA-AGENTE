@@ -1660,27 +1660,43 @@ ${imageInstruction}
 // Função para detectar produtos mencionados na resposta e retornar suas imagens
 function detectMentionedProducts(responseText, catalogItemsMap) {
   const mentionedItems = [];
-  
-  // Percorrer todos os itens do catálogo
-  for (const [itemName, itemData] of Object.entries(catalogItemsMap)) {
-    // Verificar se o nome do produto aparece na resposta (case insensitive)
-    const regex = new RegExp(`\\b${itemName}\\b`, 'i');
-    if (regex.test(responseText.toLowerCase())) {
-      // Incluir item se tiver imagem ou link
+
+  for (const [, itemData] of Object.entries(catalogItemsMap)) {
+    if (!itemData?.name) continue;
+    if (messageMentionsProduct(responseText, itemData.name)) {
       if (itemData.image || itemData.link) {
         mentionedItems.push({
           name: itemData.name,
           image: itemData.image || null,
           price: itemData.price,
+          currency: itemData.currency || 'BRL',
           description: itemData.description,
           link: itemData.link || null
         });
       }
     }
   }
-  
+
   return mentionedItems;
 }
+```
+
+Wait - messageMentionsProduct is defined much later in the file (after mergeProductPriceFromCatalog). detectMentionedProducts is at line 1661, messageMentionsProduct is around 3240. In JavaScript, function declarations are hoisted - so messageMentionsProduct exists when detectMentionedProducts runs. Good.
+
+But wait - detectMentionedProducts is defined BEFORE messageMentionsProduct in the file. Hoisting applies to both - at runtime both exist.
+
+Run node --check - circular dependency? No.
+
+One issue: messageMentionsProduct is defined AFTER detectMentionedProducts in source - hoisting still works for function declarations.
+
+Let me verify Node parses - detectMentionedProducts calls messageMentionsProduct - both are function declarations in same scope - hoisted.
+
+Shell check
+</think>
+
+
+<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
+Shell
 
 // Função para buscar configurações (Firestore e Realtime Database)
 async function getIntegrationsConfig(userId) {
@@ -3195,12 +3211,12 @@ async function mergeProductPriceFromCatalog(userId, product) {
 
   const catalogSnap = await db.ref(`users/data/${userId}/catalog_items`).once('value');
   if (!catalogSnap.exists()) return product;
-  const want = normalizeText(product.name || '');
+  const want = normalizeForProductNameMatch(product.name || '');
   let match = null;
   catalogSnap.forEach((child) => {
     const c = child.val();
     if (!c || !c.name) return;
-    if (normalizeText(c.name) === want && hasValidCatalogPrice(c.price)) {
+    if (normalizeForProductNameMatch(c.name) === want && hasValidCatalogPrice(c.price)) {
       match = { id: child.key, ...c };
     }
   });
@@ -3218,15 +3234,25 @@ async function mergeProductPriceFromCatalog(userId, product) {
   return product;
 }
 
-/** Texto da mensagem vs nome do catálogo (espaços, barras, acentos) */
-function normalizeForProductNameMatch(text) {
+/** Remove emojis (ex.: 📺 no nome do catálogo) para casar com o texto da IA */
+function stripEmojisForMatch(text) {
   return String(text || '')
+    .replace(/\uFE0F/g, '')
+    .replace(/\p{Extended_Pictographic}/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Texto da mensagem vs nome do catálogo (espaços, barras, acentos, sem emoji) */
+function normalizeForProductNameMatch(text) {
+  const base = String(text || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/\s+/g, ' ')
     .replace(/\s*\/\s*/g, '/')
     .trim();
+  return stripEmojisForMatch(base);
 }
 
 function messageMentionsProduct(bodyText, productName) {
