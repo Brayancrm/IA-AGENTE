@@ -78,6 +78,16 @@ const AGENDAMENTO_TIPO_ICON = {
   ligacao: '📞'
 };
 
+const PLAN_CURRENCY_OPTIONS = ['R$', '$', '€'];
+
+const normalizePlanCurrency = (currency) => (
+  PLAN_CURRENCY_OPTIONS.includes(currency) ? currency : 'R$'
+);
+
+const formatPlanPrice = (plan) => (
+  `${normalizePlanCurrency(plan?.currency)} ${parseFloat(plan?.price || 0).toFixed(2)}`
+);
+
 const FirebaseApp = () => {
   const { app, db, auth, database, isReady, error } = useFirebase();
   const [user, setUser] = useState(null);
@@ -1033,6 +1043,7 @@ const FirebaseApp = () => {
           plansList.push({ 
             id: key, 
             ...planData,
+            currency: normalizePlanCurrency(planData.currency),
             limits: planData.limits || {
               messagesPerMonth: null,
               conversations: null,
@@ -1336,6 +1347,7 @@ const FirebaseApp = () => {
       const data = {
         ...planData,
         price: parseFloat(planData.price) || 0,
+        currency: normalizePlanCurrency(planData.currency),
         createdAt: planData.id ? null : new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -1375,6 +1387,7 @@ const FirebaseApp = () => {
                     // Atualizar allowedFeatures e limits do plano ativo do usuário
                     const updatedActivePlan = {
                       ...activePlan,
+                      currency: data.currency,
                       allowedFeatures: data.allowedFeatures || [],
                       limits: data.limits || activePlan.limits,
                       updatedAt: new Date().toISOString()
@@ -1478,6 +1491,7 @@ const FirebaseApp = () => {
         await set(activePlanRef, {
           planId: plan.id,
           planName: plan.name,
+          currency: normalizePlanCurrency(plan.currency),
           startedAt: new Date().toISOString(),
           nextDueDate: nextDueDate,
           isTrialPlan: true,
@@ -2408,6 +2422,7 @@ const FirebaseApp = () => {
       await set(activePlanRef, {
         planId: planId,
         planName: planData.name,
+        currency: normalizePlanCurrency(planData.currency),
         startedAt: new Date().toISOString(),
         nextDueDate: nextDueDate,
         isTrialPlan: planData.isTrialPlan || false,
@@ -2536,7 +2551,7 @@ const FirebaseApp = () => {
                       {plan.name}
                     </h4>
                     <span style={{ fontSize: '1.5rem', fontWeight: '700', color: '#10b981' }}>
-                      R$ {plan.price?.toFixed(2) || '0.00'}
+                      {formatPlanPrice(plan)}
                     </span>
                   </div>
                   {plan.description && (
@@ -2730,7 +2745,7 @@ const FirebaseApp = () => {
                         ) : (
                           <>
                             <span style={{ fontSize: '2rem', fontWeight: '700', color: '#a78bfa' }}>
-                              R$ {parseFloat(plan.price || 0).toFixed(2)}
+                              {formatPlanPrice(plan)}
                             </span>
                             <span style={{ fontSize: '1rem', color: '#9ca3af' }}>
                               / {plan.billingCycle === 'yearly' ? 'ano' : 'mês'}
@@ -3830,6 +3845,7 @@ const DashboardWithFirebase = ({
     name: '',
     description: '',
     price: 0,
+    currency: 'R$',
     billingCycle: 'monthly', // monthly, yearly
     features: [],
     allowedFeatures: [], // Funcionalidades do sidebar permitidas para este plano
@@ -3947,6 +3963,7 @@ const DashboardWithFirebase = ({
         name: editingPlan.name || '',
         description: editingPlan.description || '',
         price: editingPlan.price || 0,
+        currency: normalizePlanCurrency(editingPlan.currency),
         billingCycle: editingPlan.billingCycle || 'monthly',
         features: editingPlan.features || [],
         allowedFeatures: editingPlan.allowedFeatures || [],
@@ -3967,6 +3984,7 @@ const DashboardWithFirebase = ({
         name: '',
         description: '',
         price: 0,
+        currency: 'R$',
         billingCycle: 'monthly',
         features: [],
         allowedFeatures: [],
@@ -7772,7 +7790,7 @@ const DashboardWithFirebase = ({
                         ) : (
                           <>
                         <span style={{ fontSize: '2.5rem', fontWeight: '700', color: '#10b981' }}>
-                          R$ {parseFloat(plan.price || 0).toFixed(2)}
+                          {formatPlanPrice(plan)}
                         </span>
                         <span style={{ fontSize: '1rem', color: '#9ca3af' }}>
                           / {plan.billingCycle === 'yearly' ? 'ano' : 'mês'}
@@ -10221,6 +10239,7 @@ const DashboardWithFirebase = ({
                     name: '',
                     description: '',
                     price: 0,
+                    currency: 'R$',
                     billingCycle: 'monthly',
                     features: [],
                     allowedFeatures: [],
@@ -10256,6 +10275,7 @@ const DashboardWithFirebase = ({
                 name: '',
                 description: '',
                 price: 0,
+                currency: 'R$',
                 billingCycle: 'monthly',
                 features: [],
                 allowedFeatures: [],
@@ -10314,10 +10334,10 @@ const DashboardWithFirebase = ({
               </div>
 
               {/* Preço e Ciclo de Cobrança */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.9375rem', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-                    Preço (R$) *
+                    Preço ({planForm.currency || 'R$'}) *
                   </label>
                   <input
                     type="number"
@@ -10337,6 +10357,30 @@ const DashboardWithFirebase = ({
                     placeholder="0.00"
                     required
                   />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.9375rem', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
+                    Moeda *
+                  </label>
+                  <select
+                    value={normalizePlanCurrency(planForm.currency)}
+                    onChange={(e) => setPlanForm(prev => ({ ...prev, currency: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      fontSize: '1rem',
+                      backgroundColor: '#0f1419',
+                      color: '#ffffff',
+                      cursor: 'pointer'
+                    }}
+                    required
+                  >
+                    {PLAN_CURRENCY_OPTIONS.map((currencyOption) => (
+                      <option key={currencyOption} value={currencyOption}>{currencyOption}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.9375rem', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
@@ -10721,6 +10765,7 @@ const DashboardWithFirebase = ({
                       name: '',
                       description: '',
                       price: 0,
+                      currency: 'R$',
                       billingCycle: 'monthly',
                       features: [],
                       allowedFeatures: [],
