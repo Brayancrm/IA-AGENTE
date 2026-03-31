@@ -2681,12 +2681,9 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
           dataUpdated = true;
           await contextRef.remove();
 
-          const paymentProvider = (assistantSettings?.paymentProvider || 'stripe').toLowerCase();
-          const hasQuantity = (customerData.quantities && Object.keys(customerData.quantities).length > 0) || customerData.lastQuantity;
-          if (paymentProvider === 'stripe' && hasQuantity) {
-            console.log('💳 Quantidade confirmada. Tentando gerar link de pagamento no Stripe...');
-            await tryAutoGenerateStripeLink(userId, phone, sanitizedNumber);
-          }
+          // Não gerar link Stripe aqui: o fluxo costuma seguir para CRM e só depois a IA envia a frase-gatilho
+          // de pagamento. Gerar na quantidade causava erro duplicado e mensagem "não foi possível gerar o link"
+          // antes dos dados do cliente, enquanto o bot continuava o atendimento normalmente.
         }
       }
       
@@ -3530,7 +3527,11 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
     );
 
     if (!result.success) {
-      await client.sendText(phone, 'Não foi possível gerar o link de pagamento. Tente novamente.');
+      console.error('❌ Stripe checkout (auto):', result.error || 'erro desconhecido');
+      await client.sendText(
+        phone,
+        'Não foi possível gerar o link de pagamento agora. Confirme se o Stripe está configurado no painel e se o servidor tem STRIPE_SUCCESS_URL e STRIPE_CANCEL_URL. Tente novamente em instantes.'
+      );
       return;
     }
 
