@@ -121,5 +121,33 @@
     "emptyTitle": "Nessun appuntamento trovato",
     "emptyCreate": "Crea il tuo primo appuntamento cliccando il pulsante sopra",
     "emptyFilter": "Nessun appuntamento corrisponde ai filtri selezionati"
+  },
+  "tutorialsPage": {
+    "title": "Tutorial",
+    "subtitle": "Guida completa su come usare dadosIA nell'ordine corretto",
+    "welcome": "Benvenuto su dadosIA",
+    "welcomeBody": "dadosIA è una piattaforma completa di automazione vendite con IA. Questa guida ti aiuterà a configurare e usare tutte le funzionalità nell'ordine corretto per ottenere le migliori prestazioni.",
+    "setupOrder": "Ordine Corretto di Configurazione",
+    "previous": "Precedente",
+    "next": "Successiva",
+    "page": "Pagina",
+    "of": "di",
+    "steps": "passi",
+    "importantTips": "Suggerimenti Importanti",
+    "tip1": "Segui l'ordine di configurazione per evitare problemi",
+    "tip2": "Mantieni WhatsApp connesso affinché il sistema funzioni",
+    "tip3": "Aggiorna regolarmente il catalogo con nuovi prodotti",
+    "tip4": "Monitora le conversazioni per migliorare l'assistente",
+    "tip5": "Testa l'assistente prima di attivarlo completamente"
+  },
+  "emailPage": {
+    "subtitle": "Crea template email e inviali ai tuoi clienti",
+    "createTemplate": "Crea Template",
+    "emptyTitle": "Nessun template creato",
+    "emptyBody": "Crea il tuo primo template email per iniziare a inviare messaggi ai tuoi clienti",
+    "unnamed": "Senza nome",
+    "subject": "Oggetto",
+    "noSubject": "Senza oggetto",
+    "send": "Invia"
   }
 }

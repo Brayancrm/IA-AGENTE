@@ -121,5 +121,33 @@
     "emptyTitle": "Nenhum agendamento encontrado",
     "emptyCreate": "Crie seu primeiro agendamento clicando no botão acima",
     "emptyFilter": "Nenhum agendamento corresponde aos filtros selecionados"
+  },
+  "tutorialsPage": {
+    "title": "Tutoriais",
+    "subtitle": "Guia completo de como usar o dadosIA na ordem correta",
+    "welcome": "Bem-vindo ao dadosIA",
+    "welcomeBody": "O dadosIA é uma plataforma completa de automação de vendas com IA. Este guia irá te ajudar a configurar e usar todas as funcionalidades na ordem correta para obter o máximo desempenho.",
+    "setupOrder": "Ordem Correta de Configuração",
+    "previous": "Anterior",
+    "next": "Próxima",
+    "page": "Página",
+    "of": "de",
+    "steps": "passos",
+    "importantTips": "Dicas Importantes",
+    "tip1": "Siga a ordem de configuração para evitar problemas",
+    "tip2": "Mantenha seu WhatsApp conectado para o sistema funcionar",
+    "tip3": "Atualize seu catálogo regularmente com novos produtos",
+    "tip4": "Monitore as conversas para melhorar o assistente",
+    "tip5": "Teste o assistente antes de ativar completamente"
+  },
+  "emailPage": {
+    "subtitle": "Crie templates de email e envie para seus clientes",
+    "createTemplate": "Criar Template",
+    "emptyTitle": "Nenhum template criado",
+    "emptyBody": "Crie seu primeiro template de email para começar a enviar mensagens para seus clientes",
+    "unnamed": "Sem nome",
+    "subject": "Assunto",
+    "noSubject": "Sem assunto",
+    "send": "Enviar"
   }
 }

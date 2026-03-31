@@ -8175,10 +8175,10 @@ const DashboardWithFirebase = ({
             <div style={{ marginBottom: '32px' }}>
                 <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('tutorials')}
-                Tutoriais
+                {t('tutorialsPage.title')}
               </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
-                Guia completo de como usar o dadosIA na ordem correta
+                {t('tutorialsPage.subtitle')}
               </p>
             </div>
 
@@ -8195,10 +8195,10 @@ const DashboardWithFirebase = ({
               <div style={{ marginBottom: '32px' }}>
                 <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '1.75rem' }}>👋</span>
-                  Bem-vindo ao dadosIA
+                  {t('tutorialsPage.welcome')}
                 </h3>
                 <p style={{ fontSize: '1rem', color: '#d1d5db', lineHeight: '1.6', marginBottom: '16px' }}>
-                  O dadosIA é uma plataforma completa de automação de vendas com IA. Este guia irá te ajudar a configurar e usar todas as funcionalidades na ordem correta para obter o máximo desempenho.
+                  {t('tutorialsPage.welcomeBody')}
                 </p>
               </div>
 
@@ -8206,7 +8206,7 @@ const DashboardWithFirebase = ({
               <div style={{ marginBottom: '32px' }}>
                 <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '1.75rem' }}>📋</span>
-                  Ordem Correta de Configuração
+                  {t('tutorialsPage.setupOrder')}
                 </h3>
                 
                 {/* Passo Atual */}
@@ -8301,7 +8301,7 @@ const DashboardWithFirebase = ({
                       }}
                     >
                       <span>‹</span>
-                      Anterior
+                      {t('tutorialsPage.previous')}
                     </button>
                     
                     <div style={{
@@ -8311,17 +8311,17 @@ const DashboardWithFirebase = ({
                       color: '#ffffff',
                       fontSize: '0.875rem'
                     }}>
-                      <span>Página</span>
+                      <span>{t('tutorialsPage.page')}</span>
                       <span style={{
                         fontWeight: '600',
                         color: '#10b981'
                       }}>{tutorialsCurrentPage + 1}</span>
-                      <span>de</span>
+                      <span>{t('tutorialsPage.of')}</span>
                       <span style={{
                         fontWeight: '600',
                         color: '#10b981'
                       }}>{totalPages}</span>
-                      <span style={{ color: '#9ca3af' }}>({tutorialSteps.length} passos)</span>
+                      <span style={{ color: '#9ca3af' }}>({tutorialSteps.length} {t('tutorialsPage.steps')})</span>
                     </div>
                     
                     <button
@@ -8356,7 +8356,7 @@ const DashboardWithFirebase = ({
                         }
                       }}
                     >
-                      Próxima
+                      {t('tutorialsPage.next')}
                       <span>›</span>
                     </button>
                   </div>
@@ -8372,28 +8372,28 @@ const DashboardWithFirebase = ({
               }}>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#fbbf24', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '1.5rem' }}>💡</span>
-                  Dicas Importantes
+                  {t('tutorialsPage.importantTips')}
                 </h3>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                   <li style={{ fontSize: '0.9375rem', color: '#d1d5db', marginBottom: '12px', paddingLeft: '24px', position: 'relative', lineHeight: '1.6' }}>
                     <span style={{ position: 'absolute', left: 0, fontSize: '1.25rem' }}>•</span>
-                    Siga a ordem de configuração para evitar problemas
+                    {t('tutorialsPage.tip1')}
                   </li>
                   <li style={{ fontSize: '0.9375rem', color: '#d1d5db', marginBottom: '12px', paddingLeft: '24px', position: 'relative', lineHeight: '1.6' }}>
                     <span style={{ position: 'absolute', left: 0, fontSize: '1.25rem' }}>•</span>
-                    Mantenha seu WhatsApp conectado para o sistema funcionar
+                    {t('tutorialsPage.tip2')}
                   </li>
                   <li style={{ fontSize: '0.9375rem', color: '#d1d5db', marginBottom: '12px', paddingLeft: '24px', position: 'relative', lineHeight: '1.6' }}>
                     <span style={{ position: 'absolute', left: 0, fontSize: '1.25rem' }}>•</span>
-                    Atualize seu catálogo regularmente com novos produtos
+                    {t('tutorialsPage.tip3')}
                   </li>
                   <li style={{ fontSize: '0.9375rem', color: '#d1d5db', marginBottom: '12px', paddingLeft: '24px', position: 'relative', lineHeight: '1.6' }}>
                     <span style={{ position: 'absolute', left: 0, fontSize: '1.25rem' }}>•</span>
-                    Monitore as conversas para melhorar o assistente
+                    {t('tutorialsPage.tip4')}
                   </li>
                   <li style={{ fontSize: '0.9375rem', color: '#d1d5db', marginBottom: '12px', paddingLeft: '24px', position: 'relative', lineHeight: '1.6' }}>
                     <span style={{ position: 'absolute', left: 0, fontSize: '1.25rem' }}>•</span>
-                    Teste o assistente antes de ativar completamente
+                    {t('tutorialsPage.tip5')}
                   </li>
                 </ul>
               </div>
@@ -8411,7 +8411,7 @@ const DashboardWithFirebase = ({
                 Email
               </h2>
               <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
-                Crie templates de email e envie para seus clientes
+                {t('emailPage.subtitle')}
               </p>
             </div>
 
@@ -8448,7 +8448,7 @@ const DashboardWithFirebase = ({
                 }}
               >
                 <span>+</span>
-                Criar Template
+                {t('emailPage.createTemplate')}
               </button>
             </div>
 
@@ -8470,10 +8470,10 @@ const DashboardWithFirebase = ({
                 }}>
                   <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📧</div>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>
-                    Nenhum template criado
+                    {t('emailPage.emptyTitle')}
                   </h3>
                   <p style={{ fontSize: '0.9375rem', color: '#9ca3af', marginBottom: '24px' }}>
-                    Crie seu primeiro template de email para começar a enviar mensagens para seus clientes
+                    {t('emailPage.emptyBody')}
                   </p>
                 </div>
               ) : (
@@ -8510,7 +8510,7 @@ const DashboardWithFirebase = ({
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                       <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#ffffff', margin: 0 }}>
-                        {template.name || 'Sem nome'}
+                        {template.name || t('emailPage.unnamed')}
                       </h3>
                       <button
                         onClick={(e) => {
@@ -8530,7 +8530,7 @@ const DashboardWithFirebase = ({
                       </button>
                     </div>
                     <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '12px' }}>
-                      Assunto: {template.subject || 'Sem assunto'}
+                      {t('emailPage.subject')}: {template.subject || t('emailPage.noSubject')}
                     </p>
                     <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
                       <button
@@ -8551,7 +8551,7 @@ const DashboardWithFirebase = ({
                           cursor: 'pointer'
                         }}
                       >
-                        Enviar
+                        {t('emailPage.send')}
                       </button>
                     </div>
                   </div>

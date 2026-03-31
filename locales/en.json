@@ -121,5 +121,33 @@
     "emptyTitle": "No appointments found",
     "emptyCreate": "Create your first appointment using the button above",
     "emptyFilter": "No appointments match the selected filters"
+  },
+  "tutorialsPage": {
+    "title": "Tutorials",
+    "subtitle": "Complete guide to use dadosIA in the correct order",
+    "welcome": "Welcome to dadosIA",
+    "welcomeBody": "dadosIA is a complete AI sales automation platform. This guide helps you configure and use all features in the correct order to get the best performance.",
+    "setupOrder": "Correct Setup Order",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page",
+    "of": "of",
+    "steps": "steps",
+    "importantTips": "Important Tips",
+    "tip1": "Follow the setup order to avoid issues",
+    "tip2": "Keep your WhatsApp connected for the system to work",
+    "tip3": "Update your catalog regularly with new products",
+    "tip4": "Monitor conversations to improve the assistant",
+    "tip5": "Test the assistant before fully activating it"
+  },
+  "emailPage": {
+    "subtitle": "Create email templates and send them to your customers",
+    "createTemplate": "Create Template",
+    "emptyTitle": "No templates created",
+    "emptyBody": "Create your first email template to start sending messages to your customers",
+    "unnamed": "Unnamed",
+    "subject": "Subject",
+    "noSubject": "No subject",
+    "send": "Send"
   }
 }

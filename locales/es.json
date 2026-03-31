@@ -121,5 +121,33 @@
     "emptyTitle": "No se encontraron citas",
     "emptyCreate": "Crea tu primera cita haciendo clic en el botón de arriba",
     "emptyFilter": "Ninguna cita coincide con los filtros seleccionados"
+  },
+  "tutorialsPage": {
+    "title": "Tutoriales",
+    "subtitle": "Guía completa para usar dadosIA en el orden correcto",
+    "welcome": "Bienvenido a dadosIA",
+    "welcomeBody": "dadosIA es una plataforma completa de automatización de ventas con IA. Esta guía te ayudará a configurar y usar todas las funcionalidades en el orden correcto para lograr el máximo rendimiento.",
+    "setupOrder": "Orden Correcto de Configuración",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "page": "Página",
+    "of": "de",
+    "steps": "pasos",
+    "importantTips": "Consejos Importantes",
+    "tip1": "Sigue el orden de configuración para evitar problemas",
+    "tip2": "Mantén tu WhatsApp conectado para que el sistema funcione",
+    "tip3": "Actualiza tu catálogo regularmente con nuevos productos",
+    "tip4": "Supervisa las conversaciones para mejorar el asistente",
+    "tip5": "Prueba el asistente antes de activarlo por completo"
+  },
+  "emailPage": {
+    "subtitle": "Crea plantillas de correo y envíalas a tus clientes",
+    "createTemplate": "Crear Plantilla",
+    "emptyTitle": "No hay plantillas creadas",
+    "emptyBody": "Crea tu primera plantilla de correo para comenzar a enviar mensajes a tus clientes",
+    "unnamed": "Sin nombre",
+    "subject": "Asunto",
+    "noSubject": "Sin asunto",
+    "send": "Enviar"
   }
 }
