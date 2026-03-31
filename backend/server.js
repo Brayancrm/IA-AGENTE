@@ -3471,36 +3471,40 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
     if (!productsData || !messagesSnapshot.exists()) return;
 
     const products = Object.values(productsData);
-    const mentionedProducts = [];
+    // Uma única linha no checkout por conversa: nas últimas mensagens, a última menção ao nome do produto vence.
+    // Antes empurrávamos o mesmo produto várias vezes (uma por mensagem que citava o nome) e o Stripe recebia N linhas iguais.
+    let lastMentionedProduct = null;
     messagesSnapshot.forEach((messageSnap) => {
       const msg = messageSnap.val();
       const messageText = msg.body ? msg.body.toLowerCase() : '';
       if (!messageText) return;
-      products.forEach(product => {
+      for (const product of products) {
         const safeName = String(product.name || '').toLowerCase();
         if (safeName && messageText.includes(safeName)) {
-          mentionedProducts.push(product);
+          lastMentionedProduct = product;
         }
-      });
+      }
     });
 
-    const itemsWithPrice = mentionedProducts.filter(item =>
-      item.price !== null && item.price !== undefined && item.price !== ''
-    );
-    if (itemsWithPrice.length === 0) {
+    if (
+      !lastMentionedProduct ||
+      lastMentionedProduct.price === null ||
+      lastMentionedProduct.price === undefined ||
+      lastMentionedProduct.price === ''
+    ) {
       await client.sendText(phone, 'Para finalizar a compra, preciso de um item com preço definido.');
       return;
     }
 
-    const orderItems = itemsWithPrice.map(item => ({
-      name: item.name,
-      price: item.price,
+    const orderItems = [{
+      name: lastMentionedProduct.name,
+      price: lastMentionedProduct.price,
       quantity: 1,
-      description: item.description,
-      catalogItemId: item.id,
-      tvLoginProduct: !!item.tvLoginProduct,
-      tvPlanKey: normalizePlanKey(item.tvPlanKey || item.planName || '')
-    }));
+      description: lastMentionedProduct.description,
+      catalogItemId: lastMentionedProduct.id,
+      tvLoginProduct: !!lastMentionedProduct.tvLoginProduct,
+      tvPlanKey: normalizePlanKey(lastMentionedProduct.tvPlanKey || lastMentionedProduct.planName || '')
+    }];
 
     const enrichedOrderItems = await enrichOrderItemsWithCatalog(userId, orderItems);
 
