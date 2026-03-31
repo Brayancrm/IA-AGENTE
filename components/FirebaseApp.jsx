@@ -3538,17 +3538,17 @@ const DashboardWithFirebase = ({
             <button
               onClick={async () => {
                 if (!beefreeEditorRef.current) {
-                  showToast('Editor não está pronto. Aguarde o carregamento.', 'error');
+                  showToast(t('toast.editorNotReadyWait'), 'error');
                   return;
                 }
 
                 if (!database) {
-                  showToast('Erro: Banco de dados não disponível', 'error');
+                  showToast(t('toast.databaseUnavailable'), 'error');
                   return;
                 }
 
                 if (!formData.name || !formData.subject) {
-                  showToast('Por favor, preencha o nome e o assunto do template', 'error');
+                  showToast(t('toast.templateNameSubjectRequired'), 'error');
                   return;
                 }
                 
@@ -3557,7 +3557,7 @@ const DashboardWithFirebase = ({
                   if (beefreeEditorRef.current && beefreeEditorRef.current.exportHtml) {
                     beefreeEditorRef.current.exportHtml(async (data) => {
                       if (!data) {
-                        showToast('Erro ao exportar conteúdo do editor. Tente novamente.', 'error');
+                        showToast(t('toast.editorExportRetry'), 'error');
                         return;
                       }
 
@@ -3580,14 +3580,14 @@ const DashboardWithFirebase = ({
                           const templateRef = ref(database, `email_templates/${template.id}`);
                           await set(templateRef, templateToSave);
                           console.log('✅ Template atualizado:', template.id);
-                          showToast('Template atualizado com sucesso!', 'success');
+                          showToast(t('toast.templateUpdated'), 'success');
                         } else {
                           // Criar novo template
                           const templatesRef = ref(database, 'email_templates');
                           const newTemplateRef = push(templatesRef);
                           await set(newTemplateRef, templateToSave);
                           console.log('✅ Template criado:', newTemplateRef.key);
-                          showToast('Template criado com sucesso!', 'success');
+                          showToast(t('toast.templateCreated'), 'success');
                         }
 
                         onClose();
@@ -3597,7 +3597,7 @@ const DashboardWithFirebase = ({
                       }
                     });
                   } else {
-                    showToast('Editor não está pronto. Aguarde o carregamento completo.', 'error');
+                    showToast(t('toast.editorNotReadyFullLoad'), 'error');
                   }
                 } catch (error) {
                   console.error('❌ Erro ao exportar HTML do editor:', error);
@@ -3885,7 +3885,7 @@ const DashboardWithFirebase = ({
         // Validar tipo de arquivo
         const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
         if (!validTypes.includes(file.type)) {
-          showToast('Formato de arquivo inválido. Use JPG, PNG, GIF ou WEBP', 'error');
+          showToast(t('toast.invalidImageFormat'), 'error');
           setLocalUploadingCompanyPhoto(false);
           return;
         }
@@ -3893,7 +3893,7 @@ const DashboardWithFirebase = ({
         // Validar tamanho (máximo 2MB para Base64)
         const maxSize = 2 * 1024 * 1024; // 2MB
         if (file.size > maxSize) {
-          showToast('A imagem deve ter no máximo 2MB', 'error');
+          showToast(t('toast.imageMax2mb'), 'error');
           setLocalUploadingCompanyPhoto(false);
           return;
         }
@@ -3908,7 +3908,7 @@ const DashboardWithFirebase = ({
         
         setCompanyForm(prev => ({ ...prev, photoURL: base64String }));
         setFinalCompanyPhotoPreview(base64String);
-        showToast('Foto processada com sucesso!');
+        showToast(t('toast.photoProcessed'));
       } catch (error) {
         console.error('Erro ao processar a foto:', error);
         showToast('Erro ao processar a foto: ' + (error.message || 'Erro desconhecido'), 'error');
@@ -3916,7 +3916,7 @@ const DashboardWithFirebase = ({
         setLocalUploadingCompanyPhoto(false);
       }
     } else {
-      showToast('Erro: Database ou usuário não disponível', 'error');
+      showToast(t('toast.databaseOrUserUnavailable'), 'error');
     }
   };
 
@@ -4114,19 +4114,19 @@ const DashboardWithFirebase = ({
     e.preventDefault();
     const name = String(catalogForm.name || '').trim();
     if (!name) {
-      showToast('Nome do item é obrigatório.', 'error');
+      showToast(t('toast.itemNameRequired'), 'error');
       return;
     }
 
     const stockValue = Number(catalogForm.stockQuantity);
     if (!Number.isInteger(stockValue) || stockValue < 0) {
-      showToast('Estoque deve ser um número inteiro maior ou igual a 0.', 'error');
+      showToast(t('toast.stockMustBeInteger'), 'error');
       return;
     }
 
     const minStockValue = Number(catalogForm.minStock);
     if (!Number.isInteger(minStockValue) || minStockValue < 0) {
-      showToast('Estoque mínimo deve ser um número inteiro maior ou igual a 0.', 'error');
+      showToast(t('toast.minStockMustBeInteger'), 'error');
       return;
     }
 
@@ -4135,7 +4135,7 @@ const DashboardWithFirebase = ({
       const priceValue = Number(priceRaw.replace(',', '.'));
       const hasTooManyDecimals = !/^\d+([.,]\d{1,2})?$/.test(priceRaw);
       if (!Number.isFinite(priceValue) || priceValue < 0 || hasTooManyDecimals) {
-        showToast('Preço inválido. Use valor >= 0 com no máximo 2 casas decimais.', 'error');
+        showToast(t('toast.invalidPriceFormat'), 'error');
         return;
       }
     }
@@ -4148,7 +4148,7 @@ const DashboardWithFirebase = ({
         String(item.sku || '').trim().toLowerCase() === sku.toLowerCase()
       ));
       if (hasDuplicateSku) {
-        showToast('SKU já existe no catálogo. Use um código único.', 'error');
+        showToast(t('toast.skuAlreadyExists'), 'error');
         return;
       }
     }
@@ -4803,7 +4803,7 @@ const DashboardWithFirebase = ({
   const deleteAgendamento = useCallback(async (id) => {
     if (!window.confirm('Tem certeza que deseja excluir?')) return;
     if (!user || !database) {
-      showToast('❌ Erro: Usuário não autenticado', 'error');
+      showToast(t('toast.unauthenticated'), 'error');
       return;
     }
     try {
@@ -4812,20 +4812,20 @@ const DashboardWithFirebase = ({
       showToast(t('toast.scheduleDeleted'), 'success');
     } catch (error) {
       console.error('❌ [FIREBASE] Erro ao excluir agendamento:', error);
-      showToast('❌ Erro ao excluir agendamento', 'error');
+      showToast(t('toast.scheduleDeleteError'), 'error');
     }
   }, [user, database]);
 
   const updateAgendamentoStatus = useCallback(async (agendamentoId, newStatus) => {
     if (!user || !database) {
-      showToast('❌ Erro: Usuário não autenticado', 'error');
+      showToast(t('toast.unauthenticated'), 'error');
       return;
     }
     try {
       const agendamentoRef = ref(database, `users/data/${user.uid}/agendamentos/${agendamentoId}`);
       const snapshot = await get(agendamentoRef);
       if (!snapshot.exists()) {
-        showToast('❌ Agendamento não encontrado', 'error');
+        showToast(t('toast.scheduleNotFound'), 'error');
         return;
       }
       const agendamentoData = snapshot.val();
@@ -4847,7 +4847,7 @@ const DashboardWithFirebase = ({
       showToast(`Status alterado para: ${getStatusLabel(newStatus)}`, 'success');
     } catch (error) {
       console.error('❌ [FIREBASE] Erro ao atualizar status:', error);
-      showToast('❌ Erro ao atualizar status', 'error');
+      showToast(t('toast.scheduleStatusUpdateError'), 'error');
     }
   }, [user, database, getStatusLabel]);
 
@@ -4885,7 +4885,7 @@ const DashboardWithFirebase = ({
   const openWhatsAppReminder = useCallback((agendamento) => {
     const phone = String(agendamento?.telefone || '').replace(/\D/g, '');
     if (!phone) {
-      showToast('Agendamento sem telefone para enviar lembrete.', 'error');
+      showToast(t('toast.scheduleMissingPhone'), 'error');
       return;
     }
     const mensagem = `Olá ${agendamento.cliente || ''}! Lembrete do seu agendamento "${agendamento.titulo || 'Compromisso'}" em ${agendamento.data || ''} às ${agendamento.horario || ''}.`;
@@ -6150,7 +6150,7 @@ const DashboardWithFirebase = ({
                           if (file) {
                             // Validar tamanho (máximo 5MB)
                             if (file.size > 2 * 1024 * 1024) {
-                              showToast('A imagem deve ter no máximo 2MB', 'error');
+                              showToast(t('toast.imageMax2mb'), 'error');
                               return;
                             }
                             handleCompanyPhotoUploadWrapper(file);
@@ -6380,7 +6380,7 @@ const DashboardWithFirebase = ({
 
         const copyPastDueList = async () => {
           if (pastDueItems.length === 0) {
-            showToast('Nenhum cliente past_due para copiar no momento.', 'error');
+            showToast(t('toast.noPastDueClientsToCopy'), 'error');
             return;
           }
 
@@ -6401,7 +6401,7 @@ const DashboardWithFirebase = ({
             await navigator.clipboard.writeText(text);
             showToast(`Lista past_due copiada! (${uniqueRows.length} cliente(s))`, 'success');
           } catch (error) {
-            showToast('Não foi possível copiar automaticamente. Verifique permissões do navegador.', 'error');
+            showToast(t('toast.clipboardPermissionError'), 'error');
           }
         };
 
@@ -7550,7 +7550,7 @@ const DashboardWithFirebase = ({
                               configUiMode: 'advanced'
                             };
                           });
-                          showToast('Abordagens fixas sincronizadas nas descrições dos passos.', 'success');
+                          showToast(t('toast.fixedApproachesSynced'), 'success');
                         } else {
                           setAssistantForm((prev) => ({ ...prev, configUiMode: 'advanced' }));
                         }
@@ -10921,7 +10921,7 @@ const DashboardWithFirebase = ({
                         if (file) {
                           // Validar tamanho (máximo 5MB)
                           if (file.size > 5 * 1024 * 1024) {
-                            showToast('A imagem deve ter no máximo 5MB', 'error');
+                            showToast(t('toast.imageMax5mb'), 'error');
                             return;
                           }
                           handlePhotoUpload(file);
