@@ -1343,12 +1343,18 @@ const FirebaseApp = () => {
       showToast(t('toast.masterOnlyPlans'), 'error');
       return;
     }
+
+    if (planData.tvLoginProduct && !String(planData.tvPlanKey || '').trim()) {
+      showToast('Informe a chave do plano (tvPlanKey) para planos TV/Wplay.', 'error');
+      return;
+    }
     
     try {
       const data = {
         ...planData,
         price: parseFloat(planData.price) || 0,
         currency: normalizePlanCurrency(planData.currency),
+        ownerUid: user.uid,
         createdAt: planData.id ? null : new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -1356,7 +1362,7 @@ const FirebaseApp = () => {
       if (editingPlan) {
         // Atualizar plano existente
         const planRef = ref(database, `plans/${editingPlan.id}`);
-        await set(planRef, data);
+        await set(planRef, { ...data, id: editingPlan.id });
         
         // Atualizar planos ativos de todos os usuários que têm este plano
         try {
@@ -1420,7 +1426,7 @@ const FirebaseApp = () => {
         // Criar novo plano
         const plansRef = ref(database, 'plans');
         const newPlanRef = push(plansRef);
-        await set(newPlanRef, data);
+        await set(newPlanRef, { ...data, id: newPlanRef.key });
         showToast(t('toast.planCreated'));
       }
     } catch (error) {
@@ -1751,6 +1757,8 @@ const FirebaseApp = () => {
         sku: String(itemData.sku || '').trim(),
         image: String(itemData.image || '').trim(),
         link: String(itemData.link || '').trim(),
+        tvLoginProduct: !!itemData.tvLoginProduct,
+        tvPlanKey: String(itemData.tvPlanKey || '').trim(),
         updatedAt: now
       };
       
@@ -1785,6 +1793,8 @@ const FirebaseApp = () => {
           link: data.link || '',
           type: data.type || 'product',
           active: true,
+          tvLoginProduct: data.tvLoginProduct,
+          tvPlanKey: data.tvPlanKey || '',
           createdAt: originalCreatedAt,
           updatedAt: data.updatedAt
         };
@@ -1813,6 +1823,8 @@ const FirebaseApp = () => {
           link: data.link || '',
           type: data.type || 'product',
           active: true,
+          tvLoginProduct: data.tvLoginProduct,
+          tvPlanKey: data.tvPlanKey || '',
           createdAt: data.createdAt,
           updatedAt: data.updatedAt
         };
@@ -3112,7 +3124,7 @@ const DashboardWithFirebase = ({
   });
   const [stripeOpsFilter, setStripeOpsFilter] = useState('all');
   const [tvLogins, setTvLogins] = useState([]);
-  const [tvLoginForm, setTvLoginForm] = useState({ login: '', password: '', planName: '', notes: '' });
+  const [tvLoginForm, setTvLoginForm] = useState({ login: '', password: '', planName: '', planKey: '', notes: '' });
   const [editingTvLoginId, setEditingTvLoginId] = useState(null);
   const [tvLoginSearch, setTvLoginSearch] = useState('');
   const [savingTvLogin, setSavingTvLogin] = useState(false);
@@ -3698,7 +3710,9 @@ const DashboardWithFirebase = ({
     image: '',
     link: '',
     featured: false,
-    minStock: 5
+    minStock: 5,
+    tvLoginProduct: false,
+    tvPlanKey: ''
   });
 
   // Estados do Catálogo Avançado
@@ -3887,6 +3901,8 @@ const DashboardWithFirebase = ({
       catalogItems: null,
       integrations: []
     },
+    tvLoginProduct: false,
+    tvPlanKey: '',
     active: true
   });
 
@@ -4005,6 +4021,8 @@ const DashboardWithFirebase = ({
           catalogItems: null,
           integrations: []
         },
+        tvLoginProduct: !!editingPlan.tvLoginProduct,
+        tvPlanKey: editingPlan.tvPlanKey || '',
         active: editingPlan.active !== undefined ? editingPlan.active : true
       });
     } else {
@@ -4026,6 +4044,8 @@ const DashboardWithFirebase = ({
           catalogItems: null,
           integrations: []
         },
+        tvLoginProduct: false,
+        tvPlanKey: '',
         active: true
       });
     }
@@ -4045,7 +4065,9 @@ const DashboardWithFirebase = ({
         image: item.image || '',
         link: item.link || '',
         featured: item.featured || false,
-        minStock: item.minStock || 5
+        minStock: item.minStock || 5,
+        tvLoginProduct: !!item.tvLoginProduct,
+        tvPlanKey: item.tvPlanKey || ''
       });
       setEditingItem(item);
     } else {
@@ -4060,7 +4082,9 @@ const DashboardWithFirebase = ({
         image: '',
         link: '',
         featured: false,
-        minStock: 5
+        minStock: 5,
+        tvLoginProduct: false,
+        tvPlanKey: ''
       });
       setEditingItem(null);
     }
@@ -4181,13 +4205,18 @@ const DashboardWithFirebase = ({
       }
     }
 
+    if (catalogForm.tvLoginProduct && !String(catalogForm.tvPlanKey || '').trim()) {
+      showToast('Informe a chave do plano (tvPlanKey) para produtos TV.', 'error');
+      return;
+    }
+
     saveCatalogItem(catalogForm, editingItem?.id || null);
     setShowCatalogModal(false);
     setEditingItem(null);
   };
 
   const resetTvLoginForm = () => {
-    setTvLoginForm({ login: '', password: '', planName: '', notes: '' });
+    setTvLoginForm({ login: '', password: '', planName: '', planKey: '', notes: '' });
     setEditingTvLoginId(null);
   };
 
@@ -4198,10 +4227,15 @@ const DashboardWithFirebase = ({
     const login = String(tvLoginForm.login || '').trim();
     const password = String(tvLoginForm.password || '').trim();
     const planName = String(tvLoginForm.planName || '').trim();
+    const planKey = String(tvLoginForm.planKey || '').trim();
     const notes = String(tvLoginForm.notes || '').trim();
 
     if (!login || !password) {
       showToast('Informe login e senha.', 'error');
+      return;
+    }
+    if (!planKey) {
+      showToast('Informe a chave do plano (igual ao catálogo).', 'error');
       return;
     }
 
@@ -4221,6 +4255,7 @@ const DashboardWithFirebase = ({
         login,
         password,
         planName,
+        planKey,
         notes,
         status: 'available',
         updatedAt: new Date().toISOString()
@@ -4254,6 +4289,7 @@ const DashboardWithFirebase = ({
       login: item.login || '',
       password: item.password || '',
       planName: item.planName || '',
+      planKey: item.planKey || '',
       notes: item.notes || ''
     });
   };
@@ -4283,6 +4319,10 @@ const DashboardWithFirebase = ({
         soldOrderId: null,
         soldToPhone: null,
         soldItemName: null,
+        stripeSubscriptionId: null,
+        buyerUserId: null,
+        deliveryChannel: null,
+        recurring: null,
         updatedAt: new Date().toISOString()
       });
       showToast('Login marcado como disponivel.', 'success');
@@ -6513,7 +6553,7 @@ const DashboardWithFirebase = ({
       case 'tv-logins': {
         const query = String(tvLoginSearch || '').toLowerCase().trim();
         const filtered = tvLogins.filter((item) => {
-          const text = `${item.login || ''} ${item.planName || ''} ${item.notes || ''}`.toLowerCase();
+          const text = `${item.login || ''} ${item.planName || ''} ${item.planKey || ''} ${item.notes || ''}`.toLowerCase();
           return !query || text.includes(query);
         });
         const availableCount = tvLogins.filter((i) => i?.status !== 'sold').length;
@@ -6536,7 +6576,8 @@ const DashboardWithFirebase = ({
                 <form onSubmit={handleTvLoginSubmit} style={{ display: 'grid', gap: '10px' }}>
                   <input value={tvLoginForm.login} onChange={(e) => setTvLoginForm((p) => ({ ...p, login: e.target.value }))} placeholder="Login / usuario" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
                   <input value={tvLoginForm.password} onChange={(e) => setTvLoginForm((p) => ({ ...p, password: e.target.value }))} placeholder="Senha" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
-                  <input value={tvLoginForm.planName} onChange={(e) => setTvLoginForm((p) => ({ ...p, planName: e.target.value }))} placeholder="Plano (ex: Mensal, Anual)" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
+                  <input value={tvLoginForm.planName} onChange={(e) => setTvLoginForm((p) => ({ ...p, planName: e.target.value }))} placeholder="Nome do plano (exibicao)" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
+                  <input value={tvLoginForm.planKey} onChange={(e) => setTvLoginForm((p) => ({ ...p, planKey: e.target.value }))} placeholder="Chave do plano (igual ao tvPlanKey do catalogo)" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
                   <textarea value={tvLoginForm.notes} onChange={(e) => setTvLoginForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Observacoes (opcional)" rows={3} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button type="submit" disabled={savingTvLogin} style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 14px', cursor: 'pointer', fontWeight: '700' }}>
@@ -6568,7 +6609,7 @@ const DashboardWithFirebase = ({
                         <div>
                           <p style={{ margin: 0, color: '#fff', fontWeight: '700' }}>{item.login}</p>
                           <p style={{ margin: '2px 0 0 0', color: '#9ca3af', fontSize: '0.82rem' }}>
-                            Plano: {item.planName || 'Nao informado'} · Senha: {item.password}
+                            Plano: {item.planName || 'Nao informado'} · Chave: {item.planKey || '—'} · Senha: {item.password}
                           </p>
                           {item.notes ? <p style={{ margin: '6px 0 0 0', color: '#cbd5e1', fontSize: '0.82rem' }}>{item.notes}</p> : null}
                           {item.status === 'sold' && (
@@ -10014,6 +10055,48 @@ const DashboardWithFirebase = ({
               </div>
 
               <div style={{
+                padding: '16px',
+                backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                borderRadius: '8px',
+                border: '1px solid rgba(16, 185, 129, 0.35)'
+              }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '12px' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!catalogForm.tvLoginProduct}
+                    onChange={(e) => setCatalogForm((prev) => ({ ...prev, tvLoginProduct: e.target.checked }))}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                  <span style={{ fontWeight: 'bold', color: '#ffffff' }}>📺 Produto TV / Wplay (credenciais após pagamento)</span>
+                </label>
+                {catalogForm.tvLoginProduct ? (
+                  <div>
+                    <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#d1d5db' }}>
+                      Chave do plano (tvPlanKey) *
+                    </label>
+                    <input
+                      type="text"
+                      value={catalogForm.tvPlanKey || ''}
+                      onChange={(e) => setCatalogForm((prev) => ({ ...prev, tvPlanKey: e.target.value }))}
+                      placeholder="ex: wplay_mensal"
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        border: '1px solid #374151',
+                        fontSize: '1rem',
+                        backgroundColor: '#111827',
+                        color: '#ffffff'
+                      }}
+                    />
+                    <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '6px' }}>
+                      Mesma chave dos logins em Estoque TV e do plano de assinatura, se aplicável.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+
+              <div style={{
                 padding: '12px',
                 backgroundColor: 'rgba(16, 185, 129, 0.1)',
                 borderRadius: '8px',
@@ -10487,6 +10570,8 @@ const DashboardWithFirebase = ({
                     trialDurationMinutes: 30,
                     oneTimeUse: false,
                     limits: { messagesPerMonth: null, conversations: null, catalogItems: null, integrations: [] },
+                    tvLoginProduct: false,
+                    tvPlanKey: '',
                     active: true
                   });
                 }}
@@ -10523,6 +10608,8 @@ const DashboardWithFirebase = ({
                 trialDurationMinutes: 30,
                 oneTimeUse: false,
                 limits: { messagesPerMonth: null, conversations: null, catalogItems: null, integrations: [] },
+                tvLoginProduct: false,
+                tvPlanKey: '',
                 active: true
               });
             }} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -10643,6 +10730,49 @@ const DashboardWithFirebase = ({
                     <option value="yearly">{t('planModal.yearly')}</option>
                   </select>
                 </div>
+              </div>
+
+              <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.08)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.35)' }}>
+                <h4 style={{ fontSize: '1.125rem', fontWeight: '700', color: '#34d399', marginBottom: '12px' }}>
+                  📺 TV / Wplay (opcional)
+                </h4>
+                <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '16px' }}>
+                  Marque se este plano de assinatura inclui acesso TV/Wplay. O estoque fica em Logins TV; use a mesma chave nos itens do catálogo.
+                </p>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '12px' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!planForm.tvLoginProduct}
+                    onChange={(e) => setPlanForm((prev) => ({ ...prev, tvLoginProduct: e.target.checked }))}
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                  <span style={{ color: '#e5e7eb', fontWeight: '600' }}>Este plano entrega login/senha TV após pagamento (recorrente)</span>
+                </label>
+                {planForm.tvLoginProduct ? (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', marginBottom: '6px', color: '#d1d5db' }}>
+                      Chave do plano (tvPlanKey)
+                    </label>
+                    <input
+                      type="text"
+                      value={planForm.tvPlanKey || ''}
+                      onChange={(e) => setPlanForm((prev) => ({ ...prev, tvPlanKey: e.target.value }))}
+                      placeholder="ex: wplay_mensal"
+                      style={{
+                        width: '100%',
+                        padding: '12px 14px',
+                        borderRadius: '10px',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        fontSize: '0.9375rem',
+                        backgroundColor: '#0f1419',
+                        color: '#ffffff'
+                      }}
+                    />
+                    <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '6px' }}>
+                      Deve coincidir com o mesmo campo no item do catálogo e com a chave cadastrada em cada login de estoque.
+                    </p>
+                  </div>
+                ) : null}
               </div>
 
               {/* Limites */}
@@ -11013,6 +11143,8 @@ const DashboardWithFirebase = ({
                       trialDurationHours: 0,
                       trialDurationMinutes: 30,
                       oneTimeUse: false,
+                      tvLoginProduct: false,
+                      tvPlanKey: '',
                       active: true
                     });
                   }}

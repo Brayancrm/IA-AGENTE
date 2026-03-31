@@ -147,7 +147,9 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
         });
         const paidOrderSnap = await orderRef.once('value');
         const paidOrderData = paidOrderSnap.val() || {};
-        await autoMarkTvLoginAsSold(userId, orderId, paidOrderData);
+        if (!isSubscription) {
+          await deliverTvLoginsForPaidOrder(userId, orderId, paidOrderData);
+        }
         console.log('✅ Pedido atualizado via Stripe webhook:', { userId, orderId });
       }
 
@@ -249,6 +251,13 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
               planName: existingPlan.planName || targetSubData?.planName || 'Plano',
               ...(nextDueDate ? { nextDueDate } : {}),
               updatedAt: nowIso
+            });
+
+            await handleTvSubscriptionStripeInvoice({
+              buyerUserId: targetUserId,
+              subscriptionKey: targetSubKey,
+              subData: targetSubData,
+              invoice
             });
           }
 
@@ -1388,7 +1397,9 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
             stock: item.stockQuantity || 0,
             image: item.image || null,
             link: item.link || null,
-            category: item.category || ''
+            category: item.category || '',
+            tvLoginProduct: !!item.tvLoginProduct,
+            tvPlanKey: item.tvPlanKey || ''
           };
           catalogProducts.push(productData);
           catalogItemsMap[item.name.toLowerCase()] = productData;
@@ -1411,20 +1422,16 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       });
     }
     
-    // Buscar logins TV disponiveis (Wplay)
+    // Estoque de acessos TV (apenas contagens — NUNCA enviar credenciais ao modelo)
     const tvLoginsSnapshot = await db.ref(`users/data/${userId}/tv_logins`).once('value');
-    const availableTvLogins = [];
+    const tvStockByPlan = {};
     if (tvLoginsSnapshot.exists()) {
       tvLoginsSnapshot.forEach((child) => {
         const item = child.val() || {};
-        if (item.status !== 'sold') {
-          availableTvLogins.push({
-            login: item.login || '',
-            password: item.password || '',
-            planName: item.planName || '',
-            notes: item.notes || ''
-          });
-        }
+        if (item.status === 'sold') return;
+        const pk = normalizePlanKey(item.planKey || item.planName || '');
+        if (!pk) return;
+        tvStockByPlan[pk] = (tvStockByPlan[pk] || 0) + 1;
       });
     }
 
@@ -1455,6 +1462,9 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
         }
         if (product.description) {
           systemPrompt += ` - ${product.description}`;
+        }
+        if (product.tvLoginProduct && product.tvPlanKey) {
+          systemPrompt += ` [TV/WPLAY — chave do plano: ${normalizePlanKey(product.tvPlanKey)}]`;
         }
         if (product.image) systemPrompt += ` [TEM FOTO DISPONÍVEL]`;
         if (product.link) systemPrompt += ` [TEM LINK PARA ADESÃO DISPONÍVEL]`;
@@ -1540,17 +1550,16 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
 - O sistema salva automaticamente cada resposta`;
     }
 
-    if (availableTvLogins.length > 0) {
-      systemPrompt += `\n\n📺 LOGINS WPLAY DISPONIVEIS (ESTOQUE EM TEMPO REAL):\n`;
-      availableTvLogins.forEach((item, index) => {
-        systemPrompt += `${index + 1}. Plano: ${item.planName || 'Plano nao informado'} | Login: ${item.login} | Senha: ${item.password}`;
-        if (item.notes) systemPrompt += ` | Obs: ${item.notes}`;
-        systemPrompt += '\n';
+    if (Object.keys(tvStockByPlan).length > 0) {
+      systemPrompt += `\n\n📺 ESTOQUE DE ACESSOS TV/WPLAY (somente quantidade por plano — NUNCA revele login ou senha aqui):\n`;
+      Object.entries(tvStockByPlan).forEach(([pk, count]) => {
+        systemPrompt += `- Plano ${pk}: ${count} disponível(is)\n`;
       });
-      systemPrompt += `\nREGRAS PARA LOGINS WPLAY:
-- Ofereca SOMENTE os logins listados acima
-- NUNCA ofereca login fora desta lista
-- Se o cliente fechar compra de login, confirme claramente o plano escolhido`;
+      systemPrompt += `\nREGRAS TV/WPLAY (OBRIGATÓRIO):
+- NUNCA invente, adivinhe ou envie login/senha no WhatsApp. Após o pagamento confirmado, o sistema envia os dados automaticamente ao cliente.
+- Explique que a cobrança é recorrente (mensal): em cada renovação paga, o cliente recebe confirmação; os mesmos dados de acesso continuam válidos.
+- Só ofereça planos que existam no catálogo com a mesma chave (tvPlanKey) e com estoque > 0 acima.
+- Ao fechar venda, confirme o nome do produto/plano escolhido com o cliente.`;
     }
     
     if (aiConfig.enabledFeatures && aiConfig.enabledFeatures.length > 0) {
@@ -3098,65 +3107,233 @@ function normalizeText(value) {
     .trim();
 }
 
-async function autoMarkTvLoginAsSold(userId, orderId, orderData) {
+function normalizePlanKey(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+async function enrichOrderItemsWithCatalog(sellerUserId, items) {
+  if (!items || !Array.isArray(items)) return [];
+  const catalogSnap = await db.ref(`users/data/${sellerUserId}/catalog_items`).once('value');
+  const catalog = catalogSnap.val() || {};
+  const byName = {};
+  Object.keys(catalog).forEach((id) => {
+    const c = catalog[id];
+    if (c && c.name) {
+      byName[normalizeText(c.name)] = { id, ...c };
+    }
+  });
+
+  return items.map((line) => {
+    const enriched = { ...line };
+    let cat = null;
+    if (line.catalogItemId && catalog[line.catalogItemId]) {
+      cat = { id: line.catalogItemId, ...catalog[line.catalogItemId] };
+    } else if (line.name) {
+      cat = byName[normalizeText(line.name)] || null;
+    }
+    if (cat) {
+      enriched.catalogItemId = cat.id;
+      enriched.tvLoginProduct = !!cat.tvLoginProduct;
+      enriched.tvPlanKey = normalizePlanKey(cat.tvPlanKey || cat.planName || '');
+    }
+    return enriched;
+  });
+}
+
+function findAvailableTvLoginRecord(snap, planKeyNorm) {
+  let picked = null;
+  if (!snap || !snap.exists()) return null;
+  snap.forEach((child) => {
+    if (picked) return;
+    const item = child.val() || {};
+    if (item.status === 'sold' || !item.login || !item.password) return;
+    const rowKey = normalizePlanKey(item.planKey || item.planName || '');
+    if (rowKey && planKeyNorm && rowKey === planKeyNorm) {
+      picked = { id: child.key, ...item };
+    }
+  });
+  return picked;
+}
+
+async function markTvLoginAllocated(masterUserId, tvLoginId, patch) {
+  const soldAt = new Date().toISOString();
+  await db.ref(`users/data/${masterUserId}/tv_logins/${tvLoginId}`).update({
+    status: 'sold',
+    soldAt,
+    ...patch,
+    updatedAt: soldAt
+  });
+}
+
+async function sendTvLoginWhatsApp(masterUserId, customerPhone, text) {
+  if (!customerPhone || !text) return;
+  const client = activeClients.get(masterUserId);
+  if (!client) {
+    console.log('⚠️ [TV LOGIN] WPP offline — não foi possível enviar credenciais agora.');
+    return;
+  }
   try {
-    if (!userId || !orderId || !orderData?.items || !Array.isArray(orderData.items)) return;
+    await client.sendText(customerPhone, text);
+  } catch (e) {
+    console.error('❌ [TV LOGIN] Erro ao enviar WhatsApp:', e.message);
+  }
+}
 
-    const loginsRef = db.ref(`users/data/${userId}/tv_logins`);
-    const snap = await loginsRef.once('value');
-    if (!snap.exists()) return;
-
-    const available = [];
-    snap.forEach((child) => {
-      const item = child.val() || {};
-      if (item.status !== 'sold' && item.login && item.password) {
-        available.push({ id: child.key, ...item });
-      }
+async function saveTvMessageToConversation(masterUserId, customerPhone, body) {
+  try {
+    const sanitized = sanitizePhoneNumber(customerPhone);
+    const msgRef = db.ref(`conversations/${masterUserId}/${sanitized}/messages`).push();
+    await msgRef.set({
+      from: '',
+      to: customerPhone,
+      body,
+      timestamp: new Date().toISOString(),
+      type: 'tv_credentials',
+      isFromMe: true
     });
-    if (available.length === 0) return;
+  } catch (e) {
+    console.error('❌ [TV LOGIN] Erro ao salvar mensagem no histórico:', e.message);
+  }
+}
 
-    const itemNames = orderData.items.map((it) => normalizeText(it?.name));
-    const hasLikelyTvSale = itemNames.some((name) => (
-      name.includes('wplay') || name.includes('tv') || name.includes('assinatura')
-    ));
+async function deliverTvLoginsForPaidOrder(sellerUserId, orderId, orderData) {
+  try {
+    if (!sellerUserId || !orderId || !orderData?.items || !Array.isArray(orderData.items)) return;
+    const phone = orderData.customer?.phone || orderData.customer?.mobilePhone;
+    if (!phone) return;
 
-    let selected = null;
-    for (const login of available) {
-      const plan = normalizeText(login.planName);
-      const loginName = normalizeText(login.login);
-      const matched = itemNames.some((name) => (
-        (plan.length >= 3 && name.includes(plan)) ||
-        (loginName.length >= 3 && name.includes(loginName))
-      ));
-      if (matched) {
-        selected = login;
-        break;
+    const loginsSnap = await db.ref(`users/data/${sellerUserId}/tv_logins`).once('value');
+    for (const line of orderData.items) {
+      if (!line.tvLoginProduct || !line.tvPlanKey) continue;
+      const planKeyNorm = normalizePlanKey(line.tvPlanKey);
+      if (!planKeyNorm) continue;
+      const qty = Math.max(1, parseInt(line.quantity, 10) || 1);
+      for (let i = 0; i < qty; i++) {
+        const freshSnap = await db.ref(`users/data/${sellerUserId}/tv_logins`).once('value');
+        const login = findAvailableTvLoginRecord(freshSnap, planKeyNorm);
+        if (!login) {
+          console.error('❌ [TV LOGIN] Sem estoque para plano:', planKeyNorm);
+          await sendTvLoginWhatsApp(
+            sellerUserId,
+            phone,
+            `⚠️ Pagamento confirmado, mas não há login disponível no estoque para o plano (${line.name}). Nossa equipe vai te atender em instantes.`
+          );
+          continue;
+        }
+        await markTvLoginAllocated(sellerUserId, login.id, {
+          soldOrderId: orderId,
+          soldToPhone: phone,
+          soldItemName: line.name || null,
+          deliveryChannel: 'order_paid'
+        });
+        const msg =
+          `✅ *Pagamento confirmado!*\n\n` +
+          `📺 *Acesso Wplay*\n` +
+          `Plano: ${login.planName || line.name || '—'}\n` +
+          `Login: ${login.login}\n` +
+          `Senha: ${login.password}\n\n` +
+          `_Guarde estes dados com segurança. Em caso de renovação mensal, seu acesso permanece ativo enquanto a assinatura estiver em dia._`;
+        await sendTvLoginWhatsApp(sellerUserId, phone, msg);
+        await saveTvMessageToConversation(sellerUserId, phone, msg);
       }
     }
-
-    if (!selected) {
-      if (!hasLikelyTvSale) return;
-      selected = available[0];
-    }
-
-    const soldAt = new Date().toISOString();
-    await db.ref(`users/data/${userId}/tv_logins/${selected.id}`).update({
-      status: 'sold',
-      soldAt,
-      soldOrderId: orderId,
-      soldToPhone: orderData?.customer?.phone || null,
-      soldItemName: orderData?.items?.[0]?.name || null,
-      updatedAt: soldAt
-    });
-
-    console.log('✅ [TV LOGIN] Login marcado como vendido:', {
-      userId,
-      orderId,
-      tvLoginId: selected.id,
-      login: selected.login
-    });
   } catch (error) {
-    console.error('❌ [TV LOGIN] Erro ao marcar login como vendido:', error.message);
+    console.error('❌ [TV LOGIN] Erro na entrega (pedido):', error.message);
+  }
+}
+
+async function sendTvSubscriptionRenewalMessage(masterUserId, customerPhone, planName) {
+  const text =
+    `✅ *Mensalidade confirmada!*\n\n` +
+    `Seu acesso *${planName || 'Wplay'}* continua ativo.\n` +
+    `_Os mesmos login e senha enviados na primeira compra permanecem válidos._`;
+  await sendTvLoginWhatsApp(masterUserId, customerPhone, text);
+  await saveTvMessageToConversation(masterUserId, customerPhone, text);
+}
+
+async function handleTvSubscriptionStripeInvoice({ buyerUserId, subscriptionKey, subData, invoice }) {
+  try {
+    const planId = subData?.planId;
+    if (!planId || !invoice) return;
+
+    const planSnap = await db.ref(`plans/${planId}`).once('value');
+    const plan = planSnap.val();
+    if (!plan?.tvLoginProduct || !plan.tvPlanKey) return;
+
+    const sellerUid = plan.ownerUid;
+    if (!sellerUid) {
+      console.error('❌ [TV LOGIN] Plano sem ownerUid (vendedor). Configure o plano no painel.');
+      return;
+    }
+
+    const phone =
+      subData.customer?.phone ||
+      subData.customer?.mobilePhone ||
+      subData.customer?.originalPhone ||
+      '';
+    if (!phone) {
+      console.error('❌ [TV LOGIN] Assinatura sem telefone do cliente.');
+      return;
+    }
+
+    const billingReason = invoice.billing_reason || '';
+    const planKeyNorm = normalizePlanKey(plan.tvPlanKey);
+
+    if (billingReason === 'subscription_cycle') {
+      await sendTvSubscriptionRenewalMessage(sellerUid, phone, plan.name);
+      return;
+    }
+
+    const subRef = db.ref(`subscriptions/${buyerUserId}/${subscriptionKey}`);
+    const subFresh = (await subRef.once('value')).val() || {};
+    if (subFresh.tvCredentialsDelivered) {
+      return;
+    }
+
+    const loginsSnap = await db.ref(`users/data/${sellerUid}/tv_logins`).once('value');
+    const login = findAvailableTvLoginRecord(loginsSnap, planKeyNorm);
+    if (!login) {
+      console.error('❌ [TV LOGIN] Sem estoque TV para assinatura, plano:', planKeyNorm);
+      await sendTvLoginWhatsApp(
+        sellerUid,
+        phone,
+        `⚠️ Pagamento recebido, mas não há login disponível no estoque (${plan.name}). Entraremos em contato.`
+      );
+      return;
+    }
+
+    const stripeSubId = subData.stripeSubscriptionId || invoice.subscription || null;
+    await markTvLoginAllocated(sellerUid, login.id, {
+      soldToPhone: phone,
+      soldItemName: plan.name || null,
+      stripeSubscriptionId: stripeSubId,
+      buyerUserId,
+      deliveryChannel: 'subscription_first_invoice',
+      recurring: true
+    });
+
+    await subRef.update({
+      tvCredentialsDelivered: true,
+      tvLoginId: login.id,
+      tvCredentialsDeliveredAt: new Date().toISOString()
+    });
+
+    const msg =
+      `✅ *Assinatura ativa!*\n\n` +
+      `📺 *Acesso Wplay — ${plan.name}*\n` +
+      `Login: ${login.login}\n` +
+      `Senha: ${login.password}\n\n` +
+      `_Cobrança recorrente mensal: a cada pagamento confirmado você recebe confirmação; os dados de acesso são os mesmos._`;
+    await sendTvLoginWhatsApp(sellerUid, phone, msg);
+    await saveTvMessageToConversation(sellerUid, phone, msg);
+  } catch (error) {
+    console.error('❌ [TV LOGIN] Erro na entrega (assinatura):', error.message);
   }
 }
 
@@ -3246,7 +3423,9 @@ async function createStripeSubscriptionCheckoutSession(stripeApiKey, customerDat
         userId: userId || '',
         planId: planData?.id || '',
         planName: planData?.name || '',
-        billingCycle: planData?.billingCycle || 'monthly'
+        billingCycle: planData?.billingCycle || 'monthly',
+        tvLoginProduct: planData?.tvLoginProduct ? '1' : '0',
+        tvPlanKey: planData?.tvPlanKey ? normalizePlanKey(planData.tvPlanKey) : ''
       }
     });
 
@@ -3320,8 +3499,13 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
       name: item.name,
       price: item.price,
       quantity: 1,
-      description: item.description
+      description: item.description,
+      catalogItemId: item.id,
+      tvLoginProduct: !!item.tvLoginProduct,
+      tvPlanKey: normalizePlanKey(item.tvPlanKey || item.planName || '')
     }));
+
+    const enrichedOrderItems = await enrichOrderItemsWithCatalog(userId, orderItems);
 
     const customerDataRef = db.ref(`customerData/${userId}/${phone.replace(/[^0-9]/g, '')}`);
     const customerSnapshot = await customerDataRef.once('value');
@@ -3338,7 +3522,7 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
     const result = await createStripeCheckoutSession(
       stripeApiKey,
       customerData,
-      orderItems,
+      enrichedOrderItems,
       userId,
       successUrl,
       cancelUrl,
@@ -3358,7 +3542,7 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
         phone: customerData.originalPhone || customerData.phone,
         ...(customerData.email && { email: customerData.email })
       },
-      items: orderItems,
+      items: enrichedOrderItems,
       totalValue: result.value,
       status: 'pending',
       createdAt: new Date().toISOString(),
@@ -3368,7 +3552,7 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
 
     const paymentMessage = `✅ *Pedido Criado!*\n\n` +
       `📦 Itens:\n` +
-      orderItems.map(item => `• ${item.quantity}x ${item.name} - R$ ${parseFloat(item.price).toFixed(2)}`).join('\n') +
+      enrichedOrderItems.map(item => `• ${item.quantity}x ${item.name} - R$ ${parseFloat(item.price).toFixed(2)}`).join('\n') +
       `\n\n💰 *Total: R$ ${result.value.toFixed(2)}*\n\n` +
       `🔗 *Link de Pagamento (Stripe):*\n${result.checkoutUrl}`;
 
@@ -4499,10 +4683,12 @@ async function handleCreateStripeCheckout(req, res) {
     const orderRef = db.ref(`orders/${userId}`).push();
     const orderId = orderRef.key;
 
+    const enrichedItems = await enrichOrderItemsWithCatalog(userId, items);
+
     const result = await createStripeCheckoutSession(
       stripeApiKey,
       customerData,
-      items,
+      enrichedItems,
       userId,
       successUrl,
       cancelUrl,
@@ -4522,7 +4708,7 @@ async function handleCreateStripeCheckout(req, res) {
         orderId: orderId,
         stripeSessionId: result.sessionId,
         customer: customerToSave,
-        items: items,
+        items: enrichedItems,
         totalValue: result.value,
         status: 'pending',
         createdAt: new Date().toISOString(),
@@ -5161,7 +5347,8 @@ app.post('/api/asaas/webhook', async (req, res) => {
     });
 
     if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
-      await autoMarkTvLoginAsSold(userId, orderId, orderData);
+      const paidSnap = await db.ref(`orders/${userId}/${orderId}`).once('value');
+      await deliverTvLoginsForPaidOrder(userId, orderId, paidSnap.val() || orderData);
     }
     
     console.log(`✅ Pedido ${orderId} atualizado para status: ${newStatus}`);
