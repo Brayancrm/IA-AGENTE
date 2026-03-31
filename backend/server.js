@@ -3153,6 +3153,71 @@ function normalizeText(value) {
     .trim();
 }
 
+function hasValidCatalogPrice(p) {
+  if (p === null || p === undefined || p === '') return false;
+  const n = Number(p);
+  return Number.isFinite(n) && n >= 0;
+}
+
+function stripeCurrencyCode(currencyCode) {
+  const c = String(currencyCode || 'BRL').toLowerCase().trim();
+  return /^[a-z]{3}$/.test(c) ? c : 'brl';
+}
+
+/** products/{uid} pode ficar sem price; o catálogo canônico é users/data/.../catalog_items */
+async function mergeProductPriceFromCatalog(userId, product) {
+  if (!product) return null;
+  if (hasValidCatalogPrice(product.price)) {
+    return {
+      ...product,
+      price: Number(product.price),
+      currency: String(product.currency || 'BRL').toUpperCase()
+    };
+  }
+
+  const pid = product.id;
+  if (pid) {
+    const snap = await db.ref(`users/data/${userId}/catalog_items/${pid}`).once('value');
+    if (snap.exists()) {
+      const cat = snap.val();
+      if (cat && hasValidCatalogPrice(cat.price)) {
+        return {
+          ...product,
+          price: Number(cat.price),
+          description: product.description || cat.description || '',
+          tvLoginProduct: product.tvLoginProduct ?? !!cat.tvLoginProduct,
+          tvPlanKey: product.tvPlanKey || cat.tvPlanKey || '',
+          currency: String(cat.currency || product.currency || 'BRL').toUpperCase()
+        };
+      }
+    }
+  }
+
+  const catalogSnap = await db.ref(`users/data/${userId}/catalog_items`).once('value');
+  if (!catalogSnap.exists()) return product;
+  const want = normalizeText(product.name || '');
+  let match = null;
+  catalogSnap.forEach((child) => {
+    const c = child.val();
+    if (!c || !c.name) return;
+    if (normalizeText(c.name) === want && hasValidCatalogPrice(c.price)) {
+      match = { id: child.key, ...c };
+    }
+  });
+  if (match) {
+    return {
+      ...product,
+      id: match.id || product.id,
+      price: Number(match.price),
+      description: product.description || match.description || '',
+      tvLoginProduct: product.tvLoginProduct ?? !!match.tvLoginProduct,
+      tvPlanKey: product.tvPlanKey || match.tvPlanKey || '',
+      currency: String(match.currency || product.currency || 'BRL').toUpperCase()
+    };
+  }
+  return product;
+}
+
 function normalizePlanKey(value) {
   return String(value || '')
     .normalize('NFD')
@@ -3187,6 +3252,8 @@ async function enrichOrderItemsWithCatalog(sellerUserId, items) {
       enriched.catalogItemId = cat.id;
       enriched.tvLoginProduct = !!cat.tvLoginProduct;
       enriched.tvPlanKey = normalizePlanKey(cat.tvPlanKey || cat.planName || '');
+      if (hasValidCatalogPrice(cat.price)) enriched.price = Number(cat.price);
+      if (cat.currency) enriched.currency = String(cat.currency).toUpperCase();
     }
     return enriched;
   });
@@ -3487,9 +3554,10 @@ async function createStripeCheckoutSession(stripeApiKey, customerData, items, us
       if (price === null || Number.isNaN(price)) {
         throw new Error(`Item sem preço: ${item.name}`);
       }
+      const currency = stripeCurrencyCode(item.currency);
       return {
         price_data: {
-          currency: 'brl',
+          currency,
           product_data: {
             name: item.name,
             ...(item.description ? { description: item.description } : {})
@@ -3519,12 +3587,13 @@ async function createStripeCheckoutSession(stripeApiKey, customerData, items, us
       return sum + (price * (item.quantity || 1));
     }, 0);
 
+    const firstCur = items[0]?.currency ? stripeCurrencyCode(items[0].currency) : 'brl';
     return {
       success: true,
       sessionId: session.id,
       checkoutUrl: session.url,
       value: totalValue,
-      currency: 'brl'
+      currency: firstCur
     };
   } catch (error) {
     console.error('❌ Erro ao criar sessão Stripe:', error.message);
@@ -3630,12 +3699,15 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
       }
     });
 
-    if (
-      !lastMentionedProduct ||
-      lastMentionedProduct.price === null ||
-      lastMentionedProduct.price === undefined ||
-      lastMentionedProduct.price === ''
-    ) {
+    if (!lastMentionedProduct) {
+      await client.sendText(phone, 'Para finalizar a compra, preciso de um item com preço definido.');
+      return;
+    }
+
+    lastMentionedProduct = await mergeProductPriceFromCatalog(userId, lastMentionedProduct);
+
+    if (!hasValidCatalogPrice(lastMentionedProduct?.price)) {
+      console.warn('⚠️ [Stripe] Produto sem preço em products/ e catalog_items:', lastMentionedProduct?.name);
       await client.sendText(phone, 'Para finalizar a compra, preciso de um item com preço definido.');
       return;
     }
@@ -3643,6 +3715,7 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
     const orderItems = [{
       name: lastMentionedProduct.name,
       price: lastMentionedProduct.price,
+      currency: lastMentionedProduct.currency || 'BRL',
       quantity: 1,
       description: lastMentionedProduct.description,
       catalogItemId: lastMentionedProduct.id,
@@ -3705,10 +3778,15 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
       console.error('❌ [TV] Reserva pós-checkout:', e.message);
     }
 
+    const totalCur = enrichedOrderItems[0]?.currency || 'BRL';
+    const totalFmt = formatCatalogPriceForMessage(result.value, totalCur) || String(result.value);
     const paymentMessage = `✅ *Pedido Criado!*\n\n` +
       `📦 Itens:\n` +
-      enrichedOrderItems.map(item => `• ${item.quantity}x ${item.name} - R$ ${parseFloat(item.price).toFixed(2)}`).join('\n') +
-      `\n\n💰 *Total: R$ ${result.value.toFixed(2)}*\n\n` +
+      enrichedOrderItems.map((item) => {
+        const line = formatCatalogPriceForMessage(item.price, item.currency);
+        return `• ${item.quantity}x ${item.name} - ${line || parseFloat(item.price).toFixed(2)}`;
+      }).join('\n') +
+      `\n\n💰 *Total: ${totalFmt}*\n\n` +
       `🔗 *Link de Pagamento (Stripe):*\n${result.checkoutUrl}`;
 
     await client.sendText(phone, paymentMessage);
