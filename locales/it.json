@@ -354,6 +354,7 @@
     "featured": "Segna come In Evidenza",
     "cancel": "Annulla",
     "update": "Aggiorna",
-    "add": "Aggiungi"
+    "add": "Aggiungi",
+    "importSuccess": "✓ {{count}} elementi importati con successo!"
   }
 }

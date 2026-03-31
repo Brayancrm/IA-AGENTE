@@ -354,6 +354,7 @@
     "featured": "Marcar como Destacado",
     "cancel": "Cancelar",
     "update": "Actualizar",
-    "add": "Agregar"
+    "add": "Agregar",
+    "importSuccess": "✓ ¡{{count}} ítems importados con éxito!"
   }
 }

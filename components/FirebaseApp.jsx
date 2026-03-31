@@ -9657,7 +9657,7 @@ const DashboardWithFirebase = ({
                         if (file) {
                           // Verificar tamanho (max 2MB)
                           if (file.size > 2 * 1024 * 1024) {
-                            alert(`❌ ${t('catalogModal.imageTooLarge')}`);
+                            showToast(t('catalogModal.imageTooLarge'), 'error');
                             return;
                           }
                           
@@ -9942,7 +9942,7 @@ const DashboardWithFirebase = ({
                       });
 
                       await Promise.all(promises);
-                      alert(`✓ ${validItems.length} itens importados com sucesso!`);
+                      showToast(t('catalogModal.importSuccess', { count: validItems.length }), 'success');
                       setShowImportModal(false);
                       e.target.value = '';
                     } catch (error) {

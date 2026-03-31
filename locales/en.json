@@ -354,6 +354,7 @@
     "featured": "Mark as Featured",
     "cancel": "Cancel",
     "update": "Update",
-    "add": "Add"
+    "add": "Add",
+    "importSuccess": "✓ {{count}} items imported successfully!"
   }
 }
