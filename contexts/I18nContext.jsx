@@ -50,6 +50,13 @@ function resolveMessage(locale, key) {
   return walk(messages[locale]) || walk(messages.pt) || key;
 }
 
+function interpolate(str, params) {
+  if (!params || typeof str !== 'string') return str;
+  return str.replace(/\{\{(\w+)\}\}/g, (_, k) =>
+    params[k] != null ? String(params[k]) : `{{${k}}}`
+  );
+}
+
 function langAttr(loc) {
   if (loc === 'pt') return 'pt-BR';
   if (loc === 'it') return 'it-IT';
@@ -148,7 +155,7 @@ export function I18nProvider({ children }) {
   }, []);
 
   const t = useCallback(
-    (key) => resolveMessage(locale, key),
+    (key, params) => interpolate(resolveMessage(locale, key), params),
     [locale]
   );
 

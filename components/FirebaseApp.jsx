@@ -90,6 +90,7 @@ const formatPlanPrice = (plan) => (
 
 const FirebaseApp = () => {
   const { app, db, auth, database, isReady, error } = useFirebase();
+  const { t } = useI18n();
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -329,7 +330,7 @@ const FirebaseApp = () => {
 
     const handleSend = async () => {
       if (!sendAll && selectedUsers.length === 0) {
-        showToast('Selecione pelo menos um destinatário', 'error');
+        showToast(t('toast.selectAtLeastOneRecipient'), 'error');
         return;
       }
 
@@ -354,14 +355,14 @@ const FirebaseApp = () => {
         const data = await response.json();
 
         if (data.success) {
-          showToast(`Email enviado para ${data.sentCount} destinatário(s)!`, 'success');
+          showToast(t('toast.emailSentCount', { count: data.sentCount }), 'success');
           onClose();
         } else {
-          showToast('Erro ao enviar email: ' + (data.error || 'Erro desconhecido'), 'error');
+          showToast(`${t('toast.emailSendError')}: ${data.error || t('toast.unknownError')}`, 'error');
         }
       } catch (error) {
         console.error('Erro ao enviar email:', error);
-        showToast('Erro ao enviar email: ' + error.message, 'error');
+        showToast(`${t('toast.emailSendError')}: ${error.message}`, 'error');
       } finally {
         setSending(false);
       }
@@ -668,7 +669,7 @@ const FirebaseApp = () => {
         setCurrentPage('plans');
         
         // Mostrar mensagem de sucesso
-        showToast('Pagamento confirmado! Seu plano foi ativado com sucesso.', 'success');
+        showToast(t('toast.paymentConfirmed'), 'success');
         
         // Forçar recarregamento para garantir que os listeners do Firebase atualizem tudo
         setTimeout(() => {
@@ -715,7 +716,7 @@ const FirebaseApp = () => {
               window.history.replaceState({}, '', window.location.pathname);
             }
             setCurrentPage('plans');
-            showToast(isUpgrade ? 'Upgrade concluído! Seu novo plano está ativo.' : 'Plano já está ativo!', 'success');
+            showToast(isUpgrade ? t('toast.upgradeCompleted') : t('toast.planAlreadyActiveToast'), 'success');
             setTimeout(() => {
               window.location.reload();
             }, 1000);
@@ -735,7 +736,7 @@ const FirebaseApp = () => {
     const interval = setInterval(checkPaymentStatus, 5000);
     
     return () => clearInterval(interval);
-  }, [user, database, isReady]);
+  }, [user, database, isReady, t]);
 
   // Verificar autenticação
   useEffect(() => {
@@ -1088,7 +1089,7 @@ const FirebaseApp = () => {
             await remove(activePlanRef);
             setUserActivePlan(null);
             setUserPlanUsage(null);
-            showToast('Seu plano de teste expirou. Por favor, assine um plano para continuar.', 'error');
+            showToast(t('toast.trialExpiredSubscribe'), 'error');
             return;
           }
         }
@@ -1232,10 +1233,10 @@ const FirebaseApp = () => {
       // NOTA: Não atualizamos photoURL no Auth porque Base64 é muito longo para o Auth
       // A foto fica apenas no Realtime Database (company_profile.photoURL)
       
-      showToast('Perfil da empresa salvo com sucesso!');
+      showToast(t('toast.companyProfileSaved'));
     } catch (error) {
       console.error('Erro ao salvar perfil:', error);
-      showToast('Erro ao salvar perfil da empresa', 'error');
+      showToast(t('toast.companyProfileSaveError'), 'error');
     }
   };
   
@@ -1243,7 +1244,7 @@ const FirebaseApp = () => {
   // Agora salva como Base64 no Realtime Database (sem usar Storage)
   const handleCompanyPhotoUpload = async (file) => {
     if (!file || !user || !user.uid || !database) {
-      showToast('Erro: Usuário não autenticado ou database não disponível', 'error');
+      showToast(t('toast.unauthenticatedOrDb'), 'error');
       return;
     }
     
@@ -1252,7 +1253,7 @@ const FirebaseApp = () => {
       // Validar tipo de arquivo
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
       if (!validTypes.includes(file.type)) {
-        showToast('Formato de arquivo inválido. Use JPG, PNG, GIF ou WEBP', 'error');
+        showToast(t('toast.invalidImageFormat'), 'error');
         setUploadingCompanyPhoto(false);
         return;
       }
@@ -1260,7 +1261,7 @@ const FirebaseApp = () => {
       // Validar tamanho (máximo 2MB para Base64 - menor que Storage para evitar problemas)
       const maxSize = 2 * 1024 * 1024; // 2MB
       if (file.size > maxSize) {
-        showToast('A imagem deve ter no máximo 2MB para salvar no banco de dados', 'error');
+        showToast(t('toast.imageMax2mbForDb'), 'error');
         setUploadingCompanyPhoto(false);
         return;
       }
@@ -1285,10 +1286,10 @@ const FirebaseApp = () => {
         photoURL: base64String
       });
       
-      showToast('Foto salva com sucesso!', 'success');
+      showToast(t('toast.photoSavedSuccess'), 'success');
     } catch (error) {
       console.error('Erro ao processar a foto:', error);
-      showToast('Erro ao processar a foto: ' + (error.message || 'Erro desconhecido'), 'error');
+      showToast(`${t('toast.photoProcessErrorWithMessage')}: ${error.message || t('toast.unknownError')}`, 'error');
     } finally {
       setUploadingCompanyPhoto(false);
     }
@@ -1303,10 +1304,10 @@ const FirebaseApp = () => {
         ...data,
         updatedAt: new Date().toISOString()
       });
-      showToast('Configurações de integração salvas com sucesso!');
+      showToast(t('toast.integrationSettingsSaved'));
     } catch (error) {
       console.error('Erro ao salvar integrações:', error);
-      showToast('Erro ao salvar configurações', 'error');
+      showToast(t('toast.settingsSaveError'), 'error');
     }
   };
 
@@ -1329,10 +1330,10 @@ const FirebaseApp = () => {
       await set(assistantRef, dataToSave);
       
       console.log('✅ [SAVE] Configurações salvas com sucesso!');
-      showToast('Configurações do assistente salvas com sucesso!');
+      showToast(t('toast.assistantSettingsSaved'));
     } catch (error) {
       console.error('❌ [SAVE] Erro ao salvar assistente:', error);
-      showToast('Erro ao salvar configurações', 'error');
+      showToast(t('toast.settingsSaveError'), 'error');
     }
   };
 
@@ -1402,7 +1403,7 @@ const FirebaseApp = () => {
             if (updatePromises.length > 0) {
               await Promise.all(updatePromises);
               console.log(`✅ Planos ativos atualizados para ${updatePromises.length} usuário(s)`);
-              showToast(`Plano atualizado com sucesso! ${updatePromises.length} usuário(s) tiveram seus planos atualizados automaticamente.`, 'success');
+              showToast(t('toast.planUpdatedWithUsersCount', { count: updatePromises.length }), 'success');
             } else {
               console.log(`ℹ️ Nenhum plano ativo encontrado para atualizar`);
               showToast(t('toast.planUpdated'));
@@ -1413,7 +1414,7 @@ const FirebaseApp = () => {
         } catch (updateError) {
           console.error('❌ Erro ao atualizar planos ativos dos usuários:', updateError);
           // Não bloquear o salvamento do plano se houver erro ao atualizar planos ativos
-          showToast('Plano atualizado com sucesso! (Aviso: Alguns planos ativos podem não ter sido atualizados)');
+          showToast(t('toast.planUpdatedPartialWarning'));
         }
       } else {
         // Criar novo plano
@@ -1424,7 +1425,7 @@ const FirebaseApp = () => {
       }
     } catch (error) {
       console.error('Erro ao salvar plano:', error);
-      showToast('Erro ao salvar plano: ' + error.message, 'error');
+      showToast(`${t('toast.planSaveErrorWithMessage')}: ${error.message}`, 'error');
     }
   };
 
@@ -1444,7 +1445,7 @@ const FirebaseApp = () => {
       showToast(t('toast.planDeleted'));
     } catch (error) {
       console.error('Erro ao excluir plano:', error);
-      showToast('Erro ao excluir plano: ' + error.message, 'error');
+      showToast(`${t('toast.planDeleteErrorWithMessage')}: ${error.message}`, 'error');
     }
   };
 
@@ -1521,7 +1522,7 @@ const FirebaseApp = () => {
           ? `${hours} hora${hours !== 1 ? 's' : ''}`
           : `${hours}h ${minutes}min`;
         
-        showToast(`Plano de teste "${plan.name}" ativado com sucesso! Você tem ${durationText} para testar.`);
+        showToast(t('toast.trialPlanActivatedWithDuration', { name: plan.name, duration: durationText }));
         // Fechar modal obrigatório se estiver aberto
         setShowRequiredPlanModal(false);
         return;
@@ -1534,7 +1535,7 @@ const FirebaseApp = () => {
       const userEntry = Object.values(users).find(u => u.uid === user.uid);
       
       if (!userEntry) {
-        showToast('Erro: Dados do usuário não encontrados', 'error');
+        showToast(t('toast.userDataNotFound'), 'error');
         return;
       }
 
@@ -1581,7 +1582,7 @@ const FirebaseApp = () => {
         console.error('   Tipo:', fetchError.name);
         console.error('   Mensagem:', fetchError.message);
         console.error('   BACKEND_URL usado:', BACKEND_URL);
-        showToast('Erro de conexão com o servidor. Verifique se o backend está online.', 'error');
+        showToast(t('toast.backendConnectionError'), 'error');
         return;
       }
 
@@ -1598,7 +1599,7 @@ const FirebaseApp = () => {
           errorData = { error: text || 'Erro desconhecido' };
         }
         console.error('   Erro:', errorData);
-        showToast('Erro ao criar assinatura: ' + (errorData.error || 'Erro desconhecido'), 'error');
+        showToast(`${t('toast.subscriptionCreateErrorWithMessage')}: ${errorData.error || t('toast.unknownError')}`, 'error');
         return;
       }
 
@@ -1609,7 +1610,7 @@ const FirebaseApp = () => {
         console.error('❌ Erro ao fazer parse da resposta JSON:', parseError);
         const text = await response.text();
         console.error('   Resposta (texto):', text);
-        showToast('Erro ao processar resposta do servidor.', 'error');
+        showToast(t('toast.serverResponseParseError'), 'error');
         return;
       }
       console.log('📋 Resultado da criação de assinatura:');
@@ -1683,7 +1684,7 @@ const FirebaseApp = () => {
           }
           
           // Se ainda não encontrou, mostrar mensagem e tentar novamente após alguns segundos
-          showToast('Assinatura criada! Buscando link de pagamento...', 'success');
+          showToast(t('toast.subscriptionCreatedFetchingPaymentLink'), 'success');
           
           // Tentar buscar novamente após 3 segundos
           setTimeout(async () => {
@@ -1710,21 +1711,21 @@ const FirebaseApp = () => {
               }
               
               // Se ainda não tiver link, mostrar instruções
-              showToast('⚠️ Link de pagamento ainda não disponível. Após pagar, volte para o site manualmente.', 'error');
+              showToast(t('toast.paymentLinkNotReadyYet'), 'error');
               console.warn('⚠️ Link de pagamento não encontrado no Firebase após tentativas');
             } catch (error) {
               console.error('Erro ao buscar link de pagamento:', error);
-              showToast('⚠️ Erro ao buscar link. Após pagar, volte para www.dadosia.com.br manualmente.', 'error');
+              showToast(t('toast.paymentLinkFetchErrorManual'), 'error');
             }
           }, 3000);
         }
       } else {
-        showToast('Erro ao criar assinatura: ' + (result.error || 'Erro desconhecido'), 'error');
+        showToast(`${t('toast.subscriptionErrorWithMessage')}: ${result.error || t('toast.unknownError')}`, 'error');
         console.error('❌ Erro:', result);
       }
     } catch (error) {
       console.error('Erro ao assinar plano:', error);
-      showToast('Erro ao assinar plano: ' + error.message, 'error');
+      showToast(`${t('toast.subscribePlanErrorWithMessage')}: ${error.message}`, 'error');
     }
   };
 
@@ -1794,8 +1795,8 @@ const FirebaseApp = () => {
         await update(ref(database), updates);
         console.log('✅ [SYNC] Item atualizado atomicamente em catalog_items e products:', itemId);
         
-        const itemType = data.type === 'service' ? 'Serviço' : 'Produto';
-        showToast(`${itemType} atualizado com sucesso!`);
+        const itemType = data.type === 'service' ? t('toast.catalogItemTypeService') : t('toast.catalogItemTypeProduct');
+        showToast(t('toast.catalogItemUpdated', { type: itemType }));
       } else {
         // CRIAR novo item
         const catalogRef = ref(database, `users/data/${user.uid}/catalog_items`);
@@ -1841,12 +1842,12 @@ const FirebaseApp = () => {
           }
         }
         
-        const itemType = data.type === 'service' ? 'Serviço' : 'Produto';
-        showToast(`${itemType} adicionado e sincronizado com sucesso!`);
+        const itemType = data.type === 'service' ? t('toast.catalogItemTypeService') : t('toast.catalogItemTypeProduct');
+        showToast(t('toast.catalogItemAdded', { type: itemType }));
       }
     } catch (error) {
       console.error('❌ [SYNC] Erro ao salvar item:', error);
-      showToast('Erro ao salvar item: ' + error.message, 'error');
+      showToast(`${t('toast.catalogItemSaveErrorWithMessage')}: ${error.message}`, 'error');
     }
   };
 
@@ -1857,7 +1858,7 @@ const FirebaseApp = () => {
     }
 
     if (!itemId) {
-      showToast('Erro: ID do item inválido', 'error');
+      showToast(t('toast.invalidItemId'), 'error');
       return;
     }
 
@@ -1878,7 +1879,7 @@ const FirebaseApp = () => {
       showToast(t('toast.itemDeleted'), 'success');
     } catch (error) {
       console.error('❌ [DELETE] Erro ao excluir item:', error);
-      showToast('❌ Erro ao excluir item: ' + error.message, 'error');
+      showToast(`${t('toast.itemDeleteErrorWithMessage')}: ${error.message}`, 'error');
     }
   };
 
@@ -1888,18 +1889,18 @@ const FirebaseApp = () => {
     }
     setUser(null);
     setIsAuthenticated(false);
-    showToast('Logout realizado com sucesso!', 'success');
+    showToast(t('toast.logoutSuccess'), 'success');
   };
 
   // Funções para Email Templates
   const saveEmailTemplate = async (templateData, emailEditorRef) => {
     if (!user || !database || !user.isMaster) {
-      showToast('Erro: Apenas o master pode criar templates', 'error');
+      showToast(t('toast.masterOnlyTemplates'), 'error');
       return;
     }
 
     if (!emailTemplateForm.name || !emailTemplateForm.subject) {
-      showToast('Por favor, preencha nome e assunto do template', 'error');
+      showToast(t('toast.emailTemplateNameSubjectRequired'), 'error');
       return;
     }
 
@@ -1919,13 +1920,13 @@ const FirebaseApp = () => {
             // Atualizar template existente
             const templateRef = ref(database, `email_templates/${editingEmailTemplate.id}`);
             set(templateRef, templateToSave);
-            showToast('Template atualizado com sucesso!', 'success');
+            showToast(t('toast.emailTemplateUpdated'), 'success');
           } else {
             // Criar novo template
             const templatesRef = ref(database, 'email_templates');
             const newTemplateRef = push(templatesRef);
             set(newTemplateRef, templateToSave);
-            showToast('Template criado com sucesso!', 'success');
+            showToast(t('toast.emailTemplateCreated'), 'success');
           }
 
           setShowEmailTemplateModal(false);
@@ -1933,17 +1934,17 @@ const FirebaseApp = () => {
           setEmailTemplateForm({ name: '', subject: '', body: null });
         });
       } else {
-        showToast('Erro: Editor não está pronto', 'error');
+        showToast(t('toast.editorNotReadyUnlayer'), 'error');
       }
     } catch (error) {
       console.error('Erro ao salvar template:', error);
-      showToast('Erro ao salvar template: ' + error.message, 'error');
+      showToast(`${t('toast.emailTemplateSaveError')}: ${error.message}`, 'error');
     }
   };
 
   const deleteEmailTemplate = async (templateId) => {
     if (!user || !database || !user.isMaster) {
-      showToast('Erro: Apenas o master pode deletar templates', 'error');
+      showToast(t('toast.masterOnlyDeleteTemplates'), 'error');
       return;
     }
 
@@ -1954,17 +1955,17 @@ const FirebaseApp = () => {
     try {
       const templateRef = ref(database, `email_templates/${templateId}`);
       await remove(templateRef);
-      showToast('Template excluído com sucesso!', 'success');
+      showToast(t('toast.emailTemplateDeleted'), 'success');
     } catch (error) {
       console.error('Erro ao deletar template:', error);
-      showToast('Erro ao deletar template: ' + error.message, 'error');
+      showToast(`${t('toast.emailTemplateDeleteError')}: ${error.message}`, 'error');
     }
   };
 
   // Funções do WhatsApp
   const connectWhatsApp = async () => {
     if (!user) {
-      showToast('Usuário não autenticado', 'error');
+      showToast(t('toast.userNotAuthenticatedShort'), 'error');
       return;
     }
 
@@ -1982,13 +1983,13 @@ const FirebaseApp = () => {
       const data = await response.json();
       
       if (data.status === 'success' || data.status === 'already_active') {
-        showToast('Sessão WhatsApp iniciada! Aguarde o QR Code...', 'success');
+        showToast(t('toast.whatsappSessionStarted'), 'success');
       } else {
         throw new Error(data.error || 'Erro ao criar sessão');
       }
     } catch (error) {
       console.error('Erro ao conectar WhatsApp:', error);
-      showToast('Erro ao conectar WhatsApp: ' + error.message, 'error');
+      showToast(`${t('toast.whatsappConnectErrorWithMessage')}: ${error.message}`, 'error');
     } finally {
       setIsConnecting(false);
     }
@@ -2009,13 +2010,13 @@ const FirebaseApp = () => {
       const data = await response.json();
       
       if (data.status === 'success') {
-        showToast('WhatsApp desconectado com sucesso!', 'success');
+        showToast(t('toast.whatsappDisconnected'), 'success');
         setWhatsappStatus('disconnected');
         setWhatsappQRCode(null);
       }
     } catch (error) {
       console.error('Erro ao desconectar:', error);
-      showToast('Erro ao desconectar WhatsApp', 'error');
+      showToast(t('toast.whatsappDisconnectError'), 'error');
     }
   };
 
@@ -2051,7 +2052,7 @@ const FirebaseApp = () => {
       }
     } catch (error) {
       console.error('❌ Erro ao buscar conversas:', error);
-      showToast('Erro ao carregar conversas', 'error');
+      showToast(t('toast.loadConversationsError'), 'error');
       setRealConversations([]);
     } finally {
       setLoadingConversations(false);
@@ -2078,7 +2079,7 @@ const FirebaseApp = () => {
       }
     } catch (error) {
       console.error('Erro ao buscar mensagens:', error);
-      showToast('Erro ao carregar mensagens', 'error');
+      showToast(t('toast.loadMessagesError'), 'error');
     }
   };
 
@@ -2099,10 +2100,10 @@ const FirebaseApp = () => {
       });
       
       setMessageInput('');
-      showToast('Mensagem enviada!', 'success');
+      showToast(t('toast.messageSent'), 'success');
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
-      showToast('Erro ao enviar mensagem', 'error');
+      showToast(t('toast.messageSendError'), 'error');
     }
   };
 
@@ -2151,13 +2152,13 @@ const FirebaseApp = () => {
       const data = await response.json();
       
       if (data.status === 'success' || data.status === 'already_active') {
-        showToast('Novo QR Code gerado! Escaneie rapidamente.', 'success');
+        showToast(t('toast.newQrGenerated'), 'success');
       } else {
         throw new Error(data.error || 'Erro ao gerar novo QR Code');
       }
     } catch (error) {
       console.error('Erro ao regenerar QR Code:', error);
-      showToast('Erro ao gerar novo QR Code: ' + error.message, 'error');
+      showToast(`${t('toast.qrGenerateErrorWithMessage')}: ${error.message}`, 'error');
     } finally {
       setIsConnecting(false);
     }
@@ -2172,7 +2173,7 @@ const FirebaseApp = () => {
       // Validar tipo de arquivo
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
       if (!validTypes.includes(file.type)) {
-        showToast('Formato de arquivo inválido. Use JPG, PNG, GIF ou WEBP', 'error');
+        showToast(t('toast.invalidImageFormat'), 'error');
         setUploadingPhoto(false);
         return;
       }
@@ -2180,7 +2181,7 @@ const FirebaseApp = () => {
       // Validar tamanho (máximo 2MB para Base64)
       const maxSize = 2 * 1024 * 1024; // 2MB
       if (file.size > maxSize) {
-        showToast('A imagem deve ter no máximo 2MB', 'error');
+        showToast(t('toast.imageMax2mb'), 'error');
         setUploadingPhoto(false);
         return;
       }
@@ -2195,10 +2196,10 @@ const FirebaseApp = () => {
       
       setUserForm(prev => ({ ...prev, photoURL: base64String }));
       setPhotoPreview(base64String);
-      showToast('Foto processada com sucesso!');
+      showToast(t('toast.photoProcessed'));
     } catch (error) {
       console.error('Erro ao processar a foto:', error);
-      showToast('Erro ao processar a foto: ' + (error.message || 'Erro desconhecido'), 'error');
+      showToast(`${t('toast.photoProcessErrorWithMessage')}: ${error.message || t('toast.unknownError')}`, 'error');
     } finally {
       setUploadingPhoto(false);
     }
@@ -2215,7 +2216,7 @@ const FirebaseApp = () => {
         hasDatabase: !!database, 
         hasAuth: !!auth 
       });
-      showToast('Erro: Não é possível criar usuário', 'error');
+      showToast(t('toast.cannotCreateUser'), 'error');
       return;
     }
     
@@ -2267,7 +2268,7 @@ const FirebaseApp = () => {
         const masterPassword = prompt('Para criar o usuário, confirme sua senha de master:');
         
         if (!masterPassword) {
-          showToast('Criação cancelada - senha não fornecida', 'error');
+          showToast(t('toast.creationCancelledNoPassword'), 'error');
           return;
         }
         
@@ -2321,7 +2322,7 @@ const FirebaseApp = () => {
       }
     } catch (error) {
       console.error('Erro ao salvar usuário:', error);
-      showToast('Erro ao salvar usuário: ' + error.message, 'error');
+      showToast(`${t('toast.userSaveErrorWithMessage')}: ${error.message}`, 'error');
     }
   };
 
@@ -2336,7 +2337,7 @@ const FirebaseApp = () => {
       showToast(t('toast.userDeleted'));
     } catch (error) {
       console.error('Erro ao excluir usuário:', error);
-      showToast('Erro ao excluir usuário: ' + error.message, 'error');
+      showToast(`${t('toast.userDeleteErrorWithMessage')}: ${error.message}`, 'error');
     }
   };
 
@@ -2351,7 +2352,7 @@ const FirebaseApp = () => {
         // Desativar plano
         await remove(activePlanRef);
         console.log('Plano desativado para usuário:', userData.uid);
-        showToast('Plano desativado com sucesso!');
+        showToast(t('toast.planDeactivatedSuccess'));
         
         // Atualizar estado local imediatamente
         setUsers(prevUsers => 
@@ -2368,13 +2369,13 @@ const FirebaseApp = () => {
       }
     } catch (error) {
       console.error('Erro ao gerenciar plano do usuário:', error);
-      showToast('Erro ao gerenciar plano: ' + error.message, 'error');
+      showToast(`${t('toast.planManageErrorWithMessage')}: ${error.message}`, 'error');
     }
   };
 
   const activatePlanForUser = async (planId) => {
     if (!user?.isMaster || !database || !selectedUserForPlan?.uid) {
-      showToast('Erro: Dados insuficientes', 'error');
+      showToast(t('toast.insufficientData'), 'error');
       return;
     }
 
@@ -2384,7 +2385,7 @@ const FirebaseApp = () => {
       const planSnapshot = await get(planRef);
       
       if (!planSnapshot.exists()) {
-        showToast('Plano não encontrado', 'error');
+        showToast(t('toast.planNotFoundToast'), 'error');
         return;
       }
 
@@ -2397,7 +2398,7 @@ const FirebaseApp = () => {
         const usedTrials = usedTrialsSnapshot.exists() ? usedTrialsSnapshot.val() : {};
         
         if (usedTrials[planId]) {
-          showToast('Este usuário já utilizou este plano de teste. É permitido apenas uma vez.', 'error');
+          showToast(t('toast.trialAlreadyUsedByUser'), 'error');
           return;
         }
       }
@@ -2447,7 +2448,7 @@ const FirebaseApp = () => {
       }
       
       console.log('Plano ativado manualmente para usuário:', selectedUserForPlan.uid);
-      showToast(`Plano "${planData.name}" ativado com sucesso!`);
+      showToast(t('toast.planActivatedNamed', { name: planData.name }));
       
       // Atualizar estado local imediatamente
       setUsers(prevUsers => 
@@ -2462,7 +2463,7 @@ const FirebaseApp = () => {
       setSelectedUserForPlan(null);
     } catch (error) {
       console.error('Erro ao ativar plano:', error);
-      showToast('Erro ao ativar plano: ' + error.message, 'error');
+      showToast(`${t('toast.activatePlanErrorWithMessage')}: ${error.message}`, 'error');
     }
   };
 
@@ -2849,7 +2850,7 @@ const FirebaseApp = () => {
       showToast(t('toast.resetPasswordSent'));
     } catch (error) {
       console.error('Erro ao enviar email:', error);
-      showToast('Erro ao enviar email de redefinição', 'error');
+      showToast(t('toast.resetPasswordError'), 'error');
     }
   };
 
@@ -3593,7 +3594,7 @@ const DashboardWithFirebase = ({
                         onClose();
                       } catch (error) {
                         console.error('❌ Erro ao salvar template:', error);
-                        showToast('Erro ao salvar template: ' + (error.message || 'Erro desconhecido'), 'error');
+                        showToast(`${t('toast.flowTemplateSaveError')}: ${error.message || t('toast.unknownError')}`, 'error');
                       }
                     });
                   } else {
@@ -3601,7 +3602,7 @@ const DashboardWithFirebase = ({
                   }
                 } catch (error) {
                   console.error('❌ Erro ao exportar HTML do editor:', error);
-                  showToast('Erro ao exportar conteúdo do editor: ' + (error.message || 'Erro desconhecido'), 'error');
+                  showToast(`${t('toast.flowEditorExportError')}: ${error.message || t('toast.unknownError')}`, 'error');
                 }
               }}
               style={{
@@ -3911,7 +3912,7 @@ const DashboardWithFirebase = ({
         showToast(t('toast.photoProcessed'));
       } catch (error) {
         console.error('Erro ao processar a foto:', error);
-        showToast('Erro ao processar a foto: ' + (error.message || 'Erro desconhecido'), 'error');
+        showToast(`${t('toast.photoProcessErrorWithMessage')}: ${error.message || t('toast.unknownError')}`, 'error');
       } finally {
         setLocalUploadingCompanyPhoto(false);
       }
@@ -4844,7 +4845,7 @@ const DashboardWithFirebase = ({
         ],
         updatedAt: new Date().toISOString()
       });
-      showToast(`Status alterado para: ${getStatusLabel(newStatus)}`, 'success');
+      showToast(t('toast.scheduleStatusChangedTo', { label: getStatusLabel(newStatus) }), 'success');
     } catch (error) {
       console.error('❌ [FIREBASE] Erro ao atualizar status:', error);
       showToast(t('toast.scheduleStatusUpdateError'), 'error');
@@ -4902,7 +4903,7 @@ const DashboardWithFirebase = ({
     });
 
     if (list.length === 0) {
-      showToast(`Nenhum agendamento para lembrete em ${hoursAhead}h.`, 'error');
+      showToast(t('toast.noRemindersInHours', { hours: hoursAhead }), 'error');
       return;
     }
 
@@ -4912,7 +4913,7 @@ const DashboardWithFirebase = ({
     }).join('\n');
 
     navigator.clipboard.writeText(text)
-      .then(() => showToast(`Lista de lembretes (${hoursAhead}h) copiada!`, 'success'))
+      .then(() => showToast(t('toast.remindersListCopied', { hours: hoursAhead }), 'success'))
       .catch(() => showToast(t('toast.copyRemindersError'), 'error'));
   }, [agendamentosOrdenados, parseAgendamentoDateTime]);
 
@@ -6399,7 +6400,7 @@ const DashboardWithFirebase = ({
 
           try {
             await navigator.clipboard.writeText(text);
-            showToast(`Lista past_due copiada! (${uniqueRows.length} cliente(s))`, 'success');
+            showToast(t('toast.pastDueListCopied', { count: uniqueRows.length }), 'success');
           } catch (error) {
             showToast(t('toast.clipboardPermissionError'), 'error');
           }
