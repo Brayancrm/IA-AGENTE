@@ -13,7 +13,56 @@
     "plans": "Plans & billing",
     "stripe": "Stripe",
     "users": "Manage users",
-    "email": "Email"
+    "email": "Email",
+    "reports": "Reports",
+    "tvLogins": "TV logins"
+  },
+  "setupChecklist": {
+    "title": "Setup checklist",
+    "subtitle": "{{done}} of {{total}} steps done",
+    "stepStripe": "Stripe secret key (sk_) in Integrations",
+    "stepWhatsapp": "WhatsApp connected",
+    "stepCatalogTv": "Catalog with TV product and tvPlanKey",
+    "stepStock": "At least one TV login in stock",
+    "stepAssistant": "Assistant with prompt configured"
+  },
+  "tvLogins": {
+    "title": "Wplay login stock",
+    "subtitle": "Register available credentials for the assistant to sell and track status.",
+    "newLogin": "New login",
+    "editLogin": "Edit login",
+    "searchPlaceholder": "Search login…",
+    "available": "Available",
+    "reserved": "Reserved",
+    "soldCount": "Sold",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "alertNoStock": "No stock for \"{{name}}\" (key {{key}}), but the catalog still sells this TV. Add logins or adjust the catalog.",
+    "emptyTitle": "No logins yet",
+    "emptyHint": "Add at least one login with the same key as the catalog (tvPlanKey).",
+    "confirmDelete": "Delete this login?",
+    "confirmMarkSold": "Mark this login as sold (manual)?",
+    "resend": "Resend credentials",
+    "history": "History",
+    "statusAvailable": "AVAILABLE",
+    "statusReserved": "RESERVED",
+    "statusSold": "SOLD",
+    "soldTo": "Sold to {{phone}} on {{date}}",
+    "groupByPlan": "Plan"
+  },
+  "reportsPage": {
+    "title": "Order report",
+    "subtitle": "Summary of orders in the period (Firebase).",
+    "start": "Start date",
+    "end": "End date",
+    "load": "Load",
+    "totalPaid": "Total paid (status \"paid\")",
+    "count": "Orders in period",
+    "byStatus": "By status",
+    "tableId": "ID",
+    "tableStatus": "Status",
+    "tableTotal": "Total",
+    "tableDate": "Created"
   },
   "common": {
     "language": "Interface language",
@@ -142,7 +191,9 @@
     "remindersListCopied": "Reminder list ({{hours}}h) copied!",
     "pastDueListCopied": "past_due list copied! ({{count}} client(s))",
     "flowTemplateSaveError": "Error saving template",
-    "flowEditorExportError": "Error exporting editor content"
+    "flowEditorExportError": "Error exporting editor content",
+    "tvResendOk": "Credentials resent on WhatsApp.",
+    "tvResendError": "Could not resend credentials."
   },
   "locked": {
     "title": "Feature locked",

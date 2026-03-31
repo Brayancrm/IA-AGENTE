@@ -30,6 +30,7 @@ import { convertStepsToPrompt } from '../hooks/useFlowBuilder';
 import { mergeFlowStepsIntoAssistantForm, applyFixedApproachesToSteps } from '../utils/assistantWizardHelpers';
 import { useI18n } from '../contexts/I18nContext';
 import BeefreeEditor from './BeefreeEditor';
+import SetupChecklist from './SetupChecklist';
 
 // Unlayer Editor será carregado via script tag (embed)
 
@@ -3128,6 +3129,48 @@ const DashboardWithFirebase = ({
   const [editingTvLoginId, setEditingTvLoginId] = useState(null);
   const [tvLoginSearch, setTvLoginSearch] = useState('');
   const [savingTvLogin, setSavingTvLogin] = useState(false);
+  const [tvPwVisible, setTvPwVisible] = useState({});
+  const [reportsRange, setReportsRange] = useState(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    return {
+      start: start.toISOString().slice(0, 10),
+      end: end.toISOString().slice(0, 10)
+    };
+  });
+  const [reportsData, setReportsData] = useState(null);
+  const [reportsLoading, setReportsLoading] = useState(false);
+
+  const BACKEND_URL = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BACKEND_URL
+    ? process.env.NEXT_PUBLIC_BACKEND_URL
+    : 'http://localhost:3001';
+
+  const normalizePlanKeyClient = useCallback((v) => {
+    return String(v || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+  }, []);
+
+  const tvStockAlerts = useMemo(() => {
+    if (!user?.isMaster || !catalogItems?.length) return [];
+    const alerts = [];
+    catalogItems.forEach((c) => {
+      if (!c.tvLoginProduct || !String(c.tvPlanKey || '').trim()) return;
+      const pk = normalizePlanKeyClient(c.tvPlanKey);
+      if (!pk) return;
+      const avail = tvLogins.filter(
+        (l) =>
+          normalizePlanKeyClient(l.planKey || l.planName) === pk && l.status === 'available'
+      ).length;
+      if (avail === 0) alerts.push({ name: c.name || c.tvPlanKey, key: c.tvPlanKey });
+    });
+    return alerts;
+  }, [catalogItems, tvLogins, user?.isMaster, normalizePlanKeyClient]);
 
   const [agendamentoSearch, setAgendamentoSearch] = useState('');
   const [agendamentoCurrentPage, setAgendamentoCurrentPage] = useState(0);
@@ -4296,6 +4339,7 @@ const DashboardWithFirebase = ({
 
   const markTvLoginAsSold = async (item) => {
     if (!database || !user?.uid || !item?.id) return;
+    if (!window.confirm(t('tvLogins.confirmMarkSold'))) return;
     try {
       const itemRef = ref(database, `users/data/${user.uid}/tv_logins/${item.id}`);
       await update(itemRef, {
@@ -4323,6 +4367,8 @@ const DashboardWithFirebase = ({
         buyerUserId: null,
         deliveryChannel: null,
         recurring: null,
+        reservedOrderId: null,
+        reservedUntil: null,
         updatedAt: new Date().toISOString()
       });
       showToast('Login marcado como disponivel.', 'success');
@@ -4331,9 +4377,49 @@ const DashboardWithFirebase = ({
     }
   };
 
+  const resendTvCredentials = async (item) => {
+    if (!user?.uid || !item?.id) return;
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/tv/resend-credentials`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.uid,
+          tvLoginId: item.id,
+          phone: item.soldToPhone || undefined
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Erro');
+      showToast(t('toast.tvResendOk'), 'success');
+    } catch (error) {
+      showToast(t('toast.tvResendError'), 'error');
+    }
+  };
+
+  const loadOrderReports = async () => {
+    if (!user?.uid) return;
+    setReportsLoading(true);
+    try {
+      const q = new URLSearchParams({
+        userId: user.uid,
+        start: reportsRange.start || '2000-01-01',
+        end: reportsRange.end || '2099-12-31'
+      });
+      const response = await fetch(`${BACKEND_URL}/api/orders/summary?${q}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Erro');
+      setReportsData(data);
+    } catch (e) {
+      showToast(e.message || 'Erro ao carregar relatório', 'error');
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
   const deleteTvLogin = async (item) => {
     if (!database || !user?.uid || !item?.id) return;
-    if (!window.confirm('Deseja excluir este login?')) return;
+    if (!window.confirm(t('tvLogins.confirmDelete'))) return;
     try {
       const itemRef = ref(database, `users/data/${user.uid}/tv_logins/${item.id}`);
       await remove(itemRef);
@@ -5769,7 +5855,7 @@ const DashboardWithFirebase = ({
     
     // Verificar acesso à página atual
     const isAlwaysAvailable = currentPage === 'plans' || currentPage === 'users';
-    const isMasterOnly = currentPage === 'users' || currentPage === 'tv-logins';
+    const isMasterOnly = currentPage === 'users' || currentPage === 'tv-logins' || currentPage === 'reports';
     const isBasicAccess = currentPage === 'company';
     
     let hasAccess = false;
@@ -5837,6 +5923,16 @@ const DashboardWithFirebase = ({
                 {t('dashboard.subtitle')}
               </p>
             </div>
+
+            {user?.isMaster ? (
+              <SetupChecklist
+                integrationsConfig={integrationsConfig}
+                catalogItems={catalogItems}
+                assistantSettings={assistantSettings}
+                tvLogins={tvLogins}
+                whatsappStatus={whatsappStatus}
+              />
+            ) : null}
 
             {/* Toggle Assistente */}
             <div style={{ 
@@ -6556,30 +6652,71 @@ const DashboardWithFirebase = ({
           const text = `${item.login || ''} ${item.planName || ''} ${item.planKey || ''} ${item.notes || ''}`.toLowerCase();
           return !query || text.includes(query);
         });
-        const availableCount = tvLogins.filter((i) => i?.status !== 'sold').length;
+        const availableCount = tvLogins.filter((i) => i?.status === 'available').length;
+        const reservedCount = tvLogins.filter((i) => i?.status === 'reserved').length;
         const soldCount = tvLogins.filter((i) => i?.status === 'sold').length;
+        const tvGrouped = (() => {
+          const g = {};
+          filtered.forEach((item) => {
+            const k = normalizePlanKeyClient(item.planKey || item.planName || '_');
+            if (!g[k]) g[k] = { label: item.planKey || item.planName || k, items: [] };
+            g[k].items.push(item);
+          });
+          return Object.entries(g);
+        })();
+
+        const statusBadge = (item) => {
+          if (item.status === 'sold') {
+            return { bg: 'rgba(239,68,68,0.2)', color: '#ef4444', text: t('tvLogins.statusSold') };
+          }
+          if (item.status === 'reserved') {
+            return { bg: 'rgba(245,158,11,0.2)', color: '#f59e0b', text: t('tvLogins.statusReserved') };
+          }
+          return { bg: 'rgba(16,185,129,0.2)', color: '#10b981', text: t('tvLogins.statusAvailable') };
+        };
 
         return (
           <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             <div style={{ marginBottom: '24px' }}>
               <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
-                📺 Estoque de Logins Wplay
+                {t('tvLogins.title')}
               </h2>
-              <p style={{ fontSize: '1rem', color: '#9ca3af' }}>
-                Cadastre os acessos disponiveis para o assistente vender e controlar status automaticamente.
-              </p>
+              <p style={{ fontSize: '1rem', color: '#9ca3af' }}>{t('tvLogins.subtitle')}</p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr', gap: '16px' }}>
+            {tvStockAlerts.length > 0 ? (
+              <div
+                role="alert"
+                style={{
+                  marginBottom: '16px',
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(239,68,68,0.45)',
+                  background: 'rgba(239,68,68,0.12)',
+                  color: '#fecaca',
+                  fontSize: '0.9rem'
+                }}
+              >
+                {tvStockAlerts.map((a) => (
+                  <div key={a.key} style={{ marginBottom: '6px' }}>
+                    {t('tvLogins.alertNoStock', { name: a.name, key: a.key })}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(280px,1fr) minmax(0,2fr)', gap: '16px', alignItems: 'start' }}>
               <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '16px', border: '1px solid rgba(16,185,129,0.2)' }}>
-                <h3 style={{ color: '#fff', marginBottom: '12px' }}>{editingTvLoginId ? 'Editar Login' : 'Novo Login'}</h3>
+                <h3 style={{ color: '#fff', marginBottom: '12px' }}>{editingTvLoginId ? t('tvLogins.editLogin') : t('tvLogins.newLogin')}</h3>
                 <form onSubmit={handleTvLoginSubmit} style={{ display: 'grid', gap: '10px' }}>
-                  <input value={tvLoginForm.login} onChange={(e) => setTvLoginForm((p) => ({ ...p, login: e.target.value }))} placeholder="Login / usuario" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
-                  <input value={tvLoginForm.password} onChange={(e) => setTvLoginForm((p) => ({ ...p, password: e.target.value }))} placeholder="Senha" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
+                  <label htmlFor="tv-login-user" style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Login</label>
+                  <input id="tv-login-user" autoComplete="off" value={tvLoginForm.login} onChange={(e) => setTvLoginForm((p) => ({ ...p, login: e.target.value }))} placeholder="Login / usuario" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
+                  <label htmlFor="tv-login-pass" style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Senha</label>
+                  <input id="tv-login-pass" type="password" autoComplete="new-password" value={tvLoginForm.password} onChange={(e) => setTvLoginForm((p) => ({ ...p, password: e.target.value }))} placeholder="Senha" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
                   <input value={tvLoginForm.planName} onChange={(e) => setTvLoginForm((p) => ({ ...p, planName: e.target.value }))} placeholder="Nome do plano (exibicao)" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
-                  <input value={tvLoginForm.planKey} onChange={(e) => setTvLoginForm((p) => ({ ...p, planKey: e.target.value }))} placeholder="Chave do plano (igual ao tvPlanKey do catalogo)" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
+                  <input value={tvLoginForm.planKey} onChange={(e) => setTvLoginForm((p) => ({ ...p, planKey: e.target.value }))} placeholder="Chave (tvPlanKey do catalogo)" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
                   <textarea value={tvLoginForm.notes} onChange={(e) => setTvLoginForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Observacoes (opcional)" rows={3} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     <button type="submit" disabled={savingTvLogin} style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 14px', cursor: 'pointer', fontWeight: '700' }}>
                       {savingTvLogin ? 'Salvando...' : (editingTvLoginId ? 'Atualizar' : 'Adicionar')}
                     </button>
@@ -6592,51 +6729,193 @@ const DashboardWithFirebase = ({
                 </form>
               </div>
 
-              <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '16px', border: '1px solid rgba(124,58,237,0.25)' }}>
+              <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '16px', border: '1px solid rgba(124,58,237,0.25)', minWidth: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                  <input value={tvLoginSearch} onChange={(e) => setTvLoginSearch(e.target.value)} placeholder="Buscar login/plano..." style={{ flex: 1, minWidth: '220px', padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
-                  <div style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
-                    Disponiveis: <strong style={{ color: '#10b981' }}>{availableCount}</strong> · Vendidos: <strong style={{ color: '#ef4444' }}>{soldCount}</strong>
+                  <input
+                    value={tvLoginSearch}
+                    onChange={(e) => setTvLoginSearch(e.target.value)}
+                    placeholder={t('tvLogins.searchPlaceholder')}
+                    aria-label={t('tvLogins.searchPlaceholder')}
+                    style={{ flex: 1, minWidth: 'min(100%, 220px)', padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }}
+                  />
+                  <div style={{ color: '#9ca3af', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
+                    {t('tvLogins.available')}: <strong style={{ color: '#10b981' }}>{availableCount}</strong>
+                    {' · '}{t('tvLogins.reserved')}: <strong style={{ color: '#f59e0b' }}>{reservedCount}</strong>
+                    {' · '}{t('tvLogins.soldCount')}: <strong style={{ color: '#ef4444' }}>{soldCount}</strong>
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gap: '8px', maxHeight: '520px', overflowY: 'auto' }}>
+                <div style={{ display: 'grid', gap: '12px', maxHeight: '560px', overflowY: 'auto' }}>
                   {filtered.length === 0 ? (
-                    <div style={{ color: '#9ca3af', fontSize: '0.9rem' }}>Nenhum login cadastrado.</div>
-                  ) : filtered.map((item) => (
-                    <div key={item.id} style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px', backgroundColor: '#0f1419' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                        <div>
-                          <p style={{ margin: 0, color: '#fff', fontWeight: '700' }}>{item.login}</p>
-                          <p style={{ margin: '2px 0 0 0', color: '#9ca3af', fontSize: '0.82rem' }}>
-                            Plano: {item.planName || 'Nao informado'} · Chave: {item.planKey || '—'} · Senha: {item.password}
-                          </p>
-                          {item.notes ? <p style={{ margin: '6px 0 0 0', color: '#cbd5e1', fontSize: '0.82rem' }}>{item.notes}</p> : null}
-                          {item.status === 'sold' && (
-                            <p style={{ margin: '6px 0 0 0', color: '#fca5a5', fontSize: '0.78rem' }}>
-                              Vendido {item.soldToPhone ? `para ${item.soldToPhone}` : ''} {item.soldAt ? `em ${new Date(item.soldAt).toLocaleString('pt-BR')}` : ''}
-                            </p>
-                          )}
-                        </div>
-                        <span style={{ padding: '4px 8px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '700', backgroundColor: item.status === 'sold' ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)', color: item.status === 'sold' ? '#ef4444' : '#10b981' }}>
-                          {item.status === 'sold' ? 'VENDIDO' : 'DISPONIVEL'}
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
-                        <button type="button" onClick={() => editTvLogin(item)} style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Editar</button>
-                        {item.status === 'sold' ? (
-                          <button type="button" onClick={() => markTvLoginAsAvailable(item)} style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Marcar disponivel</button>
-                        ) : (
-                          <button type="button" onClick={() => markTvLoginAsSold(item)} style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Marcar vendido</button>
-                        )}
-                        <button type="button" onClick={() => deleteTvLogin(item)} style={{ backgroundColor: '#6b7280', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Excluir</button>
-                      </div>
+                    <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af' }}>
+                      <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📭</div>
+                      <div style={{ fontWeight: 600, color: '#e5e7eb', marginBottom: '6px' }}>{t('tvLogins.emptyTitle')}</div>
+                      <div style={{ fontSize: '0.9rem' }}>{t('tvLogins.emptyHint')}</div>
                     </div>
-                  ))}
+                  ) : (
+                    tvGrouped.map(([gKey, group]) => (
+                      <div key={gKey}>
+                        <div style={{ fontSize: '0.8rem', color: '#a78bfa', marginBottom: '8px', fontWeight: 700 }}>
+                          {t('tvLogins.groupByPlan')}: {group.label} ({group.items.length})
+                        </div>
+                        {group.items.map((item) => {
+                          const sb = statusBadge(item);
+                          const showPw = !!tvPwVisible[item.id];
+                          return (
+                            <div key={item.id} style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px', backgroundColor: '#0f1419', marginBottom: '8px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
+                                <div style={{ minWidth: 0 }}>
+                                  <p style={{ margin: 0, color: '#fff', fontWeight: '700' }}>{item.login}</p>
+                                  <p style={{ margin: '4px 0 0 0', color: '#9ca3af', fontSize: '0.82rem', wordBreak: 'break-word' }}>
+                                    {item.planName || '—'} · {item.planKey || '—'}
+                                  </p>
+                                  <p style={{ margin: '4px 0 0 0', color: '#cbd5e1', fontSize: '0.82rem' }}>
+                                    Senha: {showPw ? item.password : '••••••••'}
+                                    <button
+                                      type="button"
+                                      onClick={() => setTvPwVisible((p) => ({ ...p, [item.id]: !p[item.id] }))}
+                                      style={{ marginLeft: '8px', background: 'transparent', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '0.75rem' }}
+                                    >
+                                      {showPw ? t('tvLogins.hidePassword') : t('tvLogins.showPassword')}
+                                    </button>
+                                  </p>
+                                  {item.notes ? <p style={{ margin: '6px 0 0 0', color: '#cbd5e1', fontSize: '0.82rem' }}>{item.notes}</p> : null}
+                                  {item.status === 'sold' && (
+                                    <p style={{ margin: '6px 0 0 0', color: '#fca5a5', fontSize: '0.78rem' }}>
+                                      {t('tvLogins.soldTo', {
+                                        phone: item.soldToPhone || '—',
+                                        date: item.soldAt ? new Date(item.soldAt).toLocaleString('pt-BR') : '—'
+                                      })}
+                                    </p>
+                                  )}
+                                  {item.status === 'reserved' && item.reservedUntil ? (
+                                    <p style={{ margin: '4px 0 0 0', color: '#fcd34d', fontSize: '0.75rem' }}>
+                                      Reserva até {new Date(item.reservedUntil).toLocaleString('pt-BR')}
+                                    </p>
+                                  ) : null}
+                                  {Array.isArray(item.history) && item.history.length > 0 ? (
+                                    <details style={{ marginTop: '8px', fontSize: '0.75rem', color: '#9ca3af' }}>
+                                      <summary style={{ cursor: 'pointer' }}>{t('tvLogins.history')} ({item.history.length})</summary>
+                                      <ul style={{ margin: '6px 0 0 16px', padding: 0 }}>
+                                        {item.history.slice(-8).map((h, idx) => (
+                                          <li key={idx}>{h.event || '—'} {h.at ? new Date(h.at).toLocaleString('pt-BR') : ''}</li>
+                                        ))}
+                                      </ul>
+                                    </details>
+                                  ) : null}
+                                </div>
+                                <span style={{ padding: '4px 8px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '700', backgroundColor: sb.bg, color: sb.color }}>
+                                  {sb.text}
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                                <button type="button" onClick={() => editTvLogin(item)} style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Editar</button>
+                                {item.status === 'sold' ? (
+                                  <>
+                                    <button type="button" onClick={() => markTvLoginAsAvailable(item)} style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Marcar disponivel</button>
+                                    {item.soldToPhone ? (
+                                      <button type="button" onClick={() => resendTvCredentials(item)} style={{ backgroundColor: '#7c3aed', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>{t('tvLogins.resend')}</button>
+                                    ) : null}
+                                  </>
+                                ) : (
+                                  <button type="button" onClick={() => markTvLoginAsSold(item)} style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Marcar vendido</button>
+                                )}
+                                <button type="button" onClick={() => deleteTvLogin(item)} style={{ backgroundColor: '#6b7280', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Excluir</button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
+          </div>
+        );
+      }
+
+      case 'reports': {
+        return (
+          <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'auto' }}>
+            <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+              {t('reportsPage.title')}
+            </h2>
+            <p style={{ fontSize: '1rem', color: '#9ca3af', marginBottom: '20px' }}>{t('reportsPage.subtitle')}</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end', marginBottom: '20px' }}>
+              <div>
+                <label htmlFor="rep-start" style={{ display: 'block', fontSize: '0.8rem', color: '#9ca3af', marginBottom: '4px' }}>{t('reportsPage.start')}</label>
+                <input
+                  id="rep-start"
+                  type="date"
+                  value={reportsRange.start}
+                  onChange={(e) => setReportsRange((r) => ({ ...r, start: e.target.value }))}
+                  style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }}
+                />
+              </div>
+              <div>
+                <label htmlFor="rep-end" style={{ display: 'block', fontSize: '0.8rem', color: '#9ca3af', marginBottom: '4px' }}>{t('reportsPage.end')}</label>
+                <input
+                  id="rep-end"
+                  type="date"
+                  value={reportsRange.end}
+                  onChange={(e) => setReportsRange((r) => ({ ...r, end: e.target.value }))}
+                  style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={loadOrderReports}
+                disabled={reportsLoading}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#fff',
+                  fontWeight: 700,
+                  cursor: reportsLoading ? 'wait' : 'pointer'
+                }}
+              >
+                {reportsLoading ? '…' : t('reportsPage.load')}
+              </button>
+            </div>
+            {reportsData ? (
+              <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '20px', border: '1px solid rgba(16,185,129,0.2)' }}>
+                <p style={{ color: '#e5e7eb', marginBottom: '8px' }}>
+                  {t('reportsPage.count')}: <strong>{reportsData.count}</strong>
+                </p>
+                <p style={{ color: '#e5e7eb', marginBottom: '8px' }}>
+                  {t('reportsPage.totalPaid')}: <strong>R$ {Number(reportsData.totalPaidValue || 0).toFixed(2)}</strong>
+                </p>
+                <p style={{ color: '#9ca3af', fontSize: '0.9rem', marginBottom: '16px' }}>
+                  {t('reportsPage.byStatus')}: {JSON.stringify(reportsData.byStatus || {})}
+                </p>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem', color: '#d1d5db' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #374151' }}>
+                        <th style={{ textAlign: 'left', padding: '8px' }}>{t('reportsPage.tableId')}</th>
+                        <th style={{ textAlign: 'left', padding: '8px' }}>{t('reportsPage.tableStatus')}</th>
+                        <th style={{ textAlign: 'right', padding: '8px' }}>{t('reportsPage.tableTotal')}</th>
+                        <th style={{ textAlign: 'left', padding: '8px' }}>{t('reportsPage.tableDate')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(reportsData.orders || []).map((o) => (
+                        <tr key={o.id} style={{ borderBottom: '1px solid rgba(55,65,81,0.5)' }}>
+                          <td style={{ padding: '8px', wordBreak: 'break-all' }}>{o.id}</td>
+                          <td style={{ padding: '8px' }}>{o.status}</td>
+                          <td style={{ padding: '8px', textAlign: 'right' }}>{o.totalValue != null ? Number(o.totalValue).toFixed(2) : '—'}</td>
+                          <td style={{ padding: '8px' }}>{o.createdAt ? new Date(o.createdAt).toLocaleString('pt-BR') : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
           </div>
         );
       }
@@ -8931,27 +9210,40 @@ const DashboardWithFirebase = ({
 
   const menuItems = useMemo(
     () => [
-      { id: 'dashboard', label: t('nav.dashboard'), icon: '🏠' },
-      { id: 'tutorials', label: t('nav.tutorials'), icon: '📚' },
-      { id: 'company', label: t('nav.company'), icon: '👤' },
-      { id: 'catalog', label: t('nav.catalog'), icon: '📦' },
-      { id: 'agendamentos', label: t('nav.agendamentos'), icon: '📅' },
-      { id: 'conversas', label: t('nav.conversas'), icon: 'whatsapp' },
-      { id: 'crm', label: t('nav.crm'), icon: 'target' },
-      { id: 'integrations', label: t('nav.integrations'), icon: '⚙️' },
-      { id: 'whatsapp', label: t('nav.whatsapp'), icon: '📱' },
-      { id: 'assistant', label: t('nav.assistant'), icon: '🤖' },
-      { id: 'plans', label: t('nav.plans'), icon: '💎' },
+      { id: 'dashboard', label: t('nav.dashboard'), icon: '🏠', badge: 0 },
+      { id: 'tutorials', label: t('nav.tutorials'), icon: '📚', badge: 0 },
+      { id: 'company', label: t('nav.company'), icon: '👤', badge: 0 },
+      { id: 'catalog', label: t('nav.catalog'), icon: '📦', badge: 0 },
+      { id: 'agendamentos', label: t('nav.agendamentos'), icon: '📅', badge: 0 },
+      { id: 'conversas', label: t('nav.conversas'), icon: 'whatsapp', badge: 0 },
+      { id: 'crm', label: t('nav.crm'), icon: 'target', badge: 0 },
+      { id: 'integrations', label: t('nav.integrations'), icon: '⚙️', badge: 0 },
+      { id: 'whatsapp', label: t('nav.whatsapp'), icon: '📱', badge: 0 },
+      { id: 'assistant', label: t('nav.assistant'), icon: '🤖', badge: 0 },
+      { id: 'plans', label: t('nav.plans'), icon: '💎', badge: 0 },
       ...(user?.isMaster
         ? [
-            { id: 'tv-logins', label: 'Logins TV', icon: '📺' },
-            { id: 'stripe', label: t('nav.stripe'), icon: 'stripe' },
-            { id: 'users', label: t('nav.users'), icon: '👤' },
-            { id: 'email', label: t('nav.email'), icon: '📧' }
+            {
+              id: 'tv-logins',
+              label: t('nav.tvLogins'),
+              icon: '📺',
+              badge: tvStockAlerts.length,
+              badgeTone: 'danger'
+            },
+            { id: 'reports', label: t('nav.reports'), icon: '📊', badge: 0 },
+            {
+              id: 'stripe',
+              label: t('nav.stripe'),
+              icon: 'stripe',
+              badge: stripeOps.pastDue > 0 ? Math.min(stripeOps.pastDue, 99) : 0,
+              badgeTone: 'warning'
+            },
+            { id: 'users', label: t('nav.users'), icon: '👤', badge: 0 },
+            { id: 'email', label: t('nav.email'), icon: '📧', badge: 0 }
           ]
         : [])
     ],
-    [t, user?.isMaster]
+    [t, user?.isMaster, tvStockAlerts.length, stripeOps.pastDue]
   );
 
   // Função helper para renderizar ícones de página (mesma lógica do sidebar)
@@ -9374,6 +9666,27 @@ const DashboardWithFirebase = ({
                       }}>
                         {item.label}
                       </span>
+                      {!isLocked && (item.badge || 0) > 0 && (
+                        <span
+                          aria-label={`${item.badge} alertas`}
+                          style={{
+                            minWidth: '20px',
+                            height: '20px',
+                            borderRadius: '9999px',
+                            backgroundColor: item.badgeTone === 'warning' ? '#f59e0b' : '#ef4444',
+                            color: '#fff',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '0 6px',
+                            flexShrink: 0
+                          }}
+                        >
+                          {item.badge > 99 ? '99+' : item.badge}
+                        </span>
+                      )}
                       {isLocked && (
                         <span style={{ 
                           fontSize: '14px', 

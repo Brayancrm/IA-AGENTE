@@ -306,6 +306,18 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
         }
         console.log('✅ Cancelamento de assinatura Stripe processado:', { targetUserId, targetSubKey });
       }
+    } else if (event.type === 'checkout.session.expired') {
+      const session = event.data.object;
+      const userId = session.metadata?.userId;
+      const orderId = session.metadata?.orderId;
+      if (userId && orderId) {
+        await releaseTvReservationsForOrder(userId, orderId);
+        await db.ref(`orders/${userId}/${orderId}`).update({
+          status: 'checkout_expired',
+          updatedAt: new Date().toISOString()
+        });
+        console.log('✅ Checkout expirado — reservas TV liberadas:', { userId, orderId });
+      }
     }
 
     return res.json({ received: true });
@@ -3146,10 +3158,15 @@ async function enrichOrderItemsWithCatalog(sellerUserId, items) {
 function findAvailableTvLoginRecord(snap, planKeyNorm) {
   let picked = null;
   if (!snap || !snap.exists()) return null;
+  const now = Date.now();
   snap.forEach((child) => {
     if (picked) return;
     const item = child.val() || {};
     if (item.status === 'sold' || !item.login || !item.password) return;
+    if (item.status === 'reserved') {
+      const until = item.reservedUntil ? new Date(item.reservedUntil).getTime() : 0;
+      if (until && until > now) return;
+    }
     const rowKey = normalizePlanKey(item.planKey || item.planName || '');
     if (rowKey && planKeyNorm && rowKey === planKeyNorm) {
       picked = { id: child.key, ...item };
@@ -3158,13 +3175,101 @@ function findAvailableTvLoginRecord(snap, planKeyNorm) {
   return picked;
 }
 
+function findTvLoginReservedForOrder(snap, planKeyNorm, orderId) {
+  let picked = null;
+  if (!snap || !snap.exists() || !orderId) return null;
+  snap.forEach((child) => {
+    if (picked) return;
+    const item = child.val() || {};
+    if (item.status !== 'reserved' || item.reservedOrderId !== orderId) return;
+    if (!item.login || !item.password) return;
+    const rowKey = normalizePlanKey(item.planKey || item.planName || '');
+    if (rowKey && planKeyNorm && rowKey === planKeyNorm) {
+      picked = { id: child.key, ...item };
+    }
+  });
+  return picked;
+}
+
+async function appendTvLoginHistory(masterUserId, tvLoginId, entry) {
+  try {
+    const ref = db.ref(`users/data/${masterUserId}/tv_logins/${tvLoginId}/history`);
+    const snap = await ref.once('value');
+    let arr = snap.val();
+    if (!Array.isArray(arr)) arr = [];
+    arr.push({ ...entry, at: entry.at || new Date().toISOString() });
+    await ref.set(arr.slice(-50));
+  } catch (e) {
+    console.error('❌ [TV LOGIN] appendTvLoginHistory:', e.message);
+  }
+}
+
+async function releaseTvReservationsForOrder(userId, orderId) {
+  if (!userId || !orderId) return;
+  const snap = await db.ref(`users/data/${userId}/tv_logins`).once('value');
+  if (!snap.exists()) return;
+  const tasks = [];
+  snap.forEach((child) => {
+    const item = child.val() || {};
+    if (item.status === 'reserved' && item.reservedOrderId === orderId) {
+      const id = child.key;
+      tasks.push(
+        db.ref(`users/data/${userId}/tv_logins/${id}`).update({
+          status: 'available',
+          reservedOrderId: null,
+          reservedUntil: null,
+          updatedAt: new Date().toISOString()
+        })
+      );
+      tasks.push(
+        appendTvLoginHistory(userId, id, { event: 'reservation_released', orderId })
+      );
+    }
+  });
+  await Promise.all(tasks);
+}
+
+async function reserveTvLoginsForCheckoutOrder(userId, orderId, enrichedItems) {
+  if (!userId || !orderId || !Array.isArray(enrichedItems)) return;
+  for (const line of enrichedItems) {
+    if (!line.tvLoginProduct || !line.tvPlanKey) continue;
+    const planKeyNorm = normalizePlanKey(line.tvPlanKey);
+    if (!planKeyNorm) continue;
+    const snap = await db.ref(`users/data/${userId}/tv_logins`).once('value');
+    const login = findAvailableTvLoginRecord(snap, planKeyNorm);
+    if (!login) {
+      console.log('⚠️ [TV] Sem estoque para reservar:', planKeyNorm);
+      continue;
+    }
+    const until = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    await db.ref(`users/data/${userId}/tv_logins/${login.id}`).update({
+      status: 'reserved',
+      reservedOrderId: orderId,
+      reservedUntil: until,
+      updatedAt: new Date().toISOString()
+    });
+    await appendTvLoginHistory(userId, login.id, {
+      event: 'reserved',
+      orderId,
+      reservedUntil: until
+    });
+  }
+}
+
 async function markTvLoginAllocated(masterUserId, tvLoginId, patch) {
   const soldAt = new Date().toISOString();
   await db.ref(`users/data/${masterUserId}/tv_logins/${tvLoginId}`).update({
     status: 'sold',
     soldAt,
+    reservedOrderId: null,
+    reservedUntil: null,
     ...patch,
     updatedAt: soldAt
+  });
+  await appendTvLoginHistory(masterUserId, tvLoginId, {
+    event: 'sold',
+    soldOrderId: patch.soldOrderId || null,
+    at: soldAt
   });
 }
 
@@ -3213,7 +3318,9 @@ async function deliverTvLoginsForPaidOrder(sellerUserId, orderId, orderData) {
       const qty = Math.max(1, parseInt(line.quantity, 10) || 1);
       for (let i = 0; i < qty; i++) {
         const freshSnap = await db.ref(`users/data/${sellerUserId}/tv_logins`).once('value');
-        const login = findAvailableTvLoginRecord(freshSnap, planKeyNorm);
+        let login =
+          findTvLoginReservedForOrder(freshSnap, planKeyNorm, orderId) ||
+          findAvailableTvLoginRecord(freshSnap, planKeyNorm);
         if (!login) {
           console.error('❌ [TV LOGIN] Sem estoque para plano:', planKeyNorm);
           await sendTvLoginWhatsApp(
@@ -3554,6 +3661,12 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
       paymentUrl: result.checkoutUrl,
       paymentProvider: 'stripe'
     });
+
+    try {
+      await reserveTvLoginsForCheckoutOrder(userId, orderId, enrichedOrderItems);
+    } catch (e) {
+      console.error('❌ [TV] Reserva pós-checkout:', e.message);
+    }
 
     const paymentMessage = `✅ *Pedido Criado!*\n\n` +
       `📦 Itens:\n` +
@@ -4720,6 +4833,12 @@ async function handleCreateStripeCheckout(req, res) {
         paymentUrl: result.checkoutUrl,
         paymentProvider: 'stripe'
       });
+
+      try {
+        await reserveTvLoginsForCheckoutOrder(userId, orderId, enrichedItems);
+      } catch (e) {
+        console.error('❌ [TV] Reserva pós-checkout (API):', e.message);
+      }
       
       return res.json({
         success: true,
@@ -4806,6 +4925,76 @@ async function handleCreateStripeSubscription(req, res) {
 
 // Novo endpoint Stripe para assinatura
 app.post('/api/stripe/create-subscription', handleCreateStripeSubscription);
+
+app.post('/api/tv/resend-credentials', async (req, res) => {
+  try {
+    const { userId, tvLoginId, phone } = req.body;
+    if (!userId || !tvLoginId) {
+      return res.status(400).json({ error: 'userId e tvLoginId são obrigatórios' });
+    }
+    const snap = await db.ref(`users/data/${userId}/tv_logins/${tvLoginId}`).once('value');
+    const login = snap.val();
+    if (!login || !login.login || !login.password) {
+      return res.status(404).json({ error: 'Login não encontrado' });
+    }
+    const targetPhone = phone || login.soldToPhone;
+    if (!targetPhone) {
+      return res.status(400).json({
+        error: 'Informe o telefone (phone) ou use um login já vendido com soldToPhone'
+      });
+    }
+    const msg =
+      `✅ *Reenvio de acesso*\n\n` +
+      `📺 *${login.planName || 'Plano'}*\n` +
+      `Login: ${login.login}\n` +
+      `Senha: ${login.password}\n\n` +
+      `_Em caso de dúvida, fale com o suporte._`;
+    await sendTvLoginWhatsApp(userId, targetPhone, msg);
+    await saveTvMessageToConversation(userId, targetPhone, msg);
+    await appendTvLoginHistory(userId, tvLoginId, { event: 'resend', at: new Date().toISOString() });
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Erro reenvio TV:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/orders/summary', async (req, res) => {
+  try {
+    const { userId, start, end } = req.query;
+    if (!userId) return res.status(400).json({ error: 'userId obrigatório' });
+    const snap = await db.ref(`orders/${userId}`).once('value');
+    const startMs = start ? new Date(start).getTime() : 0;
+    const endMs = end ? new Date(end).getTime() : Date.now() + 86400000 * 365;
+    const rows = [];
+    let totalPaid = 0;
+    const byStatus = {};
+    if (snap.exists()) {
+      snap.forEach((child) => {
+        const o = child.val() || {};
+        const paidAt = o.paidAt || o.createdAt;
+        const t = paidAt ? new Date(paidAt).getTime() : 0;
+        if (t >= startMs && t <= endMs) {
+          rows.push({ id: child.key, ...o });
+          const st = o.status || 'unknown';
+          byStatus[st] = (byStatus[st] || 0) + 1;
+          if (o.status === 'paid' && typeof o.totalValue === 'number') {
+            totalPaid += o.totalValue;
+          }
+        }
+      });
+    }
+    return res.json({
+      ok: true,
+      count: rows.length,
+      totalPaidValue: totalPaid,
+      byStatus,
+      orders: rows.slice(0, 200)
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
 
 // Webhook Asaas (legado opcional)
 if (ENABLE_ASAAS_LEGACY) {

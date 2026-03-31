@@ -13,7 +13,56 @@
     "plans": "Planos e Assinaturas",
     "stripe": "Stripe",
     "users": "Gerenciar Usuários",
-    "email": "Email"
+    "email": "Email",
+    "reports": "Relatórios",
+    "tvLogins": "Logins TV"
+  },
+  "setupChecklist": {
+    "title": "Checklist de configuração",
+    "subtitle": "{{done}} de {{total}} passos concluídos",
+    "stepStripe": "Stripe com chave secreta (sk_) nas Integrações",
+    "stepWhatsapp": "WhatsApp conectado",
+    "stepCatalogTv": "Catálogo com produto TV e tvPlanKey",
+    "stepStock": "Pelo menos um login TV disponível no estoque",
+    "stepAssistant": "Assistente com prompt configurado"
+  },
+  "tvLogins": {
+    "title": "Estoque de Logins Wplay",
+    "subtitle": "Cadastre os acessos disponíveis para o assistente vender e controlar status automaticamente.",
+    "newLogin": "Novo Login",
+    "editLogin": "Editar Login",
+    "searchPlaceholder": "Buscar login/plano...",
+    "available": "Disponíveis",
+    "reserved": "Reservados",
+    "soldCount": "Vendidos",
+    "showPassword": "Mostrar senha",
+    "hidePassword": "Ocultar senha",
+    "alertNoStock": "Sem estoque para \"{{name}}\" (chave {{key}}), mas o catálogo ainda vende este TV. Cadastre logins ou ajuste o catálogo.",
+    "emptyTitle": "Nenhum login cadastrado",
+    "emptyHint": "Adicione pelo menos um login com a mesma chave do catálogo (tvPlanKey).",
+    "confirmDelete": "Deseja excluir este login?",
+    "confirmMarkSold": "Marcar este login como vendido (manual)?",
+    "resend": "Reenviar credenciais",
+    "history": "Histórico",
+    "statusAvailable": "DISPONÍVEL",
+    "statusReserved": "RESERVADO",
+    "statusSold": "VENDIDO",
+    "soldTo": "Vendido para {{phone}} em {{date}}",
+    "groupByPlan": "Plano"
+  },
+  "reportsPage": {
+    "title": "Relatório de pedidos",
+    "subtitle": "Resumo dos pedidos no período (Firebase).",
+    "start": "Data inicial",
+    "end": "Data final",
+    "load": "Carregar",
+    "totalPaid": "Total pago (pedidos com status \"paid\")",
+    "count": "Pedidos no filtro",
+    "byStatus": "Por status",
+    "tableId": "ID",
+    "tableStatus": "Status",
+    "tableTotal": "Total R$",
+    "tableDate": "Criado em"
   },
   "common": {
     "language": "Idioma da interface",
@@ -142,7 +191,9 @@
     "remindersListCopied": "Lista de lembretes ({{hours}}h) copiada!",
     "pastDueListCopied": "Lista past_due copiada! ({{count}} cliente(s))",
     "flowTemplateSaveError": "Erro ao salvar template",
-    "flowEditorExportError": "Erro ao exportar conteúdo do editor"
+    "flowEditorExportError": "Erro ao exportar conteúdo do editor",
+    "tvResendOk": "Credenciais reenviadas por WhatsApp.",
+    "tvResendError": "Não foi possível reenviar as credenciais."
   },
   "locked": {
     "title": "Funcionalidade Bloqueada",

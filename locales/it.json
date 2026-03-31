@@ -13,7 +13,56 @@
     "plans": "Piani e abbonamenti",
     "stripe": "Stripe",
     "users": "Gestione utenti",
-    "email": "Email"
+    "email": "Email",
+    "reports": "Report",
+    "tvLogins": "Login TV"
+  },
+  "setupChecklist": {
+    "title": "Checklist di configurazione",
+    "subtitle": "{{done}} di {{total}} passaggi completati",
+    "stepStripe": "Stripe con chiave segreta (sk_) nelle Integrazioni",
+    "stepWhatsapp": "WhatsApp connesso",
+    "stepCatalogTv": "Catalogo con prodotto TV e tvPlanKey",
+    "stepStock": "Almeno un login TV disponibile in magazzino",
+    "stepAssistant": "Assistente con prompt configurato"
+  },
+  "tvLogins": {
+    "title": "Magazzino login Wplay",
+    "subtitle": "Registra le credenziali disponibili per la vendita e il tracciamento dello stato.",
+    "newLogin": "Nuovo login",
+    "editLogin": "Modifica login",
+    "searchPlaceholder": "Cerca login/piano…",
+    "available": "Disponibili",
+    "reserved": "Riservati",
+    "soldCount": "Venduti",
+    "showPassword": "Mostra password",
+    "hidePassword": "Nascondi password",
+    "alertNoStock": "Nessuna disponibilità per \"{{name}}\" (chiave {{key}}), ma il catalogo vende ancora questo TV. Aggiungi login o modifica il catalogo.",
+    "emptyTitle": "Nessun login registrato",
+    "emptyHint": "Aggiungi almeno un login con la stessa chiave del catalogo (tvPlanKey).",
+    "confirmDelete": "Eliminare questo login?",
+    "confirmMarkSold": "Segnare questo login come venduto (manuale)?",
+    "resend": "Reinvia credenziali",
+    "history": "Cronologia",
+    "statusAvailable": "DISPONIBILE",
+    "statusReserved": "RISERVATO",
+    "statusSold": "VENDUTO",
+    "soldTo": "Venduto a {{phone}} il {{date}}",
+    "groupByPlan": "Piano"
+  },
+  "reportsPage": {
+    "title": "Report ordini",
+    "subtitle": "Riepilogo ordini nel periodo (Firebase).",
+    "start": "Data inizio",
+    "end": "Data fine",
+    "load": "Carica",
+    "totalPaid": "Totale pagato (ordini con stato \"paid\")",
+    "count": "Ordini nel filtro",
+    "byStatus": "Per stato",
+    "tableId": "ID",
+    "tableStatus": "Stato",
+    "tableTotal": "Totale",
+    "tableDate": "Creato"
   },
   "common": {
     "language": "Lingua dell'interfaccia",
@@ -142,7 +191,9 @@
     "remindersListCopied": "Lista promemoria ({{hours}}h) copiata!",
     "pastDueListCopied": "Lista past_due copiata! ({{count}} cliente/i)",
     "flowTemplateSaveError": "Errore nel salvataggio del template",
-    "flowEditorExportError": "Errore nell'esportazione del contenuto editor"
+    "flowEditorExportError": "Errore nell'esportazione del contenuto editor",
+    "tvResendOk": "Credenziali reinviate su WhatsApp.",
+    "tvResendError": "Impossibile reinviare le credenziali."
   },
   "locked": {
     "title": "Funzione bloccata",
