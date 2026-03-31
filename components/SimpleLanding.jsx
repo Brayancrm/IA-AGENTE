@@ -17,6 +17,11 @@ const firebaseConfig = {
 };
 
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsappsalesagent';
+const PLAN_CURRENCY_OPTIONS = ['R$', '$', '€'];
+
+const normalizePlanCurrency = (currency) => (
+  PLAN_CURRENCY_OPTIONS.includes(currency) ? currency : 'R$'
+);
 
 let app, db, auth, database;
 if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
@@ -286,6 +291,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             plansList.push({ 
               id: key, 
               ...planData,
+              currency: normalizePlanCurrency(planData.currency),
               limits: planData.limits || {
                 messagesPerMonth: null,
                 conversations: null,
@@ -321,12 +327,12 @@ const SimpleLanding = ({ onLoginSuccess }) => {
   }, [database]);
 
   // Função auxiliar para formatar preço
-  const formatPrice = (price, isTrialPlan = false) => {
+  const formatPrice = (price, isTrialPlan = false, currency = 'R$') => {
     // Planos trial são sempre gratuitos, independente do preço
     if (isTrialPlan || !price || price === 0) return { main: 'GRÁTIS', decimal: '' };
     const numPrice = parseFloat(price);
     const parts = numPrice.toFixed(2).split('.');
-    return { main: `R$ ${parts[0]}`, decimal: `,${parts[1]}` };
+    return { main: `${normalizePlanCurrency(currency)} ${parts[0]}`, decimal: `,${parts[1]}` };
   };
 
   // Mapeamento de IDs de funcionalidades para labels
@@ -938,7 +944,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
             plans.map((plan, index) => {
               // Planos trial são sempre gratuitos, independente do preço
               const isTrialPlan = plan.isTrialPlan === true;
-              const price = formatPrice(plan.price, isTrialPlan);
+              const price = formatPrice(plan.price, isTrialPlan, plan.currency);
               const features = getPlanFeatures(plan);
               const isFree = isTrialPlan || !plan.price || plan.price === 0;
               const isPopular = index === Math.floor(plans.length / 2); // Plano do meio como popular
@@ -2081,7 +2087,7 @@ const SimpleLanding = ({ onLoginSuccess }) => {
                 plans.map((plan, index) => {
                   // Planos trial são sempre gratuitos, independente do preço
                   const isTrialPlan = plan.isTrialPlan === true;
-                  const price = formatPrice(plan.price, isTrialPlan);
+                  const price = formatPrice(plan.price, isTrialPlan, plan.currency);
                   const features = getPlanFeatures(plan);
                   const isFree = isTrialPlan || !plan.price || plan.price === 0;
                   const isPopular = index === Math.floor(plans.length / 2);
