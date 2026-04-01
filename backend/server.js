@@ -3342,6 +3342,13 @@ async function enrichOrderItemsWithCatalog(sellerUserId, items) {
   });
 }
 
+/** Duração da reserva de login TV no checkout (min). Depois volta a contar como disponível se ninguém pagar. Env: TV_RESERVATION_MINUTES (padrão 3, máx. 1440). */
+function getTvReservationMinutes() {
+  const n = parseInt(process.env.TV_RESERVATION_MINUTES, 10);
+  if (Number.isFinite(n) && n >= 1 && n <= 1440) return n;
+  return 3;
+}
+
 function findAvailableTvLoginRecord(snap, planKeyNorm) {
   let picked = null;
   if (!snap || !snap.exists()) return null;
@@ -3428,7 +3435,7 @@ async function reserveTvLoginsForCheckoutOrder(userId, orderId, enrichedItems) {
       console.log('⚠️ [TV] Sem estoque para reservar:', planKeyNorm);
       continue;
     }
-    const until = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    const until = new Date(Date.now() + getTvReservationMinutes() * 60 * 1000).toISOString();
     await db.ref(`users/data/${userId}/tv_logins/${login.id}`).update({
       status: 'reserved',
       reservedOrderId: orderId,
