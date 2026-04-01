@@ -1480,18 +1480,20 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       });
     }
     
-    // Estoque de acessos TV (apenas contagens — NUNCA enviar credenciais ao modelo)
+    // Acessos TV realmente disponíveis (exclui vendidos e reservas ainda ativas — NUNCA enviar credenciais ao modelo)
     const tvLoginsSnapshot = await db.ref(`users/data/${userId}/tv_logins`).once('value');
     const tvStockByPlan = {};
     if (tvLoginsSnapshot.exists()) {
+      const nowTv = Date.now();
       tvLoginsSnapshot.forEach((child) => {
         const item = child.val() || {};
-        if (item.status === 'sold') return;
+        if (!tvLoginRowIsAvailable(item, nowTv)) return;
         const pk = normalizePlanKey(item.planKey || item.planName || '');
         if (!pk) return;
         tvStockByPlan[pk] = (tvStockByPlan[pk] || 0) + 1;
       });
     }
+    const tvReserveMinAi = getTvReservationMinutes();
 
     // Construir prompt do sistema com contexto
     let systemPrompt = aiConfig.systemPrompt || 'Você é um assistente virtual prestativo.';
@@ -1523,7 +1525,16 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
           systemPrompt += ` - ${product.description}`;
         }
         if (product.tvLoginProduct && product.tvPlanKey) {
-          systemPrompt += ` [TV/WPLAY — chave do plano: ${normalizePlanKey(product.tvPlanKey)}]`;
+          const pk = normalizePlanKey(product.tvPlanKey);
+          const tvN = tvStockByPlan[pk] || 0;
+          systemPrompt += ` [TV/WPLAY — chave do plano: ${pk}`;
+          if (tvN < 1) {
+            systemPrompt += ` — SEM ACESSOS DISPONÍVEIS (vendidos/reservados); oriente o cliente a tentar de novo em ~${tvReserveMinAi} min]`;
+          } else {
+            systemPrompt += ` — ${tvN} acesso(s) livre(s) agora]`;
+          }
+        } else if (typeof product.stock === 'number' && product.stock < 1) {
+          systemPrompt += ` [FORA DE ESTOQUE — não finalize venda nem envie link de pagamento]`;
         }
         if (product.image) systemPrompt += ` [TEM FOTO DISPONÍVEL]`;
         if (product.link) systemPrompt += ` [TEM LINK PARA ADESÃO DISPONÍVEL]`;
@@ -1545,6 +1556,9 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
         if (service.description) {
           systemPrompt += ` - ${service.description}`;
         }
+        if (typeof service.capacity === 'number' && service.capacity < 1) {
+          systemPrompt += ` [SEM CAPACIDADE/VAGAS — não finalize venda nem envie link de pagamento]`;
+        }
         if (service.image) systemPrompt += ` [TEM FOTO DISPONÍVEL]`;
         if (service.link) systemPrompt += ` [TEM LINK PARA ADESÃO DISPONÍVEL]`;
         systemPrompt += '\n';
@@ -1561,7 +1575,8 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
 - Você DEVE mencionar e oferecer esses produtos/serviços quando relevante
 - Seja proativo e sugira produtos/serviços que possam ajudar o cliente
 - Inclua descrição curta de 1 linha quando listar itens
-- NUNCA mencione estoque, capacidade ou valores totais de estoque
+- Itens marcados como FORA DE ESTOQUE, SEM CAPACIDADE ou SEM ACESSOS TV: informe o cliente com clareza; NÃO prometa venda nem link de pagamento para esse item. Para TV indisponível, explique que pode tentar de novo em cerca de ${tvReserveMinAi} minutos (reservas temporárias expiram).
+- Para itens disponíveis, não precisa citar números de estoque na conversa
 ${imageInstruction}
 
 🎯 **CRÍTICO - CONFIRMAÇÃO DE PRODUTO:**
@@ -1615,14 +1630,14 @@ ${imageInstruction}
     }
 
     if (Object.keys(tvStockByPlan).length > 0) {
-      systemPrompt += `\n\n📺 ESTOQUE DE ACESSOS TV/WPLAY (somente quantidade por plano — NUNCA revele login ou senha aqui):\n`;
+      systemPrompt += `\n\n📺 ACESSOS TV/WPLAY DISPONÍVEIS AGORA (por chave de plano — NUNCA revele login ou senha aqui):\n`;
       Object.entries(tvStockByPlan).forEach(([pk, count]) => {
         systemPrompt += `- Plano ${pk}: ${count} disponível(is)\n`;
       });
       systemPrompt += `\nREGRAS TV/WPLAY (OBRIGATÓRIO):
 - NUNCA invente, adivinhe ou envie login/senha no WhatsApp. Após o pagamento confirmado, o sistema envia os dados automaticamente ao cliente.
 - Explique que a cobrança é recorrente (mensal): em cada renovação paga, o cliente recebe confirmação; os mesmos dados de acesso continuam válidos.
-- Só ofereça planos que existam no catálogo com a mesma chave (tvPlanKey) e com estoque > 0 acima.
+- Só ofereça fechamento de venda para planos TV com contagem > 0 acima. Se estiver 0, diga ao cliente para tentar de novo em cerca de ${tvReserveMinAi} min ou falar connosco.
 - Ao fechar venda, confirme o nome do produto/plano escolhido com o cliente.`;
     }
     
@@ -3349,6 +3364,28 @@ function getTvReservationMinutes() {
   return 3;
 }
 
+function tvLoginRowIsAvailable(item, nowMs = Date.now()) {
+  if (!item || item.status === 'sold' || !item.login || !item.password) return false;
+  if (item.status === 'reserved') {
+    const until = item.reservedUntil ? new Date(item.reservedUntil).getTime() : 0;
+    if (until && until > nowMs) return false;
+  }
+  return true;
+}
+
+function countAvailableTvForPlan(snap, planKeyNorm) {
+  if (!snap || !snap.exists() || !planKeyNorm) return 0;
+  const now = Date.now();
+  let n = 0;
+  snap.forEach((child) => {
+    const item = child.val() || {};
+    if (!tvLoginRowIsAvailable(item, now)) return;
+    const rowKey = normalizePlanKey(item.planKey || item.planName || '');
+    if (rowKey && rowKey === planKeyNorm) n += 1;
+  });
+  return n;
+}
+
 function findAvailableTvLoginRecord(snap, planKeyNorm) {
   let picked = null;
   if (!snap || !snap.exists()) return null;
@@ -3356,17 +3393,92 @@ function findAvailableTvLoginRecord(snap, planKeyNorm) {
   snap.forEach((child) => {
     if (picked) return;
     const item = child.val() || {};
-    if (item.status === 'sold' || !item.login || !item.password) return;
-    if (item.status === 'reserved') {
-      const until = item.reservedUntil ? new Date(item.reservedUntil).getTime() : 0;
-      if (until && until > now) return;
-    }
+    if (!tvLoginRowIsAvailable(item, now)) return;
     const rowKey = normalizePlanKey(item.planKey || item.planName || '');
     if (rowKey && planKeyNorm && rowKey === planKeyNorm) {
       picked = { id: child.key, ...item };
     }
   });
   return picked;
+}
+
+function customerMessageOutOfStock(itemName) {
+  return (
+    `📦 No momento o item "${itemName}" está sem estoque. ` +
+    `Entre em contacto connosco ou tente novamente mais tarde.`
+  );
+}
+
+function customerMessageTvUnavailable(itemName, minutes) {
+  return (
+    `📺 No momento todos os acessos de "${itemName}" estão vendidos ou reservados. ` +
+    `Pode tentar de novo em cerca de ${minutes} minutos — as reservas temporárias expiram automaticamente. ` +
+    `Se precisar de ajuda, fale connosco.`
+  );
+}
+
+/**
+ * Bloqueia checkout se não houver stock (catálogo) ou acessos TV livres para a quantidade pedida.
+ */
+async function assertCheckoutAvailability(userId, enrichedItems) {
+  if (!userId || !Array.isArray(enrichedItems) || !enrichedItems.length) {
+    return { ok: true };
+  }
+  const catalogSnap = await db.ref(`users/data/${userId}/catalog_items`).once('value');
+  const catalog = catalogSnap.val() || {};
+  const tvSnap = await db.ref(`users/data/${userId}/tv_logins`).once('value');
+  const minutes = getTvReservationMinutes();
+
+  const needTvByPlan = {};
+  for (const line of enrichedItems) {
+    const qty = Math.max(1, parseInt(line.quantity, 10) || 1);
+    const cat = line.catalogItemId && catalog[line.catalogItemId] ? catalog[line.catalogItemId] : null;
+    const planKey = normalizePlanKey(line.tvPlanKey || cat?.tvPlanKey || '');
+    const tvLine = !!(line.tvLoginProduct || cat?.tvLoginProduct) && !!planKey;
+    if (tvLine) {
+      needTvByPlan[planKey] = (needTvByPlan[planKey] || 0) + qty;
+    }
+  }
+  for (const pk of Object.keys(needTvByPlan)) {
+    const need = needTvByPlan[pk];
+    const have = countAvailableTvForPlan(tvSnap, pk);
+    if (have < need) {
+      const line = enrichedItems.find((l) => {
+        const cat = l.catalogItemId && catalog[l.catalogItemId] ? catalog[l.catalogItemId] : null;
+        const pkLine = normalizePlanKey(l.tvPlanKey || cat?.tvPlanKey || '');
+        return (l.tvLoginProduct || cat?.tvLoginProduct) && pkLine === pk;
+      });
+      const cat = line?.catalogItemId && catalog[line.catalogItemId] ? catalog[line.catalogItemId] : null;
+      const lineName = line?.name || cat?.name || 'este plano';
+      return {
+        ok: false,
+        code: 'tv_unavailable',
+        userMessage: customerMessageTvUnavailable(lineName, minutes)
+      };
+    }
+  }
+
+  for (const line of enrichedItems) {
+    const qty = Math.max(1, parseInt(line.quantity, 10) || 1);
+    const cat = line.catalogItemId && catalog[line.catalogItemId] ? catalog[line.catalogItemId] : null;
+    const planKey = normalizePlanKey(line.tvPlanKey || cat?.tvPlanKey || '');
+    const tvLine = !!(line.tvLoginProduct || cat?.tvLoginProduct) && !!planKey;
+    if (tvLine) continue;
+
+    const lineName = line.name || cat?.name || 'este item';
+    if (cat) {
+      const sq = parseInt(cat.stockQuantity, 10);
+      if (Number.isFinite(sq) && sq < qty) {
+        return {
+          ok: false,
+          code: 'out_of_stock',
+          userMessage: customerMessageOutOfStock(lineName)
+        };
+      }
+    }
+  }
+
+  return { ok: true };
 }
 
 function findTvLoginReservedForOrder(snap, planKeyNorm, orderId) {
@@ -3832,6 +3944,12 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
     }];
 
     const enrichedOrderItems = await enrichOrderItemsWithCatalog(userId, orderItems);
+
+    const stockCheck = await assertCheckoutAvailability(userId, enrichedOrderItems);
+    if (!stockCheck.ok) {
+      await client.sendText(phone, stockCheck.userMessage);
+      return;
+    }
 
     const customerDataRef = db.ref(`customerData/${userId}/${phone.replace(/[^0-9]/g, '')}`);
     const customerSnapshot = await customerDataRef.once('value');
@@ -5021,10 +5139,18 @@ async function handleCreateStripeCheckout(req, res) {
       return res.status(400).json({ error: 'STRIPE_SUCCESS_URL e STRIPE_CANCEL_URL são obrigatórios' });
     }
 
+    const enrichedItems = await enrichOrderItemsWithCatalog(userId, items);
+    const stockCheck = await assertCheckoutAvailability(userId, enrichedItems);
+    if (!stockCheck.ok) {
+      return res.status(409).json({
+        success: false,
+        error: stockCheck.userMessage,
+        code: stockCheck.code
+      });
+    }
+
     const orderRef = db.ref(`orders/${userId}`).push();
     const orderId = orderRef.key;
-
-    const enrichedItems = await enrichOrderItemsWithCatalog(userId, items);
 
     const result = await createStripeCheckoutSession(
       stripeApiKey,
