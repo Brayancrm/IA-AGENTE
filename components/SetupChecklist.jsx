@@ -12,8 +12,18 @@ function hasTvCatalog(catalogItems) {
   return (catalogItems || []).some((c) => c?.tvLoginProduct && String(c?.tvPlanKey || '').trim());
 }
 
+function tvLoginEffectivelyAvailable(l, nowMs = Date.now()) {
+  if (l?.status === 'sold') return false;
+  if (l?.status === 'reserved') {
+    const until = l.reservedUntil ? new Date(l.reservedUntil).getTime() : 0;
+    if (until && until > nowMs) return false;
+  }
+  return true;
+}
+
 function hasTvStock(tvLogins) {
-  return (tvLogins || []).some((l) => l?.status === 'available');
+  const nowMs = Date.now();
+  return (tvLogins || []).some((l) => tvLoginEffectivelyAvailable(l, nowMs));
 }
 
 export default function SetupChecklist({
@@ -24,6 +34,14 @@ export default function SetupChecklist({
   whatsappStatus
 }) {
   const { t } = useI18n();
+  const [reservedTick, setReservedTick] = useState(0);
+
+  useEffect(() => {
+    const hasReserved = (tvLogins || []).some((l) => l?.status === 'reserved');
+    if (!hasReserved) return undefined;
+    const id = setInterval(() => setReservedTick((n) => n + 1), 8000);
+    return () => clearInterval(id);
+  }, [tvLogins]);
 
   const steps = useMemo(
     () => [
@@ -53,7 +71,7 @@ export default function SetupChecklist({
         ok: !!(assistantSettings?.systemPrompt && String(assistantSettings.systemPrompt).trim().length > 20)
       }
     ],
-    [integrationsConfig, catalogItems, tvLogins, assistantSettings, whatsappStatus, t]
+    [integrationsConfig, catalogItems, tvLogins, assistantSettings, whatsappStatus, t, reservedTick]
   );
 
   const doneCount = steps.filter((s) => s.ok).length;

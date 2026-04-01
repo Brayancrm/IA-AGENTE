@@ -48,7 +48,9 @@
     "statusReserved": "RESERVED",
     "statusSold": "SOLD",
     "soldTo": "Sold to {{phone}} on {{date}}",
-    "groupByPlan": "Plan"
+    "groupByPlan": "Plan",
+    "reservationUntil": "Reserved until {{date}}",
+    "reservationExpired": "Reservation expired — available for a new checkout."
   },
   "reportsPage": {
     "title": "Order report",

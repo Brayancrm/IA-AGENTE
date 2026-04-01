@@ -48,7 +48,9 @@
     "statusReserved": "RESERVADO",
     "statusSold": "VENDIDO",
     "soldTo": "Vendido a {{phone}} el {{date}}",
-    "groupByPlan": "Plan"
+    "groupByPlan": "Plan",
+    "reservationUntil": "Reserva hasta {{date}}",
+    "reservationExpired": "Reserva caducada — disponible para un nuevo pago."
   },
   "reportsPage": {
     "title": "Informe de pedidos",

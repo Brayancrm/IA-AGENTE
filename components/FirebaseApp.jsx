@@ -79,6 +79,20 @@ const AGENDAMENTO_TIPO_ICON = {
   ligacao: '📞'
 };
 
+/** Alinha painel ao backend: reserva expirada conta como disponível (Firebase pode manter status=reserved). */
+function isTvLoginReservedStillActive(item, nowMs = Date.now()) {
+  if (item?.status !== 'reserved') return false;
+  const until = item.reservedUntil ? new Date(item.reservedUntil).getTime() : 0;
+  if (!until) return false;
+  return until > nowMs;
+}
+
+function getTvLoginDisplayStatus(item, nowMs = Date.now()) {
+  if (item?.status === 'sold') return 'sold';
+  if (isTvLoginReservedStillActive(item, nowMs)) return 'reserved';
+  return 'available';
+}
+
 const PLAN_CURRENCY_OPTIONS = ['R$', '$', '€'];
 
 const normalizePlanCurrency = (currency) => (
@@ -3145,6 +3159,8 @@ const DashboardWithFirebase = ({
   });
   const [stripeOpsFilter, setStripeOpsFilter] = useState('all');
   const [tvLogins, setTvLogins] = useState([]);
+  /** Força re-render quando reservas expiram (sem escrita no Firebase). */
+  const [tvReservedTick, setTvReservedTick] = useState(0);
   const [tvLoginForm, setTvLoginForm] = useState({ login: '', password: '', planName: '', planKey: '', notes: '' });
   const [editingTvLoginId, setEditingTvLoginId] = useState(null);
   const [tvLoginSearch, setTvLoginSearch] = useState('');
@@ -3183,14 +3199,16 @@ const DashboardWithFirebase = ({
       if (!c.tvLoginProduct || !String(c.tvPlanKey || '').trim()) return;
       const pk = normalizePlanKeyClient(c.tvPlanKey);
       if (!pk) return;
+      const nowMs = Date.now();
       const avail = tvLogins.filter(
         (l) =>
-          normalizePlanKeyClient(l.planKey || l.planName) === pk && l.status === 'available'
+          normalizePlanKeyClient(l.planKey || l.planName) === pk &&
+          getTvLoginDisplayStatus(l, nowMs) === 'available'
       ).length;
       if (avail === 0) alerts.push({ name: c.name || c.tvPlanKey, key: c.tvPlanKey });
     });
     return alerts;
-  }, [catalogItems, tvLogins, user?.isMaster, normalizePlanKeyClient]);
+  }, [catalogItems, tvLogins, user?.isMaster, normalizePlanKeyClient, tvReservedTick]);
 
   const [agendamentoSearch, setAgendamentoSearch] = useState('');
   const [agendamentoCurrentPage, setAgendamentoCurrentPage] = useState(0);
@@ -3228,6 +3246,14 @@ const DashboardWithFirebase = ({
 
     return () => off(tvLoginsRef);
   }, [database, user?.isMaster, user?.uid]);
+
+  useEffect(() => {
+    if (!user?.isMaster) return undefined;
+    const hasReserved = tvLogins.some((l) => l?.status === 'reserved');
+    if (!hasReserved) return undefined;
+    const id = setInterval(() => setTvReservedTick((n) => n + 1), 8000);
+    return () => clearInterval(id);
+  }, [user?.isMaster, tvLogins]);
 
   const parseAgendamentoDateTime = useCallback((data, horario = '00:00') => {
     if (!data) return null;
@@ -6678,13 +6704,14 @@ const DashboardWithFirebase = ({
         );
 
       case 'tv-logins': {
+        const nowMs = Date.now();
         const query = String(tvLoginSearch || '').toLowerCase().trim();
         const filtered = tvLogins.filter((item) => {
           const text = `${item.login || ''} ${item.planName || ''} ${item.planKey || ''} ${item.notes || ''}`.toLowerCase();
           return !query || text.includes(query);
         });
-        const availableCount = tvLogins.filter((i) => i?.status === 'available').length;
-        const reservedCount = tvLogins.filter((i) => i?.status === 'reserved').length;
+        const availableCount = tvLogins.filter((i) => getTvLoginDisplayStatus(i, nowMs) === 'available').length;
+        const reservedCount = tvLogins.filter((i) => getTvLoginDisplayStatus(i, nowMs) === 'reserved').length;
         const soldCount = tvLogins.filter((i) => i?.status === 'sold').length;
         const tvGrouped = (() => {
           const g = {};
@@ -6697,10 +6724,11 @@ const DashboardWithFirebase = ({
         })();
 
         const statusBadge = (item) => {
-          if (item.status === 'sold') {
+          const disp = getTvLoginDisplayStatus(item, nowMs);
+          if (disp === 'sold') {
             return { bg: 'rgba(239,68,68,0.2)', color: '#ef4444', text: t('tvLogins.statusSold') };
           }
-          if (item.status === 'reserved') {
+          if (disp === 'reserved') {
             return { bg: 'rgba(245,158,11,0.2)', color: '#f59e0b', text: t('tvLogins.statusReserved') };
           }
           return { bg: 'rgba(16,185,129,0.2)', color: '#10b981', text: t('tvLogins.statusAvailable') };
@@ -6819,9 +6847,18 @@ const DashboardWithFirebase = ({
                                       })}
                                     </p>
                                   )}
-                                  {item.status === 'reserved' && item.reservedUntil ? (
+                                  {item.status === 'reserved' && item.reservedUntil && isTvLoginReservedStillActive(item, nowMs) ? (
                                     <p style={{ margin: '4px 0 0 0', color: '#fcd34d', fontSize: '0.75rem' }}>
-                                      Reserva até {new Date(item.reservedUntil).toLocaleString('pt-BR')}
+                                      {t('tvLogins.reservationUntil', {
+                                        date: new Date(item.reservedUntil).toLocaleString(
+                                          locale === 'en' ? 'en-US' : locale === 'es' ? 'es-ES' : locale === 'it' ? 'it-IT' : 'pt-BR'
+                                        )
+                                      })}
+                                    </p>
+                                  ) : null}
+                                  {item.status === 'reserved' && item.reservedUntil && !isTvLoginReservedStillActive(item, nowMs) ? (
+                                    <p style={{ margin: '4px 0 0 0', color: '#6ee7b7', fontSize: '0.75rem' }}>
+                                      {t('tvLogins.reservationExpired')}
                                     </p>
                                   ) : null}
                                   {Array.isArray(item.history) && item.history.length > 0 ? (
