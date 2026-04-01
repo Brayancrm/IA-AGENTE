@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { useI18n } from '../contexts/I18nContext';
 
 function hasStripeSecret(integrationsConfig) {
