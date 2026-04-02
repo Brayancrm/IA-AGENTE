@@ -3903,6 +3903,8 @@ const DashboardWithFirebase = ({
     paymentProvider: 'stripe',
     paymentManualMessage: '',
     paymentStripeMessage: '',
+    messageBeforePaymentLink: '',
+    tvAppDownloadUrl: '',
     configUiMode: 'simple', // 'simple' = assistente guiado | 'advanced' = Flow Builder
     fixedApproaches: [], // abordagens fixas do modo guiado (por etapa)
     showCatalogImagesWhenOffering: true
@@ -4084,6 +4086,8 @@ const DashboardWithFirebase = ({
       paymentProvider: assistantSettings.paymentProvider || 'stripe',
       paymentManualMessage: assistantSettings.paymentManualMessage || '',
       paymentStripeMessage: assistantSettings.paymentStripeMessage || '',
+      messageBeforePaymentLink: assistantSettings.messageBeforePaymentLink || '',
+      tvAppDownloadUrl: assistantSettings.tvAppDownloadUrl || '',
       configUiMode: assistantSettings.configUiMode || 'simple',
       fixedApproaches: Array.isArray(assistantSettings.fixedApproaches)
         ? assistantSettings.fixedApproaches
@@ -8230,6 +8234,71 @@ const DashboardWithFirebase = ({
                     />
                   </div>
                 )}
+
+                <div
+                  style={{
+                    padding: '16px 18px',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    background: 'rgba(15, 20, 25, 0.6)',
+                    display: 'grid',
+                    gap: '12px'
+                  }}
+                >
+                  <div>
+                    <label style={{ display: 'block', fontWeight: 600, color: '#e5e7eb', marginBottom: '6px' }}>
+                      {t('assistantConfig.messageBeforePaymentLink')}
+                    </label>
+                    <p style={{ margin: '0 0 8px 0', fontSize: '0.875rem', color: '#9ca3af', lineHeight: 1.45 }}>
+                      {t('assistantConfig.messageBeforePaymentLinkHint')}
+                    </p>
+                    <textarea
+                      value={assistantForm.messageBeforePaymentLink || ''}
+                      onChange={(e) =>
+                        setAssistantForm((prev) => ({ ...prev, messageBeforePaymentLink: e.target.value }))
+                      }
+                      rows={4}
+                      placeholder={t('assistantConfig.messageBeforePaymentLinkPlaceholder')}
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        padding: '12px',
+                        borderRadius: '10px',
+                        border: '1px solid #374151',
+                        background: '#0f1419',
+                        color: '#fff',
+                        fontSize: '0.9rem',
+                        resize: 'vertical'
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontWeight: 600, color: '#e5e7eb', marginBottom: '6px' }}>
+                      {t('assistantConfig.tvAppDownloadUrl')}
+                    </label>
+                    <p style={{ margin: '0 0 8px 0', fontSize: '0.875rem', color: '#9ca3af', lineHeight: 1.45 }}>
+                      {t('assistantConfig.tvAppDownloadUrlHint')}
+                    </p>
+                    <input
+                      type="url"
+                      value={assistantForm.tvAppDownloadUrl || ''}
+                      onChange={(e) =>
+                        setAssistantForm((prev) => ({ ...prev, tvAppDownloadUrl: e.target.value }))
+                      }
+                      placeholder="https://..."
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        padding: '12px',
+                        borderRadius: '10px',
+                        border: '1px solid #374151',
+                        background: '#0f1419',
+                        color: '#fff',
+                        fontSize: '0.9rem'
+                      }}
+                    />
+                  </div>
+                </div>
 
                 <div
                   style={{

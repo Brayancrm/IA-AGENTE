@@ -416,6 +416,11 @@
   },
   "assistantConfig": {
     "showCatalogImages": "Invia foto automaticamente su WhatsApp quando offri prodotto/servizio",
-    "showCatalogImagesHint": "Disattiva per inviare solo testo citando gli articoli. Il catalogo richiede comunque un'immagine per salvare."
+    "showCatalogImagesHint": "Disattiva per inviare solo testo citando gli articoli. Il catalogo richiede comunque un'immagine per salvare.",
+    "messageBeforePaymentLink": "Testo prima del link di pagamento (WhatsApp)",
+    "messageBeforePaymentLinkHint": "Inviato subito prima del riepilogo ordine e del link Stripe. Lascia vuoto per saltare. Con l'assistente guidato, il testo del passo Stripe viene usato se questo campo è vuoto.",
+    "messageBeforePaymentLinkPlaceholder": "Es.: Leggi le istruzioni prima di pagare…",
+    "tvAppDownloadUrl": "Link per scaricare l'app (dopo credenziali TV)",
+    "tvAppDownloadUrlHint": "URL completo (Play Store, App Store o sito). Aggiunto dopo login/password Wplay a pagamento confermato e al reinvio dal pannello."
   }
 }

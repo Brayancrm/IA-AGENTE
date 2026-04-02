@@ -416,6 +416,11 @@
   },
   "assistantConfig": {
     "showCatalogImages": "Send product/service photo automatically on WhatsApp when offering",
-    "showCatalogImagesHint": "Turn off to send text only when mentioning items (saves media). Catalog items still require an image to be saved."
+    "showCatalogImagesHint": "Turn off to send text only when mentioning items (saves media). Catalog items still require an image to be saved.",
+    "messageBeforePaymentLink": "Message before payment link (WhatsApp)",
+    "messageBeforePaymentLinkHint": "Sent right before the order summary and Stripe link. Leave empty to skip. If you use the guided assistant, the Stripe step text is used as a fallback when this field is empty.",
+    "messageBeforePaymentLinkPlaceholder": "E.g. Please read the instructions below before paying…",
+    "tvAppDownloadUrl": "App download link (after TV credentials)",
+    "tvAppDownloadUrlHint": "Full URL (Play Store, App Store, or website). Appended after Wplay login/password on confirmed payment and on resend from the dashboard."
   }
 }

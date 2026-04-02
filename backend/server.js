@@ -3616,6 +3616,7 @@ async function deliverTvLoginsForPaidOrder(sellerUserId, orderId, orderData) {
     const phone = orderData.customer?.phone || orderData.customer?.mobilePhone;
     if (!phone) return;
 
+    const { tvAppDownloadUrl } = await getAssistantPaymentExtras(sellerUserId);
     const loginsSnap = await db.ref(`users/data/${sellerUserId}/tv_logins`).once('value');
     for (const line of orderData.items) {
       if (!line.tvLoginProduct || !line.tvPlanKey) continue;
@@ -3642,13 +3643,14 @@ async function deliverTvLoginsForPaidOrder(sellerUserId, orderId, orderData) {
           soldItemName: line.name || null,
           deliveryChannel: 'order_paid'
         });
-        const msg =
+        let msg =
           `✅ *Pagamento confirmado!*\n\n` +
           `📺 *Acesso Wplay*\n` +
           `Plano: ${login.planName || line.name || '—'}\n` +
           `Login: ${login.login}\n` +
           `Senha: ${login.password}\n\n` +
           `_Guarde estes dados com segurança. Em caso de renovação mensal, seu acesso permanece ativo enquanto a assinatura estiver em dia._`;
+        msg = appendTvAppDownloadFooter(msg, tvAppDownloadUrl);
         await sendTvLoginWhatsApp(sellerUserId, phone, msg);
         await saveTvMessageToConversation(sellerUserId, phone, msg);
       }
@@ -3706,6 +3708,7 @@ async function handleTvSubscriptionStripeInvoice({ buyerUserId, subscriptionKey,
       return;
     }
 
+    const { tvAppDownloadUrl } = await getAssistantPaymentExtras(sellerUid);
     const loginsSnap = await db.ref(`users/data/${sellerUid}/tv_logins`).once('value');
     const login = findAvailableTvLoginRecord(loginsSnap, planKeyNorm);
     if (!login) {
@@ -3734,12 +3737,13 @@ async function handleTvSubscriptionStripeInvoice({ buyerUserId, subscriptionKey,
       tvCredentialsDeliveredAt: new Date().toISOString()
     });
 
-    const msg =
+    let msg =
       `✅ *Assinatura ativa!*\n\n` +
       `📺 *Acesso Wplay — ${plan.name}*\n` +
       `Login: ${login.login}\n` +
       `Senha: ${login.password}\n\n` +
       `_Cobrança recorrente mensal: a cada pagamento confirmado você recebe confirmação; os dados de acesso são os mesmos._`;
+    msg = appendTvAppDownloadFooter(msg, tvAppDownloadUrl);
     await sendTvLoginWhatsApp(sellerUid, phone, msg);
     await saveTvMessageToConversation(sellerUid, phone, msg);
   } catch (error) {
@@ -3854,6 +3858,27 @@ async function createStripeSubscriptionCheckoutSession(stripeApiKey, customerDat
     console.error('❌ Erro ao criar assinatura Stripe:', error.message);
     return { success: false, error: error.message };
   }
+}
+
+/** Texto antes do link Stripe + URL do app (pós-pagamento TV), em assistant_settings */
+async function getAssistantPaymentExtras(userId) {
+  try {
+    const snap = await db.ref(`users/data/${userId}/assistant_settings`).once('value');
+    const s = snap.val() || {};
+    const messageBeforePaymentLink = String(
+      s.messageBeforePaymentLink || s.paymentStripeMessage || ''
+    ).trim();
+    const tvAppDownloadUrl = String(s.tvAppDownloadUrl || '').trim();
+    return { messageBeforePaymentLink, tvAppDownloadUrl };
+  } catch (e) {
+    return { messageBeforePaymentLink: '', tvAppDownloadUrl: '' };
+  }
+}
+
+function appendTvAppDownloadFooter(text, appUrl) {
+  if (!text || !String(appUrl || '').trim()) return text;
+  const u = String(appUrl).trim();
+  return `${text}\n\n📲 *Download do app*\n${u}`;
 }
 
 // 🎯 Função para tentar gerar link automático do Stripe quando houver intenção de compra
@@ -4002,6 +4027,20 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
       await reserveTvLoginsForCheckoutOrder(userId, orderId, enrichedOrderItems);
     } catch (e) {
       console.error('❌ [TV] Reserva pós-checkout:', e.message);
+    }
+
+    const { messageBeforePaymentLink } = await getAssistantPaymentExtras(userId);
+    if (messageBeforePaymentLink) {
+      await client.sendText(phone, messageBeforePaymentLink);
+      const preRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+      await preRef.set({
+        from: '',
+        to: phone,
+        body: messageBeforePaymentLink,
+        timestamp: new Date().toISOString(),
+        type: 'payment_preface',
+        isFromMe: true
+      });
     }
 
     const totalCur = enrichedOrderItems[0]?.currency || 'BRL';
@@ -5292,12 +5331,14 @@ app.post('/api/tv/resend-credentials', async (req, res) => {
         error: 'Informe o telefone (phone) ou use um login já vendido com soldToPhone'
       });
     }
-    const msg =
+    const { tvAppDownloadUrl } = await getAssistantPaymentExtras(userId);
+    let msg =
       `✅ *Reenvio de acesso*\n\n` +
       `📺 *${login.planName || 'Plano'}*\n` +
       `Login: ${login.login}\n` +
       `Senha: ${login.password}\n\n` +
       `_Em caso de dúvida, fale com o suporte._`;
+    msg = appendTvAppDownloadFooter(msg, tvAppDownloadUrl);
     await sendTvLoginWhatsApp(userId, targetPhone, msg);
     await saveTvMessageToConversation(userId, targetPhone, msg);
     await appendTvLoginHistory(userId, tvLoginId, { event: 'resend', at: new Date().toISOString() });
