@@ -35,6 +35,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
   const [mensagemInput, setMensagemInput] = useState('');
   const [enviandoMensagem, setEnviandoMensagem] = useState(false);
   const [whatsappStatus, setWhatsappStatus] = useState('checking'); // checking, connected, disconnected
+  const [conversasHint, setConversasHint] = useState('');
   const [isMobile, setIsMobile] = useState(false);
   const [showConversationList, setShowConversationList] = useState(true);
 
@@ -136,8 +137,14 @@ export default function ConversasSimples({ userId, backendUrl }) {
         const data = await response.json();
         
         if (data.conversations) {
-          console.log('✅ Conversas recebidas:', data.conversations.length);
-          setConversas(data.conversations);
+          console.log('✅ Conversas recebidas:', data.conversations.length, data.source || '');
+          const list = data.conversations;
+          setConversas(list);
+          if (list.length === 0) {
+            setConversasHint(typeof data.message === 'string' ? data.message : '');
+          } else {
+            setConversasHint('');
+          }
         }
       } catch (error) {
         console.error('❌ Erro ao buscar conversas:', error);
@@ -277,10 +284,21 @@ export default function ConversasSimples({ userId, backendUrl }) {
     try {
       console.log('📤 Enviando mensagem:', mensagemInput);
       
-      // Formatar o número para o backend (adicionar @c.us se necessário)
-      const phoneForBackend = conversaSelecionada.includes('@c.us') 
-        ? conversaSelecionada.replace('_c_us', '@c.us')
-        : conversaSelecionada.replace('_c_us', '') + '@c.us';
+      const conv = conversas.find((c) => c.contactNumber === conversaSelecionada);
+      let toJid = conv?.jid || '';
+      if (!toJid) {
+        if (conversaSelecionada.includes('@')) {
+          toJid = conversaSelecionada;
+        } else if (conversaSelecionada.endsWith('_c_us')) {
+          toJid = `${conversaSelecionada.slice(0, -5)}@c.us`;
+        } else if (conversaSelecionada.endsWith('_g_us')) {
+          toJid = `${conversaSelecionada.slice(0, -5)}@g.us`;
+        } else if (conversaSelecionada.endsWith('_lid')) {
+          toJid = `${conversaSelecionada.slice(0, -4)}@lid`;
+        } else {
+          toJid = `${conversaSelecionada}@c.us`;
+        }
+      }
 
       const response = await fetch(`${backendUrl}/api/messages/send`, {
         method: 'POST',
@@ -289,7 +307,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
         },
         body: JSON.stringify({
           userId: userId,
-          to: phoneForBackend,
+          to: toJid,
           message: mensagemInput.trim()
         })
       });
@@ -426,11 +444,17 @@ export default function ConversasSimples({ userId, backendUrl }) {
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
                   <WhatsAppIcon size={32} color="#25D366" />
                 </div>
-                Nenhuma conversa ainda
+                <div style={{ fontWeight: 600, color: '#e5e7eb', marginBottom: '8px' }}>Nenhuma conversa na lista</div>
+                {conversasHint ? (
+                  <p style={{ fontSize: '0.85rem', lineHeight: 1.45, margin: 0 }}>{conversasHint}</p>
+                ) : (
+                  <p style={{ fontSize: '0.85rem', margin: 0 }}>As conversas aqui são as do WhatsApp conectado a este painel.</p>
+                )}
               </div>
             ) : (
               conversas.map((conv) => {
                 const telefone = formatarTelefone(conv.contactNumber);
+                const titulo = conv.displayName || telefone;
                 const tempo = formatarTempo(conv.lastMessageTime);
                 const selecionada = conversaSelecionada === conv.contactNumber;
                 
@@ -471,7 +495,12 @@ export default function ConversasSimples({ userId, backendUrl }) {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                       <div style={{ fontWeight: '600', color: '#ffffff' }}>
-                        📱 {telefone}
+                        📱 {titulo}
+                        {conv.displayName ? (
+                          <span style={{ display: 'block', fontSize: '0.72rem', fontWeight: 400, color: '#9ca3af' }}>
+                            {telefone}
+                          </span>
+                        ) : null}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
                         {tempo}

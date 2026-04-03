@@ -734,6 +734,29 @@ function sanitizePhoneNumber(phoneNumber) {
   return phoneNumber.replace(/[\.\#\$\[\]@]/g, '_');
 }
 
+/** JID do chat (ex.: 5511...@c.us) a partir do objeto id do WPPConnect */
+function widSerializedFromChat(chat) {
+  const id = chat?.id;
+  if (!id) return '';
+  if (typeof id === 'string') return id;
+  if (id._serialized) return id._serialized;
+  if (id.user && id.server) return `${id.user}@${id.server}`;
+  return '';
+}
+
+function previewFromWaLastMessage(lm) {
+  if (!lm) return { body: '', ts: null };
+  const body =
+    lm.body ||
+    lm.caption ||
+    (lm.type && lm.type !== 'chat' ? `[${lm.type}]` : '') ||
+    '';
+  let ts = null;
+  if (lm.timestamp) ts = new Date(lm.timestamp).toISOString();
+  else if (typeof lm.t === 'number') ts = new Date(lm.t * 1000).toISOString();
+  return { body: String(body).slice(0, 500), ts };
+}
+
 // ============================================
 // FUNÇÕES DE ÁUDIO
 // ============================================
@@ -4983,37 +5006,137 @@ app.post('/api/messages/send-audio', async (req, res) => {
   }
 });
 
-// Obter conversas
+// Obter conversas (lista alinhada ao WhatsApp conectado — não todo o arquivo em Firebase)
 app.get('/api/conversations/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    
-    const conversationsSnapshot = await db.ref(`conversations/${userId}`).once('value');
-    const conversations = [];
-    
-    if (conversationsSnapshot.exists()) {
-      conversationsSnapshot.forEach((child) => {
-        const contactNumber = child.key;
-        const data = child.val();
-        
-        // Pegar última mensagem
-        let lastMessage = null;
-        if (data.messages) {
-          const messages = Object.values(data.messages);
-          lastMessage = messages[messages.length - 1];
-        }
-        
-        conversations.push({
-          contactNumber,
-          lastMessage: lastMessage?.body || '',
-          lastMessageTime: lastMessage?.timestamp || null,
-          messageCount: data.messages ? Object.keys(data.messages).length : 0
+    const client = activeClients.get(userId);
+
+    const buildFromFirebaseArchive = async () => {
+      const conversationsSnapshot = await db.ref(`conversations/${userId}`).once('value');
+      const conversations = [];
+      if (conversationsSnapshot.exists()) {
+        conversationsSnapshot.forEach((child) => {
+          const contactNumber = child.key;
+          const data = child.val();
+          let lastMessage = null;
+          if (data.messages) {
+            const messages = Object.values(data.messages);
+            lastMessage = messages[messages.length - 1];
+          }
+          conversations.push({
+            contactNumber,
+            jid: null,
+            displayName: null,
+            lastMessage: lastMessage?.body || '',
+            lastMessageTime: lastMessage?.timestamp || null,
+            messageCount: data.messages ? Object.keys(data.messages).length : 0
+          });
         });
+      }
+      return conversations;
+    };
+
+    if (!client) {
+      return res.json({
+        conversations: [],
+        source: 'no_session',
+        message: 'WhatsApp não conectado ao servidor — conecte para ver as conversas desta conta.'
       });
     }
-    
-    res.json({ conversations });
-    
+
+    let connected = false;
+    try {
+      connected = await client.isConnected();
+    } catch (e) {
+      console.warn('⚠️ [conversations] isConnected falhou:', e.message);
+    }
+
+    if (!connected) {
+      return res.json({
+        conversations: [],
+        source: 'disconnected',
+        message: 'Sessão WhatsApp inativa — reconecte no painel.'
+      });
+    }
+
+    let chats = [];
+    try {
+      if (typeof client.listChats === 'function') {
+        try {
+          chats = await client.listChats({ onlyUsers: true });
+        } catch (e1) {
+          console.warn('⚠️ listChats(onlyUsers) falhou, tentando listChats completo:', e1.message);
+          chats = await client.listChats();
+        }
+      } else {
+        chats = await client.getAllChats(false);
+      }
+    } catch (e) {
+      console.error('❌ Erro listChats/getAllChats:', e.message);
+      const fallback = await buildFromFirebaseArchive();
+      return res.json({
+        conversations: fallback,
+        source: 'firebase_fallback',
+        message: 'Não foi possível ler a lista do WhatsApp; exibindo histórico salvo no painel.'
+      });
+    }
+
+    chats = (chats || []).filter((c) => {
+      const jid = widSerializedFromChat(c);
+      if (!jid || jid === 'status@broadcast') return false;
+      if (jid.endsWith('@g.us')) return false;
+      return true;
+    });
+
+    const fbSnap = await db.ref(`conversations/${userId}`).once('value');
+    const fbData = fbSnap.val() || {};
+
+    const conversations = [];
+    for (const chat of chats) {
+      const jid = widSerializedFromChat(chat);
+      if (!jid) continue;
+      const contactNumber = sanitizePhoneNumber(jid);
+      const thread = fbData[contactNumber];
+      let lastMessage = '';
+      let lastMessageTime = null;
+      let messageCount = 0;
+      if (thread?.messages) {
+        const msgs = Object.values(thread.messages);
+        messageCount = msgs.length;
+        const last = msgs[msgs.length - 1];
+        lastMessage = last?.body || '';
+        lastMessageTime = last?.timestamp || null;
+      }
+      const waPrev = previewFromWaLastMessage(chat.lastMessage);
+      if (!lastMessage && waPrev.body) {
+        lastMessage = waPrev.body;
+        lastMessageTime = waPrev.ts || lastMessageTime;
+      }
+      const displayName =
+        chat.name ||
+        chat.pushname ||
+        chat.formattedTitle ||
+        chat.contact?.pushname ||
+        chat.contact?.name ||
+        null;
+      conversations.push({
+        contactNumber,
+        jid,
+        displayName,
+        lastMessage,
+        lastMessageTime,
+        messageCount
+      });
+    }
+
+    conversations.sort((a, b) => {
+      const ta = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+      const tb = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+      return tb - ta;
+    });
+
+    res.json({ conversations, source: 'whatsapp' });
   } catch (error) {
     console.error('❌ Erro ao buscar conversas:', error);
     res.status(500).json({ error: error.message });
