@@ -370,32 +370,50 @@ function getWppChromeProfileDir(userId) {
   return path.join(getWppTokensBase(), `chrome_profile_${userId}`);
 }
 
-/** Remove locks do Chrome na raiz do userDataDir e em subpastas típicas (órfãos após deploy Railway). */
+/** Ficheiros de lock / estado do Chrome em qualquer profundidade (órfãos após deploy). */
+const CHROME_LOCK_FILE_NAMES = new Set([
+  'SingletonLock',
+  'SingletonCookie',
+  'SingletonSocket',
+  'lockfile',
+  'DevToolsActivePort'
+]);
+
+/** Remove locks do Chrome em todo o userDataDir (recursivo). */
 function cleanChromiumSingletonArtifacts(profileDir) {
   if (!profileDir || !fs.existsSync(profileDir)) return;
-  const names = ['SingletonLock', 'SingletonCookie', 'SingletonSocket', 'lockfile'];
-  const dirsToScan = [profileDir];
-  for (const sub of ['Default', 'Guest Profile', 'System Profile']) {
-    const d = path.join(profileDir, sub);
+  function walk(dir) {
+    let entries;
     try {
-      if (fs.existsSync(d) && fs.statSync(d).isDirectory()) dirsToScan.push(d);
-    } catch (_) {
-      /* ignore */
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch (e) {
+      return;
     }
-  }
-  for (const base of dirsToScan) {
-    for (const name of names) {
-      const p = path.join(base, name);
-      try {
-        if (fs.existsSync(p)) {
-          fs.rmSync(p, { recursive: false, force: true });
-          console.log(`🧹 [WPP] Removido artefato Chromium: ${path.relative(profileDir, p) || name}`);
+    for (const ent of entries) {
+      const full = path.join(dir, ent.name);
+      if (ent.isDirectory()) {
+        walk(full);
+      } else if (CHROME_LOCK_FILE_NAMES.has(ent.name)) {
+        try {
+          fs.rmSync(full, { force: true });
+          console.log(`🧹 [WPP] Removido: ${path.relative(profileDir, full)}`);
+        } catch (e) {
+          console.warn(`⚠️ [WPP] Não foi possível remover ${full}:`, e.message);
         }
-      } catch (e) {
-        console.warn(`⚠️ [WPP] Não foi possível remover ${p}:`, e.message);
       }
     }
   }
+  walk(profileDir);
+}
+
+/**
+ * Após falhas com "outro computador", apagar o perfil Chrome e recriar pasta vazia.
+ * Por defeito ATIVO no Railway (RAILWAY_ENVIRONMENT). Desligar: WPP_RESET_CHROME_PROFILE_ON_LOCK=false
+ */
+function shouldNuclearResetChromeProfile() {
+  if (process.env.WPP_RESET_CHROME_PROFILE_ON_LOCK === 'false') return false;
+  if (process.env.WPP_RESET_CHROME_PROFILE_ON_LOCK === 'true') return true;
+  return !!process.env.RAILWAY_ENVIRONMENT;
 }
 
 function clearWppHealthCheck(userId) {
@@ -617,6 +635,7 @@ async function createSessionInternal(userId) {
     ensureDirSync(profileDir);
     clearWppHealthCheck(userId);
     cleanChromiumSingletonArtifacts(profileDir);
+    console.log(`🖥️ [WPP] Hostname deste container: ${os.hostname()} | perfil: ${profileDir}`);
     
     // 🔥 Configuração do cliente WPPConnect
     // O WPPConnect gerencia automaticamente a persistência via tokenStore: 'file'
@@ -741,10 +760,10 @@ async function createSessionInternal(userId) {
       }
     };
     
-    // 🔥 Criar/Restaurar client WPPConnect (retry: userDataDir local + lock "outro host" = órfão no volume)
+    // 🔥 Criar/Restaurar client WPPConnect (retry + opcional reset total do perfil Chrome no Railway)
     console.log('🚀 Iniciando WPPConnect...');
-    let client;
-    let lastCreateErr;
+    let client = null;
+    let lastCreateErr = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       if (attempt > 0) {
         console.warn(`🔄 [WPP] Nova tentativa de launch (${attempt + 1}/3) após limpeza de locks`);
@@ -757,11 +776,10 @@ async function createSessionInternal(userId) {
         lastCreateErr = e;
         const remoteLock = isChromiumProfileRemoteLock(e);
         const localConflict = isPuppeteerUserDataDirConflict(e);
-        const canRetry = attempt < 2 && (remoteLock || localConflict);
-        if (canRetry) {
+        if (attempt < 2 && (remoteLock || localConflict)) {
           if (remoteLock) {
             console.warn(
-              '⚠️ [WPP] Lock de perfil (muitas vezes hostname de container antigo no volume). A limpar Singleton* e a repetir...'
+              '⚠️ [WPP] Lock de perfil (hostname antigo no volume?). Limpeza recursiva Singleton* e retry...'
             );
           } else {
             console.warn('⚠️ [WPP] Conflito de browser/perfil — fechando, limpando locks e aguardando...');
@@ -771,9 +789,39 @@ async function createSessionInternal(userId) {
           await sleepMs(remoteLock ? 2000 : 2500);
           continue;
         }
-        throw e;
+        break;
       }
     }
+
+    if (
+      !client &&
+      lastCreateErr &&
+      isChromiumProfileRemoteLock(lastCreateErr) &&
+      shouldNuclearResetChromeProfile()
+    ) {
+      console.error(
+        '🔥 [WPP] Lock persistente — a APAGAR o diretório do perfil Chrome e a tentar de novo. ' +
+          'Pode ser necessário voltar a escanear o QR. (Desligar: WPP_RESET_CHROME_PROFILE_ON_LOCK=false)'
+      );
+      await forceCloseWhatsAppSession(userId);
+      try {
+        fs.rmSync(profileDir, { recursive: true, force: true });
+        console.log('🧹 [WPP] Perfil Chrome removido:', profileDir);
+      } catch (rmErr) {
+        console.warn('⚠️ [WPP] Erro ao apagar perfil:', rmErr.message);
+      }
+      ensureDirSync(profileDir);
+      cleanChromiumSingletonArtifacts(profileDir);
+      await sleepMs(2000);
+      try {
+        client = await wppconnect.create(clientOptions);
+        lastCreateErr = null;
+      } catch (e3) {
+        lastCreateErr = e3;
+        console.error('❌ [WPP] Falhou mesmo após reset do perfil:', e3.message);
+      }
+    }
+
     if (!client) throw lastCreateErr || new Error('Falha ao iniciar WPPConnect');
 
     // Configurar listeners de mensagens
@@ -7159,6 +7207,10 @@ app.listen(PORT, '0.0.0.0', async () => {
     console.log(
       'ℹ️  [WHATSAPP] Hosting tipo Railway: mantenha 1 réplica no serviço que corre WPPConnect. ' +
         'Várias instâncias com o mesmo volume montado em WPP_TOKENS_BASE geram erro de perfil Chrome bloqueado.'
+    );
+    console.log(
+      'ℹ️  [WHATSAPP] Se o lock persistir, o servidor apaga e recria chrome_profile_* (predefinido no Railway). ' +
+        'Desativar: WPP_RESET_CHROME_PROFILE_ON_LOCK=false'
     );
     console.log('');
   }
