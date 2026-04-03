@@ -553,28 +553,67 @@ function catalogImageDedupeKey(item) {
   return `n_${(h >>> 0).toString(36)}`;
 }
 
-/** Cliente pediu reenvio explícito de foto / preço / descrição / link (PT/EN/ES/IT). */
-function userWantsCatalogAuxResend(userMessage) {
-  if (!userMessage || typeof userMessage !== 'string') return false;
-  const t = String(userMessage)
+function normalizeMessageForIntent(userMessage) {
+  return String(userMessage || '')
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
+}
+
+/** Cliente pediu ver a foto de novo (sem pedir card completo por si só). */
+function userWantsCatalogPhotoResend(userMessage) {
+  const t = normalizeMessageForIntent(userMessage);
   if (t.length < 3) return false;
-  const patterns = [
-    /\b(foto|fotos|imagem|imagens|picture|photos?)\b/,
-    /\b(descricao|detalhe|detalhes|informacao|informacoes|mais info)\b/,
-    /\b(preco|precos|valor|valores|quanto|custa|custam)\b/,
-    /\b(manda|envia|reenvia|mostra|mandar|enviar|reenviar)\b/,
-    /\b(de novo|novamente|outra vez|again)\b/,
-    /\b(repete|repetir)\b/,
-    /\b(quero ver|ver foto|ver a foto|ver imagem)\b/,
-    /\b(precio|precios|descripcion|imagen|imagenes|cuanto|cuesta)\b/,
-    /\b(mandame|manda me|otra vez|de nuevo)\b/,
-    /\b(prezzo|descrizione|immagine|immagini|quanto costa)\b/,
-    /\b(price|cost|how much|send (me )?(the )?(photo|picture|link|info))\b/
-  ];
-  return patterns.some((re) => re.test(t));
+  if (/\b(foto|fotos|imagem|imagens|picture|photos?)\b/.test(t)) return true;
+  if (/\b(quero ver|ver (a |o )?(foto|imagem))\b/.test(t)) return true;
+  if (/\b(manda|envia|reenvia|mandar|enviar|reenviar).{0,48}\b(foto|imagem|picture)\b/.test(t)) {
+    return true;
+  }
+  if (/\b(mostra|mostrar).{0,24}\b(foto|imagem)\b/.test(t)) return true;
+  return false;
+}
+
+/**
+ * Cliente pediu card completo de novo: preço, descrição, link, detalhes.
+ * Evita falsos positivos como "e quanto a jogos?" (idem "quanto aos") — não é "quanto custa".
+ */
+function userWantsCatalogFullCardResend(userMessage) {
+  const t = normalizeMessageForIntent(userMessage);
+  if (t.length < 3) return false;
+  if (/\b(e )?quanto a[s]?\b/.test(t)) {
+    // "e quanto a X?" / "quanto aos" — só conta se houver outro sinal de preço/detalhe explícito
+    const explicitPrice = /\b(quanto\s+(custa|custam|e|fica|cobra|vale)|qual\s+(e\s+)?(o\s+|a\s+)?(preco|valor))\b/.test(
+      t
+    );
+    const explicitDetail = /\b(descricao|detalhe|detalhes|informacao|informacoes|mais info|manda.{0,40}(link|preco|valor))\b/.test(
+      t
+    );
+    if (!explicitPrice && !explicitDetail) return false;
+  }
+  if (/\bquanto\s+(custa|custam|e|fica|cobra|vale)\b/.test(t)) return true;
+  if (/\bqual\s+(e\s+)?(o\s+|a\s+)?(preco|valor)\b/.test(t)) return true;
+  if (/\b(preco|precos)\s+(do|da|dos|das|deste|desta|disso|disto|desse|dessa)\b/.test(t)) {
+    return true;
+  }
+  if (/\b(me\s+)?(fala|passa|diz|informa)\s+(o\s+|a\s+)?(preco|valor)\b/.test(t)) return true;
+  if (/\b(manda|envia|reenvia).{0,48}\b(link|preco|valor|descricao|card)\b/.test(t)) return true;
+  if (/\b(descricao|detalhe|detalhes|informacao|informacoes|mais info)\b/.test(t)) return true;
+  if (/\b(de novo|novamente|outra vez).{0,40}\b(foto|imagem|preco|valor|descricao|link|card|informacao)\b/.test(t)) {
+    return true;
+  }
+  if (/\b(foto|imagem).{0,40}\b(de novo|novamente|outra vez)\b/.test(t)) return true;
+  if (/\b(precio|precios)\s+(del|de la|de los)\b/.test(t)) return true;
+  if (/\bcuanto\s+(cuesta|cuestan|vale)\b/.test(t)) return true;
+  if (/\b(cual\s+(es\s+)?(el\s+)?(precio|valor))\b/.test(t)) return true;
+  if (/\b(mandame|mandame el|de nuevo).{0,30}\b(link|precio|foto|imagen|info)\b/.test(t)) return true;
+  if (/\b(prezzo|descrizione|quanto costa)\b/.test(t)) return true;
+  if (/\b(price|how much|cost of|send (me )?(the )?(link|details|info))\b/.test(t)) return true;
+  if (/\b(repete|repetir|again)\b.{0,30}\b(preco|valor|descricao|link|card|info)\b/.test(t)) return true;
+  return false;
+}
+
+function userWantsCatalogAuxResend(userMessage) {
+  return userWantsCatalogPhotoResend(userMessage) || userWantsCatalogFullCardResend(userMessage);
 }
 
 async function markSentCatalogAux(userId, contactSanitized, dedupeKey, name) {
@@ -1562,6 +1601,8 @@ async function handleIncomingMessage(userId, message, client) {
         const sendProductImages = aiConfig?.showCatalogImagesWhenOffering !== false;
         const catalogImagesOncePerConversation = aiConfig?.catalogImagesOncePerConversation !== false;
         const allowCatalogAuxResend = userWantsCatalogAuxResend(messageText);
+        const catalogPhotoResendOnly =
+          userWantsCatalogPhotoResend(messageText) && !userWantsCatalogFullCardResend(messageText);
         
         if (mentionedItems.length > 0) {
           console.log(`📸 Detectados ${mentionedItems.length} produto(s) na resposta`);
@@ -1571,24 +1612,22 @@ async function handleIncomingMessage(userId, message, client) {
             try {
               const dedupeKey = catalogImageDedupeKey(item);
               const metaRef = conversationAssistantMetaRef(userId, sanitizedNumber);
+              const auxSnap = await metaRef.child(`sent_catalog_aux/${dedupeKey}`).once('value');
+              const legacyImgSnap = await metaRef.child(`sent_catalog_images/${dedupeKey}`).once('value');
+              const hadPriorCatalogOffer = auxSnap.exists() || legacyImgSnap.exists();
               
-              if (catalogImagesOncePerConversation && !allowCatalogAuxResend) {
-                const auxSnap = await metaRef.child(`sent_catalog_aux/${dedupeKey}`).once('value');
-                if (auxSnap.exists()) {
-                  console.log(
-                    `📋 Card do catálogo (foto/descrição/preço) já enviado para: ${item.name} — omitindo mensagem extra`
-                  );
-                  continue;
-                }
-                // Conversas antigas: só existia sent_catalog_images — considerar card já enviado e migrar
-                const legacyImgSnap = await metaRef.child(`sent_catalog_images/${dedupeKey}`).once('value');
-                if (legacyImgSnap.exists()) {
+              if (catalogImagesOncePerConversation && !allowCatalogAuxResend && hadPriorCatalogOffer) {
+                if (!auxSnap.exists() && legacyImgSnap.exists()) {
                   await markSentCatalogAux(userId, sanitizedNumber, dedupeKey, item.name);
                   console.log(
                     `📋 Migrado legado sent_catalog_images → omitindo card extra para: ${item.name}`
                   );
-                  continue;
+                } else {
+                  console.log(
+                    `📋 Card do catálogo já enviado para: ${item.name} — omitindo mensagem extra`
+                  );
                 }
+                continue;
               }
               
               let skipImageAlreadySent = false;
@@ -1608,34 +1647,45 @@ async function handleIncomingMessage(userId, message, client) {
               const shouldSendProductImage =
                 item.image && sendProductImages && !skipImageAlreadySent;
               
-              // Criar mensagem com informações do produto
-              let messageText = `📦 *${item.name}*\n`;
+              // Texto completo do card (legenda longa). Na 2ª vez, se só pediram foto: legenda mínima.
+              let productCardText = `📦 *${item.name}*\n`;
               
               // Adicionar preço se disponível (moeda do catálogo)
               const priceLine = formatCatalogPriceForMessage(item.price, item.currency);
               if (priceLine) {
-                messageText += `💰 ${priceLine}\n\n`;
+                productCardText += `💰 ${priceLine}\n\n`;
               } else {
-                messageText += `\n`;
+                productCardText += `\n`;
               }
               
               // Adicionar descrição se disponível
               if (item.description) {
-                messageText += `${item.description}\n\n`;
+                productCardText += `${item.description}\n\n`;
               }
               
               // Adicionar link se disponível
               if (item.link) {
                 if (item.price === null || item.price === undefined) {
-                  messageText += `🔗 Acesse o link para ver o preço e mais informações:\n${item.link}`;
+                  productCardText += `🔗 Acesse o link para ver o preço e mais informações:\n${item.link}`;
                 } else {
-                  messageText += `🔗 Link para adesão: ${item.link}`;
+                  productCardText += `🔗 Link para adesão: ${item.link}`;
                 }
               }
               
+              const usePhotoOnlyCaption =
+                catalogImagesOncePerConversation &&
+                catalogPhotoResendOnly &&
+                hadPriorCatalogOffer &&
+                shouldSendProductImage;
+              const imageCaption = usePhotoOnlyCaption ? `📦 *${item.name}*` : productCardText;
+              
               // Se tiver imagem e envio de fotos ativo, enviar imagem com legenda
               if (shouldSendProductImage) {
-                console.log(`📤 Enviando imagem de: ${item.name}`);
+                console.log(
+                  usePhotoOnlyCaption
+                    ? `📤 Reenviando só a foto (legenda curta): ${item.name}`
+                    : `📤 Enviando imagem de: ${item.name}`
+                );
                 
                 // Verificar se é Base64 ou URL
                 const isBase64 = item.image.startsWith('data:image/');
@@ -1647,7 +1697,7 @@ async function handleIncomingMessage(userId, message, client) {
                     message.from,
                     item.image,
                     item.name,
-                    messageText
+                    imageCaption
                   );
                 } else {
                   console.log(`🌐 URL de imagem detectada para: ${item.name}`);
@@ -1656,7 +1706,7 @@ async function handleIncomingMessage(userId, message, client) {
                     message.from,
                     item.image,
                     item.name,
-                    messageText
+                    imageCaption
                   );
                 }
                 
@@ -1679,7 +1729,7 @@ async function handleIncomingMessage(userId, message, client) {
                 await imageRef.set({
                   from: message.to || '',
                   to: message.from || '',
-                  body: messageText,
+                  body: imageCaption,
                   imageUrl: isBase64 ? null : item.image,
                   imageBase64: isBase64 ? item.image : null,
                   timestamp: new Date().toISOString(),
@@ -1695,7 +1745,7 @@ async function handleIncomingMessage(userId, message, client) {
                 // Sem envio de imagem nesta rodada: texto com link (ou só link)
                 console.log(`📤 Enviando informações de: ${item.name} (texto com link)`);
                 
-                await client.sendText(message.from, messageText);
+                await client.sendText(message.from, productCardText);
                 
                 console.log(`✅ Informações enviadas: ${item.name}`);
                 
@@ -1708,7 +1758,7 @@ async function handleIncomingMessage(userId, message, client) {
                 await textRef.set({
                   from: message.to || '',
                   to: message.from || '',
-                  body: messageText,
+                  body: productCardText,
                   timestamp: new Date().toISOString(),
                   type: 'text',
                   isFromMe: true,
@@ -1723,7 +1773,7 @@ async function handleIncomingMessage(userId, message, client) {
                 console.log(
                   `📤 Enviando só texto (${!sendProductImages ? 'fotos desativadas' : 'foto já enviada nesta conversa'}): ${item.name}`
                 );
-                await client.sendText(message.from, messageText);
+                await client.sendText(message.from, productCardText);
                 if (catalogImagesOncePerConversation) {
                   await markSentCatalogAux(userId, sanitizedNumber, dedupeKey, item.name);
                 }
@@ -1731,7 +1781,7 @@ async function handleIncomingMessage(userId, message, client) {
                 await textRef.set({
                   from: message.to || '',
                   to: message.from || '',
-                  body: messageText,
+                  body: productCardText,
                   timestamp: new Date().toISOString(),
                   type: 'text',
                   isFromMe: true,
@@ -2052,7 +2102,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       const catalogImagesOncePerConversation = assistantSettings.catalogImagesOncePerConversation !== false;
       const imageInstruction = sendCatalogImages
         ? catalogImagesOncePerConversation
-          ? '- Catálogo com foto: na primeira vez que você oferecer cada item (nome completo), o sistema envia no WhatsApp o card completo (foto + legenda com preço/descrição/link se houver). Nas menções seguintes do MESMO item, o sistema NÃO reenvia card nem foto — responda de forma breve (confirmação, próximo passo). Se o cliente pedir de novo foto, preço, descrição, detalhes, link ou “manda de novo”, o sistema reenvia o card completo'
+          ? '- Catálogo com foto: na primeira vez que você oferecer cada item (nome completo), o sistema envia o card completo (foto + legenda com preço/descrição/link). Nas menções seguintes do MESMO item, o sistema NÃO manda card nem foto — responda só no texto (dúvidas como “e quanto a futebol?” não disparam reenvio). Se o cliente pedir explicitamente foto/imagem de novo, o sistema manda só a foto com legenda curta; se pedir preço, descrição, detalhes ou link de novo, reenvia o card completo'
           : '- Os itens do catálogo têm foto cadastrada: ao mencionar o nome completo do produto/serviço, o sistema pode enviar a imagem automaticamente no WhatsApp em cada menção'
         : '- O envio automático de fotos no WhatsApp está desativado nas configurações do assistente: descreva bem os itens em texto e não prometa envio automático de imagens';
       systemPrompt += `\n⚠️ INSTRUÇÕES IMPORTANTES:

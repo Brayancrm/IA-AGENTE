@@ -418,7 +418,7 @@
     "showCatalogImages": "Enviar foto automáticamente en WhatsApp al ofrecer producto/servicio",
     "showCatalogImagesHint": "Desactiva para enviar solo texto al citar ítems. El catálogo sigue exigiendo imagen al guardar.",
     "catalogImagesOncePerConversation": "Enviar la tarjeta del catálogo (foto + texto) solo una vez por conversación",
-    "catalogImagesOncePerConversationHint": "La primera mención envía foto, precio, descripción y enlace en WhatsApp si existen. Las siguientes no repiten ese bloque. Si el cliente pide foto, precio, descripción o “otra vez”, se reenvía la tarjeta. Desactiva para enviarla en cada mención.",
+    "catalogImagesOncePerConversationHint": "La primera mención envía la tarjeta completa. Preguntas de seguimiento (p. ej. «¿y el fútbol?») no reenvían foto ni bloque del catálogo. Solo se reenvía si pide foto/imagen (solo foto) o precio/detalles/enlace (tarjeta completa). Desactiva para enviarla en cada mención.",
     "messageBeforePaymentLink": "Texto antes del enlace de pago (WhatsApp)",
     "messageBeforePaymentLinkHint": "Se envía justo antes del resumen del pedido y del enlace Stripe. Déjalo vacío para omitir. Si usas el asistente guiado, el texto del paso Stripe se usa si este campo está vacío.",
     "messageBeforePaymentLinkPlaceholder": "Ej.: Lee las instrucciones antes de pagar…",

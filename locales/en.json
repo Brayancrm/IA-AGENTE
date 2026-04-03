@@ -418,7 +418,7 @@
     "showCatalogImages": "Send product/service photo automatically on WhatsApp when offering",
     "showCatalogImagesHint": "Turn off to send text only when mentioning items (saves media). Catalog items still require an image to be saved.",
     "catalogImagesOncePerConversation": "Send each catalog card (photo + text) only once per conversation",
-    "catalogImagesOncePerConversationHint": "The first mention sends photo, price, description and link on WhatsApp when available. Later mentions skip that block—only the agent’s reply. If the customer asks for the photo, price, description or “again”, the card is resent. Turn off to send the card on every mention.",
+    "catalogImagesOncePerConversationHint": "The first mention sends the full card. Follow-up questions (e.g. “what about football?”) do not resend the catalog block. Resend only if the customer asks for a photo/image (photo only, short caption) or price/details/link (full card). Turn off to send the card on every mention.",
     "messageBeforePaymentLink": "Message before payment link (WhatsApp)",
     "messageBeforePaymentLinkHint": "Sent right before the order summary and Stripe link. Leave empty to skip. If you use the guided assistant, the Stripe step text is used as a fallback when this field is empty.",
     "messageBeforePaymentLinkPlaceholder": "E.g. Please read the instructions below before paying…",
