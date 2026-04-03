@@ -370,6 +370,14 @@ function getWppChromeProfileDir(userId) {
   return path.join(getWppTokensBase(), `chrome_profile_${userId}`);
 }
 
+/** ms a partir de env; permite 0 (ex.: WPP_AUTO_CLOSE_MS=0). */
+function parseEnvMs(key, defaultMs) {
+  const v = process.env[key];
+  if (v === undefined || v === '') return defaultMs;
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? Math.max(0, n) : defaultMs;
+}
+
 /** Ficheiros de lock / estado do Chrome em qualquer profundidade (órfãos após deploy). */
 const CHROME_LOCK_FILE_NAMES = new Set([
   'SingletonLock',
@@ -414,6 +422,30 @@ function shouldNuclearResetChromeProfile() {
   if (process.env.WPP_RESET_CHROME_PROFILE_ON_LOCK === 'false') return false;
   if (process.env.WPP_RESET_CHROME_PROFILE_ON_LOCK === 'true') return true;
   return !!process.env.RAILWAY_ENVIRONMENT;
+}
+
+/** Tokens WPPConnect em disco (pasta user_${userId} no WPP_TOKENS_BASE). */
+function hasWppFileTokens(userId) {
+  if (!userId) return false;
+  try {
+    const dir = path.join(getWppTokensBase(), `user_${userId}`);
+    if (!fs.existsSync(dir)) return false;
+    const files = fs.readdirSync(dir);
+    return files.some((f) => f && !f.startsWith('.'));
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Após deploy, restaurar sessão se estava ligado OU há tokens no volume mas o Firebase
+ * ficou em qrcode/error (evita "só QR" sem tentar restaurar primeiro).
+ */
+function shouldRestoreWhatsAppSessionOnStartup(session, userId) {
+  if (!session || typeof session !== 'object') return false;
+  if (session.status === 'disconnected') return false;
+  if (session.status === 'connected') return true;
+  return hasWppFileTokens(userId);
 }
 
 function clearWppHealthCheck(userId) {
@@ -722,7 +754,9 @@ async function createSessionInternal(userId) {
       logQR: false,
       disableWelcome: true,
       updatesLog: false,
-      autoClose: 180000, // 180 segundos (3 minutos)
+      // WPPConnect: tempo máx. com QR sem login antes de fechar o browser (ms). WPP_AUTO_CLOSE_MS=0 desliga o timer.
+      autoClose: parseEnvMs('WPP_AUTO_CLOSE_MS', 600000),
+      deviceSyncTimeout: parseEnvMs('WPP_DEVICE_SYNC_TIMEOUT_MS', 180000),
       puppeteerOptions: {
         headless: true,
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || undefined,
@@ -7257,16 +7291,20 @@ app.listen(PORT, '0.0.0.0', async () => {
       const sessionsSnapshot = await db.ref('whatsapp_sessions').once('value');
       const sessions = sessionsSnapshot.val();
       if (sessions) {
-        const stagger = Math.max(2000, parseInt(process.env.WHATSAPP_RESTORE_STAGGER_MS || '5000', 10) || 5000);
-        const toRestore = Object.keys(sessions).filter((uid) => {
-          const s = sessions[uid];
-          return s && s.status === 'connected';
-        });
+        const stagger = Math.max(2000, parseInt(process.env.WHATSAPP_RESTORE_STAGGER_MS || '4000', 10) || 4000);
+        const toRestore = Object.keys(sessions).filter((uid) =>
+          shouldRestoreWhatsAppSessionOnStartup(sessions[uid], uid)
+        );
         if (toRestore.length > 0) {
           console.log('');
           console.log('='.repeat(50));
           console.log(`🔄 [WHATSAPP] Restaurando ${toRestore.length} sessão(ões) em background (intervalo ${stagger}ms)...`);
-          console.log(`   📂 Tokens: ${getWppTokensBase()} — sem volume persistente aqui, QR de novo após cada deploy.`);
+          console.log(`   📂 Tokens: ${getWppTokensBase()} (volume persistente = login mantido entre deploys)`);
+          toRestore.forEach((uid) => {
+            const st = sessions[uid]?.status;
+            const tok = hasWppFileTokens(uid);
+            console.log(`   → ${uid}: Firebase=${st}, tokensDisco=${tok ? 'sim' : 'não'}`);
+          });
           console.log('='.repeat(50));
           toRestore.forEach((userId, idx) => {
             setTimeout(() => {
