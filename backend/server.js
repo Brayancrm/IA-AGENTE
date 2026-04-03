@@ -518,6 +518,28 @@ function isPuppeteerUserDataDirConflict(err) {
   );
 }
 
+/** Lock do perfil noutro processo/host — limpar locks locais não resolve (ex.: 2 réplicas Railway no mesmo volume). */
+function isChromiumProfileRemoteLock(err) {
+  const m = String(err?.message || err || '');
+  return (
+    m.includes('profile appears to be in use') ||
+    m.includes('Code: 21') ||
+    m.includes("doesn't get corrupted")
+  );
+}
+
+function formatWhatsAppLaunchError(err) {
+  const raw = err?.message || String(err || '');
+  if (isChromiumProfileRemoteLock(err)) {
+    return (
+      'Perfil do Chrome bloqueado: outro processo usa o mesmo diretório (muito comum com 2+ réplicas no Railway a partilhar o volume). ' +
+      'Solução: no painel do hosting, defina exatamente 1 réplica para o serviço que corre o WhatsApp, ou não monte o mesmo volume em várias instâncias. '
+      + `Detalhe técnico: ${raw.slice(0, 400)}`
+    );
+  }
+  return raw.slice(0, 800);
+}
+
 function ensureDirSync(dir) {
   try {
     fs.mkdirSync(dir, { recursive: true });
@@ -721,6 +743,10 @@ async function createSessionInternal(userId) {
         break;
       } catch (e) {
         lastCreateErr = e;
+        if (isChromiumProfileRemoteLock(e)) {
+          console.error('❌ [WPP] Perfil Chromium bloqueado (outro processo/host). Não adianta retry local.');
+          throw e;
+        }
         if (attempt === 0 && isPuppeteerUserDataDirConflict(e)) {
           console.warn('⚠️ [WPP] Conflito de browser/perfil — fechando, limpando locks e aguardando...');
           await forceCloseWhatsAppSession(userId);
@@ -822,9 +848,10 @@ async function createSessionInternal(userId) {
     
   } catch (error) {
     console.error('❌ Erro ao criar sessão:', error);
+    const errorText = formatWhatsAppLaunchError(error);
     sessionRef.update({
       status: 'error',
-      error: error.message || error.toString() || 'Erro desconhecido',
+      error: errorText,
       lastActivity: new Date().toISOString()
     });
     throw error;
@@ -7111,6 +7138,13 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log(`   POST /api/messages/send            - Enviar mensagem`);
   console.log(`   GET  /api/conversations/:userId    - Listar conversas`);
   console.log('');
+  if (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_SERVICE_NAME) {
+    console.log(
+      'ℹ️  [WHATSAPP] Hosting tipo Railway: mantenha 1 réplica no serviço que corre WPPConnect. ' +
+        'Várias instâncias com o mesmo volume montado em WPP_TOKENS_BASE geram erro de perfil Chrome bloqueado.'
+    );
+    console.log('');
+  }
 
   // Limpeza agressiva no deploy (desligada por padrão — evita QR a cada push)
   if (process.env.WHATSAPP_CLEANUP_SESSIONS_ON_DEPLOY === 'true') {

@@ -149,6 +149,7 @@ const FirebaseApp = () => {
   // Estados do WhatsApp
   const [whatsappStatus, setWhatsappStatus] = useState('disconnected');
   const [whatsappQRCode, setWhatsappQRCode] = useState(null);
+  const [whatsappSessionError, setWhatsappSessionError] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   
   // Estados da seção Conversas
@@ -879,17 +880,23 @@ const FirebaseApp = () => {
       
       if (snapshot.exists()) {
         const session = snapshot.val();
-        const newStatus = session.status || 'disconnected';
-        
+        const raw = session.status != null ? String(session.status).toLowerCase().trim() : '';
+        const allowed = new Set(['connected', 'disconnected', 'qrcode', 'connecting', 'error']);
+        const newStatus = allowed.has(raw) ? raw : 'disconnected';
+
         console.log('✅ [WhatsApp Status] Dados encontrados no Firebase:');
         console.log('   Status:', newStatus);
         console.log('   Tem QR Code?', !!session.qrCode);
         console.log('   Timestamp:', new Date().toLocaleTimeString());
-        
+
         setWhatsappStatus(newStatus);
         setWhatsappQRCode(session.qrCode || null);
-        
-        // Log visual diferente para cada status
+        setWhatsappSessionError(
+          newStatus === 'error' && session.error != null && String(session.error).trim()
+            ? String(session.error).trim()
+            : null
+        );
+
         if (newStatus === 'connected') {
           console.log('🟢 WhatsApp CONECTADO!');
         } else if (newStatus === 'disconnected') {
@@ -898,19 +905,23 @@ const FirebaseApp = () => {
           console.log('📱 Aguardando QR Code...');
         } else if (newStatus === 'connecting') {
           console.log('🔄 Conectando...');
+        } else if (newStatus === 'error') {
+          console.log('⚠️ WhatsApp erro na sessão:', session.error);
         }
       } else {
         console.log('⚠️ [WhatsApp Status] Nenhum dado encontrado no Firebase');
         console.log('   Path:', `whatsapp_sessions/${user.uid}`);
         console.log('   Definindo status como: disconnected');
-        
+
         setWhatsappStatus('disconnected');
         setWhatsappQRCode(null);
+        setWhatsappSessionError(null);
       }
     }, (error) => {
       console.error('❌ [WhatsApp Listener] Erro ao monitorar status:', error);
       console.error('   Código:', error.code);
       console.error('   Mensagem:', error.message);
+      setWhatsappSessionError(null);
     });
 
     console.log('✅ [WhatsApp Listener] Listener configurado com sucesso!');
@@ -2060,6 +2071,7 @@ const FirebaseApp = () => {
         showToast(t('toast.whatsappDisconnected'), 'success');
         setWhatsappStatus('disconnected');
         setWhatsappQRCode(null);
+        setWhatsappSessionError(null);
       }
     } catch (error) {
       console.error('Erro ao desconectar:', error);
@@ -7671,7 +7683,7 @@ const DashboardWithFirebase = ({
               padding: '32px', 
               marginBottom: '24px', 
               boxShadow: '0 4px 12px rgba(0,0,0,0.3)', 
-              border: '2px solid ' + (currentWhatsappStatus === 'connected' ? '#10b981' : currentWhatsappStatus === 'qrcode' ? '#10b981' : 'rgba(255, 255, 255, 0.1)')
+              border: '2px solid ' + (currentWhatsappStatus === 'connected' ? '#10b981' : currentWhatsappStatus === 'qrcode' ? '#10b981' : currentWhatsappStatus === 'error' ? '#f97316' : 'rgba(255, 255, 255, 0.1)')
             }}>
               <div style={{ 
                 display: 'inline-block',
@@ -7682,11 +7694,13 @@ const DashboardWithFirebase = ({
                   ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' 
                   : currentWhatsappStatus === 'qrcode' 
                   ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' 
+                  : currentWhatsappStatus === 'error'
+                  ? 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)'
                   : 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
-                border: '2px solid ' + (currentWhatsappStatus === 'connected' ? '#10b981' : currentWhatsappStatus === 'qrcode' ? '#f59e0b' : '#ef4444')
+                border: '2px solid ' + (currentWhatsappStatus === 'connected' ? '#10b981' : currentWhatsappStatus === 'qrcode' ? '#f59e0b' : currentWhatsappStatus === 'error' ? '#f97316' : '#ef4444')
               }}>
                 <div style={{
-                  color: currentWhatsappStatus === 'connected' ? '#065f46' : currentWhatsappStatus === 'qrcode' ? '#92400e' : '#991b1b',
+                  color: currentWhatsappStatus === 'connected' ? '#065f46' : currentWhatsappStatus === 'qrcode' ? '#92400e' : currentWhatsappStatus === 'error' ? '#9a3412' : '#991b1b',
                   fontWeight: '700',
                   fontSize: '1.125rem',
                   display: 'flex',
@@ -7697,12 +7711,13 @@ const DashboardWithFirebase = ({
                     fontSize: '1.5rem',
                     animation: currentWhatsappStatus === 'connecting' ? 'pulse 1.5s infinite' : 'none'
                   }}>
-                    {currentWhatsappStatus === 'connected' ? '✅' : currentWhatsappStatus === 'qrcode' ? '⏳' : currentWhatsappStatus === 'connecting' ? '🔄' : '❌'}
+                    {currentWhatsappStatus === 'connected' ? '✅' : currentWhatsappStatus === 'qrcode' ? '⏳' : currentWhatsappStatus === 'connecting' ? '🔄' : currentWhatsappStatus === 'error' ? '⚠️' : '❌'}
                   </span>
                   {
                     currentWhatsappStatus === 'connected' ? 'WhatsApp Conectado' :
                     currentWhatsappStatus === 'qrcode' ? 'Aguardando QR Code' :
                     currentWhatsappStatus === 'connecting' ? 'Conectando...' :
+                    currentWhatsappStatus === 'error' ? 'Falha ao iniciar o WhatsApp' :
                     'WhatsApp Desconectado'
                   }
                 </div>
@@ -7830,9 +7845,23 @@ const DashboardWithFirebase = ({
                   </p>
                 </div>
               )}
+
+              {currentWhatsappStatus === 'error' && (
+                <div style={{
+                  padding: '20px',
+                  background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+                  borderRadius: '12px',
+                  marginBottom: '20px',
+                  border: '2px solid #f97316'
+                }}>
+                  <p style={{ fontSize: '0.9375rem', color: '#7c2d12', margin: 0, fontWeight: '600', lineHeight: 1.55 }}>
+                    {whatsappSessionError || 'Não foi possível iniciar o navegador no servidor. Em hospedagens como Railway, use uma única réplica no serviço que corre o WhatsApp e um volume persistente em WPP_TOKENS_BASE.'}
+                  </p>
+                </div>
+              )}
               
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                {currentWhatsappStatus === 'disconnected' ? (
+                {(currentWhatsappStatus === 'disconnected' || currentWhatsappStatus === 'error') && (
                   <button
                     onClick={connectWhatsApp}
                     disabled={currentIsConnecting}
@@ -7867,9 +7896,35 @@ const DashboardWithFirebase = ({
                     }}
                   >
                     <span style={{ fontSize: '1.25rem' }}>{currentIsConnecting ? '⏳' : '🔌'}</span>
-                    {currentIsConnecting ? 'Conectando...' : 'Conectar WhatsApp'}
+                    {currentIsConnecting ? 'Conectando...' : currentWhatsappStatus === 'error' ? 'Tentar novamente' : 'Conectar WhatsApp'}
                   </button>
-                ) : currentWhatsappStatus === 'qrcode' ? (
+                )}
+                {currentWhatsappStatus === 'error' && (
+                  <button
+                    onClick={disconnectWhatsApp}
+                    disabled={currentIsConnecting}
+                    style={{
+                      background: currentIsConnecting 
+                        ? 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)' 
+                        : 'linear-gradient(135deg, #64748b 0%, #475569 100%)',
+                      color: 'white',
+                      padding: '14px 28px',
+                      borderRadius: '12px',
+                      border: 'none',
+                      fontWeight: '600',
+                      fontSize: '1rem',
+                      cursor: currentIsConnecting ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <span style={{ fontSize: '1.25rem' }}>🧹</span>
+                    Limpar sessão no servidor
+                  </button>
+                )}
+                {currentWhatsappStatus === 'qrcode' && (
                   <>
                     <button
                       onClick={regenerateQRCode}
@@ -7944,7 +7999,8 @@ const DashboardWithFirebase = ({
                       Cancelar
                     </button>
                   </>
-                ) : (
+                )}
+                {currentWhatsappStatus === 'connected' && (
                   <button
                     onClick={disconnectWhatsApp}
                     style={{
@@ -7974,6 +8030,50 @@ const DashboardWithFirebase = ({
                     <span style={{ fontSize: '1.25rem' }}>🔌</span>
                     Desconectar WhatsApp
                   </button>
+                )}
+                {currentWhatsappStatus === 'connecting' && (
+                  <>
+                    <button
+                      type="button"
+                      disabled
+                      style={{
+                        background: 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)',
+                        color: 'white',
+                        padding: '14px 32px',
+                        borderRadius: '12px',
+                        border: 'none',
+                        fontWeight: '600',
+                        fontSize: '1rem',
+                        cursor: 'not-allowed',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      <span style={{ fontSize: '1.25rem' }}>⏳</span>
+                      A iniciar sessão no servidor…
+                    </button>
+                    <button
+                      type="button"
+                      onClick={disconnectWhatsApp}
+                      style={{
+                        background: 'linear-gradient(135deg, #64748b 0%, #475569 100%)',
+                        color: 'white',
+                        padding: '14px 28px',
+                        borderRadius: '12px',
+                        border: 'none',
+                        fontWeight: '600',
+                        fontSize: '1rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      <span style={{ fontSize: '1.25rem' }}>✕</span>
+                      Cancelar
+                    </button>
+                  </>
                 )}
               </div>
             </div>
