@@ -348,6 +348,9 @@ app.use(express.json());
 
 // Armazenar clientes WPPConnect ativos
 const activeClients = new Map();
+/** Evita dois wppconnect.create em paralelo para o mesmo user (mesmo userDataDir → "browser already running") */
+const wppSessionCreationInFlight = new Map();
+const wppHealthCheckIntervals = new Map();
 
 // ============================================
 // FUNÇÕES AUXILIARES
@@ -359,6 +362,61 @@ function getWppTokensBase() {
   return path.resolve(raw);
 }
 
+function getWppChromeProfileDir(userId) {
+  return path.join(getWppTokensBase(), `chrome_profile_${userId}`);
+}
+
+function cleanChromiumSingletonArtifacts(profileDir) {
+  if (!profileDir || !fs.existsSync(profileDir)) return;
+  const names = ['SingletonLock', 'SingletonCookie', 'SingletonSocket', 'lockfile'];
+  for (const name of names) {
+    const p = path.join(profileDir, name);
+    try {
+      if (fs.existsSync(p)) {
+        fs.rmSync(p, { recursive: false, force: true });
+        console.log(`🧹 [WPP] Removido artefato Chromium: ${name}`);
+      }
+    } catch (e) {
+      console.warn(`⚠️ [WPP] Não foi possível remover ${name}:`, e.message);
+    }
+  }
+}
+
+function clearWppHealthCheck(userId) {
+  const id = wppHealthCheckIntervals.get(userId);
+  if (id) {
+    clearInterval(id);
+    wppHealthCheckIntervals.delete(userId);
+  }
+}
+
+async function forceCloseWhatsAppSession(userId) {
+  clearWppHealthCheck(userId);
+  const client = activeClients.get(userId);
+  if (client) {
+    try {
+      await client.close();
+    } catch (e) {
+      console.warn('⚠️ [WPP] Erro ao fechar cliente:', e.message);
+    }
+    activeClients.delete(userId);
+  }
+  cleanChromiumSingletonArtifacts(getWppChromeProfileDir(userId));
+}
+
+function sleepMs(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function isPuppeteerUserDataDirConflict(err) {
+  const m = String(err?.message || err || '');
+  return (
+    m.includes('already running') ||
+    m.includes('userDataDir') ||
+    m.includes('Browser is already')
+  );
+}
+
 function ensureDirSync(dir) {
   try {
     fs.mkdirSync(dir, { recursive: true });
@@ -367,8 +425,24 @@ function ensureDirSync(dir) {
   }
 }
 
-// Função para criar/restaurar sessão WhatsApp
+/**
+ * Cria ou restaura sessão WPPConnect. Chamadas concorrentes para o mesmo userId serializam-se
+ * (evita erro "The browser is already running for ... userDataDir").
+ */
 async function createSession(userId) {
+  if (!userId) throw new Error('userId obrigatório');
+  if (wppSessionCreationInFlight.has(userId)) {
+    console.log(`⏳ [WPP] Sessão ${userId}: criação já em andamento — aguardando a mesma Promise`);
+    return wppSessionCreationInFlight.get(userId);
+  }
+  const task = createSessionInternal(userId).finally(() => {
+    wppSessionCreationInFlight.delete(userId);
+  });
+  wppSessionCreationInFlight.set(userId, task);
+  return task;
+}
+
+async function createSessionInternal(userId) {
   console.log(`📱 Verificando sessão WhatsApp para usuário: ${userId}`);
   
   const sessionRef = db.ref(`whatsapp_sessions/${userId}`);
@@ -404,20 +478,10 @@ async function createSession(userId) {
       console.log('🆕 Primeira conexão - criando nova sessão');
     }
     
-    // Perfil Chromium estável (antes: /tmp/... + Date.now() apagava a sessão a cada restart)
-    const profileDir = path.join(tokensBase, `chrome_profile_${userId}`);
+    const profileDir = getWppChromeProfileDir(userId);
     ensureDirSync(profileDir);
-    const lockFile = path.join(profileDir, 'SingletonLock');
-    
-    try {
-      if (fs.existsSync(lockFile)) {
-        console.log('🧹 Removendo arquivo de lock do Chromium...');
-        fs.unlinkSync(lockFile);
-        console.log('✅ Lock removido com sucesso');
-      }
-    } catch (lockError) {
-      console.warn('⚠️ Erro ao remover lock (continuando):', lockError.message);
-    }
+    clearWppHealthCheck(userId);
+    cleanChromiumSingletonArtifacts(profileDir);
     
     // 🔥 Configuração do cliente WPPConnect
     // O WPPConnect gerencia automaticamente a persistência via tokenStore: 'file'
@@ -541,10 +605,31 @@ async function createSession(userId) {
       }
     };
     
-    // 🔥 Criar/Restaurar client WPPConnect
-    // Se existir sessão nos arquivos /tokens, WPPConnect restaura automaticamente
+    // 🔥 Criar/Restaurar client WPPConnect (retry se perfil Chromium preso)
     console.log('🚀 Iniciando WPPConnect...');
-    const client = await wppconnect.create(clientOptions);
+    let client;
+    let lastCreateErr;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) {
+        console.warn(`🔄 [WPP] Nova tentativa de launch (${attempt + 1}/2) após conflito de userDataDir`);
+      }
+      try {
+        client = await wppconnect.create(clientOptions);
+        lastCreateErr = null;
+        break;
+      } catch (e) {
+        lastCreateErr = e;
+        if (attempt === 0 && isPuppeteerUserDataDirConflict(e)) {
+          console.warn('⚠️ [WPP] Conflito de browser/perfil — fechando, limpando locks e aguardando...');
+          await forceCloseWhatsAppSession(userId);
+          cleanChromiumSingletonArtifacts(profileDir);
+          await sleepMs(2500);
+          continue;
+        }
+        throw e;
+      }
+    }
+    if (!client) throw lastCreateErr || new Error('Falha ao iniciar WPPConnect');
 
     // Configurar listeners de mensagens
     client.onMessage(async (message) => {
@@ -564,10 +649,11 @@ async function createSession(userId) {
           disconnectReason: state
         });
         
-        // Tentar reconectar após 10 segundos
         setTimeout(async () => {
           try {
             console.log('🔄 Tentando reconectar WhatsApp para:', userId);
+            await forceCloseWhatsAppSession(userId);
+            await sleepMs(2000);
             await createSession(userId);
           } catch (error) {
             console.error('❌ Erro ao reconectar:', error.message);
@@ -581,21 +667,25 @@ async function createSession(userId) {
     
     console.log('✅ Sessão criada com sucesso para:', userId);
     
-    // 🔥 NOVO: Healthcheck periódico da conexão
+    clearWppHealthCheck(userId);
     const healthCheckInterval = setInterval(async () => {
       try {
-        const isConnected = await client.isConnected();
+        const c = activeClients.get(userId);
+        if (!c) {
+          clearWppHealthCheck(userId);
+          return;
+        }
+        const isConnected = await c.isConnected();
         
         if (isConnected) {
-          // Atualizar lastActivity
           await sessionRef.update({
             lastActivity: new Date().toISOString()
           });
         } else {
           console.log('⚠️ [Healthcheck] WhatsApp desconectado para:', userId);
-          clearInterval(healthCheckInterval);
-          
-          // Tentar reconectar
+          clearWppHealthCheck(userId);
+          await forceCloseWhatsAppSession(userId);
+          await sleepMs(2000);
           try {
             await createSession(userId);
           } catch (error) {
@@ -603,9 +693,27 @@ async function createSession(userId) {
           }
         }
       } catch (error) {
-        console.error('❌ [Healthcheck] Erro:', error.message);
+        const errStr = String(error.message || error);
+        console.error('❌ [Healthcheck] Erro:', errStr);
+        if (
+          errStr.includes('detached') ||
+          errStr.includes('Target closed') ||
+          errStr.includes('Protocol error') ||
+          errStr.includes('Execution context')
+        ) {
+          clearWppHealthCheck(userId);
+          await forceCloseWhatsAppSession(userId);
+          try {
+            await sessionRef.update({
+              status: 'disconnected',
+              lastActivity: new Date().toISOString(),
+              disconnectReason: 'browser_stale'
+            });
+          } catch (_) { /* ignore */ }
+        }
       }
-    }, 30000); // Verificar a cada 30 segundos
+    }, 30000);
+    wppHealthCheckIntervals.set(userId, healthCheckInterval);
     
     return client;
     
@@ -4635,21 +4743,25 @@ app.get('/', (req, res) => {
 // Criar/Conectar sessão WhatsApp
 app.post('/api/sessions/create', async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId, forceReconnect } = req.body;
     
     if (!userId) {
       return res.status(400).json({ error: 'userId é obrigatório' });
     }
     
-    // Verificar se já existe sessão ativa
     if (activeClients.has(userId)) {
-      return res.json({ 
-        status: 'already_active',
-        message: 'Sessão já está ativa' 
-      });
+      if (forceReconnect) {
+        console.log(`🔄 [WPP] forceReconnect: fechando sessão existente de ${userId}`);
+        await forceCloseWhatsAppSession(userId);
+        await sleepMs(2000);
+      } else {
+        return res.json({ 
+          status: 'already_active',
+          message: 'Sessão já está ativa' 
+        });
+      }
     }
     
-    // Criar nova sessão
     await createSession(userId);
     
     res.json({ 
@@ -4675,19 +4787,15 @@ app.post('/api/sessions/disconnect', async (req, res) => {
       return res.status(400).json({ error: 'userId é obrigatório' });
     }
     
-    const client = activeClients.get(userId);
-    if (client) {
-      await client.close();
-      activeClients.delete(userId);
-      
-      await db.ref(`whatsapp_sessions/${userId}`).update({
-        status: 'disconnected',
-        lastActivity: new Date().toISOString(),
-        qrCode: null
-      });
-      
-      console.log('✅ Sessão desconectada:', userId);
-    }
+    await forceCloseWhatsAppSession(userId);
+    await db.ref(`whatsapp_sessions/${userId}`).update({
+      status: 'disconnected',
+      lastActivity: new Date().toISOString(),
+      qrCode: null
+    });
+    console.log('✅ Sessão desconectada:', userId);
+    
+    await sleepMs(500);
     
     res.json({ 
       status: 'success',
@@ -6866,11 +6974,12 @@ process.on('uncaughtException', (error) => {
 
 process.on('SIGINT', async () => {
   console.log('\n🛑 Encerrando servidor...');
-  
-  // Fechar todas as sessões ativas
-  for (const [userId, client] of activeClients.entries()) {
+  for (const uid of [...wppHealthCheckIntervals.keys()]) {
+    clearWppHealthCheck(uid);
+  }
+  for (const userId of [...activeClients.keys()]) {
     try {
-      await client.close();
+      await forceCloseWhatsAppSession(userId);
       console.log(`✅ Sessão fechada: ${userId}`);
     } catch (error) {
       console.error(`❌ Erro ao fechar sessão ${userId}:`, error);

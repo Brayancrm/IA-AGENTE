@@ -2183,8 +2183,8 @@ const FirebaseApp = () => {
         body: JSON.stringify({ userId: user.uid })
       });
 
-      // Aguarda 1 segundo
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Aguarda o Chromium fechar o perfil (evita "browser already running" no mesmo userDataDir)
+      await new Promise(resolve => setTimeout(resolve, 2800));
 
       // Depois reconecta para gerar novo QR Code
       setIsConnecting(true);
@@ -2193,7 +2193,7 @@ const FirebaseApp = () => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ userId: user.uid })
+        body: JSON.stringify({ userId: user.uid, forceReconnect: true })
       });
 
       const data = await response.json();
