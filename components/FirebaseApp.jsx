@@ -2112,7 +2112,15 @@ const FirebaseApp = () => {
     try {
       // Buscar mensagens do Firebase Realtime Database
       if (database) {
-        const messagesRef = ref(database, `conversations/${user.uid}/${contactNumber}/messages`);
+        const sessionSnap = await get(ref(database, `whatsapp_sessions/${user.uid}`));
+        const lineKey =
+          sessionSnap.exists() && typeof sessionSnap.val()?.connectedLineKey === 'string'
+            ? sessionSnap.val().connectedLineKey.trim()
+            : '';
+        const messagesPath = lineKey
+          ? `conversations/${user.uid}/lines/${lineKey}/${contactNumber}/messages`
+          : `conversations/${user.uid}/${contactNumber}/messages`;
+        const messagesRef = ref(database, messagesPath);
         onValue(messagesRef, (snapshot) => {
           const messages = [];
           snapshot.forEach((childSnapshot) => {

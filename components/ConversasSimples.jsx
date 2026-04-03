@@ -38,6 +38,8 @@ export default function ConversasSimples({ userId, backendUrl }) {
   const [conversasHint, setConversasHint] = useState('');
   const [isMobile, setIsMobile] = useState(false);
   const [showConversationList, setShowConversationList] = useState(true);
+  /** Chave da linha WhatsApp ligada (histórico em conversations/.../lines/{key}/...) */
+  const [connectedLineKey, setConnectedLineKey] = useState(null);
 
   // Detectar se está em mobile
   useEffect(() => {
@@ -114,13 +116,20 @@ export default function ConversasSimples({ userId, backendUrl }) {
         const newStatus = session.status || 'disconnected';
         console.log('📱 [Conversas] Status WhatsApp:', newStatus);
         setWhatsappStatus(newStatus);
+        setConnectedLineKey(
+          typeof session.connectedLineKey === 'string' && session.connectedLineKey.trim()
+            ? session.connectedLineKey.trim()
+            : null
+        );
       } else {
         console.log('⚠️ [Conversas] Nenhum dado encontrado no Firebase');
         setWhatsappStatus('disconnected');
+        setConnectedLineKey(null);
       }
     }, (error) => {
       console.error('❌ [Conversas] Erro ao monitorar status:', error);
       setWhatsappStatus('disconnected');
+      setConnectedLineKey(null);
     });
 
     return () => off(sessionRef);
@@ -203,14 +212,16 @@ export default function ConversasSimples({ userId, backendUrl }) {
     // NÃO remover o _c_us! O Firebase usa ele no caminho
     const phoneNumber = conversaSelecionada; // Manter o formato original: 393883477676_c_us
     
-    // CAMINHO CORRETO: /conversations/{userId}/{phoneNumber}/messages
-    const messagesRef = ref(database, `conversations/${userId}/${phoneNumber}/messages`);
+    const messagesPath = connectedLineKey
+      ? `conversations/${userId}/lines/${connectedLineKey}/${phoneNumber}/messages`
+      : `conversations/${userId}/${phoneNumber}/messages`;
+    const messagesRef = ref(database, messagesPath);
 
     // Aguardar um pouco antes de configurar o listener
     const timer = setTimeout(() => {
       // Debug detalhado do Firebase Auth antes de tentar acessar
       console.log('🔍 [TENTATIVA DE ACESSO] Detalhes completos:', {
-        path: `conversations/${userId}/${phoneNumber}/messages`,
+        path: messagesPath,
         authCurrentUser: auth.currentUser ? {
           uid: auth.currentUser.uid,
           email: auth.currentUser.email,
@@ -256,7 +267,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
         if (error.code === 'PERMISSION_DENIED') {
           console.error('🚨 CONFIRMADO: Erro de permissão do Firebase!');
           console.error('🔍 Verifique no Firebase Console:');
-          console.error(`   Path: conversations/${userId}/${phoneNumber}/messages`);
+          console.error(`   Path: ${messagesPath}`);
           console.error(`   UID autenticado: ${auth.currentUser?.uid}`);
         }
         
@@ -274,7 +285,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
       // Se o timer já executou, off será chamado quando o componente desmontar
       off(messagesRef);
     };
-  }, [conversaSelecionada, database, userId, auth, isReady, authReady]);
+  }, [conversaSelecionada, database, userId, auth, isReady, authReady, connectedLineKey]);
 
   // Enviar mensagem
   const enviarMensagem = async () => {

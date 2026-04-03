@@ -351,6 +351,10 @@ const activeClients = new Map();
 /** Evita dois wppconnect.create em paralelo para o mesmo user (mesmo userDataDir → "browser already running") */
 const wppSessionCreationInFlight = new Map();
 const wppHealthCheckIntervals = new Map();
+/** Chave sanitizada do wid da linha WhatsApp atual (histórico separado por número conectado) */
+const wppConnectedLineByUser = new Map();
+/** WID serializado da última linha amarrada (detecta troca de número sem desligar pela app) */
+const wppBoundWidByUser = new Map();
 
 // ============================================
 // FUNÇÕES AUXILIARES
@@ -392,6 +396,8 @@ function clearWppHealthCheck(userId) {
 
 async function forceCloseWhatsAppSession(userId) {
   clearWppHealthCheck(userId);
+  wppConnectedLineByUser.delete(userId);
+  wppBoundWidByUser.delete(userId);
   const client = activeClients.get(userId);
   if (client) {
     try {
@@ -402,6 +408,101 @@ async function forceCloseWhatsAppSession(userId) {
     activeClients.delete(userId);
   }
   cleanChromiumSingletonArtifacts(getWppChromeProfileDir(userId));
+}
+
+/**
+ * Identifica o número/WID da linha conectada e grava em Firebase + cache.
+ * Mensagens passam a ir para conversations/.../lines/{lineKey}/...
+ */
+async function bindWhatsAppLineKey(userId) {
+  if (!userId) return null;
+  const client = activeClients.get(userId);
+  if (!client) return null;
+  try {
+    let serialized = null;
+    if (typeof client.getWid === 'function') {
+      const wid = await client.getWid();
+      if (typeof wid === 'string') serialized = wid;
+      else if (wid && wid._serialized) serialized = wid._serialized;
+      else if (wid && wid.user && wid.server) serialized = `${wid.user}@${wid.server}`;
+    }
+    if (!serialized && typeof client.getHostDevice === 'function') {
+      const h = await client.getHostDevice();
+      const w = h && h.wid;
+      if (typeof w === 'string') serialized = w;
+      else if (w && w._serialized) serialized = w._serialized;
+      else if (w && w.user && w.server) serialized = `${w.user}@${w.server}`;
+    }
+    if (!serialized) {
+      console.warn('⚠️ [WPP] Não foi possível obter WID da linha para userId:', userId);
+      return null;
+    }
+    const lineKey = sanitizePhoneNumber(serialized);
+    const prevWid = wppBoundWidByUser.get(userId);
+    const prevLine = wppConnectedLineByUser.get(userId);
+    if (prevWid === serialized && prevLine === lineKey) {
+      return lineKey;
+    }
+    if (prevWid != null && prevWid !== serialized) {
+      console.log('📌 [WPP] Linha WhatsApp alterada (troca de número/conta):', prevWid, '→', serialized);
+    }
+    wppBoundWidByUser.set(userId, serialized);
+    wppConnectedLineByUser.set(userId, lineKey);
+    await db.ref(`whatsapp_sessions/${userId}`).update({
+      connectedWid: serialized,
+      connectedLineKey: lineKey,
+      lineBoundAt: new Date().toISOString()
+    });
+    console.log('📌 [WPP] Histórico amarrado à linha:', serialized, '→', lineKey);
+    return lineKey;
+  } catch (e) {
+    console.warn('⚠️ bindWhatsAppLineKey:', e.message);
+    return null;
+  }
+}
+
+/** Ref às mensagens do contacto, por linha WhatsApp conectada (evita misturar números antigos). */
+function conversationMessagesRef(userId, contactSanitized) {
+  const lineKey = wppConnectedLineByUser.get(userId);
+  if (lineKey) {
+    return db.ref(`conversations/${userId}/lines/${lineKey}/${contactSanitized}/messages`);
+  }
+  return db.ref(`conversations/${userId}/${contactSanitized}/messages`);
+}
+
+async function resolveConversationLineKey(userId) {
+  let lk = wppConnectedLineByUser.get(userId);
+  if (lk) return lk;
+  const snap = await db.ref(`whatsapp_sessions/${userId}`).once('value');
+  const session = snap.val() || {};
+  lk = session.connectedLineKey || null;
+  if (lk) wppConnectedLineByUser.set(userId, lk);
+  if (typeof session.connectedWid === 'string' && session.connectedWid) {
+    wppBoundWidByUser.set(userId, session.connectedWid);
+  }
+  return lk;
+}
+
+/** Mapa contactKey → { messages } para a linha atual (ou legado sem lines/). */
+async function loadConversationThreadsMap(userId) {
+  const lineKey = await resolveConversationLineKey(userId);
+  if (lineKey) {
+    const snap = await db.ref(`conversations/${userId}/lines/${lineKey}`).once('value');
+    return { lineKey, threads: snap.val() || {} };
+  }
+  // Já existe pasta lines/ — não ler raiz legada (evita misturar outras linhas / lixo antigo)
+  const linesRootSnap = await db.ref(`conversations/${userId}/lines`).once('value');
+  if (linesRootSnap.exists()) {
+    return { lineKey: null, threads: {} };
+  }
+  const snap = await db.ref(`conversations/${userId}`).once('value');
+  const raw = snap.val() || {};
+  const threads = {};
+  Object.keys(raw).forEach((k) => {
+    if (k === 'lines') return;
+    threads[k] = raw[k];
+  });
+  return { lineKey: null, threads };
 }
 
 function sleepMs(ms) {
@@ -516,6 +617,7 @@ async function createSessionInternal(userId) {
           });
           
           console.log('✅ WhatsApp conectado para:', userId);
+          setTimeout(() => bindWhatsAppLineKey(userId).catch((e) => console.warn('bindWhatsAppLineKey:', e.message)), 2500);
           
           // 🔥 Salvar token após o client estar pronto (com delay)
           setTimeout(async () => {
@@ -666,6 +768,7 @@ async function createSessionInternal(userId) {
     activeClients.set(userId, client);
     
     console.log('✅ Sessão criada com sucesso para:', userId);
+    setTimeout(() => bindWhatsAppLineKey(userId).catch((e) => console.warn('bindWhatsAppLineKey (post-create):', e.message)), 4000);
     
     clearWppHealthCheck(userId);
     const healthCheckInterval = setInterval(async () => {
@@ -1034,9 +1137,11 @@ async function handleIncomingMessage(userId, message, client) {
       }
       return;
     }
-    
+
+    await bindWhatsAppLineKey(userId);
+
     // Salvar mensagem no Realtime Database
-    const messageRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+    const messageRef = conversationMessagesRef(userId, sanitizedNumber).push();
     await messageRef.set({
       from: message.from || '',
       to: message.to || '',
@@ -1236,7 +1341,7 @@ async function handleIncomingMessage(userId, message, client) {
         await incrementMessageUsage(userId);
         
         // Salvar resposta da IA
-        const responseRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+        const responseRef = conversationMessagesRef(userId, sanitizedNumber).push();
         await responseRef.set({
           from: message.to || '',
           to: message.from || '',
@@ -1336,7 +1441,7 @@ async function handleIncomingMessage(userId, message, client) {
                 console.log(`✅ Imagem enviada: ${item.name}`);
                 
                 // Salvar envio da imagem no histórico
-                const imageRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+                const imageRef = conversationMessagesRef(userId, sanitizedNumber).push();
                 await imageRef.set({
                   from: message.to || '',
                   to: message.from || '',
@@ -1361,7 +1466,7 @@ async function handleIncomingMessage(userId, message, client) {
                 console.log(`✅ Informações enviadas: ${item.name}`);
                 
                 // Salvar envio no histórico
-                const textRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+                const textRef = conversationMessagesRef(userId, sanitizedNumber).push();
                 await textRef.set({
                   from: message.to || '',
                   to: message.from || '',
@@ -1379,7 +1484,7 @@ async function handleIncomingMessage(userId, message, client) {
               } else if (item.image && !sendProductImages) {
                 console.log(`📤 Enviando só texto (fotos desativadas no assistente): ${item.name}`);
                 await client.sendText(message.from, messageText);
-                const textRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+                const textRef = conversationMessagesRef(userId, sanitizedNumber).push();
                 await textRef.set({
                   from: message.to || '',
                   to: message.from || '',
@@ -1411,7 +1516,7 @@ async function handleIncomingMessage(userId, message, client) {
           const paymentNotice = manualMessage;
           await client.sendText(message.from, paymentNotice);
 
-          const paymentMsgRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+          const paymentMsgRef = conversationMessagesRef(userId, sanitizedNumber).push();
           await paymentMsgRef.set({
             from: message.to || '',
             to: message.from || '',
@@ -1532,7 +1637,7 @@ function formatCatalogPriceForMessage(price, currencyCode) {
 async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) {
   try {
     // Buscar histórico da conversa (últimas 10 mensagens)
-    const messagesSnapshot = await db.ref(`conversations/${userId}/${contactNumber}/messages`)
+    const messagesSnapshot = await conversationMessagesRef(userId, contactNumber)
       .orderByChild('timestamp')
       .limitToLast(10)
       .once('value');
@@ -2140,7 +2245,7 @@ async function tryEmitInvoiceWithAddress(userId, phone, customerData) {
           
           // Salvar mensagem no histórico
           const sanitizedNumber = sanitizePhoneNumber(phone);
-          const invoiceMsgRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+          const invoiceMsgRef = conversationMessagesRef(userId, sanitizedNumber).push();
           await invoiceMsgRef.set({
             from: 'system',
             to: phone,
@@ -3727,7 +3832,7 @@ async function sendTvLoginWhatsApp(masterUserId, customerPhone, text) {
 async function saveTvMessageToConversation(masterUserId, customerPhone, body) {
   try {
     const sanitized = sanitizePhoneNumber(customerPhone);
-    const msgRef = db.ref(`conversations/${masterUserId}/${sanitized}/messages`).push();
+    const msgRef = conversationMessagesRef(masterUserId, sanitized).push();
     await msgRef.set({
       from: '',
       to: customerPhone,
@@ -4032,7 +4137,7 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
       return;
     }
 
-    const messagesSnapshot = await db.ref(`conversations/${userId}/${sanitizedNumber}/messages`)
+    const messagesSnapshot = await conversationMessagesRef(userId, sanitizedNumber)
       .orderByChild('timestamp')
       .limitToLast(15)
       .once('value');
@@ -4163,7 +4268,7 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
     const { messageBeforePaymentLink } = await getAssistantPaymentExtras(userId);
     if (messageBeforePaymentLink) {
       await client.sendText(phone, messageBeforePaymentLink);
-      const preRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+      const preRef = conversationMessagesRef(userId, sanitizedNumber).push();
       await preRef.set({
         from: '',
         to: phone,
@@ -4187,7 +4292,7 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
 
     await client.sendText(phone, paymentMessage);
 
-    const paymentMsgRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+    const paymentMsgRef = conversationMessagesRef(userId, sanitizedNumber).push();
     await paymentMsgRef.set({
       from: '',
       to: phone,
@@ -4814,7 +4919,9 @@ app.post('/api/sessions/disconnect', async (req, res) => {
     await db.ref(`whatsapp_sessions/${userId}`).update({
       status: 'disconnected',
       lastActivity: new Date().toISOString(),
-      qrCode: null
+      qrCode: null,
+      connectedWid: null,
+      connectedLineKey: null
     });
     console.log('✅ Sessão desconectada:', userId);
     
@@ -4881,9 +4988,10 @@ app.post('/api/messages/send', async (req, res) => {
     // Incrementar contador de uso
     await incrementMessageUsage(userId);
     
+    await bindWhatsAppLineKey(userId);
     // Salvar mensagem enviada (sanitizar número para Firebase)
     const sanitizedNumber = sanitizePhoneNumber(to);
-    const messageRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+    const messageRef = conversationMessagesRef(userId, sanitizedNumber).push();
     await messageRef.set({
       from: 'me',
       to: to,
@@ -4967,6 +5075,7 @@ app.post('/api/messages/send-audio', async (req, res) => {
       // Incrementar contador de uso
       await incrementMessageUsage(userId);
       
+      await bindWhatsAppLineKey(userId);
       // Salvar mensagem enviada (sanitizar número para Firebase)
       const sanitizedNumber = sanitizePhoneNumber(to);
       
@@ -4976,7 +5085,7 @@ app.post('/api/messages/send-audio', async (req, res) => {
         audioBase64 = audioBuffer.toString('base64');
       }
       
-      const messageRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+      const messageRef = conversationMessagesRef(userId, sanitizedNumber).push();
       await messageRef.set({
         from: 'me',
         to: to,
@@ -5013,27 +5122,25 @@ app.get('/api/conversations/:userId', async (req, res) => {
     const client = activeClients.get(userId);
 
     const buildFromFirebaseArchive = async () => {
-      const conversationsSnapshot = await db.ref(`conversations/${userId}`).once('value');
+      const { threads } = await loadConversationThreadsMap(userId);
       const conversations = [];
-      if (conversationsSnapshot.exists()) {
-        conversationsSnapshot.forEach((child) => {
-          const contactNumber = child.key;
-          const data = child.val();
-          let lastMessage = null;
-          if (data.messages) {
-            const messages = Object.values(data.messages);
-            lastMessage = messages[messages.length - 1];
-          }
-          conversations.push({
-            contactNumber,
-            jid: null,
-            displayName: null,
-            lastMessage: lastMessage?.body || '',
-            lastMessageTime: lastMessage?.timestamp || null,
-            messageCount: data.messages ? Object.keys(data.messages).length : 0
-          });
+      Object.keys(threads).forEach((contactNumber) => {
+        const data = threads[contactNumber];
+        if (!data || typeof data !== 'object') return;
+        let lastMessage = null;
+        if (data.messages) {
+          const messages = Object.values(data.messages);
+          lastMessage = messages[messages.length - 1];
+        }
+        conversations.push({
+          contactNumber,
+          jid: null,
+          displayName: null,
+          lastMessage: lastMessage?.body || '',
+          lastMessageTime: lastMessage?.timestamp || null,
+          messageCount: data.messages ? Object.keys(data.messages).length : 0
         });
-      }
+      });
       return conversations;
     };
 
@@ -5059,6 +5166,8 @@ app.get('/api/conversations/:userId', async (req, res) => {
         message: 'Sessão WhatsApp inativa — reconecte no painel.'
       });
     }
+
+    await bindWhatsAppLineKey(userId);
 
     let chats = [];
     try {
@@ -5089,8 +5198,7 @@ app.get('/api/conversations/:userId', async (req, res) => {
       return true;
     });
 
-    const fbSnap = await db.ref(`conversations/${userId}`).once('value');
-    const fbData = fbSnap.val() || {};
+    const { threads: fbData } = await loadConversationThreadsMap(userId);
 
     const conversations = [];
     for (const chat of chats) {
@@ -6197,7 +6305,7 @@ app.post('/api/asaas/webhook', async (req, res) => {
           const sanitizedNumber = sanitizePhoneNumber(orderData.customer.phone);
           
           // Salvar mensagem no histórico
-          const confirmMsgRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+          const confirmMsgRef = conversationMessagesRef(userId, sanitizedNumber).push();
           await confirmMsgRef.set({
             from: 'system',
             to: orderData.customer.phone,
@@ -6230,7 +6338,7 @@ app.post('/api/asaas/webhook', async (req, res) => {
             console.log('   Resultado:', invoiceSendResult);
             
             // Salvar pergunta no histórico
-            const invoiceQuestionRef = db.ref(`conversations/${userId}/${sanitizedNumber}/messages`).push();
+            const invoiceQuestionRef = conversationMessagesRef(userId, sanitizedNumber).push();
             await invoiceQuestionRef.set({
               from: 'system',
               to: orderData.customer.phone,
