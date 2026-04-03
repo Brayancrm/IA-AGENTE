@@ -553,6 +553,40 @@ function catalogImageDedupeKey(item) {
   return `n_${(h >>> 0).toString(36)}`;
 }
 
+/** Cliente pediu reenvio explícito de foto / preço / descrição / link (PT/EN/ES/IT). */
+function userWantsCatalogAuxResend(userMessage) {
+  if (!userMessage || typeof userMessage !== 'string') return false;
+  const t = String(userMessage)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  if (t.length < 3) return false;
+  const patterns = [
+    /\b(foto|fotos|imagem|imagens|picture|photos?)\b/,
+    /\b(descricao|detalhe|detalhes|informacao|informacoes|mais info)\b/,
+    /\b(preco|precos|valor|valores|quanto|custa|custam)\b/,
+    /\b(manda|envia|reenvia|mostra|mandar|enviar|reenviar)\b/,
+    /\b(de novo|novamente|outra vez|again)\b/,
+    /\b(repete|repetir)\b/,
+    /\b(quero ver|ver foto|ver a foto|ver imagem)\b/,
+    /\b(precio|precios|descripcion|imagen|imagenes|cuanto|cuesta)\b/,
+    /\b(mandame|manda me|otra vez|de nuevo)\b/,
+    /\b(prezzo|descrizione|immagine|immagini|quanto costa)\b/,
+    /\b(price|cost|how much|send (me )?(the )?(photo|picture|link|info))\b/
+  ];
+  return patterns.some((re) => re.test(t));
+}
+
+async function markSentCatalogAux(userId, contactSanitized, dedupeKey, name) {
+  try {
+    await conversationAssistantMetaRef(userId, contactSanitized)
+      .child(`sent_catalog_aux/${dedupeKey}`)
+      .set({ at: new Date().toISOString(), name });
+  } catch (e) {
+    console.warn('⚠️ assistant_meta sent_catalog_aux:', e.message);
+  }
+}
+
 async function resolveConversationLineKey(userId) {
   let lk = wppConnectedLineByUser.get(userId);
   if (lk) return lk;
@@ -1527,6 +1561,7 @@ async function handleIncomingMessage(userId, message, client) {
         const mentionedItems = detectMentionedProducts(aiResponse, aiResult.catalogItemsMap);
         const sendProductImages = aiConfig?.showCatalogImagesWhenOffering !== false;
         const catalogImagesOncePerConversation = aiConfig?.catalogImagesOncePerConversation !== false;
+        const allowCatalogAuxResend = userWantsCatalogAuxResend(messageText);
         
         if (mentionedItems.length > 0) {
           console.log(`📸 Detectados ${mentionedItems.length} produto(s) na resposta`);
@@ -1535,17 +1570,38 @@ async function handleIncomingMessage(userId, message, client) {
           for (const item of mentionedItems) {
             try {
               const dedupeKey = catalogImageDedupeKey(item);
+              const metaRef = conversationAssistantMetaRef(userId, sanitizedNumber);
+              
+              if (catalogImagesOncePerConversation && !allowCatalogAuxResend) {
+                const auxSnap = await metaRef.child(`sent_catalog_aux/${dedupeKey}`).once('value');
+                if (auxSnap.exists()) {
+                  console.log(
+                    `📋 Card do catálogo (foto/descrição/preço) já enviado para: ${item.name} — omitindo mensagem extra`
+                  );
+                  continue;
+                }
+                // Conversas antigas: só existia sent_catalog_images — considerar card já enviado e migrar
+                const legacyImgSnap = await metaRef.child(`sent_catalog_images/${dedupeKey}`).once('value');
+                if (legacyImgSnap.exists()) {
+                  await markSentCatalogAux(userId, sanitizedNumber, dedupeKey, item.name);
+                  console.log(
+                    `📋 Migrado legado sent_catalog_images → omitindo card extra para: ${item.name}`
+                  );
+                  continue;
+                }
+              }
+              
               let skipImageAlreadySent = false;
               if (
                 catalogImagesOncePerConversation &&
                 sendProductImages &&
-                item.image
+                item.image &&
+                !allowCatalogAuxResend
               ) {
-                const metaRef = conversationAssistantMetaRef(userId, sanitizedNumber);
                 const sentSnap = await metaRef.child(`sent_catalog_images/${dedupeKey}`).once('value');
                 if (sentSnap.exists()) {
                   skipImageAlreadySent = true;
-                  console.log(`📸 Foto já enviada nesta conversa para: ${item.name} (${dedupeKey}) — só texto`);
+                  console.log(`📸 Foto já enviada nesta conversa para: ${item.name} (${dedupeKey})`);
                 }
               }
               
@@ -1608,15 +1664,14 @@ async function handleIncomingMessage(userId, message, client) {
                 
                 if (catalogImagesOncePerConversation) {
                   try {
-                    await conversationAssistantMetaRef(userId, sanitizedNumber)
-                      .child(`sent_catalog_images/${dedupeKey}`)
-                      .set({
-                        at: new Date().toISOString(),
-                        name: item.name
-                      });
+                    await metaRef.child(`sent_catalog_images/${dedupeKey}`).set({
+                      at: new Date().toISOString(),
+                      name: item.name
+                    });
                   } catch (metaErr) {
                     console.warn('⚠️ assistant_meta sent_catalog_images:', metaErr.message);
                   }
+                  await markSentCatalogAux(userId, sanitizedNumber, dedupeKey, item.name);
                 }
                 
                 // Salvar envio da imagem no histórico
@@ -1644,6 +1699,10 @@ async function handleIncomingMessage(userId, message, client) {
                 
                 console.log(`✅ Informações enviadas: ${item.name}`);
                 
+                if (catalogImagesOncePerConversation) {
+                  await markSentCatalogAux(userId, sanitizedNumber, dedupeKey, item.name);
+                }
+                
                 // Salvar envio no histórico
                 const textRef = conversationMessagesRef(userId, sanitizedNumber).push();
                 await textRef.set({
@@ -1665,6 +1724,9 @@ async function handleIncomingMessage(userId, message, client) {
                   `📤 Enviando só texto (${!sendProductImages ? 'fotos desativadas' : 'foto já enviada nesta conversa'}): ${item.name}`
                 );
                 await client.sendText(message.from, messageText);
+                if (catalogImagesOncePerConversation) {
+                  await markSentCatalogAux(userId, sanitizedNumber, dedupeKey, item.name);
+                }
                 const textRef = conversationMessagesRef(userId, sanitizedNumber).push();
                 await textRef.set({
                   from: message.to || '',
@@ -1990,7 +2052,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       const catalogImagesOncePerConversation = assistantSettings.catalogImagesOncePerConversation !== false;
       const imageInstruction = sendCatalogImages
         ? catalogImagesOncePerConversation
-          ? '- Os itens do catálogo têm foto cadastrada: na primeira vez que você oferecer cada produto/serviço nesta conversa (nome completo), o sistema envia a imagem no WhatsApp; nas menções seguintes do mesmo item, só texto — pode citar o item à vontade sem repetir mídia'
+          ? '- Catálogo com foto: na primeira vez que você oferecer cada item (nome completo), o sistema envia no WhatsApp o card completo (foto + legenda com preço/descrição/link se houver). Nas menções seguintes do MESMO item, o sistema NÃO reenvia card nem foto — responda de forma breve (confirmação, próximo passo). Se o cliente pedir de novo foto, preço, descrição, detalhes, link ou “manda de novo”, o sistema reenvia o card completo'
           : '- Os itens do catálogo têm foto cadastrada: ao mencionar o nome completo do produto/serviço, o sistema pode enviar a imagem automaticamente no WhatsApp em cada menção'
         : '- O envio automático de fotos no WhatsApp está desativado nas configurações do assistente: descreva bem os itens em texto e não prometa envio automático de imagens';
       systemPrompt += `\n⚠️ INSTRUÇÕES IMPORTANTES:

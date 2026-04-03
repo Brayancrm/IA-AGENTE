@@ -417,8 +417,8 @@
   "assistantConfig": {
     "showCatalogImages": "Invia foto automaticamente su WhatsApp quando offri prodotto/servizio",
     "showCatalogImagesHint": "Disattiva per inviare solo testo citando gli articoli. Il catalogo richiede comunque un'immagine per salvare.",
-    "catalogImagesOncePerConversation": "Invia la foto di ogni articolo una sola volta per conversazione",
-    "catalogImagesOncePerConversationHint": "Evita di reinviare la stessa immagine ogni volta che il prodotto o servizio viene citato di nuovo. La prima menzione invia la foto (se attivo sopra); dopo, solo testo. Disattiva per inviare a ogni menzione.",
+    "catalogImagesOncePerConversation": "Invia la scheda catalogo (foto + testo) una sola volta per conversazione",
+    "catalogImagesOncePerConversationHint": "La prima menzione invia foto, prezzo, descrizione e link su WhatsApp se presenti. Le successive non ripetono quel blocco. Se il cliente chiede foto, prezzo, descrizione o di nuovo, la scheda viene reinviata. Disattiva per inviarla a ogni menzione.",
     "messageBeforePaymentLink": "Testo prima del link di pagamento (WhatsApp)",
     "messageBeforePaymentLinkHint": "Inviato subito prima del riepilogo ordine e del link Stripe. Lascia vuoto per saltare. Con l'assistente guidato, il testo del passo Stripe viene usato se questo campo è vuoto.",
     "messageBeforePaymentLinkPlaceholder": "Es.: Leggi le istruzioni prima di pagare…",
