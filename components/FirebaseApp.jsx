@@ -27,7 +27,10 @@ import { ref, push, set, remove, onValue, off, get, update } from 'firebase/data
 import SimpleLanding from './SimpleLanding';
 import dynamic from 'next/dynamic';
 import { convertStepsToPrompt } from '../hooks/useFlowBuilder';
-import { mergeFlowStepsIntoAssistantForm, applyFixedApproachesToSteps } from '../utils/assistantWizardHelpers';
+import {
+  mergeFlowStepsIntoAssistantForm,
+  applyFixedApproachesToSteps
+} from '../utils/assistantWizardHelpers';
 import { useI18n } from '../contexts/I18nContext';
 import BeefreeEditor from './BeefreeEditor';
 import SetupChecklist from './SetupChecklist';
@@ -3929,7 +3932,8 @@ const DashboardWithFirebase = ({
     tvAppDownloadUrl: '',
     configUiMode: 'simple', // 'simple' = assistente guiado | 'advanced' = Flow Builder
     fixedApproaches: [], // abordagens fixas do modo guiado (por etapa)
-    showCatalogImagesWhenOffering: true
+    showCatalogImagesWhenOffering: true,
+    wizardTemplateId: null // modelo escolhido no assistente guiado (ex.: consultive_tv)
   });
   const [wizardResetKey, setWizardResetKey] = useState(0);
   const [userForm, setUserForm] = useState({
@@ -4114,7 +4118,8 @@ const DashboardWithFirebase = ({
       fixedApproaches: Array.isArray(assistantSettings.fixedApproaches)
         ? assistantSettings.fixedApproaches
         : [],
-      showCatalogImagesWhenOffering: assistantSettings.showCatalogImagesWhenOffering !== false
+      showCatalogImagesWhenOffering: assistantSettings.showCatalogImagesWhenOffering !== false,
+      wizardTemplateId: assistantSettings.wizardTemplateId || null
     });
   }, [assistantSettings]);
 
@@ -4528,7 +4533,7 @@ const DashboardWithFirebase = ({
 
   const applyAssistantFlowSteps = useCallback((newSteps, meta) => {
     setAssistantForm((prev) => {
-      const merged = mergeFlowStepsIntoAssistantForm(prev, newSteps);
+      const merged = mergeFlowStepsIntoAssistantForm(prev, newSteps, meta || {});
       if (meta && meta.fixedApproaches !== undefined) {
         return { ...merged, fixedApproaches: meta.fixedApproaches };
       }
@@ -8316,6 +8321,7 @@ const DashboardWithFirebase = ({
                       catalogItems={catalogItems}
                       flowSteps={assistantForm.flowSteps || []}
                       fixedApproaches={assistantForm.fixedApproaches || []}
+                      wizardTemplateId={assistantForm.wizardTemplateId}
                       resetKey={wizardResetKey}
                       showToast={showToast}
                       onApplyFlow={(newSteps, meta) => applyAssistantFlowSteps(newSteps, meta)}

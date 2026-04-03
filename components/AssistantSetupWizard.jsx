@@ -20,7 +20,8 @@ import {
   buildFlowStepsFromWizardState,
   parseFlowStepsToWizardState,
   autoFixWizardDraft,
-  getPlacementsForTemplate
+  getPlacementsForTemplate,
+  applyTemplatePresets
 } from '../utils/assistantWizardHelpers';
 
 const OPTIONAL_CRM_FIELDS = [
@@ -51,6 +52,7 @@ export default function AssistantSetupWizard({
   catalogItems = [],
   flowSteps = [],
   fixedApproaches: fixedApproachesProp = [],
+  wizardTemplateId: wizardTemplateIdProp = null,
   onApplyFlow,
   resetKey = 0,
   showToast
@@ -86,10 +88,10 @@ export default function AssistantSetupWizard({
 
   useEffect(() => {
     setDraft((prev) => ({
-      ...parseFlowStepsToWizardState(flowSteps, catalogItems),
+      ...parseFlowStepsToWizardState(flowSteps, catalogItems, wizardTemplateIdProp),
       fixedApproaches: prev.fixedApproaches
     }));
-  }, [flowSteps, catalogItems]);
+  }, [flowSteps, catalogItems, wizardTemplateIdProp]);
 
   useEffect(() => {
     setDraft((d) => ({ ...d, fixedApproaches: fixedApproachesProp || [] }));
@@ -108,7 +110,10 @@ export default function AssistantSetupWizard({
 
   const handleApply = () => {
     const steps = buildFlowStepsFromWizardState(draft, catalogItems);
-    onApplyFlow(steps, { fixedApproaches: draft.fixedApproaches || [] });
+    onApplyFlow(steps, {
+      fixedApproaches: draft.fixedApproaches || [],
+      wizardTemplateId: draft.templateId
+    });
     if (showToast) showToast('Fluxo gerado e aplicado ao rascunho. Clique em Salvar para publicar.', 'success');
   };
 
@@ -190,8 +195,8 @@ export default function AssistantSetupWizard({
     transition: 'all 0.2s ease'
   });
 
-  const showCatalog = ['full_sales', 'catalog_leads'].includes(draft.templateId);
-  const showOrder = ['full_sales', 'catalog_leads'].includes(draft.templateId);
+  const showCatalog = ['full_sales', 'catalog_leads', 'consultive_tv'].includes(draft.templateId);
+  const showOrder = ['full_sales', 'catalog_leads', 'consultive_tv'].includes(draft.templateId);
   const showAppointment = draft.templateId === 'appointments';
   const totalProducts = (catalogItems || []).filter((i) => i?.type === 'product').length;
   const totalServices = (catalogItems || []).filter((i) => i?.type === 'service').length;
@@ -389,7 +394,11 @@ export default function AssistantSetupWizard({
             <button
               key={t.id}
               type="button"
-              onClick={() => setDraft((d) => ({ ...d, templateId: t.id }))}
+              onClick={() =>
+                setDraft((d) =>
+                  autoFixWizardDraft(applyTemplatePresets({ ...d, templateId: t.id }, t.id), catalogItems)
+                )
+              }
               style={cardStyle(draft.templateId === t.id)}
             >
               <div style={{ fontSize: '2rem', marginBottom: '8px' }}>{t.icon}</div>
@@ -822,7 +831,9 @@ export default function AssistantSetupWizard({
                   <strong style={{ color: '#fff' }}>Pagamento:</strong> {draft.business.paymentProvider}
                 </li>
               )}
-              {['full_sales', 'appointments', 'catalog_leads'].includes(draft.templateId) && (
+              {['full_sales', 'appointments', 'catalog_leads', 'consultive_tv'].includes(
+                draft.templateId
+              ) && (
                 <li>
                   <strong style={{ color: '#fff' }}>CRM:</strong>{' '}
                   {draft.crm.crmAutoSave ? 'salvar dados automaticamente' : 'coleta manual'}{' '}

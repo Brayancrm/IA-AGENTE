@@ -2006,7 +2006,23 @@ ${imageInstruction}
     if (aiConfig.enabledFeatures && aiConfig.enabledFeatures.length > 0) {
       systemPrompt += `\n\nFuncionalidades habilitadas: ${aiConfig.enabledFeatures.join(', ')}`;
     }
+
+    systemPrompt += `\n\n📱 RESPOSTAS NO WHATSAPP (OBRIGATÓRIO):
+- NUNCA termines no meio de uma frase ou de uma lista; cada mensagem deve soar completa.
+- Se precisares de muito texto, usa parágrafos curtos ou lista numerada (máx. 4–5 itens por mensagem).
+- Termina SEMPRE com uma pergunta clara ou o próximo passo (ex.: "Quer o link para pagar?" ou "Qual dúvida posso esclarecer?").
+- Só envia link de pagamento ou pede email/CPF quando o fluxo do assistente (pedido/CRM) indicar essa fase.
+- Se mencionares preço, indica sempre a moeda (€, R$, etc.) como no catálogo.`;
     
+    // Valores muito baixos (ex.: 150) cortam a resposta no meio — mínimo seguro 512; predefinido 1024
+    let maxTokens = 1024;
+    if (aiConfig.maxTokens != null && String(aiConfig.maxTokens).trim() !== '') {
+      const n = parseInt(String(aiConfig.maxTokens), 10);
+      if (Number.isFinite(n) && n > 0) {
+        maxTokens = n < 300 ? 1024 : Math.min(4096, n);
+      }
+    }
+
     // Chamar API de IA (OpenAI exemplo)
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: aiConfig.model || 'gpt-3.5-turbo',
@@ -2022,7 +2038,7 @@ ${imageInstruction}
         }
       ],
       temperature: aiConfig.temperature || 0.7,
-      max_tokens: aiConfig.maxTokens || 150
+      max_tokens: maxTokens
     }, {
       headers: {
         'Authorization': `Bearer ${aiConfig.apiKey}`,
@@ -7006,7 +7022,7 @@ app.post('/api/test-prompt', async (req, res) => {
         }
       ],
       temperature: 0.7,
-      max_tokens: 150
+      max_tokens: 1024
     }, {
       headers: {
         'Authorization': `Bearer ${apiKey}`,

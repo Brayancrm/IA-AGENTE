@@ -254,6 +254,9 @@ export function compilePrompt(steps = []) {
   absoluteRules.push('SEMPRE SIGA OS PASSOS NA ORDEM DEFINIDA.');
   absoluteRules.push('SEMPRE CONFIRME INFORMAÇÕES CRÍTICAS ANTES DE PROSSEGUIR.');
   absoluteRules.push('SEMPRE USE VARIÁVEIS DE SISTEMA PARA DECISÕES CRÍTICAS.');
+  absoluteRules.push(
+    'NUNCA TERMINES UMA MENSAGEM NO MEIO DE UMA FRASE OU DE UMA LISTA; FECHA COM PERGUNTA OU PRÓXIMO PASSO CLARO.'
+  );
 
   let stepNumber = 0;
   steps.forEach((step) => {

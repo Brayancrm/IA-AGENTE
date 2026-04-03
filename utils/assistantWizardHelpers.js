@@ -21,10 +21,39 @@ export function getPlacementsForTemplate(templateId) {
   if (templateId === 'appointments') {
     return all.filter((p) => !['show_catalog', 'process_order'].includes(p.value));
   }
-  if (templateId === 'full_sales' || templateId === 'catalog_leads') {
+  if (
+    templateId === 'full_sales' ||
+    templateId === 'catalog_leads' ||
+    templateId === 'consultive_tv'
+  ) {
     return all;
   }
   return all;
+}
+
+/**
+ * Ao escolher um modelo no assistente guiado, aplica textos predefinidos (ex.: consultivo TV).
+ */
+export function applyTemplatePresets(draft, templateId) {
+  if (templateId !== 'consultive_tv') return { ...draft, templateId };
+  const consultiveCatalog =
+    'És especialista em planos TV/streaming. Para cada plano: (1) Nome e preço com moeda (€, R$, …); (2) Lista numerada com até 4 benefícios, frases curtas; (3) Responde a todas as dúvidas antes de pedir dados pessoais; (4) O link de pagamento só na fase de pedido — nunca na primeira mensagem.\n' +
+    'NUNCA cortes a resposta a meio. Fecha sempre com UMA pergunta clara (ex.: "Quer que eu detalhe canais ou a renovação?").';
+  return {
+    ...draft,
+    templateId,
+    business: {
+      ...draft.business,
+      catalogInstructions: consultiveCatalog,
+      paymentStripeMessage:
+        draft.business.paymentStripeMessage?.trim() ||
+        'Segue o link seguro para pagamento. Após confirmar, recebes a confirmação aqui no WhatsApp.'
+    },
+    tone: {
+      ...draft.tone,
+      agentStyle: draft.tone.agentStyle === 'concise' ? 'consultative' : draft.tone.agentStyle
+    }
+  };
 }
 
 export const WIZARD_TEMPLATES = [
@@ -47,6 +76,14 @@ export const WIZARD_TEMPLATES = [
     name: 'Catálogo + leads',
     description: 'Mostrar ofertas, capturar dados no CRM antes do pagamento.',
     icon: '📇',
+    order: ['profile', 'audio?', 'catalog', 'crm', 'order', 'confirm']
+  },
+  {
+    id: 'consultive_tv',
+    name: 'Consultivo (TV / planos)',
+    description:
+      'Apresentação clara → tirar dúvidas → dados no CRM → link de pagamento → confirmação (ideal para streaming).',
+    icon: '📺',
     order: ['profile', 'audio?', 'catalog', 'crm', 'order', 'confirm']
   },
   {
@@ -88,7 +125,7 @@ export function getDefaultWizardState(catalogItems = []) {
       paymentManualMessage: '',
       paymentStripeMessage: '',
       catalogInstructions:
-        'Liste produtos e serviços com nome, preço e uma linha de benefício. Ofereça ajuda para escolher.'
+        'Para cada produto/plano: nome, preço com moeda (€/R$/…), depois 2–4 benefícios em frases curtas. Responde primeiro a dúvidas; só depois convida a avançar. Não cortes a mensagem a meio: fecha sempre com uma pergunta (ex.: "Tem mais alguma dúvida sobre o plano?").'
     },
     crm: {
       crmAutoSave: true,
@@ -154,7 +191,7 @@ export function autoFixWizardDraft(draft, catalogItems = []) {
   if (!next.tone.agentName?.trim()) next.tone.agentName = 'Assistente Virtual';
   if (!next.tone.agentRole?.trim()) next.tone.agentRole = 'Atendimento';
 
-  if (['full_sales', 'catalog_leads'].includes(tid)) {
+  if (['full_sales', 'catalog_leads', 'consultive_tv'].includes(tid)) {
     if (!next.business.includeProducts && !next.business.includeServices) {
       if (totalP > 0) next.business.includeProducts = true;
       else if (totalS > 0) next.business.includeServices = true;
@@ -165,7 +202,7 @@ export function autoFixWizardDraft(draft, catalogItems = []) {
     next.business.appointmentTypes = ['servico', 'consulta', 'visita'];
   }
 
-  if (['full_sales', 'catalog_leads'].includes(tid) && next.business.paymentProvider === 'manual') {
+  if (['full_sales', 'catalog_leads', 'consultive_tv'].includes(tid) && next.business.paymentProvider === 'manual') {
     if (!next.business.paymentManualMessage?.trim()) {
       next.business.paymentManualMessage =
         'Pagamento via PIX ou transferência. Envie o comprovante aqui no WhatsApp para confirmarmos.';
@@ -319,7 +356,7 @@ export function buildFlowStepsFromWizardState(state, catalogItems = []) {
     steps.push(createAppointment(business));
     steps.push(createCollectData(crm));
     steps.push(createConfirmation());
-  } else if (tid === 'catalog_leads') {
+  } else if (tid === 'catalog_leads' || tid === 'consultive_tv') {
     steps.push(createShowCatalog(business, catalogItems));
     steps.push(createCollectData(crm));
     steps.push(createProcessOrder(business));
@@ -349,7 +386,11 @@ function guessTemplateFromSteps(steps) {
 /**
  * Tenta reconstruir o estado do wizard a partir de flowSteps existentes (modo edição).
  */
-export function parseFlowStepsToWizardState(steps = [], catalogItems = []) {
+export function parseFlowStepsToWizardState(
+  steps = [],
+  catalogItems = [],
+  savedWizardTemplateId = null
+) {
   const base = getDefaultWizardState(catalogItems);
   if (!steps?.length) return { ...base, templateId: 'full_sales' };
 
@@ -403,7 +444,10 @@ export function parseFlowStepsToWizardState(steps = [], catalogItems = []) {
       crmStep.crmFields?.filter((f) => f !== 'name' && f !== 'phone') || ['product', 'email'];
   }
 
-  base.templateId = guessTemplateFromSteps(steps);
+  const guessed = guessTemplateFromSteps(steps);
+  const validTpl = new Set(WIZARD_TEMPLATES.map((x) => x.id));
+  base.templateId =
+    savedWizardTemplateId && validTpl.has(savedWizardTemplateId) ? savedWizardTemplateId : guessed;
   base.fixedApproaches = base.fixedApproaches || [];
   return base;
 }
@@ -411,7 +455,7 @@ export function parseFlowStepsToWizardState(steps = [], catalogItems = []) {
 /**
  * Mescla novos passos no formulário do assistente (mesma lógica do FlowBuilder em FirebaseApp).
  */
-export function mergeFlowStepsIntoAssistantForm(prevForm, newSteps) {
+export function mergeFlowStepsIntoAssistantForm(prevForm, newSteps, meta = {}) {
   const appointmentStep = newSteps.find(
     (step) => step.type === 'create_appointment' && step.appointmentEnabled
   );
@@ -449,6 +493,8 @@ export function mergeFlowStepsIntoAssistantForm(prevForm, newSteps) {
     audioVoice,
     paymentProvider,
     paymentManualMessage,
-    paymentStripeMessage
+    paymentStripeMessage,
+    wizardTemplateId:
+      meta.wizardTemplateId !== undefined ? meta.wizardTemplateId : prevForm.wizardTemplateId ?? null
   };
 }
