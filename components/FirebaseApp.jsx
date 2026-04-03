@@ -3037,6 +3037,7 @@ const FirebaseApp = () => {
         handleLogout={handleLogout}
         whatsappStatus={whatsappStatus}
         whatsappQRCode={whatsappQRCode}
+        whatsappSessionError={whatsappSessionError}
         isConnecting={isConnecting}
         connectWhatsApp={connectWhatsApp}
         disconnectWhatsApp={disconnectWhatsApp}
@@ -3117,6 +3118,7 @@ const DashboardWithFirebase = ({
   handleLogout,
   whatsappStatus = 'disconnected',
   whatsappQRCode = null,
+  whatsappSessionError = null,
   isConnecting = false,
   connectWhatsApp,
   disconnectWhatsApp,
