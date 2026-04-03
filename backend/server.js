@@ -370,18 +370,30 @@ function getWppChromeProfileDir(userId) {
   return path.join(getWppTokensBase(), `chrome_profile_${userId}`);
 }
 
+/** Remove locks do Chrome na raiz do userDataDir e em subpastas típicas (órfãos após deploy Railway). */
 function cleanChromiumSingletonArtifacts(profileDir) {
   if (!profileDir || !fs.existsSync(profileDir)) return;
   const names = ['SingletonLock', 'SingletonCookie', 'SingletonSocket', 'lockfile'];
-  for (const name of names) {
-    const p = path.join(profileDir, name);
+  const dirsToScan = [profileDir];
+  for (const sub of ['Default', 'Guest Profile', 'System Profile']) {
+    const d = path.join(profileDir, sub);
     try {
-      if (fs.existsSync(p)) {
-        fs.rmSync(p, { recursive: false, force: true });
-        console.log(`🧹 [WPP] Removido artefato Chromium: ${name}`);
+      if (fs.existsSync(d) && fs.statSync(d).isDirectory()) dirsToScan.push(d);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  for (const base of dirsToScan) {
+    for (const name of names) {
+      const p = path.join(base, name);
+      try {
+        if (fs.existsSync(p)) {
+          fs.rmSync(p, { recursive: false, force: true });
+          console.log(`🧹 [WPP] Removido artefato Chromium: ${path.relative(profileDir, p) || name}`);
+        }
+      } catch (e) {
+        console.warn(`⚠️ [WPP] Não foi possível remover ${p}:`, e.message);
       }
-    } catch (e) {
-      console.warn(`⚠️ [WPP] Não foi possível remover ${name}:`, e.message);
     }
   }
 }
@@ -729,13 +741,13 @@ async function createSessionInternal(userId) {
       }
     };
     
-    // 🔥 Criar/Restaurar client WPPConnect (retry se perfil Chromium preso)
+    // 🔥 Criar/Restaurar client WPPConnect (retry: userDataDir local + lock "outro host" = órfão no volume)
     console.log('🚀 Iniciando WPPConnect...');
     let client;
     let lastCreateErr;
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
       if (attempt > 0) {
-        console.warn(`🔄 [WPP] Nova tentativa de launch (${attempt + 1}/2) após conflito de userDataDir`);
+        console.warn(`🔄 [WPP] Nova tentativa de launch (${attempt + 1}/3) após limpeza de locks`);
       }
       try {
         client = await wppconnect.create(clientOptions);
@@ -743,15 +755,20 @@ async function createSessionInternal(userId) {
         break;
       } catch (e) {
         lastCreateErr = e;
-        if (isChromiumProfileRemoteLock(e)) {
-          console.error('❌ [WPP] Perfil Chromium bloqueado (outro processo/host). Não adianta retry local.');
-          throw e;
-        }
-        if (attempt === 0 && isPuppeteerUserDataDirConflict(e)) {
-          console.warn('⚠️ [WPP] Conflito de browser/perfil — fechando, limpando locks e aguardando...');
+        const remoteLock = isChromiumProfileRemoteLock(e);
+        const localConflict = isPuppeteerUserDataDirConflict(e);
+        const canRetry = attempt < 2 && (remoteLock || localConflict);
+        if (canRetry) {
+          if (remoteLock) {
+            console.warn(
+              '⚠️ [WPP] Lock de perfil (muitas vezes hostname de container antigo no volume). A limpar Singleton* e a repetir...'
+            );
+          } else {
+            console.warn('⚠️ [WPP] Conflito de browser/perfil — fechando, limpando locks e aguardando...');
+          }
           await forceCloseWhatsAppSession(userId);
-          cleanChromiumSingletonArtifacts(profileDir);
-          await sleepMs(2500);
+          cleanChromiumSingletonArtifacts(getWppChromeProfileDir(userId));
+          await sleepMs(remoteLock ? 2000 : 2500);
           continue;
         }
         throw e;
