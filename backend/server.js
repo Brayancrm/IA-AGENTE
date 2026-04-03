@@ -532,6 +532,27 @@ function conversationMessagesRef(userId, contactSanitized) {
   return db.ref(`conversations/${userId}/${contactSanitized}/messages`);
 }
 
+/** Metadados do assistente por conversa (ex.: fotos de catálogo já enviadas). */
+function conversationAssistantMetaRef(userId, contactSanitized) {
+  const lineKey = wppConnectedLineByUser.get(userId);
+  if (lineKey) {
+    return db.ref(`conversations/${userId}/lines/${lineKey}/${contactSanitized}/assistant_meta`);
+  }
+  return db.ref(`conversations/${userId}/${contactSanitized}/assistant_meta`);
+}
+
+function catalogImageDedupeKey(item) {
+  if (item.catalogItemId) {
+    return String(item.catalogItemId).replace(/[.#$\[\]/]/g, '_');
+  }
+  const n = String(item.name || '').toLowerCase();
+  let h = 0;
+  for (let i = 0; i < n.length; i++) {
+    h = (Math.imul(31, h) + n.charCodeAt(i)) | 0;
+  }
+  return `n_${(h >>> 0).toString(36)}`;
+}
+
 async function resolveConversationLineKey(userId) {
   let lk = wppConnectedLineByUser.get(userId);
   if (lk) return lk;
@@ -1505,6 +1526,7 @@ async function handleIncomingMessage(userId, message, client) {
         // Detectar produtos mencionados e enviar imagens automaticamente
         const mentionedItems = detectMentionedProducts(aiResponse, aiResult.catalogItemsMap);
         const sendProductImages = aiConfig?.showCatalogImagesWhenOffering !== false;
+        const catalogImagesOncePerConversation = aiConfig?.catalogImagesOncePerConversation !== false;
         
         if (mentionedItems.length > 0) {
           console.log(`📸 Detectados ${mentionedItems.length} produto(s) na resposta`);
@@ -1512,6 +1534,24 @@ async function handleIncomingMessage(userId, message, client) {
           // Enviar produtos/serviços mencionados
           for (const item of mentionedItems) {
             try {
+              const dedupeKey = catalogImageDedupeKey(item);
+              let skipImageAlreadySent = false;
+              if (
+                catalogImagesOncePerConversation &&
+                sendProductImages &&
+                item.image
+              ) {
+                const metaRef = conversationAssistantMetaRef(userId, sanitizedNumber);
+                const sentSnap = await metaRef.child(`sent_catalog_images/${dedupeKey}`).once('value');
+                if (sentSnap.exists()) {
+                  skipImageAlreadySent = true;
+                  console.log(`📸 Foto já enviada nesta conversa para: ${item.name} (${dedupeKey}) — só texto`);
+                }
+              }
+              
+              const shouldSendProductImage =
+                item.image && sendProductImages && !skipImageAlreadySent;
+              
               // Criar mensagem com informações do produto
               let messageText = `📦 *${item.name}*\n`;
               
@@ -1538,7 +1578,7 @@ async function handleIncomingMessage(userId, message, client) {
               }
               
               // Se tiver imagem e envio de fotos ativo, enviar imagem com legenda
-              if (item.image && sendProductImages) {
+              if (shouldSendProductImage) {
                 console.log(`📤 Enviando imagem de: ${item.name}`);
                 
                 // Verificar se é Base64 ou URL
@@ -1566,6 +1606,19 @@ async function handleIncomingMessage(userId, message, client) {
                 
                 console.log(`✅ Imagem enviada: ${item.name}`);
                 
+                if (catalogImagesOncePerConversation) {
+                  try {
+                    await conversationAssistantMetaRef(userId, sanitizedNumber)
+                      .child(`sent_catalog_images/${dedupeKey}`)
+                      .set({
+                        at: new Date().toISOString(),
+                        name: item.name
+                      });
+                  } catch (metaErr) {
+                    console.warn('⚠️ assistant_meta sent_catalog_images:', metaErr.message);
+                  }
+                }
+                
                 // Salvar envio da imagem no histórico
                 const imageRef = conversationMessagesRef(userId, sanitizedNumber).push();
                 await imageRef.set({
@@ -1583,9 +1636,9 @@ async function handleIncomingMessage(userId, message, client) {
                 
                 // Aguardar um pouco entre imagens para não sobrecarregar
                 await new Promise(resolve => setTimeout(resolve, 1000));
-              } else if (item.link) {
-                // Se não tiver imagem mas tiver link, enviar apenas mensagem de texto
-                console.log(`📤 Enviando informações de: ${item.name} (sem imagem, com link)`);
+              } else if (item.link && !shouldSendProductImage) {
+                // Sem envio de imagem nesta rodada: texto com link (ou só link)
+                console.log(`📤 Enviando informações de: ${item.name} (texto com link)`);
                 
                 await client.sendText(message.from, messageText);
                 
@@ -1607,8 +1660,10 @@ async function handleIncomingMessage(userId, message, client) {
                 
                 // Aguardar um pouco entre mensagens
                 await new Promise(resolve => setTimeout(resolve, 1000));
-              } else if (item.image && !sendProductImages) {
-                console.log(`📤 Enviando só texto (fotos desativadas no assistente): ${item.name}`);
+              } else if (item.image && (!sendProductImages || skipImageAlreadySent)) {
+                console.log(
+                  `📤 Enviando só texto (${!sendProductImages ? 'fotos desativadas' : 'foto já enviada nesta conversa'}): ${item.name}`
+                );
                 await client.sendText(message.from, messageText);
                 const textRef = conversationMessagesRef(userId, sanitizedNumber).push();
                 await textRef.set({
@@ -1809,6 +1864,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
             (item.category && catalogProductCategories.includes(String(item.category).toLowerCase()));
           if (!categoryMatch) return;
           const productData = {
+            catalogItemId: child.key,
             name: item.name,
             description: item.description || '',
             price: item.price !== null && item.price !== undefined && item.price !== '' ? item.price : null,
@@ -1827,6 +1883,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
             (item.category && catalogServiceCategories.includes(String(item.category).toLowerCase()));
           if (!categoryMatch) return;
           const serviceData = {
+            catalogItemId: child.key,
             name: item.name,
             description: item.description || '',
             price: item.price !== null && item.price !== undefined && item.price !== '' ? item.price : null,
@@ -1930,8 +1987,11 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
     // Instruções adicionais se houver produtos/serviços
     if (catalogProducts.length > 0 || catalogServices.length > 0) {
       const sendCatalogImages = assistantSettings.showCatalogImagesWhenOffering !== false;
+      const catalogImagesOncePerConversation = assistantSettings.catalogImagesOncePerConversation !== false;
       const imageInstruction = sendCatalogImages
-        ? '- Os itens do catálogo têm foto cadastrada: ao mencionar o nome completo do produto/serviço, o sistema pode enviar a imagem automaticamente no WhatsApp'
+        ? catalogImagesOncePerConversation
+          ? '- Os itens do catálogo têm foto cadastrada: na primeira vez que você oferecer cada produto/serviço nesta conversa (nome completo), o sistema envia a imagem no WhatsApp; nas menções seguintes do mesmo item, só texto — pode citar o item à vontade sem repetir mídia'
+          : '- Os itens do catálogo têm foto cadastrada: ao mencionar o nome completo do produto/serviço, o sistema pode enviar a imagem automaticamente no WhatsApp em cada menção'
         : '- O envio automático de fotos no WhatsApp está desativado nas configurações do assistente: descreva bem os itens em texto e não prometa envio automático de imagens';
       systemPrompt += `\n⚠️ INSTRUÇÕES IMPORTANTES:
 - Você DEVE mencionar e oferecer esses produtos/serviços quando relevante
@@ -2074,6 +2134,7 @@ function detectMentionedProducts(responseText, catalogItemsMap) {
     if (messageMentionsProduct(responseText, itemData.name)) {
       if (itemData.image || itemData.link) {
         mentionedItems.push({
+          catalogItemId: itemData.catalogItemId || null,
           name: itemData.name,
           image: itemData.image || null,
           price: itemData.price,

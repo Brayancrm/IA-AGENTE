@@ -417,6 +417,8 @@
   "assistantConfig": {
     "showCatalogImages": "Send product/service photo automatically on WhatsApp when offering",
     "showCatalogImagesHint": "Turn off to send text only when mentioning items (saves media). Catalog items still require an image to be saved.",
+    "catalogImagesOncePerConversation": "Send each item’s photo only once per conversation",
+    "catalogImagesOncePerConversationHint": "Stops resending the same image every time the product or service is mentioned again. First mention sends the photo (if enabled above); later mentions are text only. Turn off to send on every mention.",
     "messageBeforePaymentLink": "Message before payment link (WhatsApp)",
     "messageBeforePaymentLinkHint": "Sent right before the order summary and Stripe link. Leave empty to skip. If you use the guided assistant, the Stripe step text is used as a fallback when this field is empty.",
     "messageBeforePaymentLinkPlaceholder": "E.g. Please read the instructions below before paying…",

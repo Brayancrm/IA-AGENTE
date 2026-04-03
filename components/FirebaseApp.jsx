@@ -3933,6 +3933,7 @@ const DashboardWithFirebase = ({
     configUiMode: 'simple', // 'simple' = assistente guiado | 'advanced' = Flow Builder
     fixedApproaches: [], // abordagens fixas do modo guiado (por etapa)
     showCatalogImagesWhenOffering: true,
+    catalogImagesOncePerConversation: true,
     wizardTemplateId: null // modelo escolhido no assistente guiado (ex.: consultive_tv)
   });
   const [wizardResetKey, setWizardResetKey] = useState(0);
@@ -4119,6 +4120,7 @@ const DashboardWithFirebase = ({
         ? assistantSettings.fixedApproaches
         : [],
       showCatalogImagesWhenOffering: assistantSettings.showCatalogImagesWhenOffering !== false,
+      catalogImagesOncePerConversation: assistantSettings.catalogImagesOncePerConversation !== false,
       wizardTemplateId: assistantSettings.wizardTemplateId || null
     });
   }, [assistantSettings]);
@@ -8445,6 +8447,40 @@ const DashboardWithFirebase = ({
                       </span>
                     </span>
                   </label>
+                  {assistantForm.showCatalogImagesWhenOffering !== false && (
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '12px',
+                        cursor: 'pointer',
+                        color: '#e5e7eb',
+                        marginTop: '14px',
+                        paddingTop: '14px',
+                        borderTop: '1px solid rgba(255,255,255,0.08)'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={assistantForm.catalogImagesOncePerConversation !== false}
+                        onChange={(e) =>
+                          setAssistantForm((prev) => ({
+                            ...prev,
+                            catalogImagesOncePerConversation: e.target.checked
+                          }))
+                        }
+                        style={{ width: '18px', height: '18px', marginTop: '2px', flexShrink: 0 }}
+                      />
+                      <span>
+                        <span style={{ fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                          {t('assistantConfig.catalogImagesOncePerConversation')}
+                        </span>
+                        <span style={{ fontSize: '0.875rem', color: '#9ca3af', lineHeight: 1.45 }}>
+                          {t('assistantConfig.catalogImagesOncePerConversationHint')}
+                        </span>
+                      </span>
+                    </label>
+                  )}
                 </div>
 
                 <button
