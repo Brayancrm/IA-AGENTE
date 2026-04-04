@@ -1573,6 +1573,17 @@ async function handleIncomingMessage(userId, message, client) {
           await client.sendText(message.from, limitCheck.message);
           return;
         }
+
+        const tvCredResend = await tryAutoResendTvCredentialsForChat(
+          userId,
+          message.from,
+          sanitizedNumber,
+          messageText,
+          client
+        );
+        if (tvCredResend.sent) {
+          return;
+        }
         
         // Gerar resposta com IA usando o texto transcrito (ou texto original)
         console.log(`💬 Processando mensagem para IA: "${messageText}" (${isAudioMessage ? 'transcrita de áudio' : 'texto'})`);
@@ -2322,7 +2333,10 @@ ${stripeMarkerInstr}
         systemPrompt += `- Plano ${pk}: ${count} disponível(is)\n`;
       });
       systemPrompt += `\nREGRAS TV/WPLAY (OBRIGATÓRIO):
-- NUNCA invente, adivinhe ou envie login/senha no WhatsApp. Após o pagamento confirmado, o sistema envia os dados automaticamente ao cliente.
+- NUNCA invente, simule ou "gere novas" credenciais. Os únicos login/senha válidos são os registados no sistema após a compra; o cliente mantém os mesmos dados enquanto a assinatura estiver ativa.
+- Se o cliente disser que perdeu o acesso, esqueceu senha/login ou pedir reenvio das credenciais, NÃO invente valores como user_recuperado01 — o sistema envia automaticamente a mensagem correta com os dados reais; limita-te a tranquilizar o cliente (ex.: que já enviou ou que em instantes recebe).
+- NUNCA mistures esse pedido com checkout Stripe ("preciso de item com preço", link de pagamento) na mesma resposta.
+- Após o pagamento confirmado (ou reenvio automático), o cliente recebe os dados oficiais por aqui.
 - Explique que a cobrança é recorrente (mensal): em cada renovação paga, o cliente recebe confirmação; os mesmos dados de acesso continuam válidos.
 - Só ofereça fechamento de venda para planos TV com contagem > 0 acima. Se estiver 0, diga ao cliente para tentar de novo em cerca de ${tvReserveMinAi} min ou falar connosco.
 - Ao fechar venda, confirme o nome do produto/plano escolhido com o cliente.`;
@@ -4727,6 +4741,149 @@ function appendTvAppDownloadFooter(text, appUrl) {
   if (!text || !String(appUrl || '').trim()) return text;
   const u = String(appUrl).trim();
   return `${text}\n\n📲 *Download do app*\n${u}`;
+}
+
+/** Últimas mensagens do assistente (concatenadas) para interpretar "sim" após pergunta sobre credenciais. */
+async function getRecentAssistantContextForTv(userId, sanitizedNumber) {
+  try {
+    const snap = await conversationMessagesRef(userId, sanitizedNumber)
+      .orderByChild('timestamp')
+      .limitToLast(80)
+      .once('value');
+    const rows = [];
+    snap.forEach((ch) => {
+      const v = ch.val();
+      if (v && v.isFromMe && v.body && String(v.body).trim()) {
+        rows.push({ t: v.timestamp || '', body: String(v.body).trim() });
+      }
+    });
+    rows.sort((a, b) => String(a.t).localeCompare(String(b.t)));
+    return rows
+      .slice(-8)
+      .map((r) => r.body)
+      .join('\n')
+      .slice(-2800);
+  } catch (e) {
+    console.warn('⚠️ getRecentAssistantContextForTv:', e.message);
+    return '';
+  }
+}
+
+/** Logins TV vendidos e atribuídos a este chat (LID / @c.us / CRM mobile). */
+function findSoldTvLoginsForChat(snap, crmKeyCtx, mobileCtx, waFrom) {
+  const out = [];
+  if (!snap || !snap.exists()) return out;
+  const fromNorm = String(waFrom || '').trim().toLowerCase();
+  snap.forEach((child) => {
+    const v = child.val() || {};
+    if (v.status !== 'sold' || !v.login || !v.password) return;
+    const jidRaw = String(v.soldToWhatsAppJid || '').trim().toLowerCase();
+    const jidSrc = v.soldToWhatsAppJid || v.soldToPhone || '';
+    const jDigits = String(jidSrc).replace(/\D/g, '');
+    const blobD = `${v.soldToPhone || ''}|${v.soldToWhatsAppJid || ''}`.replace(/\D/g, '');
+    const matchChat = crmKeyCtx && jDigits && String(crmKeyCtx) === jDigits;
+    const matchMobile =
+      mobileCtx && String(mobileCtx).length >= 8 && blobD.includes(String(mobileCtx));
+    const matchJid = Boolean(jidRaw && fromNorm && jidRaw === fromNorm);
+    if (matchChat || matchMobile || matchJid) {
+      out.push({ id: child.key, ...v });
+    }
+  });
+  return out;
+}
+
+function detectTvCredentialRecoveryIntent(text) {
+  const n = normalizeText(text);
+  if (!n || n.length < 4) return false;
+  if (
+    /\b(quero\s+comprar|fazer\s+pedido|primeira\s+vez|assinar\s+agora|checkout|nova\s+assinatura)\b/.test(
+      n
+    )
+  ) {
+    return false;
+  }
+  if (/\bperdi\b/.test(n) && /\b(acesso|senha|login)\b/.test(n)) return true;
+  if (/\besqueci\b/.test(n) && /\b(senha|login)\b/.test(n)) return true;
+  if (/\bnao\s+consigo\s+entrar\b/.test(n) || /\bnao\s+entra\b/.test(n)) return true;
+  if (/\brecuperar\b/.test(n) && /\b(acesso|senha|login)\b/.test(n)) return true;
+  if (/\b(minhas|meus)\s+antig/.test(n)) return true;
+  if (/\bqual\b/.test(n) && /\b(era|eram|foi)\b/.test(n) && /\b(senha|login)\b/.test(n)) return true;
+  if (/\b(manda|envia|reenvia|reenvie|preciso|quero|me\s+manda)\b/.test(n) && /\bcreden/.test(n))
+    return true;
+  if (/\breenvia\b/.test(n) && /\b(creden|login|senha|acesso)\b/.test(n)) return true;
+  if (/\blogin\b/.test(n) && /\b(senha|creden)\b/.test(n)) return true;
+  if (/\bsenha\b/.test(n) && /\blogin\b/.test(n)) return true;
+  return false;
+}
+
+/** Respostas curtas afirmativas após o bot falar em credenciais / acesso / reenvio. */
+function isAffirmativeTvCredentialFollowup(userText, mergedAssistantContext) {
+  const n = normalizeText(userText);
+  if (!n || n.length > 120) return false;
+  if (
+    !/^(sim|ok|pode|claro|isso|manda|envia|confirmo|confirmado|quero|desejo|prossiga|prosseguir|yes|si)\b/.test(
+      n
+    )
+  ) {
+    return false;
+  }
+  const la = normalizeText(mergedAssistantContext || '');
+  if (!la) return false;
+  const hasCredTopic = /\b(creden|senha|login|reenvi|acesso|wplay)\b/.test(la);
+  const hasOfferOrConfirm =
+    /\b(gerar|nova|novo|enviar|mandar|reenvi|confirm|deseja|prossegu|segue|substitu|prosseguir)\b/.test(
+      la
+    ) ||
+    /\b(posso|pode)\s+(te\s+)?(enviar|mandar|reenvia)/.test(la) ||
+    /\b(mandar|enviar)\s+(as\s+|os\s+)?(creden|dados)\b/.test(la);
+  return hasCredTopic && hasOfferOrConfirm;
+}
+
+/**
+ * Pedido explícito de credenciais / perda de acesso: envia SEMPRE os dados reais do Firebase
+ * e não chama a IA (evita inventar logins e misturar com checkout Stripe).
+ */
+async function tryAutoResendTvCredentialsForChat(userId, waFrom, sanitizedNumber, userText, client) {
+  try {
+    if (!client || !userText) return { sent: false };
+    const crmKeyCtx = customerDataKeyFromChatKey(sanitizedNumber);
+    const crmSnap = await db.ref(`customerData/${userId}/${crmKeyCtx}`).once('value');
+    const crmCtx = crmSnap.val() || {};
+    const mobileCtx = crmCtx.mobilePhone ? String(crmCtx.mobilePhone).replace(/\D/g, '') : '';
+    const tvSnap = await db.ref(`users/data/${userId}/tv_logins`).once('value');
+    const soldRows = findSoldTvLoginsForChat(tvSnap, crmKeyCtx, mobileCtx, waFrom);
+    const asstCtx = await getRecentAssistantContextForTv(userId, sanitizedNumber);
+    const credIntent =
+      detectTvCredentialRecoveryIntent(userText) ||
+      isAffirmativeTvCredentialFollowup(userText, asstCtx);
+    if (!credIntent || soldRows.length === 0) {
+      return { sent: false };
+    }
+    const { tvAppDownloadUrl } = await getAssistantPaymentExtras(userId);
+    let msg = `✅ *Seguem seus dados de acesso* (registrados na sua compra):\n\n`;
+    soldRows.forEach((row) => {
+      msg +=
+        `📺 *${row.planName || row.planKey || 'Acesso Wplay'}*\n` +
+        `Login: ${row.login}\n` +
+        `Senha: ${row.password}\n\n`;
+    });
+    msg += `_São sempre os mesmos dados enquanto a sua assinatura estiver ativa. Guarde com segurança._`;
+    msg = appendTvAppDownloadFooter(msg, tvAppDownloadUrl);
+    await client.sendText(waFrom, msg);
+    await saveTvMessageToConversation(userId, waFrom, msg);
+    for (const row of soldRows) {
+      await appendTvLoginHistory(userId, row.id, {
+        event: 'auto_resend_chat',
+        at: new Date().toISOString()
+      });
+    }
+    await incrementMessageUsage(userId);
+    console.log('📺 [TV] Reenvio automático de credenciais (pedido no chat)');
+    return { sent: true };
+  } catch (e) {
+    console.error('❌ [TV] tryAutoResendTvCredentialsForChat:', e.message);
+    return { sent: false };
+  }
 }
 
 // 🎯 Função para tentar gerar link automático do Stripe quando houver intenção de compra
