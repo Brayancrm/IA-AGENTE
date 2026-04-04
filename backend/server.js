@@ -1581,6 +1581,10 @@ async function handleIncomingMessage(userId, message, client) {
         // Substituir variáveis na resposta da IA antes de enviar
         aiResponse = await replaceTemplateVariables(aiResponse, userId, sanitizedNumber);
         
+        const { cleaned: aiResponseStripped, fromMarker: stripeCheckoutFromMarker } =
+          extractStripeCheckoutMarker(aiResponse);
+        aiResponse = aiResponseStripped;
+        
         // Variável para armazenar o áudio da resposta (se houver)
         let responseAudioBase64 = null;
         
@@ -1661,10 +1665,16 @@ async function handleIncomingMessage(userId, message, client) {
         // STRIPE: antes de detectAgentQuestion — evita que “whatsapp/e-mail” na mesma frase do link quebre o fluxo
         // ============================================
         const paymentProvider = (aiConfig?.paymentProvider || 'stripe').toLowerCase();
-        const aiTriggeredStripeCheckout =
-          paymentProvider === 'stripe' && aiResponseShouldTriggerStripeCheckout(aiResponse);
+        const stripeTrigger = shouldRunAutoStripeCheckout(
+          aiResponse,
+          paymentProvider,
+          stripeCheckoutFromMarker
+        );
+        const aiTriggeredStripeCheckout = stripeTrigger.go;
         if (aiTriggeredStripeCheckout) {
-          console.log('🎯 Resposta da IA indica checkout Stripe — gerando link de pagamento...');
+          console.log(
+            `🎯 Checkout Stripe (${stripeTrigger.reason}) — gerando link de pagamento...`
+          );
           await tryAutoGenerateStripeLink(userId, message.from, sanitizedNumber);
         }
         
@@ -2231,6 +2241,14 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
           ? '- Catálogo com foto: na primeira vez que você oferecer cada item (nome completo), o sistema envia o card completo (foto + legenda com preço/descrição/link). Nas menções seguintes do MESMO item, o sistema NÃO manda card nem foto — responda só no texto (dúvidas como “e quanto a futebol?” não disparam reenvio). Se o cliente pedir explicitamente foto/imagem de novo, o sistema manda só a foto com legenda curta; se pedir preço, descrição, detalhes ou link de novo, reenvia o card completo'
           : '- Os itens do catálogo têm foto cadastrada: ao mencionar o nome completo do produto/serviço, o sistema pode enviar a imagem automaticamente no WhatsApp em cada menção'
         : '- O envio automático de fotos no WhatsApp está desativado nas configurações do assistente: descreva bem os itens em texto e não prometa envio automático de imagens';
+      const payProvCat = (aiConfig?.paymentProvider || 'stripe').toLowerCase();
+      const stripeMarkerInstr =
+        payProvCat === 'stripe'
+          ? `\n💳 **PAGAMENTO STRIPE (OBRIGATÓRIO quando for enviar o link de checkout):**
+- Quando já tiveres os dados pedidos (nome, e-mail, etc.) e for o momento de gerar o pagamento, na **última linha** da tua resposta coloca **apenas** isto: ${STRIPE_CHECKOUT_MARKER}
+- O sistema remove essa linha antes do cliente ver e **garante** o envio do link. Nas linhas anteriores, escreve em linguagem natural (ex.: que envias o link já a seguir).
+- Não uses esta linha se ainda estiveres a recolher dados ou se não for para pagar neste momento.`
+          : '';
       systemPrompt += `\n⚠️ INSTRUÇÕES IMPORTANTES:
 - Você DEVE mencionar e oferecer esses produtos/serviços quando relevante
 - Seja proativo e sugira produtos/serviços que possam ajudar o cliente
@@ -2238,6 +2256,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
 - Itens marcados como FORA DE ESTOQUE, SEM CAPACIDADE ou SEM ACESSOS TV: informe o cliente com clareza; NÃO prometa venda nem link de pagamento para esse item. Para TV indisponível, explique que pode tentar de novo em cerca de ${tvReserveMinAi} minutos (reservas temporárias expiram).
 - Para itens disponíveis, não precisa citar números de estoque na conversa
 ${imageInstruction}
+${stripeMarkerInstr}
 
 🎯 **CRÍTICO - CONFIRMAÇÃO DE PRODUTO:**
 - Quando o cliente escolher/clicar em um produto, você DEVE SEMPRE confirmar explicitamente o nome COMPLETO do produto na sua resposta
@@ -2287,6 +2306,8 @@ ${imageInstruction}
 - NÃO peça todos os dados de uma vez
 - Seja EDUCADO e PACIENTE
 - O sistema salva automaticamente cada resposta`;
+    } else if ((aiConfig?.paymentProvider || 'stripe').toLowerCase() === 'stripe') {
+      systemPrompt += `\n\n💳 **PAGAMENTO STRIPE:** Quando tiveres os dados do cliente e for gerar o checkout, na **última linha** coloca **apenas** ${STRIPE_CHECKOUT_MARKER} (o sistema remove antes do cliente ver e garante o envio do link). Não uses se ainda estiveres a recolher dados.`;
     }
 
     if (Object.keys(tvStockByPlan).length > 0) {
@@ -3911,6 +3932,46 @@ function detectExplicitPaymentLinkRequest(messageText) {
     'url do pagamento'
   ];
   return phrases.some((p) => t.includes(p));
+}
+
+/** Marcador na última linha da resposta da IA — removido antes de enviar ao cliente; dispara checkout com 100% de intenção. */
+const STRIPE_CHECKOUT_MARKER = '__SEND_STRIPE_CHECKOUT__';
+
+function extractStripeCheckoutMarker(text) {
+  if (!text || typeof text !== 'string' || !text.includes(STRIPE_CHECKOUT_MARKER)) {
+    return { cleaned: text, fromMarker: false };
+  }
+  let cleaned = text.split(STRIPE_CHECKOUT_MARKER).join('');
+  cleaned = cleaned.replace(/[ \t]*\n{3,}/g, '\n\n').trim();
+  return { cleaned, fromMarker: true };
+}
+
+/**
+ * Fallback: promessa de link + pagamento com verbos de envio (quando o texto varia muito do regex principal).
+ * Mantido conservador para evitar disparo em "não enviamos link".
+ */
+function aiResponseSuggestsPaymentLinkBroad(aiResponse) {
+  if (!aiResponse || typeof aiResponse !== 'string') return false;
+  const n = normalizeText(aiResponse);
+  if (/não\s+(vou|enviarei|mandarei|consigo|podemos)\s+enviar\s+.*\blink/.test(n)) return false;
+  if (/não\s+temos\s+link|sem\s+link\s+de\s+pagamento|não\s+aceitamos\s+link/.test(n)) return false;
+  const hasLink = /\blink\b/.test(n) || /https?:\/\//.test(aiResponse);
+  if (!hasLink) return false;
+  if (!/\b(pagamento|pagar|checkout|efetue|efetuar|concluir\s+a\s+compra|finalizar\s+a\s+compra)\b/.test(n)) {
+    return false;
+  }
+  return /\b(enviando|enviar|segue|seguido|gerar|gerando|gerado|acesse|abaixo|instante|momento|stripe|clique)\b/.test(
+    n
+  );
+}
+
+function shouldRunAutoStripeCheckout(aiResponseCleaned, paymentProvider, fromMarker) {
+  const prov = (paymentProvider || 'stripe').toLowerCase();
+  if (prov !== 'stripe') return { go: false, reason: 'not_stripe' };
+  if (fromMarker) return { go: true, reason: 'marker' };
+  if (aiResponseShouldTriggerStripeCheckout(aiResponseCleaned)) return { go: true, reason: 'phrase_match' };
+  if (aiResponseSuggestsPaymentLinkBroad(aiResponseCleaned)) return { go: true, reason: 'broad_heuristic' };
+  return { go: false, reason: 'none' };
 }
 
 /**
