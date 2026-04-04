@@ -15,7 +15,19 @@
     "users": "Manage users",
     "email": "Email",
     "reports": "Reports",
-    "tvLogins": "TV logins"
+    "tvLogins": "TV logins",
+    "mobileHome": "Home",
+    "mobileChats": "Chats",
+    "mobileCatalogShort": "Catalog",
+    "mobileCrmShort": "CRM",
+    "mobileMore": "More",
+    "mobileFabAssistant": "Assistant"
+  },
+  "mobileShell": {
+    "promoTitle": "Your assistant works 24/7",
+    "promoSubtitle": "Tune the flow and auto-replies in a few steps.",
+    "promoCta": "Open assistant",
+    "bottomNavAria": "Main navigation"
   },
   "setupChecklist": {
     "title": "Setup checklist",

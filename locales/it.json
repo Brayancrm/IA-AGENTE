@@ -15,7 +15,19 @@
     "users": "Gestione utenti",
     "email": "Email",
     "reports": "Report",
-    "tvLogins": "Login TV"
+    "tvLogins": "Login TV",
+    "mobileHome": "Home",
+    "mobileChats": "Chat",
+    "mobileCatalogShort": "Catalogo",
+    "mobileCrmShort": "CRM",
+    "mobileMore": "Altro",
+    "mobileFabAssistant": "Assistente"
+  },
+  "mobileShell": {
+    "promoTitle": "Il tuo assistente lavora 24/7",
+    "promoSubtitle": "Regola il flusso e le risposte automatiche in pochi passaggi.",
+    "promoCta": "Apri assistente",
+    "bottomNavAria": "Navigazione principale"
   },
   "setupChecklist": {
     "title": "Checklist di configurazione",

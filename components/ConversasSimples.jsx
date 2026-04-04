@@ -369,7 +369,7 @@ export default function ConversasSimples({ userId, backendUrl }) {
     <div style={{ padding: isMobile ? '16px' : '40px', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
       {/* Header */}
       <div style={{ marginBottom: '32px' }}>
-        <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: '12px' }}>
           <WhatsAppIcon size={isMobile ? 28 : 36} color="#25D366" />
           Conversas WhatsApp ({conversas.length})
         </h2>

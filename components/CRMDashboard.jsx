@@ -424,7 +424,8 @@ const CRMDashboard = ({
   crmSubTab: crmSubTabProp = 'visao-geral',
   onCrmSubTabChange,
   renderTvLoginsPanel,
-  tvLoginsTabBadge = 0
+  tvLoginsTabBadge = 0,
+  isMobile = false
 }) => {
   const { t } = useI18n();
   const [internalTab, setInternalTab] = useState('visao-geral');
@@ -1971,13 +1972,13 @@ const CRMDashboard = ({
       overflowX: 'hidden'
     }}>
       {/* Header */}
-      <div style={{ marginBottom: '32px' }}>
+      <div style={{ marginBottom: isMobile ? '16px' : '32px' }}>
         <h1 style={{
           fontSize: '2rem',
           fontWeight: '700',
           color: '#ffffff',
           marginBottom: '8px',
-          display: 'flex',
+          display: isMobile ? 'none' : 'flex',
           alignItems: 'center',
           gap: '12px'
         }}>

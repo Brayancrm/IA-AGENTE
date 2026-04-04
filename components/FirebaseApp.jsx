@@ -61,7 +61,11 @@ import {
   ChevronRight,
   ShoppingCart,
   DollarSign,
-  Target
+  Target,
+  Home,
+  MessageSquare,
+  MoreHorizontal,
+  Bot
 } from 'lucide-react';
 
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsappsalesagent';
@@ -4815,7 +4819,7 @@ const DashboardWithFirebase = ({
         <div className="mb-8">
           <div className={`flex ${isMobile ? 'flex-col' : 'justify-between'} items-start mb-2`} style={{ gap: isMobile ? '16px' : '0' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <h2 className={`${isMobile ? 'text-2xl' : 'text-4xl'} font-bold text-white mb-2 flex items-center gap-3`} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h2 className={`${isMobile ? 'text-2xl' : 'text-4xl'} font-bold text-white mb-2 flex items-center gap-3`} style={{ display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: '12px' }}>
                 <span style={{ display: 'inline-block', lineHeight: '1' }}>
                   {renderPageIcon('catalog', isMobile ? '1.875rem' : '2.25rem')}
                 </span>
@@ -5508,7 +5512,7 @@ const DashboardWithFirebase = ({
         <div style={{ marginBottom: '32px' }}>
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: '16px', gap: isMobile ? '16px' : '0' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('agendamentos')}
                 {t('agendamentosPage.title')}
               </h2>
@@ -6229,7 +6233,7 @@ const DashboardWithFirebase = ({
     return (
       <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
         <div style={{ marginBottom: '24px' }}>
-          <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+          <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: isMobile ? 'none' : 'block' }}>
             {t('tvLogins.title')}
           </h2>
           <p style={{ fontSize: '1rem', color: '#9ca3af' }}>{t('tvLogins.subtitle')}</p>
@@ -6757,7 +6761,7 @@ const DashboardWithFirebase = ({
           <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('dashboard')}
                 {t('dashboard.title')}
               </h2>
@@ -7187,7 +7191,7 @@ const DashboardWithFirebase = ({
           <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('company')}
                 Cadastro do Usuário
               </h2>
@@ -7494,7 +7498,7 @@ const DashboardWithFirebase = ({
       case 'reports': {
         return (
           <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'auto' }}>
-            <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+            <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: isMobile ? 'none' : 'block' }}>
               {t('reportsPage.title')}
             </h2>
             <p style={{ fontSize: '1rem', color: '#9ca3af', marginBottom: '20px' }}>{t('reportsPage.subtitle')}</p>
@@ -7621,7 +7625,7 @@ const DashboardWithFirebase = ({
         return (
           <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('stripe')}
                 Stripe
               </h2>
@@ -7773,6 +7777,7 @@ const DashboardWithFirebase = ({
             onCrmSubTabChange={setCrmSubTab}
             renderTvLoginsPanel={user?.isMaster ? renderTvLoginsPanel : undefined}
             tvLoginsTabBadge={user?.isMaster ? tvStockAlerts.length : 0}
+            isMobile={isMobile}
           />
         );
 
@@ -7781,7 +7786,7 @@ const DashboardWithFirebase = ({
           <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('integrations')}
                 Integrações
               </h2>
@@ -8234,7 +8239,7 @@ const DashboardWithFirebase = ({
           <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('whatsapp')}
                 Conexão WhatsApp
             </h2>
@@ -8653,7 +8658,7 @@ const DashboardWithFirebase = ({
           <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h2 style={{ fontSize: '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('assistant')}
                 Configuração do Assistente
             </h2>
@@ -9070,7 +9075,7 @@ const DashboardWithFirebase = ({
         return (
           <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('plans')}
                 {t('plans.title')}
               </h2>
@@ -9379,7 +9384,7 @@ const DashboardWithFirebase = ({
         return (
           <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: '24px', gap: isMobile ? '16px' : '0' }}>
-              <h2 style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 'bold', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h2 style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 'bold', color: '#ffffff', display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('users', isMobile ? '1.75rem' : '2.25rem')}
                 {t('usersPage.title')}
               </h2>
@@ -9609,7 +9614,7 @@ const DashboardWithFirebase = ({
           <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-                <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('tutorials')}
                 {t('tutorialsPage.title')}
               </h2>
@@ -9842,7 +9847,7 @@ const DashboardWithFirebase = ({
           <div style={{ padding: getResponsivePadding(), maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
             {/* Header */}
             <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('email')}
                 Email
               </h2>
@@ -10117,6 +10122,50 @@ const DashboardWithFirebase = ({
     [t, user?.isMaster, stripeOps.pastDue]
   );
 
+  const navigateMobileTab = useCallback(
+    (pageId) => {
+      if (pageId === '__more__') {
+        setIsMobileMenuOpen(true);
+        return;
+      }
+      const isAlwaysAvailable = pageId === 'plans' || pageId === 'users';
+      const isMasterOnly = pageId === 'users';
+      const isBasicAccess = pageId === 'company';
+      let userHasAccess = false;
+      if (user?.isMaster) userHasAccess = true;
+      else if (isAlwaysAvailable || isBasicAccess) userHasAccess = true;
+      else if (userActivePlan?.allowedFeatures && Array.isArray(userActivePlan.allowedFeatures)) {
+        userHasAccess = userActivePlan.allowedFeatures.includes(pageId);
+      }
+      const isLocked = !userHasAccess && !isMasterOnly;
+      if (isLocked) {
+        showToast(t('toast.featureLocked'), 'error');
+        setCurrentPage('plans');
+        return;
+      }
+      setCurrentPage(pageId);
+    },
+    [user?.isMaster, userActivePlan, showToast, t, setCurrentPage, setIsMobileMenuOpen]
+  );
+
+  const mobileBottomTabs = useMemo(
+    () => [
+      { id: 'dashboard', label: t('nav.mobileHome'), Icon: Home, wa: false },
+      { id: 'conversas', label: t('nav.mobileChats'), Icon: MessageSquare, wa: true },
+      { id: 'crm', label: t('nav.mobileCrmShort'), Icon: Target, wa: false },
+      { id: 'catalog', label: t('nav.mobileCatalogShort'), Icon: Package, wa: false },
+      { id: '__more__', label: t('nav.mobileMore'), Icon: MoreHorizontal, wa: false }
+    ],
+    [t]
+  );
+
+  const mobileBottomPrimaryIds = useMemo(() => new Set(['dashboard', 'conversas', 'crm', 'catalog']), []);
+
+  const mobileHeaderSectionTitle = useMemo(() => {
+    const item = menuItems.find((i) => i.id === currentPage);
+    return item?.label || '';
+  }, [menuItems, currentPage]);
+
   // Função helper para renderizar ícones de página (mesma lógica do sidebar)
   const renderPageIcon = (pageId, customSize = null) => {
     const coloredIcons = ['dashboard', 'catalog', 'agendamentos', 'conversas', 'whatsapp', 'assistant', 'plans', 'tutorials', 'email', 'stripe'];
@@ -10279,6 +10328,76 @@ const DashboardWithFirebase = ({
           `}</style>
           
         <div style={{ minHeight: '100vh', backgroundColor: '#0f1419', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', overflowX: 'hidden', maxWidth: '100vw', display: 'flex' }}>
+
+            {isMobile && (
+              <header
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  zIndex: 1001,
+                  background: 'linear-gradient(135deg, #065f46 0%, #047857 38%, #5b21b6 78%, #4c1d95 100%)',
+                  boxShadow: '0 2px 14px rgba(0, 0, 0, 0.28)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'stretch'
+                }}
+              >
+                <div
+                  style={{
+                    paddingTop: 'max(8px, env(safe-area-inset-top, 0px))',
+                    paddingBottom: '10px',
+                    paddingLeft: '16px',
+                    paddingRight: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <img
+                    src="/logo.png"
+                    alt="dadosIA"
+                    style={{
+                      height: '28px',
+                      maxWidth: 'min(200px, 70vw)',
+                      objectFit: 'contain',
+                      filter: 'brightness(0) invert(1)'
+                    }}
+                  />
+                </div>
+                {mobileHeaderSectionTitle ? (
+                  <div
+                    style={{
+                      padding: '8px 16px 10px',
+                      borderTop: '1px solid rgba(255, 255, 255, 0.14)',
+                      background: 'rgba(0, 0, 0, 0.12)',
+                      textAlign: 'center',
+                      minHeight: '40px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.8125rem',
+                        fontWeight: 600,
+                        color: 'rgba(255, 255, 255, 0.95)',
+                        letterSpacing: '0.02em',
+                        lineHeight: 1.3,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '100%'
+                      }}
+                    >
+                      {mobileHeaderSectionTitle}
+                    </span>
+                  </div>
+                ) : null}
+              </header>
+            )}
 
             {/* Overlay para mobile quando sidebar está aberto */}
             {isMobile && isMobileMenuOpen && (
@@ -10731,49 +10850,19 @@ const DashboardWithFirebase = ({
               </div>
             </div>
 
-            {/* Botão para abrir menu em mobile (quando fechado) */}
-            {isMobile && !isMobileMenuOpen && (
-              <button
-                onClick={() => setIsMobileMenuOpen(true)}
-                style={{
-                  position: 'fixed',
-                  top: '16px',
-                  left: '16px',
-                  backgroundColor: '#1a1f36',
-                  border: '2px solid rgba(16, 185, 129, 0.3)',
-                  borderRadius: '8px',
-                  padding: '10px 12px',
-                  color: '#10b981',
-                  cursor: 'pointer',
-                  fontSize: '20px',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
-                  zIndex: 999,
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#10b981';
-                  e.target.style.color = 'white';
-                  e.target.style.borderColor = '#10b981';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#1a1f36';
-                  e.target.style.color = '#10b981';
-                  e.target.style.borderColor = 'rgba(16, 185, 129, 0.3)';
-                }}
-              >
-                ☰
-              </button>
-            )}
+            {/* Menu hamburger só no desktop estreito / fallback; no mobile o item "Mais" abre o painel lateral */}
 
             {/* Main Content - Responsivo */}
             <div 
               className="main-content"
               style={{ 
                 marginLeft: isMobile ? '0' : '280px',
-                paddingTop: '0',
+                paddingTop: isMobile
+                  ? mobileHeaderSectionTitle
+                    ? 'calc(100px + max(8px, env(safe-area-inset-top, 0px)))'
+                    : 'calc(72px + max(8px, env(safe-area-inset-top, 0px)))'
+                  : '0',
+                paddingBottom: isMobile ? 'calc(100px + env(safe-area-inset-bottom, 0px))' : '0',
                 minHeight: '100vh',
                 backgroundColor: '#0f1419',
                 overflowY: 'auto',
@@ -10783,6 +10872,67 @@ const DashboardWithFirebase = ({
                 flex: 1
               }}
             >
+          {isMobile && currentPage === 'dashboard' && (
+            <div style={{ padding: '4px 16px 8px' }}>
+              <div
+                style={{
+                  background: '#ffffff',
+                  borderRadius: '16px',
+                  padding: '16px',
+                  boxShadow: '0 8px 28px rgba(0, 0, 0, 0.12)',
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: '14px',
+                  justifyContent: 'space-between'
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      color: '#5b21b6',
+                      marginBottom: '6px',
+                      lineHeight: 1.25
+                    }}
+                  >
+                    {t('mobileShell.promoTitle')}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.8125rem',
+                      color: '#64748b',
+                      lineHeight: 1.45,
+                      marginBottom: '12px'
+                    }}
+                  >
+                    {t('mobileShell.promoSubtitle')}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigateMobileTab('assistant')}
+                    style={{
+                      background: '#0d9488',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '9999px',
+                      padding: '10px 18px',
+                      fontSize: '0.875rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 14px rgba(13, 148, 136, 0.35)'
+                    }}
+                  >
+                    {t('mobileShell.promoCta')}
+                  </button>
+                </div>
+                <div style={{ fontSize: '2.5rem', lineHeight: 1, flexShrink: 0 }} aria-hidden>
+                  🤖
+                </div>
+              </div>
+            </div>
+          )}
           {renderContent()}
       </div>
 
@@ -10793,21 +10943,24 @@ const DashboardWithFirebase = ({
         rel="noopener noreferrer"
         style={{
           position: 'fixed',
-          bottom: isMobile ? '16px' : '24px',
-          right: isMobile ? '16px' : '24px',
-          width: isMobile ? '52px' : '60px',
-          height: isMobile ? '52px' : '60px',
+          bottom: isMobile
+            ? 'calc(76px + max(8px, env(safe-area-inset-bottom, 0px)))'
+            : '24px',
+          left: isMobile ? '16px' : 'auto',
+          right: isMobile ? 'auto' : '24px',
+          width: isMobile ? '48px' : '60px',
+          height: isMobile ? '48px' : '60px',
           borderRadius: '50%',
           background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
           color: '#ffffff',
-          display: 'flex',
+          display: isMobile && isMobileMenuOpen ? 'none' : 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: isMobile ? '22px' : '26px',
+          fontSize: isMobile ? '20px' : '26px',
           fontWeight: 'bold',
           textDecoration: 'none',
           boxShadow: '0 12px 24px rgba(16, 185, 129, 0.35)',
-          zIndex: 1100,
+          zIndex: isMobile ? 955 : 1100,
           transition: 'transform 0.2s ease, box-shadow 0.2s ease'
         }}
         onMouseEnter={(e) => {
@@ -10824,8 +10977,111 @@ const DashboardWithFirebase = ({
         }}
         title="Suporte DadosIA"
       >
-        <WhatsAppIcon size={isMobile ? 22 : 26} color="#ffffff" />
+        <WhatsAppIcon size={isMobile ? 20 : 26} color="#ffffff" />
       </a>
+
+      {isMobile && !isMobileMenuOpen && (
+        <>
+          <button
+            type="button"
+            onClick={() => navigateMobileTab('assistant')}
+            style={{
+              position: 'fixed',
+              right: '16px',
+              bottom: 'calc(76px + max(8px, env(safe-area-inset-bottom, 0px)))',
+              zIndex: 960,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 16px',
+              borderRadius: '9999px',
+              border: 'none',
+              background: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: '0.8125rem',
+              boxShadow: '0 10px 28px rgba(13, 148, 136, 0.42)',
+              cursor: 'pointer',
+              maxWidth: 'calc(100vw - 100px)'
+            }}
+          >
+            <Bot size={20} strokeWidth={2.25} aria-hidden />
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {t('nav.mobileFabAssistant')}
+            </span>
+          </button>
+
+          <nav
+            style={{
+              position: 'fixed',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 950,
+              display: 'flex',
+              alignItems: 'stretch',
+              justifyContent: 'space-around',
+              paddingBottom: 'max(6px, env(safe-area-inset-bottom, 0px))',
+              paddingTop: '6px',
+              backgroundColor: '#ffffff',
+              borderTop: '1px solid rgba(15, 20, 25, 0.08)',
+              boxShadow: '0 -4px 22px rgba(0, 0, 0, 0.07)'
+            }}
+            role="navigation"
+            aria-label={t('mobileShell.bottomNavAria')}
+          >
+            {mobileBottomTabs.map((tab) => {
+              const active =
+                tab.id === '__more__'
+                  ? isMobileMenuOpen || !mobileBottomPrimaryIds.has(currentPage)
+                  : currentPage === tab.id;
+              const IconC = tab.Icon;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => navigateMobileTab(tab.id)}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    padding: '6px 4px',
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    minWidth: 0,
+                    color: active ? (tab.wa ? '#047857' : '#5b21b6') : '#64748b'
+                  }}
+                >
+                  {tab.wa ? (
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '24px' }}>
+                      <WhatsAppIcon size={22} color={active ? '#25D366' : '#64748b'} />
+                    </span>
+                  ) : (
+                    <IconC size={22} strokeWidth={active ? 2.5 : 2} aria-hidden />
+                  )}
+                  <span
+                    style={{
+                      fontSize: '0.65rem',
+                      fontWeight: active ? 700 : 600,
+                      letterSpacing: '0.02em',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      maxWidth: '100%'
+                    }}
+                  >
+                    {tab.label}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+        </>
+      )}
 
       {/* Modal do Catálogo */}
       {showCatalogModal && (
