@@ -681,6 +681,22 @@ async function markSentCatalogAux(userId, contactSanitized, dedupeKey, name) {
   }
 }
 
+/** Último produto oferecido no chat — usado pelo Stripe quando o histórico recente só tem nome/e-mail. */
+async function setLastOfferedCheckoutProduct(userId, contactSanitized, item) {
+  if (!item?.name) return;
+  try {
+    await conversationAssistantMetaRef(userId, contactSanitized)
+      .child('last_offered_checkout_product')
+      .set({
+        name: item.name,
+        catalogItemId: item.catalogItemId || null,
+        updatedAt: new Date().toISOString()
+      });
+  } catch (e) {
+    console.warn('⚠️ last_offered_checkout_product:', e.message);
+  }
+}
+
 async function resolveConversationLineKey(userId) {
   let lk = wppConnectedLineByUser.get(userId);
   if (lk) return lk;
@@ -1929,6 +1945,8 @@ async function handleIncomingMessage(userId, message, client) {
                   aiGenerated: true,
                   productName: item.name
                 });
+
+                await setLastOfferedCheckoutProduct(userId, sanitizedNumber, item);
                 
                 // Aguardar um pouco entre imagens para não sobrecarregar
                 await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1957,6 +1975,8 @@ async function handleIncomingMessage(userId, message, client) {
                   productName: item.name,
                   productLink: item.link
                 });
+
+                await setLastOfferedCheckoutProduct(userId, sanitizedNumber, item);
                 
                 // Aguardar um pouco entre mensagens
                 await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1979,6 +1999,8 @@ async function handleIncomingMessage(userId, message, client) {
                   aiGenerated: true,
                   productName: item.name
                 });
+
+                await setLastOfferedCheckoutProduct(userId, sanitizedNumber, item);
                 await new Promise(resolve => setTimeout(resolve, 1000));
               }
             } catch (itemError) {
@@ -5144,7 +5166,7 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
 
     const messagesSnapshot = await conversationMessagesRef(userId, sanitizedNumber)
       .orderByChild('timestamp')
-      .limitToLast(15)
+      .limitToLast(40)
       .once('value');
 
     if (!messagesSnapshot.exists()) return;
@@ -5156,18 +5178,41 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
       return;
     }
 
-    // Uma única linha no checkout: última menção ao produto nas mensagens recentes vence.
     let lastMentionedProduct = null;
-    messagesSnapshot.forEach((messageSnap) => {
-      const msg = messageSnap.val();
-      const raw = msg.body ? String(msg.body) : '';
-      if (!raw.trim()) return;
-      for (const product of products) {
-        if (messageMentionsProduct(raw, product.name)) {
-          lastMentionedProduct = product;
-        }
+    try {
+      const hintSnap = await conversationAssistantMetaRef(userId, sanitizedNumber)
+        .child('last_offered_checkout_product')
+        .once('value');
+      const hint = hintSnap.val();
+      if (hint?.catalogItemId) {
+        lastMentionedProduct = products.find((p) => p.id === hint.catalogItemId) || null;
       }
-    });
+      if (!lastMentionedProduct && hint?.name) {
+        lastMentionedProduct =
+          products.find((p) => p.name === hint.name) ||
+          products.find((p) => messageMentionsProduct(hint.name, p.name)) ||
+          null;
+      }
+      if (lastMentionedProduct) {
+        console.log('✅ [Stripe] Produto do checkout a partir do último card oferecido:', lastMentionedProduct.name);
+      }
+    } catch (e) {
+      console.warn('⚠️ [Stripe] last_offered_checkout_product:', e.message);
+    }
+
+    // Uma única linha no checkout: última menção ao produto nas mensagens recentes vence (se ainda não houver hint).
+    if (!lastMentionedProduct) {
+      messagesSnapshot.forEach((messageSnap) => {
+        const msg = messageSnap.val();
+        const raw = msg.body ? String(msg.body) : '';
+        if (!raw.trim()) return;
+        for (const product of products) {
+          if (messageMentionsProduct(raw, product.name)) {
+            lastMentionedProduct = product;
+          }
+        }
+      });
+    }
 
     if (!lastMentionedProduct) {
       const combined = [];
