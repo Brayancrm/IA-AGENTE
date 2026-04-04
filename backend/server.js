@@ -1580,15 +1580,14 @@ async function handleIncomingMessage(userId, message, client) {
         await detectAgentQuestion(userId, sanitizedNumber, aiResponse);
         
         // ============================================
-        // DETECTAR MENSAGEM DE GATILHO PARA GERAR LINK
+        // DETECTAR MENSAGEM DE GATILHO PARA GERAR LINK (Stripe)
         // ============================================
         const paymentProvider = (aiConfig?.paymentProvider || 'stripe').toLowerCase();
-        const triggerMessage = 'Perfeito! Vou enviar abaixo seu Link para que efetue o Pagamento.';
-        if (aiResponse.includes(triggerMessage)) {
-          if (paymentProvider === 'stripe') {
-            console.log('🎯 MENSAGEM DE GATILHO DETECTADA! Gerando link de pagamento (Stripe)...');
-            await tryAutoGenerateStripeLink(userId, message.from, sanitizedNumber);
-          }
+        const aiTriggeredStripeCheckout =
+          paymentProvider === 'stripe' && aiResponseShouldTriggerStripeCheckout(aiResponse);
+        if (aiTriggeredStripeCheckout) {
+          console.log('🎯 Resposta da IA indica checkout Stripe — gerando link de pagamento...');
+          await tryAutoGenerateStripeLink(userId, message.from, sanitizedNumber);
         }
         
         // ============================================
@@ -1797,13 +1796,20 @@ async function handleIncomingMessage(userId, message, client) {
           }
         }
         
-        // Detectar intenção de compra e gerar link de pagamento
+        // Intenção de compra / pedido explícito do link — não exige produto na última resposta da IA
+        // (tryAutoGenerateStripeLink resolve o item pelas últimas mensagens da conversa)
         const paymentProviderForIntent = (aiConfig?.paymentProvider || 'stripe').toLowerCase();
         const hasPurchaseIntent = detectPurchaseIntent(message.body);
+        const wantsPaymentLink =
+          hasPurchaseIntent || detectExplicitPaymentLinkRequest(message.body);
         
-        if (paymentProviderForIntent === 'stripe' && hasPurchaseIntent && mentionedItems.length > 0) {
+        if (
+          paymentProviderForIntent === 'stripe' &&
+          wantsPaymentLink &&
+          !aiTriggeredStripeCheckout
+        ) {
           await tryAutoGenerateStripeLink(userId, message.from, sanitizedNumber);
-        } else if (paymentProviderForIntent === 'manual' && hasPurchaseIntent && mentionedItems.length > 0) {
+        } else if (paymentProviderForIntent === 'manual' && wantsPaymentLink) {
           const integrations = await getIntegrationsConfig(userId);
           const manualMessage = aiConfig?.paymentManualMessage || 'Pagamento manual selecionado. Aguarde o envio do link.';
           const paymentNotice = manualMessage;
@@ -3717,11 +3723,68 @@ function detectPurchaseIntent(messageText) {
     'vou levar',
     'me vende',
     'comprar',
-    'adquirir'
+    'adquirir',
+    'prosseguir com o pagamento',
+    'prosseguir com pagamento',
+    'fazer o pagamento',
+    'quero pagar',
+    'pagar agora',
+    'aceito prosseguir',
+    'pode prosseguir',
+    'pode seguir'
   ];
   
-  const lowerText = messageText.toLowerCase();
-  return purchaseKeywords.some(keyword => lowerText.includes(keyword));
+  const lowerText = messageText.toLowerCase().trim().replace(/\s+/g, ' ');
+  if (
+    /^(ok|okay|sim|pode ser|isso|vamos|bora|fechado|combinado)\s*[!?.]*\s*$/i.test(lowerText)
+  ) {
+    return true;
+  }
+  return purchaseKeywords.some((keyword) => lowerText.includes(keyword));
+}
+
+/** Cliente pediu o link de pagamento (ex.: «kd o link», «manda o link»). */
+function detectExplicitPaymentLinkRequest(messageText) {
+  if (!messageText || typeof messageText !== 'string') return false;
+  const t = normalizeText(messageText);
+  const phrases = [
+    'manda o link',
+    'mande o link',
+    'me manda o link',
+    'me envia o link',
+    'me manda o link do pagamento',
+    'cadê o link',
+    'cade o link',
+    'kd o link',
+    'que link',
+    'onde esta o link',
+    'nao recebi o link',
+    'nao veio o link',
+    'gera o link',
+    'gerar o link',
+    'link do pagamento',
+    'link de pagamento',
+    'url do pagamento'
+  ];
+  return phrases.some((p) => t.includes(p));
+}
+
+/**
+ * A IA prometeu gerar/enviar o link (não só a frase fixa antiga).
+ * Evita respostas do tipo «Estou gerando o link…» sem chamar o Stripe.
+ */
+function aiResponseShouldTriggerStripeCheckout(aiResponse) {
+  if (!aiResponse || typeof aiResponse !== 'string') return false;
+  const legacy = 'Perfeito! Vou enviar abaixo seu Link para que efetue o Pagamento.';
+  if (aiResponse.includes(legacy)) return true;
+  const n = normalizeText(aiResponse);
+  if (n.includes(normalizeText(legacy))) return true;
+  return (
+    /gerando\s+(o\s+)?link\s+(de\s+)?pagamento/.test(n) ||
+    /vou\s+(te\s+)?enviar\s+(o\s+)?link\s+(de\s+)?pagamento/.test(n) ||
+    /receber[a]?\s+.*\blink\b.*\bpagamento/.test(n) ||
+    /(em breve|logo)\s+.*\blink\b.*\bpagamento/.test(n)
+  );
 }
 
 function normalizeText(value) {
