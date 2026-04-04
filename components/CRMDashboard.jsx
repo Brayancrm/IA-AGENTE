@@ -30,8 +30,10 @@ import {
   Minus,
   X,
   Upload,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Tv
 } from 'lucide-react';
+import { useI18n } from '../contexts/I18nContext';
 
 /** Alinha à chave usada em conversations/ no backend (sanitizePhoneNumber). */
 function sanitizeConversationContactKey(s) {
@@ -404,8 +406,23 @@ function buildHistoricoComprasCliente({ vendas, pedidos, subscriptions, selected
   return rows;
 }
 
-const CRMDashboard = ({ user, database, showToast }) => {
-  const [activeTab, setActiveTab] = useState('visao-geral');
+const CRMDashboard = ({
+  user,
+  database,
+  showToast,
+  crmSubTab: crmSubTabProp = 'visao-geral',
+  onCrmSubTabChange,
+  renderTvLoginsPanel,
+  tvLoginsTabBadge = 0
+}) => {
+  const { t } = useI18n();
+  const [internalTab, setInternalTab] = useState('visao-geral');
+  const controlled = typeof onCrmSubTabChange === 'function';
+  const activeTab = controlled ? crmSubTabProp : internalTab;
+  const setActiveTab = (id) => {
+    if (controlled) onCrmSubTabChange(id);
+    else setInternalTab(id);
+  };
   const [clientes, setClientes] = useState([]);
   const [pedidos, setPedidos] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
@@ -1975,11 +1992,15 @@ const CRMDashboard = ({ user, database, showToast }) => {
         {[
           { id: 'visao-geral', label: 'Visão Geral', icon: Activity },
           { id: 'clientes', label: 'Clientes', icon: Users },
+          ...(user?.isMaster && typeof renderTvLoginsPanel === 'function'
+            ? [{ id: 'tv-logins', label: t('nav.tvLogins'), icon: Tv, badge: tvLoginsTabBadge }]
+            : []),
           { id: 'vendas', label: 'Vendas', icon: ShoppingCart },
           { id: 'pipeline', label: 'Pipeline', icon: Target },
           { id: 'relatorios', label: 'Relatórios', icon: BarChart3 }
         ].map(tab => {
           const Icon = tab.icon;
+          const badgeCount = typeof tab.badge === 'number' ? tab.badge : 0;
           return (
             <button
               key={tab.id}
@@ -1997,7 +2018,8 @@ const CRMDashboard = ({ user, database, showToast }) => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
+                position: 'relative'
               }}
               onMouseEnter={(e) => {
                 if (activeTab !== tab.id) {
@@ -2014,6 +2036,26 @@ const CRMDashboard = ({ user, database, showToast }) => {
             >
               <Icon size={18} />
               {tab.label}
+              {badgeCount > 0 ? (
+                <span
+                  style={{
+                    marginLeft: '4px',
+                    minWidth: '18px',
+                    height: '18px',
+                    padding: '0 5px',
+                    borderRadius: '9999px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+                    color: '#fff',
+                    fontSize: '0.65rem',
+                    fontWeight: '800',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  {badgeCount > 99 ? '99+' : badgeCount}
+                </span>
+              ) : null}
             </button>
           );
         })}
@@ -2022,6 +2064,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
       {/* Conteúdo das Tabs */}
       {activeTab === 'visao-geral' && <VisaoGeral />}
       {activeTab === 'clientes' && <ClientesTab />}
+      {activeTab === 'tv-logins' && typeof renderTvLoginsPanel === 'function' && renderTvLoginsPanel()}
       
       {/* Tab VENDAS */}
       {activeTab === 'vendas' && (

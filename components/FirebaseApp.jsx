@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { useFirebase } from '../hooks/useFirebase';
 
 // Suprimir erros não críticos de scripts externos (Firebase/Vercel feedback)
@@ -173,6 +173,8 @@ const FirebaseApp = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState('dashboard');
+  /** Sub-aba do CRM (ex.: Logins TV dentro do dashboard CRM). */
+  const [crmSubTab, setCrmSubTab] = useState('visao-geral');
   const [toast, setToast] = useState(null);
 
   // Estado para página de pagamento removido - agora redirecionamos diretamente
@@ -267,6 +269,19 @@ const FirebaseApp = () => {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  useLayoutEffect(() => {
+    if (currentPage === 'tv-logins') {
+      setCrmSubTab('tv-logins');
+      setCurrentPage('crm');
+    }
+  }, [currentPage]);
+
+  useEffect(() => {
+    if (currentPage !== 'crm') {
+      setCrmSubTab('visao-geral');
+    }
+  }, [currentPage]);
 
   // Prevenir zoom do usuário - Bloquear todos os métodos de zoom
   useEffect(() => {
@@ -3061,6 +3076,8 @@ const FirebaseApp = () => {
         user={user}
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
+        crmSubTab={crmSubTab}
+        setCrmSubTab={setCrmSubTab}
         toggleUserPlan={toggleUserPlan}
         companyProfile={companyProfile}
         integrationsConfig={integrationsConfig}
@@ -3142,6 +3159,8 @@ const DashboardWithFirebase = ({
   user,
   currentPage,
   setCurrentPage,
+  crmSubTab = 'visao-geral',
+  setCrmSubTab,
   companyProfile,
   integrationsConfig,
   assistantSettings,
@@ -3320,7 +3339,9 @@ const DashboardWithFirebase = ({
   }, [database, user?.isMaster, user?.uid]);
 
   useEffect(() => {
-    if (!user?.uid || !user?.isMaster || currentPage !== 'tv-logins' || !tvLogins.length) {
+    const tvLoginsPanelActive =
+      currentPage === 'tv-logins' || (currentPage === 'crm' && crmSubTab === 'tv-logins');
+    if (!user?.uid || !user?.isMaster || !tvLoginsPanelActive || !tvLogins.length) {
       setTvLoginCrmHints({});
       return undefined;
     }
@@ -3365,10 +3386,12 @@ const DashboardWithFirebase = ({
     return () => {
       cancelled = true;
     };
-  }, [user?.uid, user?.isMaster, currentPage, tvLogins, BACKEND_URL]);
+  }, [user?.uid, user?.isMaster, currentPage, crmSubTab, tvLogins, BACKEND_URL]);
 
   useEffect(() => {
-    if (!database || !user?.uid || !user?.isMaster || currentPage !== 'tv-logins' || !tvLogins.length) {
+    const tvLoginsPanelActive =
+      currentPage === 'tv-logins' || (currentPage === 'crm' && crmSubTab === 'tv-logins');
+    if (!database || !user?.uid || !user?.isMaster || !tvLoginsPanelActive || !tvLogins.length) {
       setTvReservedOrderHints({});
       return undefined;
     }
@@ -3398,7 +3421,7 @@ const DashboardWithFirebase = ({
     return () => {
       cancelled = true;
     };
-  }, [database, user?.uid, user?.isMaster, currentPage, tvLogins, tvReservedTick]);
+  }, [database, user?.uid, user?.isMaster, currentPage, crmSubTab, tvLogins, tvReservedTick]);
 
   useEffect(() => {
     if (!user?.isMaster) return undefined;
@@ -6116,6 +6139,271 @@ const DashboardWithFirebase = ({
     );
   };
 
+  const renderTvLoginsPanel = () => {
+    const nowMs = Date.now();
+    const query = String(tvLoginSearch || '').toLowerCase().trim();
+    const filtered = tvLogins.filter((item) => {
+      const text = `${item.login || ''} ${item.planName || ''} ${item.planKey || ''} ${item.notes || ''}`.toLowerCase();
+      return !query || text.includes(query);
+    });
+    const availableCount = tvLogins.filter((i) => getTvLoginDisplayStatus(i, nowMs) === 'available').length;
+    const reservedCount = tvLogins.filter((i) => getTvLoginDisplayStatus(i, nowMs) === 'reserved').length;
+    const soldCount = tvLogins.filter((i) => i?.status === 'sold').length;
+    const tvGrouped = (() => {
+      const g = {};
+      filtered.forEach((item) => {
+        const k = normalizePlanKeyClient(item.planKey || item.planName || '_');
+        if (!g[k]) g[k] = { label: item.planKey || item.planName || k, items: [] };
+        g[k].items.push(item);
+      });
+      return Object.entries(g);
+    })();
+
+    const statusBadge = (item) => {
+      const disp = getTvLoginDisplayStatus(item, nowMs);
+      if (disp === 'sold') {
+        return { bg: 'rgba(239,68,68,0.2)', color: '#ef4444', text: t('tvLogins.statusSold') };
+      }
+      if (disp === 'reserved') {
+        return { bg: 'rgba(245,158,11,0.2)', color: '#f59e0b', text: t('tvLogins.statusReserved') };
+      }
+      return { bg: 'rgba(16,185,129,0.2)', color: '#10b981', text: t('tvLogins.statusAvailable') };
+    };
+
+    return (
+      <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+        <div style={{ marginBottom: '24px' }}>
+          <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+            {t('tvLogins.title')}
+          </h2>
+          <p style={{ fontSize: '1rem', color: '#9ca3af' }}>{t('tvLogins.subtitle')}</p>
+        </div>
+
+        {tvStockAlerts.length > 0 ? (
+          <div
+            role="alert"
+            style={{
+              marginBottom: '16px',
+              padding: '14px 16px',
+              borderRadius: '12px',
+              border: '1px solid rgba(239,68,68,0.45)',
+              background: 'rgba(239,68,68,0.12)',
+              color: '#fecaca',
+              fontSize: '0.9rem'
+            }}
+          >
+            {tvStockAlerts.map((a) => (
+              <div key={a.key} style={{ marginBottom: '6px' }}>
+                {t('tvLogins.alertNoStock', { name: a.name, key: a.key })}
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(280px,1fr) minmax(0,2fr)', gap: '16px', alignItems: 'start' }}>
+          <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '16px', border: '1px solid rgba(16,185,129,0.2)' }}>
+            <h3 style={{ color: '#fff', marginBottom: '12px' }}>{editingTvLoginId ? t('tvLogins.editLogin') : t('tvLogins.newLogin')}</h3>
+            <form onSubmit={handleTvLoginSubmit} style={{ display: 'grid', gap: '10px' }}>
+              <label htmlFor="tv-login-user" style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Login</label>
+              <input id="tv-login-user" autoComplete="off" value={tvLoginForm.login} onChange={(e) => setTvLoginForm((p) => ({ ...p, login: e.target.value }))} placeholder="Login / usuario" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
+              <label htmlFor="tv-login-pass" style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Senha</label>
+              <input id="tv-login-pass" type="password" autoComplete="new-password" value={tvLoginForm.password} onChange={(e) => setTvLoginForm((p) => ({ ...p, password: e.target.value }))} placeholder="Senha" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
+              <input value={tvLoginForm.planName} onChange={(e) => setTvLoginForm((p) => ({ ...p, planName: e.target.value }))} placeholder="Nome do plano (exibicao)" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
+              <input value={tvLoginForm.planKey} onChange={(e) => setTvLoginForm((p) => ({ ...p, planKey: e.target.value }))} placeholder="Chave (tvPlanKey do catalogo)" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
+              <textarea value={tvLoginForm.notes} onChange={(e) => setTvLoginForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Observacoes (opcional)" rows={3} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button type="submit" disabled={savingTvLogin} style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 14px', cursor: 'pointer', fontWeight: '700' }}>
+                  {savingTvLogin ? 'Salvando...' : (editingTvLoginId ? 'Atualizar' : 'Adicionar')}
+                </button>
+                {editingTvLoginId && (
+                  <button type="button" onClick={resetTvLoginForm} style={{ backgroundColor: '#374151', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 14px', cursor: 'pointer' }}>
+                    Cancelar
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+
+          <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '16px', border: '1px solid rgba(124,58,237,0.25)', minWidth: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+              <input
+                value={tvLoginSearch}
+                onChange={(e) => setTvLoginSearch(e.target.value)}
+                placeholder={t('tvLogins.searchPlaceholder')}
+                aria-label={t('tvLogins.searchPlaceholder')}
+                style={{ flex: 1, minWidth: 'min(100%, 220px)', padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }}
+              />
+              <div style={{ color: '#9ca3af', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
+                {t('tvLogins.available')}: <strong style={{ color: '#10b981' }}>{availableCount}</strong>
+                {' · '}{t('tvLogins.reserved')}: <strong style={{ color: '#f59e0b' }}>{reservedCount}</strong>
+                {' · '}{t('tvLogins.soldCount')}: <strong style={{ color: '#ef4444' }}>{soldCount}</strong>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gap: '12px', maxHeight: '560px', overflowY: 'auto' }}>
+              {filtered.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📭</div>
+                  <div style={{ fontWeight: 600, color: '#e5e7eb', marginBottom: '6px' }}>{t('tvLogins.emptyTitle')}</div>
+                  <div style={{ fontSize: '0.9rem' }}>{t('tvLogins.emptyHint')}</div>
+                </div>
+              ) : (
+                tvGrouped.map(([gKey, group]) => (
+                  <div key={gKey}>
+                    <div style={{ fontSize: '0.8rem', color: '#a78bfa', marginBottom: '8px', fontWeight: 700 }}>
+                      {t('tvLogins.groupByPlan')}: {group.label} ({group.items.length})
+                    </div>
+                    {group.items.map((item) => {
+                      const sb = statusBadge(item);
+                      const showPw = !!tvPwVisible[item.id];
+                      const orderHint = item.status === 'reserved' ? tvReservedOrderHints[item.id] : null;
+                      const crmHint = tvLoginCrmHints[item.id];
+                      const pickBuyerName = (...cands) => {
+                        for (const x of cands) {
+                          const s = x ? String(x).trim() : '';
+                          if (s && s !== 'Cliente WhatsApp') return s;
+                        }
+                        return '';
+                      };
+                      const buyerName = pickBuyerName(
+                        item.soldBuyerName,
+                        crmHint?.name,
+                        orderHint?.name
+                      );
+                      const buyerEmail =
+                        (item.soldBuyerEmail && String(item.soldBuyerEmail).trim()) ||
+                        (crmHint?.email && String(crmHint.email).trim()) ||
+                        (orderHint?.email && String(orderHint.email).trim()) ||
+                        '';
+                      const canFollowUp =
+                        (item.status === 'sold' ||
+                          (item.status === 'reserved' && isTvLoginReservedStillActive(item, nowMs))) &&
+                        !!resolveTvLoginWhatsAppTo(
+                          item,
+                          item.status === 'reserved' ? orderHint : null
+                        );
+                      return (
+                        <div key={item.id} style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px', backgroundColor: '#0f1419', marginBottom: '8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
+                            <div style={{ minWidth: 0 }}>
+                              <p style={{ margin: 0, color: '#fff', fontWeight: '700' }}>{item.login}</p>
+                              <p style={{ margin: '4px 0 0 0', color: '#9ca3af', fontSize: '0.82rem', wordBreak: 'break-word' }}>
+                                {item.planName || '—'} · {item.planKey || '—'}
+                              </p>
+                              <p style={{ margin: '4px 0 0 0', color: '#cbd5e1', fontSize: '0.82rem' }}>
+                                Senha: {showPw ? item.password : '••••••••'}
+                                <button
+                                  type="button"
+                                  onClick={() => setTvPwVisible((p) => ({ ...p, [item.id]: !p[item.id] }))}
+                                  style={{ marginLeft: '8px', background: 'transparent', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '0.75rem' }}
+                                >
+                                  {showPw ? t('tvLogins.hidePassword') : t('tvLogins.showPassword')}
+                                </button>
+                              </p>
+                              {item.notes ? <p style={{ margin: '6px 0 0 0', color: '#cbd5e1', fontSize: '0.82rem' }}>{item.notes}</p> : null}
+                              {item.status === 'sold' && (
+                                <p style={{ margin: '6px 0 0 0', color: '#fca5a5', fontSize: '0.78rem' }}>
+                                  {t('tvLogins.soldTo', {
+                                    phone: formatTvSoldToDisplayPhone(item, crmHint, t),
+                                    date: item.soldAt ? new Date(item.soldAt).toLocaleString('pt-BR') : '—'
+                                  })}
+                                </p>
+                              )}
+                              {(item.status === 'sold' ||
+                                (item.status === 'reserved' && isTvLoginReservedStillActive(item, nowMs))) &&
+                              (buyerName || buyerEmail) ? (
+                                <p style={{ margin: '6px 0 0 0', color: '#a5b4fc', fontSize: '0.78rem', lineHeight: 1.45 }}>
+                                  {buyerName ? (
+                                    <>
+                                      {t('tvLogins.buyerName')}: {buyerName}
+                                      <br />
+                                    </>
+                                  ) : null}
+                                  {buyerEmail ? (
+                                    <>
+                                      {t('tvLogins.buyerEmail')}: {buyerEmail}
+                                    </>
+                                  ) : null}
+                                </p>
+                              ) : null}
+                              {item.status === 'reserved' && item.reservedUntil && isTvLoginReservedStillActive(item, nowMs) ? (
+                                <p style={{ margin: '4px 0 0 0', color: '#fcd34d', fontSize: '0.75rem' }}>
+                                  {t('tvLogins.reservationUntil', {
+                                    date: new Date(item.reservedUntil).toLocaleString(
+                                      locale === 'en' ? 'en-US' : locale === 'es' ? 'es-ES' : locale === 'it' ? 'it-IT' : 'pt-BR'
+                                    )
+                                  })}
+                                </p>
+                              ) : null}
+                              {item.status === 'reserved' && item.reservedUntil && !isTvLoginReservedStillActive(item, nowMs) ? (
+                                <p style={{ margin: '4px 0 0 0', color: '#6ee7b7', fontSize: '0.75rem' }}>
+                                  {t('tvLogins.reservationExpired')}
+                                </p>
+                              ) : null}
+                              {Array.isArray(item.history) && item.history.length > 0 ? (
+                                <details style={{ marginTop: '8px', fontSize: '0.75rem', color: '#9ca3af' }}>
+                                  <summary style={{ cursor: 'pointer' }}>{t('tvLogins.history')} ({item.history.length})</summary>
+                                  <ul style={{ margin: '6px 0 0 16px', padding: 0 }}>
+                                    {item.history.slice(-8).map((h, idx) => (
+                                      <li key={idx}>{h.event || '—'} {h.at ? new Date(h.at).toLocaleString('pt-BR') : ''}</li>
+                                    ))}
+                                  </ul>
+                                </details>
+                              ) : null}
+                            </div>
+                            <span style={{ padding: '4px 8px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '700', backgroundColor: sb.bg, color: sb.color }}>
+                              {sb.text}
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                            <button type="button" onClick={() => editTvLogin(item)} style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Editar</button>
+                            {item.status === 'sold' ? (
+                              <>
+                                <button type="button" onClick={() => markTvLoginAsAvailable(item)} style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Marcar disponivel</button>
+                                {item.soldToWhatsAppJid || item.soldToPhone ? (
+                                  <button type="button" onClick={() => resendTvCredentials(item)} style={{ backgroundColor: '#7c3aed', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>{t('tvLogins.resend')}</button>
+                                ) : null}
+                              </>
+                            ) : (
+                              <button type="button" onClick={() => markTvLoginAsSold(item)} style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Marcar vendido</button>
+                            )}
+                            {canFollowUp ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  sendTvFollowUpGreeting(
+                                    item,
+                                    item.status === 'reserved' ? orderHint : null
+                                  )
+                                }
+                                style={{
+                                  backgroundColor: '#0d9488',
+                                  color: '#fff',
+                                  border: 'none',
+                                  borderRadius: '8px',
+                                  padding: '6px 10px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                {t('tvLogins.followUpGreeting')}
+                              </button>
+                            ) : null}
+                            <button type="button" onClick={() => deleteTvLogin(item)} style={{ backgroundColor: '#6b7280', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Excluir</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     // Proteção SSR e undefined - garantir que sempre temos valores válidos
     const safeRealConversations = (typeof realConversations !== 'undefined') ? (realConversations || []) : [];
@@ -6134,7 +6422,7 @@ const DashboardWithFirebase = ({
     
     // Verificar acesso à página atual
     const isAlwaysAvailable = currentPage === 'plans' || currentPage === 'users';
-    const isMasterOnly = currentPage === 'users' || currentPage === 'tv-logins' || currentPage === 'reports';
+    const isMasterOnly = currentPage === 'users' || currentPage === 'reports';
     const isBasicAccess = currentPage === 'company';
     
     let hasAccess = false;
@@ -6925,270 +7213,8 @@ const DashboardWithFirebase = ({
           </div>
         );
 
-      case 'tv-logins': {
-        const nowMs = Date.now();
-        const query = String(tvLoginSearch || '').toLowerCase().trim();
-        const filtered = tvLogins.filter((item) => {
-          const text = `${item.login || ''} ${item.planName || ''} ${item.planKey || ''} ${item.notes || ''}`.toLowerCase();
-          return !query || text.includes(query);
-        });
-        const availableCount = tvLogins.filter((i) => getTvLoginDisplayStatus(i, nowMs) === 'available').length;
-        const reservedCount = tvLogins.filter((i) => getTvLoginDisplayStatus(i, nowMs) === 'reserved').length;
-        const soldCount = tvLogins.filter((i) => i?.status === 'sold').length;
-        const tvGrouped = (() => {
-          const g = {};
-          filtered.forEach((item) => {
-            const k = normalizePlanKeyClient(item.planKey || item.planName || '_');
-            if (!g[k]) g[k] = { label: item.planKey || item.planName || k, items: [] };
-            g[k].items.push(item);
-          });
-          return Object.entries(g);
-        })();
-
-        const statusBadge = (item) => {
-          const disp = getTvLoginDisplayStatus(item, nowMs);
-          if (disp === 'sold') {
-            return { bg: 'rgba(239,68,68,0.2)', color: '#ef4444', text: t('tvLogins.statusSold') };
-          }
-          if (disp === 'reserved') {
-            return { bg: 'rgba(245,158,11,0.2)', color: '#f59e0b', text: t('tvLogins.statusReserved') };
-          }
-          return { bg: 'rgba(16,185,129,0.2)', color: '#10b981', text: t('tvLogins.statusAvailable') };
-        };
-
-        return (
-          <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
-            <div style={{ marginBottom: '24px' }}>
-              <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
-                {t('tvLogins.title')}
-              </h2>
-              <p style={{ fontSize: '1rem', color: '#9ca3af' }}>{t('tvLogins.subtitle')}</p>
-            </div>
-
-            {tvStockAlerts.length > 0 ? (
-              <div
-                role="alert"
-                style={{
-                  marginBottom: '16px',
-                  padding: '14px 16px',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(239,68,68,0.45)',
-                  background: 'rgba(239,68,68,0.12)',
-                  color: '#fecaca',
-                  fontSize: '0.9rem'
-                }}
-              >
-                {tvStockAlerts.map((a) => (
-                  <div key={a.key} style={{ marginBottom: '6px' }}>
-                    {t('tvLogins.alertNoStock', { name: a.name, key: a.key })}
-                  </div>
-                ))}
-              </div>
-            ) : null}
-
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(280px,1fr) minmax(0,2fr)', gap: '16px', alignItems: 'start' }}>
-              <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '16px', border: '1px solid rgba(16,185,129,0.2)' }}>
-                <h3 style={{ color: '#fff', marginBottom: '12px' }}>{editingTvLoginId ? t('tvLogins.editLogin') : t('tvLogins.newLogin')}</h3>
-                <form onSubmit={handleTvLoginSubmit} style={{ display: 'grid', gap: '10px' }}>
-                  <label htmlFor="tv-login-user" style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Login</label>
-                  <input id="tv-login-user" autoComplete="off" value={tvLoginForm.login} onChange={(e) => setTvLoginForm((p) => ({ ...p, login: e.target.value }))} placeholder="Login / usuario" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
-                  <label htmlFor="tv-login-pass" style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Senha</label>
-                  <input id="tv-login-pass" type="password" autoComplete="new-password" value={tvLoginForm.password} onChange={(e) => setTvLoginForm((p) => ({ ...p, password: e.target.value }))} placeholder="Senha" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
-                  <input value={tvLoginForm.planName} onChange={(e) => setTvLoginForm((p) => ({ ...p, planName: e.target.value }))} placeholder="Nome do plano (exibicao)" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
-                  <input value={tvLoginForm.planKey} onChange={(e) => setTvLoginForm((p) => ({ ...p, planKey: e.target.value }))} placeholder="Chave (tvPlanKey do catalogo)" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
-                  <textarea value={tvLoginForm.notes} onChange={(e) => setTvLoginForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Observacoes (opcional)" rows={3} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <button type="submit" disabled={savingTvLogin} style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 14px', cursor: 'pointer', fontWeight: '700' }}>
-                      {savingTvLogin ? 'Salvando...' : (editingTvLoginId ? 'Atualizar' : 'Adicionar')}
-                    </button>
-                    {editingTvLoginId && (
-                      <button type="button" onClick={resetTvLoginForm} style={{ backgroundColor: '#374151', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 14px', cursor: 'pointer' }}>
-                        Cancelar
-                      </button>
-                    )}
-                  </div>
-                </form>
-              </div>
-
-              <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '16px', border: '1px solid rgba(124,58,237,0.25)', minWidth: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                  <input
-                    value={tvLoginSearch}
-                    onChange={(e) => setTvLoginSearch(e.target.value)}
-                    placeholder={t('tvLogins.searchPlaceholder')}
-                    aria-label={t('tvLogins.searchPlaceholder')}
-                    style={{ flex: 1, minWidth: 'min(100%, 220px)', padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }}
-                  />
-                  <div style={{ color: '#9ca3af', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
-                    {t('tvLogins.available')}: <strong style={{ color: '#10b981' }}>{availableCount}</strong>
-                    {' · '}{t('tvLogins.reserved')}: <strong style={{ color: '#f59e0b' }}>{reservedCount}</strong>
-                    {' · '}{t('tvLogins.soldCount')}: <strong style={{ color: '#ef4444' }}>{soldCount}</strong>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gap: '12px', maxHeight: '560px', overflowY: 'auto' }}>
-                  {filtered.length === 0 ? (
-                    <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af' }}>
-                      <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📭</div>
-                      <div style={{ fontWeight: 600, color: '#e5e7eb', marginBottom: '6px' }}>{t('tvLogins.emptyTitle')}</div>
-                      <div style={{ fontSize: '0.9rem' }}>{t('tvLogins.emptyHint')}</div>
-                    </div>
-                  ) : (
-                    tvGrouped.map(([gKey, group]) => (
-                      <div key={gKey}>
-                        <div style={{ fontSize: '0.8rem', color: '#a78bfa', marginBottom: '8px', fontWeight: 700 }}>
-                          {t('tvLogins.groupByPlan')}: {group.label} ({group.items.length})
-                        </div>
-                        {group.items.map((item) => {
-                          const sb = statusBadge(item);
-                          const showPw = !!tvPwVisible[item.id];
-                          const orderHint = item.status === 'reserved' ? tvReservedOrderHints[item.id] : null;
-                          const crmHint = tvLoginCrmHints[item.id];
-                          const pickBuyerName = (...cands) => {
-                            for (const x of cands) {
-                              const s = x ? String(x).trim() : '';
-                              if (s && s !== 'Cliente WhatsApp') return s;
-                            }
-                            return '';
-                          };
-                          const buyerName = pickBuyerName(
-                            item.soldBuyerName,
-                            crmHint?.name,
-                            orderHint?.name
-                          );
-                          const buyerEmail =
-                            (item.soldBuyerEmail && String(item.soldBuyerEmail).trim()) ||
-                            (crmHint?.email && String(crmHint.email).trim()) ||
-                            (orderHint?.email && String(orderHint.email).trim()) ||
-                            '';
-                          const canFollowUp =
-                            (item.status === 'sold' ||
-                              (item.status === 'reserved' && isTvLoginReservedStillActive(item, nowMs))) &&
-                            !!resolveTvLoginWhatsAppTo(
-                              item,
-                              item.status === 'reserved' ? orderHint : null
-                            );
-                          return (
-                            <div key={item.id} style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px', backgroundColor: '#0f1419', marginBottom: '8px' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
-                                <div style={{ minWidth: 0 }}>
-                                  <p style={{ margin: 0, color: '#fff', fontWeight: '700' }}>{item.login}</p>
-                                  <p style={{ margin: '4px 0 0 0', color: '#9ca3af', fontSize: '0.82rem', wordBreak: 'break-word' }}>
-                                    {item.planName || '—'} · {item.planKey || '—'}
-                                  </p>
-                                  <p style={{ margin: '4px 0 0 0', color: '#cbd5e1', fontSize: '0.82rem' }}>
-                                    Senha: {showPw ? item.password : '••••••••'}
-                                    <button
-                                      type="button"
-                                      onClick={() => setTvPwVisible((p) => ({ ...p, [item.id]: !p[item.id] }))}
-                                      style={{ marginLeft: '8px', background: 'transparent', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '0.75rem' }}
-                                    >
-                                      {showPw ? t('tvLogins.hidePassword') : t('tvLogins.showPassword')}
-                                    </button>
-                                  </p>
-                                  {item.notes ? <p style={{ margin: '6px 0 0 0', color: '#cbd5e1', fontSize: '0.82rem' }}>{item.notes}</p> : null}
-                                  {item.status === 'sold' && (
-                                    <p style={{ margin: '6px 0 0 0', color: '#fca5a5', fontSize: '0.78rem' }}>
-                                      {t('tvLogins.soldTo', {
-                                        phone: formatTvSoldToDisplayPhone(item, crmHint, t),
-                                        date: item.soldAt ? new Date(item.soldAt).toLocaleString('pt-BR') : '—'
-                                      })}
-                                    </p>
-                                  )}
-                                  {(item.status === 'sold' ||
-                                    (item.status === 'reserved' && isTvLoginReservedStillActive(item, nowMs))) &&
-                                  (buyerName || buyerEmail) ? (
-                                    <p style={{ margin: '6px 0 0 0', color: '#a5b4fc', fontSize: '0.78rem', lineHeight: 1.45 }}>
-                                      {buyerName ? (
-                                        <>
-                                          {t('tvLogins.buyerName')}: {buyerName}
-                                          <br />
-                                        </>
-                                      ) : null}
-                                      {buyerEmail ? (
-                                        <>
-                                          {t('tvLogins.buyerEmail')}: {buyerEmail}
-                                        </>
-                                      ) : null}
-                                    </p>
-                                  ) : null}
-                                  {item.status === 'reserved' && item.reservedUntil && isTvLoginReservedStillActive(item, nowMs) ? (
-                                    <p style={{ margin: '4px 0 0 0', color: '#fcd34d', fontSize: '0.75rem' }}>
-                                      {t('tvLogins.reservationUntil', {
-                                        date: new Date(item.reservedUntil).toLocaleString(
-                                          locale === 'en' ? 'en-US' : locale === 'es' ? 'es-ES' : locale === 'it' ? 'it-IT' : 'pt-BR'
-                                        )
-                                      })}
-                                    </p>
-                                  ) : null}
-                                  {item.status === 'reserved' && item.reservedUntil && !isTvLoginReservedStillActive(item, nowMs) ? (
-                                    <p style={{ margin: '4px 0 0 0', color: '#6ee7b7', fontSize: '0.75rem' }}>
-                                      {t('tvLogins.reservationExpired')}
-                                    </p>
-                                  ) : null}
-                                  {Array.isArray(item.history) && item.history.length > 0 ? (
-                                    <details style={{ marginTop: '8px', fontSize: '0.75rem', color: '#9ca3af' }}>
-                                      <summary style={{ cursor: 'pointer' }}>{t('tvLogins.history')} ({item.history.length})</summary>
-                                      <ul style={{ margin: '6px 0 0 16px', padding: 0 }}>
-                                        {item.history.slice(-8).map((h, idx) => (
-                                          <li key={idx}>{h.event || '—'} {h.at ? new Date(h.at).toLocaleString('pt-BR') : ''}</li>
-                                        ))}
-                                      </ul>
-                                    </details>
-                                  ) : null}
-                                </div>
-                                <span style={{ padding: '4px 8px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '700', backgroundColor: sb.bg, color: sb.color }}>
-                                  {sb.text}
-                                </span>
-                              </div>
-
-                              <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
-                                <button type="button" onClick={() => editTvLogin(item)} style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Editar</button>
-                                {item.status === 'sold' ? (
-                                  <>
-                                    <button type="button" onClick={() => markTvLoginAsAvailable(item)} style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Marcar disponivel</button>
-                                    {item.soldToWhatsAppJid || item.soldToPhone ? (
-                                      <button type="button" onClick={() => resendTvCredentials(item)} style={{ backgroundColor: '#7c3aed', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>{t('tvLogins.resend')}</button>
-                                    ) : null}
-                                  </>
-                                ) : (
-                                  <button type="button" onClick={() => markTvLoginAsSold(item)} style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Marcar vendido</button>
-                                )}
-                                {canFollowUp ? (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      sendTvFollowUpGreeting(
-                                        item,
-                                        item.status === 'reserved' ? orderHint : null
-                                      )
-                                    }
-                                    style={{
-                                      backgroundColor: '#0d9488',
-                                      color: '#fff',
-                                      border: 'none',
-                                      borderRadius: '8px',
-                                      padding: '6px 10px',
-                                      cursor: 'pointer'
-                                    }}
-                                  >
-                                    {t('tvLogins.followUpGreeting')}
-                                  </button>
-                                ) : null}
-                                <button type="button" onClick={() => deleteTvLogin(item)} style={{ backgroundColor: '#6b7280', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Excluir</button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      }
+      case 'tv-logins':
+        return renderTvLoginsPanel();
 
       case 'reports': {
         return (
@@ -7464,10 +7490,14 @@ const DashboardWithFirebase = ({
 
       case 'crm':
         return (
-          <CRMDashboard 
-            user={user} 
-            database={database} 
+          <CRMDashboard
+            user={user}
+            database={database}
             showToast={showToast}
+            crmSubTab={crmSubTab}
+            onCrmSubTabChange={setCrmSubTab}
+            renderTvLoginsPanel={user?.isMaster ? renderTvLoginsPanel : undefined}
+            tvLoginsTabBadge={user?.isMaster ? tvStockAlerts.length : 0}
           />
         );
 
@@ -9796,13 +9826,6 @@ const DashboardWithFirebase = ({
       { id: 'plans', label: t('nav.plans'), icon: '💎', badge: 0 },
       ...(user?.isMaster
         ? [
-            {
-              id: 'tv-logins',
-              label: t('nav.tvLogins'),
-              icon: '📺',
-              badge: tvStockAlerts.length,
-              badgeTone: 'danger'
-            },
             { id: 'reports', label: t('nav.reports'), icon: '📊', badge: 0 },
             {
               id: 'stripe',
@@ -9816,7 +9839,7 @@ const DashboardWithFirebase = ({
           ]
         : [])
     ],
-    [t, user?.isMaster, tvStockAlerts.length, stripeOps.pastDue]
+    [t, user?.isMaster, stripeOps.pastDue]
   );
 
   // Função helper para renderizar ícones de página (mesma lógica do sidebar)
