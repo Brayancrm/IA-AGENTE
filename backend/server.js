@@ -1656,7 +1656,28 @@ async function handleIncomingMessage(userId, message, client) {
         const { cleaned: aiResponseStripped, fromMarker: stripeCheckoutFromMarker } =
           extractStripeCheckoutMarker(aiResponse);
         aiResponse = aiResponseStripped;
-        
+
+        let catalogClosingDeferred = false;
+        let textToSendClient = aiResponse;
+        if (!isAudioMessage) {
+          const mentionedEarly = detectMentionedProducts(aiResponse, aiResult.catalogItemsMap);
+          const sendProductImagesEarly = aiConfig?.showCatalogImagesWhenOffering !== false;
+          const catalogImagesOnceEarly = aiConfig?.catalogImagesOncePerConversation !== false;
+          const allowCatalogAuxEarly = userWantsCatalogAuxResend(messageText);
+          catalogClosingDeferred = await willSendFullCatalogImageCard(
+            userId,
+            sanitizedNumber,
+            mentionedEarly,
+            sendProductImagesEarly,
+            catalogImagesOnceEarly,
+            allowCatalogAuxEarly,
+            messageText
+          );
+          if (catalogClosingDeferred) {
+            textToSendClient = stripCatalogClosingQuestion(aiResponse);
+          }
+        }
+
         // Variável para armazenar o áudio da resposta (se houver)
         let responseAudioBase64 = null;
         
@@ -1703,17 +1724,17 @@ async function handleIncomingMessage(userId, message, client) {
               fs.unlinkSync(tempAudioFile);
             } else {
               // Se falhar, enviar como texto
-              await client.sendText(message.from, aiResponse);
+              await client.sendText(message.from, textToSendClient);
               console.log('✅ Resposta enviada como texto (fallback)');
             }
           } catch (audioError) {
             console.error('❌ Erro ao enviar áudio, enviando como texto:', audioError.message);
-            await client.sendText(message.from, aiResponse);
+            await client.sendText(message.from, textToSendClient);
           }
         } else {
           // Enviar resposta de texto normalmente
-          await client.sendText(message.from, aiResponse);
-          console.log('✅ Resposta enviada:', aiResponse);
+          await client.sendText(message.from, textToSendClient);
+          console.log('✅ Resposta enviada:', textToSendClient);
         }
         
         // Incrementar contador de uso
@@ -1724,7 +1745,7 @@ async function handleIncomingMessage(userId, message, client) {
         await responseRef.set({
           from: message.to || '',
           to: message.from || '',
-          body: aiResponse || '',
+          body: (isAudioMessage ? aiResponse : textToSendClient) || '',
           timestamp: new Date().toISOString(),
           type: isAudioMessage ? 'ptt' : 'chat',
           isFromMe: true,
@@ -1767,6 +1788,8 @@ async function handleIncomingMessage(userId, message, client) {
         const allowCatalogAuxResend = userWantsCatalogAuxResend(messageText);
         const catalogPhotoResendOnly =
           userWantsCatalogPhotoResend(messageText) && !userWantsCatalogFullCardResend(messageText);
+
+        let sentFullCatalogImageThisMessage = false;
         
         if (mentionedItems.length > 0) {
           console.log(`📸 Detectados ${mentionedItems.length} produto(s) na resposta`);
@@ -1875,6 +1898,10 @@ async function handleIncomingMessage(userId, message, client) {
                 }
                 
                 console.log(`✅ Imagem enviada: ${item.name}`);
+
+                if (!usePhotoOnlyCaption) {
+                  sentFullCatalogImageThisMessage = true;
+                }
                 
                 if (catalogImagesOncePerConversation) {
                   try {
@@ -1958,6 +1985,26 @@ async function handleIncomingMessage(userId, message, client) {
               console.error(`❌ Erro ao processar item ${item.name}:`, itemError.message);
               // Continuar mesmo se houver erro
             }
+          }
+
+          if (
+            catalogClosingDeferred &&
+            sentFullCatalogImageThisMessage &&
+            !isAudioMessage
+          ) {
+            await client.sendText(message.from, CATALOG_CLOSING_QUESTION_PT);
+            const closingRef = conversationMessagesRef(userId, sanitizedNumber).push();
+            await closingRef.set({
+              from: message.to || '',
+              to: message.from || '',
+              body: CATALOG_CLOSING_QUESTION_PT,
+              timestamp: new Date().toISOString(),
+              type: 'chat',
+              isFromMe: true,
+              aiGenerated: true,
+              catalogClosingAfterCard: true
+            });
+            console.log('✅ Pergunta de fecho enviada após card do catálogo');
           }
         }
         
@@ -2316,9 +2363,9 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       const catalogCardMinimalOffer = sendCatalogImages
         ? `\n\n🖼️ **PRIMEIRA OFERTA COM FOTO NO CATÁLOGO (OBRIGATÓRIO):**
 - O WhatsApp recebe **logo a seguir** à tua mensagem o **card** (imagem + legenda com preço e toda a descrição/benefícios). **Não escrevas** no texto: preço, valores em moeda, listas numeradas, bullets nem parágrafos que repitam o que já vai na legenda do card.
-- A tua mensagem fica **só** com: **(A)** saudação/apresentação (Felipe + Wplay/TV conforme as tuas regras), no máximo 2 frases curtas; **(B)** uma linha com o **nome completo exato** do produto/serviço tal como no catálogo (obrigatório para o sistema enviar o card); **(C)** **última linha, exatamente** esta frase, sem mudar uma palavra nem a pontuação: Deseja aproveitar esse valor e fechar agora?
+- A tua mensagem fica **só** com: **(A)** saudação/apresentação (Felipe + Wplay/TV conforme as tuas regras), no máximo 2 frases curtas; **(B)** uma linha com o **nome completo exato** do produto/serviço tal como no catálogo (obrigatório para o sistema enviar o card). **Não** coloques pergunta de fecho nem call-to-action nesta mensagem — o sistema envia **automaticamente**, numa mensagem separada **depois** do card, a frase exata: Deseja aproveitar esse valor e fechar agora?
 - **Não** antecipar nesta mensagem FAQs longas, “informações importantes”, compatibilidade de aparelhos ou suporte — isso só quando o cliente **perguntar** noutra mensagem.
-- **Única exceção à pergunta fixa (C):** se nesta mesma resposta for o momento do checkout Stripe, a **última linha** deve ser **apenas** ${STRIPE_CHECKOUT_MARKER} (o sistema trata o link); nesse caso não uses a pergunta fixa na mesma mensagem.`
+- **Checkout Stripe nesta mesma resposta:** se for o momento do pagamento, a **última linha** da tua mensagem deve ser **apenas** ${STRIPE_CHECKOUT_MARKER} (o sistema trata o link). Nesse caso também **não** escrevas a pergunta de fecho no texto.`
         : '';
       const payProvCat = (aiConfig?.paymentProvider || 'stripe').toLowerCase();
       const stripeMarkerInstr =
@@ -2340,7 +2387,7 @@ ${stripeMarkerInstr}
 
 🎯 **CRÍTICO - CONFIRMAÇÃO DE PRODUTO:**
 - Quando o cliente escolher/clicar em um produto, inclua sempre o **nome COMPLETO exato** na resposta.
-- Na **primeira oferta com card automático** (foto), o fecho é a **pergunta fixa** da regra 🖼️ (salvo última linha ser só o marcador de checkout Stripe para pagamento).
+- Na **primeira oferta com card automático** (foto), **não** ponha a pergunta de fecho no texto — o servidor envia-a após o card (regra 🖼️). Se for checkout Stripe na mesma resposta, última linha só com o marcador.
 - Noutras fases (ex.: quantidade, confirmação de pedido), pode perguntar de forma curta (ex.: unidades), mantendo o nome completo do item.
 - Isso é ESSENCIAL para o sistema processar o pedido corretamente
 
@@ -2494,6 +2541,83 @@ function detectMentionedProducts(responseText, catalogItemsMap) {
   }
 
   return mentionedItems;
+}
+
+/** Pergunta de fecho após o card (foto + legenda); enviada numa mensagem separada pelo servidor. */
+const CATALOG_CLOSING_QUESTION_PT = 'Deseja aproveitar esse valor e fechar agora?';
+
+function stripCatalogClosingQuestion(text) {
+  if (!text || typeof text !== 'string') return text;
+  let t = text.trimEnd();
+  const q = CATALOG_CLOSING_QUESTION_PT;
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const variants = [
+    new RegExp(`\\s*\\*\\*${escaped}\\*\\*\\s*$`, 'm'),
+    new RegExp(`\\s*${escaped}\\s*$`, 'm')
+  ];
+  for (const re of variants) {
+    const n = t.replace(re, '');
+    if (n !== t) {
+      t = n.trimEnd();
+      break;
+    }
+  }
+  return t;
+}
+
+/**
+ * Será enviado card completo (imagem + legenda longa) nesta rodada? (para mandar pergunta de fecho depois)
+ */
+async function willSendFullCatalogImageCard(
+  userId,
+  sanitizedNumber,
+  mentionedItems,
+  sendProductImages,
+  catalogImagesOncePerConversation,
+  allowCatalogAuxResend,
+  userMessageForAuxFlags
+) {
+  if (!sendProductImages || !mentionedItems || mentionedItems.length === 0) return false;
+  const metaRef = conversationAssistantMetaRef(userId, sanitizedNumber);
+  const catalogPhotoResendOnly =
+    userWantsCatalogPhotoResend(userMessageForAuxFlags) &&
+    !userWantsCatalogFullCardResend(userMessageForAuxFlags);
+
+  for (const item of mentionedItems) {
+    if (!item.image) continue;
+    const dedupeKey = catalogImageDedupeKey(item);
+    const auxSnap = await metaRef.child(`sent_catalog_aux/${dedupeKey}`).once('value');
+    const legacyImgSnap = await metaRef.child(`sent_catalog_images/${dedupeKey}`).once('value');
+    const hadPriorCatalogOffer = auxSnap.exists() || legacyImgSnap.exists();
+
+    if (catalogImagesOncePerConversation && !allowCatalogAuxResend && hadPriorCatalogOffer) {
+      continue;
+    }
+
+    let skipImageAlreadySent = false;
+    if (
+      catalogImagesOncePerConversation &&
+      sendProductImages &&
+      item.image &&
+      !allowCatalogAuxResend
+    ) {
+      const sentSnap = await metaRef.child(`sent_catalog_images/${dedupeKey}`).once('value');
+      if (sentSnap.exists()) skipImageAlreadySent = true;
+    }
+
+    const shouldSendProductImage =
+      item.image && sendProductImages && !skipImageAlreadySent;
+    const usePhotoOnlyCaption =
+      catalogImagesOncePerConversation &&
+      catalogPhotoResendOnly &&
+      hadPriorCatalogOffer &&
+      shouldSendProductImage;
+
+    if (shouldSendProductImage && !usePhotoOnlyCaption) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Função para buscar configurações (Firestore e Realtime Database)
