@@ -48,6 +48,7 @@
     "statusReserved": "RESERVADO",
     "statusSold": "VENDIDO",
     "soldTo": "Vendido a {{phone}} el {{date}}",
+    "soldToNoCrmMobile": "Sin teléfono en el CRM para este chat — añade el número real al contacto.",
     "buyerName": "Cliente",
     "buyerEmail": "Correo",
     "followUpGreeting": "Mensaje de seguimiento (Buenos días)",

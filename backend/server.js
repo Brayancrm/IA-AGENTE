@@ -4832,8 +4832,9 @@ function detectTvCredentialRecoveryIntent(text) {
 function isAffirmativeTvCredentialFollowup(userText, mergedAssistantContext) {
   const n = normalizeText(userText);
   if (!n || n.length > 120) return false;
+  /** Não usar "ok" — é gatilho genérico demais em conversas normais. */
   if (
-    !/^(sim|ok|pode|claro|isso|manda|envia|confirmo|confirmado|quero|desejo|prossiga|prosseguir|yes|si)\b/.test(
+    !/^(sim|pode|claro|isso|manda|envia|confirmo|confirmado|quero|desejo|prossiga|prosseguir|yes|si)\b/.test(
       n
     )
   ) {

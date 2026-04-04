@@ -103,6 +103,26 @@ function crmDigitsFromWhatsAppField(jidOrPhone) {
   return '';
 }
 
+/** Texto "Vendido para …": prioriza telefone do CRM quando a venda está em LID. */
+function formatTvSoldToDisplayPhone(item, crmHint, translate) {
+  const digits = (v) => String(v || '').replace(/\D/g, '');
+  const m = digits(crmHint?.mobilePhone);
+  if (m.length >= 8) return `+${m}`;
+  const jid = String(item.soldToWhatsAppJid || '').trim();
+  if (jid && /@c\.us$/i.test(jid)) {
+    const d = digits(jid);
+    if (d.length >= 10) return `+${d}`;
+  }
+  const st = String(item.soldToPhone || '').trim();
+  if (st && !/lid\s+whatsapp/i.test(st)) {
+    return st;
+  }
+  if (/@lid$/i.test(jid) && m.length < 8) {
+    return translate ? translate('tvLogins.soldToNoCrmMobile') : '—';
+  }
+  return st || jid || '—';
+}
+
 /** JID ou número@c.us para envio manual (WhatsApp). */
 function resolveTvLoginWhatsAppTo(item, reservedOrderHint) {
   const raw =
@@ -3313,18 +3333,19 @@ const DashboardWithFirebase = ({
         const jid = item.soldToWhatsAppJid || item.soldToPhone;
         const k = crmDigitsFromWhatsAppField(jid);
         if (!k) continue;
-        const nm = item.soldBuyerName ? String(item.soldBuyerName).trim() : '';
-        const em = item.soldBuyerEmail ? String(item.soldBuyerEmail).trim() : '';
-        const hasRealName = nm && nm !== 'Cliente WhatsApp';
-        if (hasRealName && em) continue;
         keysToFetch.add(k);
       }
       for (const k of keysToFetch) {
         try {
           const r = await fetch(`${BACKEND_URL}/api/customer-data/get/${user.uid}/${k}`);
           const j = await r.json();
-          if (j.success && j.data && (j.data.name || j.data.email)) {
-            byKey.set(k, { name: j.data.name || '', email: j.data.email || '' });
+          if (j.success && j.data) {
+            const mobile = j.data.mobilePhone ? String(j.data.mobilePhone).replace(/\D/g, '') : '';
+            byKey.set(k, {
+              name: j.data.name || '',
+              email: j.data.email || '',
+              mobilePhone: mobile.length >= 8 ? mobile : ''
+            });
           }
         } catch {
           /* ignore */
@@ -3337,7 +3358,7 @@ const DashboardWithFirebase = ({
         const jid = item.soldToWhatsAppJid || item.soldToPhone;
         const k = crmDigitsFromWhatsAppField(jid);
         const h = k ? byKey.get(k) : null;
-        if (h && (h.name || h.email)) next[item.id] = h;
+        if (h && (h.name || h.email || h.mobilePhone)) next[item.id] = h;
       }
       setTvLoginCrmHints(next);
     })();
@@ -7069,7 +7090,7 @@ const DashboardWithFirebase = ({
                                   {item.status === 'sold' && (
                                     <p style={{ margin: '6px 0 0 0', color: '#fca5a5', fontSize: '0.78rem' }}>
                                       {t('tvLogins.soldTo', {
-                                        phone: item.soldToPhone || '—',
+                                        phone: formatTvSoldToDisplayPhone(item, crmHint, t),
                                         date: item.soldAt ? new Date(item.soldAt).toLocaleString('pt-BR') : '—'
                                       })}
                                     </p>
