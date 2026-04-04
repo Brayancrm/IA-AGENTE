@@ -1057,6 +1057,89 @@ function sanitizePhoneNumber(phoneNumber) {
   return phoneNumber.replace(/[\.\#\$\[\]@]/g, '_');
 }
 
+/** Chave usada em customerData/{uid}/{key} — só dígitos do user (LID ou @c.us), alinhado a detectAndSaveCustomerData */
+function customerDataKeyFromChatKey(sanitizedOrJid) {
+  const d = String(sanitizedOrJid || '').replace(/\D/g, '');
+  if (d.length >= 8 && d.length <= 20) return d;
+  return String(sanitizedOrJid || '').trim() || 'unknown';
+}
+
+function waJidForSendFromCustomer(c) {
+  const j = c?.whatsappJid || c?.phone || c?.originalPhone || '';
+  return typeof j === 'string' ? j.trim() : '';
+}
+
+function formatSoldToDisplayFromCustomer(c) {
+  if (!c) return '—';
+  const mobile = c.mobilePhone ? String(c.mobilePhone).replace(/\D/g, '') : '';
+  if (mobile.length >= 8) return `+${mobile}`;
+  const jid = waJidForSendFromCustomer(c);
+  if (!jid) return '—';
+  if (/@c\.us$/i.test(jid)) {
+    const d = jid.replace(/@c\.us/i, '').replace(/\D/g, '');
+    return d ? `+${d}` : jid;
+  }
+  if (/@lid$/i.test(jid)) {
+    return `${jid} (LID WhatsApp — confirme o número no fluxo do agente)`;
+  }
+  return jid;
+}
+
+async function enrichOrderCustomerWithCrmMobile(sellerUserId, customer) {
+  const c = { ...(customer || {}) };
+  const existing = c.mobilePhone ? String(c.mobilePhone).replace(/\D/g, '') : '';
+  if (existing.length >= 8) return c;
+  const jid = waJidForSendFromCustomer(c);
+  const chatDigits = jid.replace(/\D/g, '');
+  if (chatDigits.length < 8) return c;
+  try {
+    const snap = await db.ref(`customerData/${sellerUserId}/${chatDigits}`).once('value');
+    const crm = snap.val();
+    const m = crm?.mobilePhone ? String(crm.mobilePhone).replace(/\D/g, '') : '';
+    if (m.length >= 8) return { ...c, mobilePhone: m };
+  } catch (e) {
+    console.warn('⚠️ enrichOrderCustomerWithCrmMobile:', e.message);
+  }
+  return c;
+}
+
+async function mirrorCustomerDataUnderMobileKey(userId, chatDigitsKey, waJid, customerData) {
+  const mobile = customerData?.mobilePhone ? String(customerData.mobilePhone).replace(/\D/g, '') : '';
+  if (!mobile || mobile.length < 10 || mobile === chatDigitsKey) return;
+  try {
+    const patch = {
+      mobilePhone: mobile,
+      phone: waJid,
+      originalPhone: waJid,
+      whatsappJid: waJid,
+      mirroredFromChatKey: chatDigitsKey,
+      updatedAt: customerData.updatedAt || new Date().toISOString()
+    };
+    if (customerData.name) patch.name = customerData.name;
+    if (customerData.email) patch.email = customerData.email;
+    await db.ref(`customerData/${userId}/${mobile}`).update(patch);
+    console.log('🔗 CRM também indexado pelo telefone móvel:', mobile);
+  } catch (e) {
+    console.warn('⚠️ mirrorCustomerDataUnderMobileKey:', e.message);
+  }
+}
+
+function resolveTvResendTargetJid(login, bodyPhone) {
+  if (bodyPhone && String(bodyPhone).includes('@')) return String(bodyPhone).trim();
+  if (bodyPhone) {
+    const d = String(bodyPhone).replace(/\D/g, '');
+    if (d.length >= 10) return `${d}@c.us`;
+  }
+  if (login?.soldToWhatsAppJid && String(login.soldToWhatsAppJid).includes('@')) {
+    return String(login.soldToWhatsAppJid).trim();
+  }
+  const st = login?.soldToPhone;
+  if (st && String(st).includes('@')) return String(st).trim();
+  const digits = String(st || '').replace(/\D/g, '');
+  if (digits.length >= 10) return `${digits}@c.us`;
+  return st || null;
+}
+
 /** JID do chat (ex.: 5511...@c.us) a partir do objeto id do WPPConnect */
 function widSerializedFromChat(chat) {
   const id = chat?.id;
@@ -1847,9 +1930,18 @@ async function replaceTemplateVariables(text, userId, contactNumber) {
   
   try {
     // Buscar dados do cliente no CRM
-    const customerDataRef = db.ref(`customerData/${userId}/${contactNumber}`);
+    const crmKey = customerDataKeyFromChatKey(contactNumber);
+    const customerDataRef = db.ref(`customerData/${userId}/${crmKey}`);
     const customerSnapshot = await customerDataRef.once('value');
     const customerData = customerSnapshot.val() || {};
+    
+    const telefoneFmt =
+      customerData.mobilePhone && String(customerData.mobilePhone).replace(/\D/g, '').length >= 8
+        ? `+${String(customerData.mobilePhone).replace(/\D/g, '')}`
+        : String(customerData.phone || customerData.originalPhone || '')
+            .replace(/@c\.us$/i, '')
+            .replace(/@lid$/i, ' (WhatsApp LID)')
+            .trim() || 'telefone não cadastrado';
     
     // Mapeamento de variáveis para dados do cliente
     const variables = {
@@ -1857,8 +1949,8 @@ async function replaceTemplateVariables(text, userId, contactNumber) {
       '{{nome}}': customerData.name || 'Cliente',
       '{{name}}': customerData.name || 'Cliente',
       '{{email}}': customerData.email || 'email não cadastrado',
-      '{{telefone}}': (customerData.phone || customerData.mobilePhone || '').replace('@c.us', '') || 'telefone não cadastrado',
-      '{{phone}}': (customerData.phone || customerData.mobilePhone || '').replace('@c.us', '') || 'telefone não cadastrado',
+      '{{telefone}}': telefoneFmt,
+      '{{phone}}': telefoneFmt,
       '{{cpf}}': customerData.cpfCnpj || 'CPF não cadastrado',
       '{{cpfCnpj}}': customerData.cpfCnpj || 'CPF/CNPJ não cadastrado',
       '{{cnpj}}': customerData.cpfCnpj || 'CNPJ não cadastrado',
@@ -2034,6 +2126,34 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
 
     // Construir prompt do sistema com contexto
     let systemPrompt = aiConfig.systemPrompt || 'Você é um assistente virtual prestativo.';
+
+    // Reconhecer cliente que já comprou (LID @lid vs número real no CRM)
+    const crmKeyCtx = customerDataKeyFromChatKey(contactNumber);
+    const crmSnapCtx = await db.ref(`customerData/${userId}/${crmKeyCtx}`).once('value');
+    const crmCtx = crmSnapCtx.val() || {};
+    const mobileCtx = crmCtx.mobilePhone ? String(crmCtx.mobilePhone).replace(/\D/g, '') : '';
+    if (tvLoginsSnapshot.exists()) {
+      const planNames = [];
+      tvLoginsSnapshot.forEach((child) => {
+        const v = child.val() || {};
+        if (v.status !== 'sold') return;
+        const jidSrc = v.soldToWhatsAppJid || v.soldToPhone || '';
+        const jDigits = String(jidSrc).replace(/\D/g, '');
+        const blobD = `${v.soldToPhone || ''}|${v.soldToWhatsAppJid || ''}`.replace(/\D/g, '');
+        const matchChat = crmKeyCtx && jDigits && jDigits === crmKeyCtx;
+        const matchMobile = mobileCtx.length >= 8 && blobD.includes(mobileCtx);
+        if (matchChat || matchMobile) {
+          planNames.push(v.planName || v.planKey || 'TV/Wplay');
+        }
+      });
+      if (planNames.length) {
+        systemPrompt += `\n\n📌 **Cliente / pagamento (uso interno):** ${
+          mobileCtx ? `Telefone salvo no CRM deste chat: +${mobileCtx}. ` : ''
+        }Consta venda de acesso já registrada para este WhatsApp ou este número: ${[...new Set(planNames)].join(
+          ', '
+        )}. Se o cliente disser que já comprou, perguntar se é cliente ou citar o próprio número (${mobileCtx ? `ex.: +${mobileCtx}` : 'número informado no cadastro'}), confirme que consta como cliente com acesso — não diga que não encontra o cadastro por causa só do formato do WhatsApp (LID).`;
+      }
+    }
     
     // IMPORTANTE: NÃO substituir variáveis no systemPrompt ainda!
     // As variáveis {{nome}}, {{email}}, etc. devem permanecer no prompt
@@ -3484,6 +3604,7 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
       
       // Usar update() ao invés de set() para não sobrescrever dados existentes
       await customerRef.update(customerData);
+      await mirrorCustomerDataUnderMobileKey(userId, phoneNumber, phone, customerData);
       console.log('💾 Dados do cliente atualizados no Firebase');
       
       // Log de resumo dos dados coletados
@@ -4227,8 +4348,13 @@ async function saveTvMessageToConversation(masterUserId, customerPhone, body) {
 async function deliverTvLoginsForPaidOrder(sellerUserId, orderId, orderData) {
   try {
     if (!sellerUserId || !orderId || !orderData?.items || !Array.isArray(orderData.items)) return;
-    const phone = orderData.customer?.phone || orderData.customer?.mobilePhone;
-    if (!phone) return;
+    const customer = await enrichOrderCustomerWithCrmMobile(sellerUserId, orderData.customer);
+    const deliveryJid = waJidForSendFromCustomer(customer);
+    if (!deliveryJid) {
+      console.warn('⚠️ [TV LOGIN] Pedido pago sem JID WhatsApp (customer.phone)');
+      return;
+    }
+    const soldToDisplay = formatSoldToDisplayFromCustomer(customer);
 
     const { tvAppDownloadUrl } = await getAssistantPaymentExtras(sellerUserId);
     const loginsSnap = await db.ref(`users/data/${sellerUserId}/tv_logins`).once('value');
@@ -4246,14 +4372,15 @@ async function deliverTvLoginsForPaidOrder(sellerUserId, orderId, orderData) {
           console.error('❌ [TV LOGIN] Sem estoque para plano:', planKeyNorm);
           await sendTvLoginWhatsApp(
             sellerUserId,
-            phone,
+            deliveryJid,
             `⚠️ Pagamento confirmado, mas não há login disponível no estoque para o plano (${line.name}). Nossa equipe vai te atender em instantes.`
           );
           continue;
         }
         await markTvLoginAllocated(sellerUserId, login.id, {
           soldOrderId: orderId,
-          soldToPhone: phone,
+          soldToPhone: soldToDisplay,
+          soldToWhatsAppJid: deliveryJid,
           soldItemName: line.name || null,
           deliveryChannel: 'order_paid'
         });
@@ -4265,8 +4392,8 @@ async function deliverTvLoginsForPaidOrder(sellerUserId, orderId, orderData) {
           `Senha: ${login.password}\n\n` +
           `_Guarde estes dados com segurança. Em caso de renovação mensal, seu acesso permanece ativo enquanto a assinatura estiver em dia._`;
         msg = appendTvAppDownloadFooter(msg, tvAppDownloadUrl);
-        await sendTvLoginWhatsApp(sellerUserId, phone, msg);
-        await saveTvMessageToConversation(sellerUserId, phone, msg);
+        await sendTvLoginWhatsApp(sellerUserId, deliveryJid, msg);
+        await saveTvMessageToConversation(sellerUserId, deliveryJid, msg);
       }
     }
   } catch (error) {
@@ -4298,21 +4425,26 @@ async function handleTvSubscriptionStripeInvoice({ buyerUserId, subscriptionKey,
       return;
     }
 
-    const phone =
-      subData.customer?.phone ||
-      subData.customer?.mobilePhone ||
-      subData.customer?.originalPhone ||
-      '';
-    if (!phone) {
-      console.error('❌ [TV LOGIN] Assinatura sem telefone do cliente.');
+    const customerMerged = await enrichOrderCustomerWithCrmMobile(sellerUid, {
+      ...subData.customer,
+      phone: subData.customer?.phone || subData.customer?.originalPhone || ''
+    });
+    let deliveryJid = waJidForSendFromCustomer(customerMerged);
+    if (!deliveryJid && subData.customer?.mobilePhone) {
+      const d = String(subData.customer.mobilePhone).replace(/\D/g, '');
+      if (d.length >= 10) deliveryJid = `${d}@c.us`;
+    }
+    if (!deliveryJid) {
+      console.error('❌ [TV LOGIN] Assinatura sem JID WhatsApp ou telefone do cliente.');
       return;
     }
+    const soldToDisplay = formatSoldToDisplayFromCustomer(customerMerged);
 
     const billingReason = invoice.billing_reason || '';
     const planKeyNorm = normalizePlanKey(plan.tvPlanKey);
 
     if (billingReason === 'subscription_cycle') {
-      await sendTvSubscriptionRenewalMessage(sellerUid, phone, plan.name);
+      await sendTvSubscriptionRenewalMessage(sellerUid, deliveryJid, plan.name);
       return;
     }
 
@@ -4329,7 +4461,7 @@ async function handleTvSubscriptionStripeInvoice({ buyerUserId, subscriptionKey,
       console.error('❌ [TV LOGIN] Sem estoque TV para assinatura, plano:', planKeyNorm);
       await sendTvLoginWhatsApp(
         sellerUid,
-        phone,
+        deliveryJid,
         `⚠️ Pagamento recebido, mas não há login disponível no estoque (${plan.name}). Entraremos em contato.`
       );
       return;
@@ -4337,7 +4469,8 @@ async function handleTvSubscriptionStripeInvoice({ buyerUserId, subscriptionKey,
 
     const stripeSubId = subData.stripeSubscriptionId || invoice.subscription || null;
     await markTvLoginAllocated(sellerUid, login.id, {
-      soldToPhone: phone,
+      soldToPhone: soldToDisplay,
+      soldToWhatsAppJid: deliveryJid,
       soldItemName: plan.name || null,
       stripeSubscriptionId: stripeSubId,
       buyerUserId,
@@ -4358,8 +4491,8 @@ async function handleTvSubscriptionStripeInvoice({ buyerUserId, subscriptionKey,
       `Senha: ${login.password}\n\n` +
       `_Cobrança recorrente mensal: a cada pagamento confirmado você recebe confirmação; os dados de acesso são os mesmos._`;
     msg = appendTvAppDownloadFooter(msg, tvAppDownloadUrl);
-    await sendTvLoginWhatsApp(sellerUid, phone, msg);
-    await saveTvMessageToConversation(sellerUid, phone, msg);
+    await sendTvLoginWhatsApp(sellerUid, deliveryJid, msg);
+    await saveTvMessageToConversation(sellerUid, deliveryJid, msg);
   } catch (error) {
     console.error('❌ [TV LOGIN] Erro na entrega (assinatura):', error.message);
   }
@@ -4621,12 +4754,20 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
       return;
     }
 
+    const orderMobileDigits =
+      savedCustomerData?.mobilePhone &&
+      String(savedCustomerData.mobilePhone).replace(/\D/g, '').length >= 8
+        ? String(savedCustomerData.mobilePhone).replace(/\D/g, '')
+        : undefined;
+
     await orderRef.set({
       orderId: orderId,
       stripeSessionId: result.sessionId,
       customer: {
         name: customerData.name || 'Cliente',
-        phone: customerData.originalPhone || customerData.phone,
+        phone: phone,
+        whatsappJid: phone,
+        ...(orderMobileDigits && { mobilePhone: orderMobileDigits }),
         ...(customerData.email && { email: customerData.email })
       },
       items: enrichedOrderItems,
@@ -6042,10 +6183,10 @@ app.post('/api/tv/resend-credentials', async (req, res) => {
     if (!login || !login.login || !login.password) {
       return res.status(404).json({ error: 'Login não encontrado' });
     }
-    const targetPhone = phone || login.soldToPhone;
+    const targetPhone = resolveTvResendTargetJid(login, phone);
     if (!targetPhone) {
       return res.status(400).json({
-        error: 'Informe o telefone (phone) ou use um login já vendido com soldToPhone'
+        error: 'Informe o telefone (phone) ou use um login já vendido com soldToWhatsAppJid/soldToPhone'
       });
     }
     const { tvAppDownloadUrl } = await getAssistantPaymentExtras(userId);

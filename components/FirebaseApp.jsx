@@ -4476,7 +4476,7 @@ const DashboardWithFirebase = ({
         body: JSON.stringify({
           userId: user.uid,
           tvLoginId: item.id,
-          phone: item.soldToPhone || undefined
+          phone: item.soldToWhatsAppJid || item.soldToPhone || undefined
         })
       });
       const data = await response.json().catch(() => ({}));
@@ -6915,7 +6915,7 @@ const DashboardWithFirebase = ({
                                 {item.status === 'sold' ? (
                                   <>
                                     <button type="button" onClick={() => markTvLoginAsAvailable(item)} style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Marcar disponivel</button>
-                                    {item.soldToPhone ? (
+                                    {item.soldToWhatsAppJid || item.soldToPhone ? (
                                       <button type="button" onClick={() => resendTvCredentials(item)} style={{ backgroundColor: '#7c3aed', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>{t('tvLogins.resend')}</button>
                                     ) : null}
                                   </>
