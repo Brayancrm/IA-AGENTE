@@ -1087,18 +1087,24 @@ function formatSoldToDisplayFromCustomer(c) {
 
 async function enrichOrderCustomerWithCrmMobile(sellerUserId, customer) {
   const c = { ...(customer || {}) };
-  const existing = c.mobilePhone ? String(c.mobilePhone).replace(/\D/g, '') : '';
-  if (existing.length >= 8) return c;
   const jid = waJidForSendFromCustomer(c);
   const chatDigits = jid.replace(/\D/g, '');
-  if (chatDigits.length < 8) return c;
-  try {
-    const snap = await db.ref(`customerData/${sellerUserId}/${chatDigits}`).once('value');
-    const crm = snap.val();
-    const m = crm?.mobilePhone ? String(crm.mobilePhone).replace(/\D/g, '') : '';
-    if (m.length >= 8) return { ...c, mobilePhone: m };
-  } catch (e) {
-    console.warn('⚠️ enrichOrderCustomerWithCrmMobile:', e.message);
+  if (chatDigits.length >= 8) {
+    try {
+      const snap = await db.ref(`customerData/${sellerUserId}/${chatDigits}`).once('value');
+      const crm = snap.val();
+      if (crm) {
+        const m = crm?.mobilePhone ? String(crm.mobilePhone).replace(/\D/g, '') : '';
+        if (m.length >= 8) {
+          const cur = c.mobilePhone ? String(c.mobilePhone).replace(/\D/g, '') : '';
+          if (cur.length < 8) c.mobilePhone = m;
+        }
+        if (crm.name && !c.name) c.name = crm.name;
+        if (crm.email && !c.email) c.email = crm.email;
+      }
+    } catch (e) {
+      console.warn('⚠️ enrichOrderCustomerWithCrmMobile:', e.message);
+    }
   }
   return c;
 }
@@ -4473,7 +4479,9 @@ async function deliverTvLoginsForPaidOrder(sellerUserId, orderId, orderData) {
           soldToPhone: soldToDisplay,
           soldToWhatsAppJid: deliveryJid,
           soldItemName: line.name || null,
-          deliveryChannel: 'order_paid'
+          deliveryChannel: 'order_paid',
+          soldBuyerName: customer?.name ? String(customer.name).trim() || null : null,
+          soldBuyerEmail: customer?.email ? String(customer.email).trim() || null : null
         });
         let msg =
           `✅ *Pagamento confirmado!*\n\n` +
@@ -4566,7 +4574,9 @@ async function handleTvSubscriptionStripeInvoice({ buyerUserId, subscriptionKey,
       stripeSubscriptionId: stripeSubId,
       buyerUserId,
       deliveryChannel: 'subscription_first_invoice',
-      recurring: true
+      recurring: true,
+      soldBuyerName: customerMerged?.name ? String(customerMerged.name).trim() || null : null,
+      soldBuyerEmail: customerMerged?.email ? String(customerMerged.email).trim() || null : null
     });
 
     await subRef.update({

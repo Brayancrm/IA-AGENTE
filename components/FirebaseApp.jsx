@@ -96,6 +96,29 @@ function getTvLoginDisplayStatus(item, nowMs = Date.now()) {
   return 'available';
 }
 
+/** Dígitos do chat para API customerData (LID ou @c.us), alinhado ao backend. */
+function crmDigitsFromWhatsAppField(jidOrPhone) {
+  const d = String(jidOrPhone || '').replace(/\D/g, '');
+  if (d.length >= 8 && d.length <= 20) return d;
+  return '';
+}
+
+/** JID ou número@c.us para envio manual (WhatsApp). */
+function resolveTvLoginWhatsAppTo(item, reservedOrderHint) {
+  const raw =
+    item?.soldToWhatsAppJid ||
+    item?.soldToPhone ||
+    (reservedOrderHint && (reservedOrderHint.whatsappJid || reservedOrderHint.phone)) ||
+    '';
+  const s = String(raw).trim();
+  if (!s) return null;
+  const jidMatch = s.match(/\d{8,20}@(c\.us|lid)\b/i);
+  if (jidMatch) return jidMatch[0].replace(/@C\.US$/, '@c.us').replace(/@LID$/, '@lid');
+  const d = s.replace(/\D/g, '');
+  if (d.length >= 10) return `${d}@c.us`;
+  return null;
+}
+
 const PLAN_CURRENCY_OPTIONS = ['R$', '$', '€'];
 
 const normalizePlanCurrency = (currency) => (
@@ -3191,6 +3214,10 @@ const DashboardWithFirebase = ({
   const [tvLoginSearch, setTvLoginSearch] = useState('');
   const [savingTvLogin, setSavingTvLogin] = useState(false);
   const [tvPwVisible, setTvPwVisible] = useState({});
+  /** CRM por login TV (quando Firebase ainda não tem soldBuyerName/email). */
+  const [tvLoginCrmHints, setTvLoginCrmHints] = useState({});
+  /** Pedido Stripe pendente ligado à reserva (nome/e-mail/JID). */
+  const [tvReservedOrderHints, setTvReservedOrderHints] = useState({});
   const [reportsRange, setReportsRange] = useState(() => {
     const end = new Date();
     const start = new Date();
@@ -3271,6 +3298,86 @@ const DashboardWithFirebase = ({
 
     return () => off(tvLoginsRef);
   }, [database, user?.isMaster, user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid || !user?.isMaster || currentPage !== 'tv-logins' || !tvLogins.length) {
+      setTvLoginCrmHints({});
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      const byKey = new Map();
+      const keysToFetch = new Set();
+      for (const item of tvLogins) {
+        if (item.status !== 'sold') continue;
+        const jid = item.soldToWhatsAppJid || item.soldToPhone;
+        const k = crmDigitsFromWhatsAppField(jid);
+        if (!k) continue;
+        const nm = item.soldBuyerName ? String(item.soldBuyerName).trim() : '';
+        const em = item.soldBuyerEmail ? String(item.soldBuyerEmail).trim() : '';
+        const hasRealName = nm && nm !== 'Cliente WhatsApp';
+        if (hasRealName && em) continue;
+        keysToFetch.add(k);
+      }
+      for (const k of keysToFetch) {
+        try {
+          const r = await fetch(`${BACKEND_URL}/api/customer-data/get/${user.uid}/${k}`);
+          const j = await r.json();
+          if (j.success && j.data && (j.data.name || j.data.email)) {
+            byKey.set(k, { name: j.data.name || '', email: j.data.email || '' });
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      if (cancelled) return;
+      const next = {};
+      for (const item of tvLogins) {
+        if (item.status !== 'sold') continue;
+        const jid = item.soldToWhatsAppJid || item.soldToPhone;
+        const k = crmDigitsFromWhatsAppField(jid);
+        const h = k ? byKey.get(k) : null;
+        if (h && (h.name || h.email)) next[item.id] = h;
+      }
+      setTvLoginCrmHints(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid, user?.isMaster, currentPage, tvLogins, BACKEND_URL]);
+
+  useEffect(() => {
+    if (!database || !user?.uid || !user?.isMaster || currentPage !== 'tv-logins' || !tvLogins.length) {
+      setTvReservedOrderHints({});
+      return undefined;
+    }
+    let cancelled = false;
+    const nowMs = Date.now();
+    (async () => {
+      const next = {};
+      for (const item of tvLogins) {
+        if (item.status !== 'reserved' || !item.reservedOrderId) continue;
+        if (!isTvLoginReservedStillActive(item, nowMs)) continue;
+        try {
+          const snap = await get(ref(database, `orders/${user.uid}/${item.reservedOrderId}/customer`));
+          if (snap.exists()) {
+            const c = snap.val() || {};
+            next[item.id] = {
+              name: c.name || '',
+              email: c.email || '',
+              whatsappJid: c.whatsappJid || c.phone || ''
+            };
+          }
+        } catch {
+          /* permissões / offline */
+        }
+      }
+      if (!cancelled) setTvReservedOrderHints(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [database, user?.uid, user?.isMaster, currentPage, tvLogins, tvReservedTick]);
 
   useEffect(() => {
     if (!user?.isMaster) return undefined;
@@ -4453,6 +4560,8 @@ const DashboardWithFirebase = ({
         soldOrderId: null,
         soldToPhone: null,
         soldItemName: null,
+        soldBuyerName: null,
+        soldBuyerEmail: null,
         stripeSubscriptionId: null,
         buyerUserId: null,
         deliveryChannel: null,
@@ -4484,6 +4593,65 @@ const DashboardWithFirebase = ({
       showToast(t('toast.tvResendOk'), 'success');
     } catch (error) {
       showToast(t('toast.tvResendError'), 'error');
+    }
+  };
+
+  const sendTvFollowUpGreeting = async (item, reservedOrderHint) => {
+    if (!user?.uid || typeof window === 'undefined') return;
+    const to = resolveTvLoginWhatsAppTo(item, reservedOrderHint);
+    if (!to) {
+      showToast(t('toast.tvGreetingNoTarget'), 'error');
+      return;
+    }
+    const crmHint = tvLoginCrmHints[item.id];
+    const pickGreetName = (...cands) => {
+      for (const x of cands) {
+        const s = x ? String(x).trim() : '';
+        if (s && s !== 'Cliente WhatsApp') return s;
+      }
+      return '';
+    };
+    const fullName = pickGreetName(
+      item.soldBuyerName,
+      crmHint?.name,
+      reservedOrderHint?.name
+    );
+    const name = fullName ? fullName.split(/\s+/)[0] : '';
+    let defaultMsg;
+    if (locale === 'en') {
+      defaultMsg = name
+        ? `Good morning, ${name}! Can I help you finish your order?`
+        : 'Good morning! Can I help you finish your order?';
+    } else if (locale === 'es') {
+      defaultMsg = name
+        ? `¡Buenos días, ${name}! ¿Te ayudo a concluir tu pedido?`
+        : '¡Buenos días! ¿Te ayudo a concluir tu pedido?';
+    } else if (locale === 'it') {
+      defaultMsg = name
+        ? `Buongiorno, ${name}! Posso aiutarti a completare l'ordine?`
+        : `Buongiorno! Posso aiutarti a completare l'ordine?`;
+    } else {
+      defaultMsg = name
+        ? `Bom dia, ${name}! Posso te ajudar a concluir seu pedido?`
+        : 'Bom dia! Posso te ajudar a concluir seu pedido?';
+    }
+    const msg = window.prompt(t('tvLogins.greetingPrompt'), defaultMsg);
+    if (!msg || !String(msg).trim()) return;
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/messages/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.uid,
+          to,
+          message: String(msg).trim()
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Erro');
+      showToast(t('toast.messageSent'), 'success');
+    } catch (error) {
+      showToast(error.message || t('toast.messageSendError'), 'error');
     }
   };
 
@@ -6853,6 +7021,32 @@ const DashboardWithFirebase = ({
                         {group.items.map((item) => {
                           const sb = statusBadge(item);
                           const showPw = !!tvPwVisible[item.id];
+                          const orderHint = item.status === 'reserved' ? tvReservedOrderHints[item.id] : null;
+                          const crmHint = tvLoginCrmHints[item.id];
+                          const pickBuyerName = (...cands) => {
+                            for (const x of cands) {
+                              const s = x ? String(x).trim() : '';
+                              if (s && s !== 'Cliente WhatsApp') return s;
+                            }
+                            return '';
+                          };
+                          const buyerName = pickBuyerName(
+                            item.soldBuyerName,
+                            crmHint?.name,
+                            orderHint?.name
+                          );
+                          const buyerEmail =
+                            (item.soldBuyerEmail && String(item.soldBuyerEmail).trim()) ||
+                            (crmHint?.email && String(crmHint.email).trim()) ||
+                            (orderHint?.email && String(orderHint.email).trim()) ||
+                            '';
+                          const canFollowUp =
+                            (item.status === 'sold' ||
+                              (item.status === 'reserved' && isTvLoginReservedStillActive(item, nowMs))) &&
+                            !!resolveTvLoginWhatsAppTo(
+                              item,
+                              item.status === 'reserved' ? orderHint : null
+                            );
                           return (
                             <div key={item.id} style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px', backgroundColor: '#0f1419', marginBottom: '8px' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
@@ -6880,6 +7074,23 @@ const DashboardWithFirebase = ({
                                       })}
                                     </p>
                                   )}
+                                  {(item.status === 'sold' ||
+                                    (item.status === 'reserved' && isTvLoginReservedStillActive(item, nowMs))) &&
+                                  (buyerName || buyerEmail) ? (
+                                    <p style={{ margin: '6px 0 0 0', color: '#a5b4fc', fontSize: '0.78rem', lineHeight: 1.45 }}>
+                                      {buyerName ? (
+                                        <>
+                                          {t('tvLogins.buyerName')}: {buyerName}
+                                          <br />
+                                        </>
+                                      ) : null}
+                                      {buyerEmail ? (
+                                        <>
+                                          {t('tvLogins.buyerEmail')}: {buyerEmail}
+                                        </>
+                                      ) : null}
+                                    </p>
+                                  ) : null}
                                   {item.status === 'reserved' && item.reservedUntil && isTvLoginReservedStillActive(item, nowMs) ? (
                                     <p style={{ margin: '4px 0 0 0', color: '#fcd34d', fontSize: '0.75rem' }}>
                                       {t('tvLogins.reservationUntil', {
@@ -6922,6 +7133,27 @@ const DashboardWithFirebase = ({
                                 ) : (
                                   <button type="button" onClick={() => markTvLoginAsSold(item)} style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Marcar vendido</button>
                                 )}
+                                {canFollowUp ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      sendTvFollowUpGreeting(
+                                        item,
+                                        item.status === 'reserved' ? orderHint : null
+                                      )
+                                    }
+                                    style={{
+                                      backgroundColor: '#0d9488',
+                                      color: '#fff',
+                                      border: 'none',
+                                      borderRadius: '8px',
+                                      padding: '6px 10px',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {t('tvLogins.followUpGreeting')}
+                                  </button>
+                                ) : null}
                                 <button type="button" onClick={() => deleteTvLogin(item)} style={{ backgroundColor: '#6b7280', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Excluir</button>
                               </div>
                             </div>

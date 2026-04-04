@@ -48,6 +48,10 @@
     "statusReserved": "RESERVADO",
     "statusSold": "VENDIDO",
     "soldTo": "Vendido para {{phone}} em {{date}}",
+    "buyerName": "Cliente",
+    "buyerEmail": "E-mail",
+    "followUpGreeting": "Mensagem de follow-up (Bom dia)",
+    "greetingPrompt": "Revise a mensagem e confirme o envio pelo WhatsApp (Cancelar = não enviar):",
     "groupByPlan": "Plano",
     "reservationUntil": "Reserva até {{date}}",
     "reservationExpired": "Reserva expirada — disponível para novo checkout."
@@ -196,7 +200,8 @@
     "flowTemplateSaveError": "Erro ao salvar template",
     "flowEditorExportError": "Erro ao exportar conteúdo do editor",
     "tvResendOk": "Credenciais reenviadas por WhatsApp.",
-    "tvResendError": "Não foi possível reenviar as credenciais."
+    "tvResendError": "Não foi possível reenviar as credenciais.",
+    "tvGreetingNoTarget": "Não há WhatsApp (JID) para enviar. Confira o pedido ou o login vendido."
   },
   "locked": {
     "title": "Funcionalidade Bloqueada",

@@ -48,6 +48,10 @@
     "statusReserved": "RISERVATO",
     "statusSold": "VENDUTO",
     "soldTo": "Venduto a {{phone}} il {{date}}",
+    "buyerName": "Cliente",
+    "buyerEmail": "Email",
+    "followUpGreeting": "Messaggio di follow-up (Buongiorno)",
+    "greetingPrompt": "Rivedi il messaggio e conferma l'invio su WhatsApp (Annulla = non inviare):",
     "groupByPlan": "Piano",
     "reservationUntil": "Prenotazione fino al {{date}}",
     "reservationExpired": "Prenotazione scaduta — disponibile per un nuovo checkout."
@@ -196,7 +200,8 @@
     "flowTemplateSaveError": "Errore nel salvataggio del template",
     "flowEditorExportError": "Errore nell'esportazione del contenuto editor",
     "tvResendOk": "Credenziali reinviate su WhatsApp.",
-    "tvResendError": "Impossibile reinviare le credenziali."
+    "tvResendError": "Impossibile reinviare le credenziali.",
+    "tvGreetingNoTarget": "Nessun WhatsApp (JID) a cui inviare. Controlla l'ordine o il login venduto."
   },
   "locked": {
     "title": "Funzione bloccata",

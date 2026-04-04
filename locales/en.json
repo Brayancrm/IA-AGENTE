@@ -48,6 +48,10 @@
     "statusReserved": "RESERVED",
     "statusSold": "SOLD",
     "soldTo": "Sold to {{phone}} on {{date}}",
+    "buyerName": "Customer",
+    "buyerEmail": "Email",
+    "followUpGreeting": "Follow-up message (Good morning)",
+    "greetingPrompt": "Review the message and confirm sending via WhatsApp (Cancel = do not send):",
     "groupByPlan": "Plan",
     "reservationUntil": "Reserved until {{date}}",
     "reservationExpired": "Reservation expired — available for a new checkout."
@@ -196,7 +200,8 @@
     "flowTemplateSaveError": "Error saving template",
     "flowEditorExportError": "Error exporting editor content",
     "tvResendOk": "Credentials resent on WhatsApp.",
-    "tvResendError": "Could not resend credentials."
+    "tvResendError": "Could not resend credentials.",
+    "tvGreetingNoTarget": "No WhatsApp (JID) to send to. Check the order or sold login."
   },
   "locked": {
     "title": "Feature locked",
