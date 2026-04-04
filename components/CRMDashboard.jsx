@@ -85,10 +85,134 @@ async function deleteCustomerDataCascade(database, userId, customerKey) {
   }
 }
 
+function crmDigitsOnly(v) {
+  return String(v || '').replace(/\D/g, '');
+}
+
+function clienteContactDigitCandidates(cliente) {
+  const out = [];
+  const add = (x) => {
+    const d = crmDigitsOnly(x);
+    if (d.length >= 8 && d.length <= 20) out.push(d);
+  };
+  if (!cliente) return out;
+  add(cliente.id);
+  add(cliente.phone);
+  add(cliente.mobilePhone);
+  add(cliente.originalPhone);
+  add(cliente.whatsappJid);
+  add(cliente.waJidStored);
+  return [...new Set(out)];
+}
+
+/** WhatsApp real na UI: prioriza mobilePhone do CRM, depois @c.us; nunca mostra LID como se fosse número. */
+function formatClienteWhatsAppDisplay(cliente) {
+  if (!cliente) return '';
+  const m = crmDigitsOnly(cliente.mobilePhone);
+  if (m.length >= 8) return `+${m}`;
+  const jid = String(cliente.whatsappJid || cliente.originalPhone || cliente.waJidStored || '').trim();
+  if (/@c\.us$/i.test(jid)) {
+    const d = crmDigitsOnly(jid);
+    if (d.length >= 10) return `+${d}`;
+  }
+  if (/@lid$/i.test(jid)) {
+    return 'Cadastre o número de WhatsApp no CRM';
+  }
+  const keyD = crmDigitsOnly(cliente.phone || cliente.id);
+  if (keyD.length >= 10 && keyD.length <= 13) return `+${keyD}`;
+  if (keyD.length >= 8) {
+    return 'Cadastre o número de WhatsApp no CRM';
+  }
+  return '—';
+}
+
+/** Subtítulo / badge: referência interna do CRM (chave Firebase), não o status “lead”. */
+function formatClienteCrmRef(cliente) {
+  const id = String(cliente?.id || cliente?.phone || '').trim();
+  return id || '—';
+}
+
+function customerPayloadMatchesCliente(cust, cliente) {
+  if (!cust || !cliente) return false;
+  const targets = new Set(clienteContactDigitCandidates(cliente));
+  if (targets.size === 0) return false;
+  const cand = [
+    crmDigitsOnly(cust.mobilePhone),
+    crmDigitsOnly(cust.phone),
+    crmDigitsOnly(cust.whatsappJid),
+    crmDigitsOnly(cust.originalPhone)
+  ].filter((d) => d.length >= 8);
+  return cand.some((c) => targets.has(c));
+}
+
+function buildHistoricoComprasCliente({ vendas, pedidos, subscriptions, selectedCliente }) {
+  const rows = [];
+
+  vendas
+    .filter((v) => v.clientId === selectedCliente.id)
+    .forEach((v) => {
+      rows.push({
+        id: `sale-${v.id}`,
+        source: 'crm',
+        createdAt: v.createdAt,
+        total: Number(v.total) || 0,
+        items: Array.isArray(v.items) ? v.items : [],
+        paymentMethod: v.paymentMethod || '',
+        label: null
+      });
+    });
+
+  pedidos
+    .filter(
+      (p) =>
+        p.status === 'paid' &&
+        customerPayloadMatchesCliente(p.customer, selectedCliente)
+    )
+    .forEach((p) => {
+      const rawItems = Array.isArray(p.items) ? p.items : [];
+      const items = rawItems.map((i) => ({
+        name: i.name || 'Item',
+        quantidade: i.quantity ?? i.quantidade ?? 1
+      }));
+      rows.push({
+        id: `order-${p.id}`,
+        source: 'stripe',
+        createdAt: p.paidAt || p.createdAt,
+        total: Number(p.totalValue ?? p.total ?? 0) || 0,
+        items,
+        paymentMethod: p.paymentProvider || 'stripe',
+        label: 'Pedido (Stripe)'
+      });
+    });
+
+  subscriptions
+    .filter(
+      (s) =>
+        customerPayloadMatchesCliente(s.customer, selectedCliente) &&
+        s.status !== 'pending_payment'
+    )
+    .forEach((s) => {
+      const planTitle = s.planName ? String(s.planName).trim() : '';
+      rows.push({
+        id: `sub-${s.id}`,
+        source: 'wplay',
+        createdAt: s.lastPaymentDate || s.createdAt,
+        total: Number(s.value) || 0,
+        items: [{ name: planTitle || 'Assinatura', quantidade: 1 }],
+        paymentMethod: s.paymentProvider || 'stripe',
+        label: planTitle ? `Assinatura: ${planTitle}` : 'Assinatura (Stripe)'
+      });
+    });
+
+  rows.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  return rows;
+}
+
 const CRMDashboard = ({ user, database, showToast }) => {
   const [activeTab, setActiveTab] = useState('visao-geral');
   const [clientes, setClientes] = useState([]);
   const [pedidos, setPedidos] = useState([]);
+  const [subscriptions, setSubscriptions] = useState([]);
   const [conversas, setConversas] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -162,7 +286,8 @@ const CRMDashboard = ({ user, database, showToast }) => {
       await Promise.all([
         loadClientes(),
         loadPedidos(),
-        loadConversas()
+        loadConversas(),
+        loadSubscriptions()
       ]);
       console.log('[CRM] Dados essenciais carregados!');
       
@@ -204,12 +329,20 @@ const CRMDashboard = ({ user, database, showToast }) => {
         const clientesList = [];
         if (snapshot.exists()) {
           const data = snapshot.val();
-          Object.keys(data).forEach(phone => {
-            const cliente = data[phone];
+          Object.keys(data).forEach((firebaseKey) => {
+            const cliente = data[firebaseKey];
             if (cliente.mirroredFromChatKey) return;
+            const storedWa =
+              typeof cliente.phone === 'string' && cliente.phone.includes('@')
+                ? cliente.phone
+                : '';
             clientesList.push({
-              id: phone,
-              phone: phone,
+              id: firebaseKey,
+              phone: firebaseKey,
+              mobilePhone: cliente.mobilePhone || '',
+              originalPhone: cliente.originalPhone || '',
+              whatsappJid: cliente.whatsappJid || '',
+              waJidStored: storedWa,
               name: cliente.name || 'Sem nome',
               email: cliente.email || '',
               cpfCnpj: cliente.cpfCnpj || '',
@@ -247,6 +380,63 @@ const CRMDashboard = ({ user, database, showToast }) => {
         resolve();
       }, { onlyOnce: true });
     });
+  };
+
+  const loadSubscriptions = async () => {
+    try {
+      const { ref, onValue } = await import('firebase/database');
+      const subRef = ref(database, `subscriptions/${user.uid}`);
+
+      return new Promise((resolve) => {
+        let resolved = false;
+        const unsubscribe = onValue(
+          subRef,
+          (snapshot) => {
+            try {
+              const list = [];
+              if (snapshot.exists()) {
+                const data = snapshot.val();
+                Object.keys(data).forEach((subId) => {
+                  list.push({ id: subId, ...data[subId] });
+                });
+              }
+              list.sort(
+                (a, b) =>
+                  new Date(b.lastPaymentDate || b.createdAt || 0) -
+                  new Date(a.lastPaymentDate || a.createdAt || 0)
+              );
+              setSubscriptions(list);
+              if (!resolved) {
+                resolved = true;
+                unsubscribe();
+                resolve();
+              }
+            } catch (err) {
+              console.error('Erro ao processar assinaturas:', err);
+              setSubscriptions([]);
+              if (!resolved) {
+                resolved = true;
+                unsubscribe();
+                resolve();
+              }
+            }
+          },
+          { onlyOnce: true }
+        );
+
+        setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            unsubscribe();
+            resolve();
+          }
+        }, 15000);
+      });
+    } catch (error) {
+      console.error('Erro ao inicializar assinaturas:', error);
+      setSubscriptions([]);
+      return Promise.resolve();
+    }
   };
   
   const loadConversas = async () => {
@@ -513,10 +703,13 @@ const CRMDashboard = ({ user, database, showToast }) => {
   
   // Filtrar clientes
   const clientesFiltrados = clientes.filter(cliente => {
+    const contactStr = formatClienteWhatsAppDisplay(cliente);
     const matchSearch = searchQuery === '' || 
       (cliente.name && cliente.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (cliente.email && cliente.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (cliente.phone && cliente.phone.includes(searchQuery));
+      (cliente.phone && cliente.phone.includes(searchQuery)) ||
+      (crmDigitsOnly(cliente.mobilePhone).includes(crmDigitsOnly(searchQuery))) ||
+      (contactStr && contactStr.toLowerCase().includes(searchQuery.toLowerCase()));
     
     const matchStatus = statusFilter === 'todos' || cliente.status === statusFilter;
     
@@ -859,7 +1052,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
                       {cliente.name}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-                      {cliente.phone.replace('@c.us', '')}
+                      {formatClienteWhatsAppDisplay(cliente)}
                     </div>
                   </div>
                 </div>
@@ -1091,7 +1284,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
                 ['Nome', 'Telefone', 'Email', 'CPF/CNPJ', 'Status', 'Última Atualização'].join(','),
                 ...clientesFiltrados.map(c => [
                   c.name,
-                  c.phone.replace('@c.us', ''),
+                  formatClienteWhatsAppDisplay(c),
                   c.email || '',
                   c.cpfCnpj || '',
                   c.status,
@@ -1361,8 +1554,8 @@ const CRMDashboard = ({ user, database, showToast }) => {
                         <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '2px' }}>
                           {cliente.name}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-                          {cliente.status.charAt(0).toUpperCase() + cliente.status.slice(1)}
+                        <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontFamily: 'monospace' }}>
+                          Ref. CRM {formatClienteCrmRef(cliente)}
                         </div>
                       </div>
                     </div>
@@ -1371,7 +1564,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
                     <div>
                       <div style={{ fontSize: '0.875rem', color: '#ffffff', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Phone size={14} color="#9ca3af" />
-                        {cliente.phone.replace('@c.us', '')}
+                        {formatClienteWhatsAppDisplay(cliente)}
                       </div>
                       {cliente.email && (
                         <div style={{ fontSize: '0.75rem', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1895,7 +2088,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis'
                               }}>
-                                {cliente.phone.replace('@c.us', '')}
+                                {formatClienteWhatsAppDisplay(cliente)}
                               </div>
                             </div>
                           </div>
@@ -2344,7 +2537,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
                         </div>
                       </td>
                       <td style={{ padding: '16px' }}>
-                        <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{cliente.phone.replace('@c.us', '')}</div>
+                        <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{formatClienteWhatsAppDisplay(cliente)}</div>
                         {cliente.email && <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{cliente.email}</div>}
                       </td>
                       <td style={{ padding: '16px' }}>
@@ -2800,9 +2993,10 @@ const CRMDashboard = ({ user, database, showToast }) => {
                 fontSize: '0.75rem',
                 fontWeight: '600',
                 color: '#10b981',
-                textTransform: 'uppercase'
+                fontFamily: 'monospace',
+                letterSpacing: '0.02em'
               }}>
-                {selectedCliente.status}
+                Ref. CRM {formatClienteCrmRef(selectedCliente)}
               </div>
             </div>
             
@@ -2822,24 +3016,20 @@ const CRMDashboard = ({ user, database, showToast }) => {
                 </div>
                 <div style={{ fontSize: '0.875rem', color: '#ffffff', fontFamily: 'monospace' }}>
                   {(() => {
-                    // Formatar telefone para exibição legível
-                    let phoneDisplay = selectedCliente.phone || selectedCliente.originalPhone || '';
-                    // Remover @c.us se existir
-                    phoneDisplay = phoneDisplay.replace('@c.us', '');
-                    // Se começar com 55 (código do Brasil), formatar como (XX) XXXXX-XXXX
+                    const base = formatClienteWhatsAppDisplay(selectedCliente);
+                    if (!base || base.startsWith('Cadastre')) return base;
+                    let phoneDisplay = base.replace(/^\+/, '').replace('@c.us', '').replace(/\D/g, '');
                     if (phoneDisplay.startsWith('55') && phoneDisplay.length >= 12) {
                       const ddd = phoneDisplay.substring(2, 4);
                       const numero = phoneDisplay.substring(4);
                       if (numero.length === 9) {
-                        // Celular: (XX) 9XXXX-XXXX
                         return `+55 (${ddd}) ${numero.substring(0, 5)}-${numero.substring(5)}`;
-                      } else if (numero.length === 8) {
-                        // Fixo: (XX) XXXX-XXXX
+                      }
+                      if (numero.length === 8) {
                         return `+55 (${ddd}) ${numero.substring(0, 4)}-${numero.substring(4)}`;
                       }
                     }
-                    // Retornar número original se não conseguir formatar
-                    return phoneDisplay;
+                    return base.startsWith('+') ? base : `+${phoneDisplay}`;
                   })()}
                 </div>
               </div>
@@ -2908,8 +3098,13 @@ const CRMDashboard = ({ user, database, showToast }) => {
             
             {/* Histórico de Compras */}
             {(() => {
-              const vendasCliente = vendas.filter(v => v.clientId === selectedCliente.id);
-              const totalGasto = vendasCliente.reduce((sum, v) => sum + v.total, 0);
+              const historicoCliente = buildHistoricoComprasCliente({
+                vendas,
+                pedidos,
+                subscriptions,
+                selectedCliente
+              });
+              const totalGasto = historicoCliente.reduce((sum, v) => sum + (Number(v.total) || 0), 0);
               
               return (
                 <div style={{ marginTop: '24px' }}>
@@ -2938,11 +3133,11 @@ const CRMDashboard = ({ user, database, showToast }) => {
                       fontWeight: '600',
                       color: '#10b981'
                     }}>
-                      {vendasCliente.length} {vendasCliente.length === 1 ? 'venda' : 'vendas'}
+                      {historicoCliente.length} {historicoCliente.length === 1 ? 'registro' : 'registros'}
                     </div>
                   </div>
                   
-                  {vendasCliente.length > 0 ? (
+                  {historicoCliente.length > 0 ? (
                     <div>
                       {/* Total Gasto */}
                       <div style={{
@@ -2968,7 +3163,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
                         flexDirection: 'column',
                         gap: '8px'
                       }}>
-                        {vendasCliente.map(venda => (
+                        {historicoCliente.map((venda) => (
                           <div key={venda.id} style={{
                             padding: '12px',
                             backgroundColor: '#0f1419',
@@ -2984,14 +3179,19 @@ const CRMDashboard = ({ user, database, showToast }) => {
                                 })}
                               </span>
                               <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#10b981' }}>
-                                R$ {venda.total.toFixed(2)}
+                                R$ {(Number(venda.total) || 0).toFixed(2)}
                               </span>
                             </div>
+                            {venda.label && (
+                              <div style={{ fontSize: '0.7rem', color: '#6b7280', marginBottom: '6px' }}>
+                                {venda.label}
+                              </div>
+                            )}
                             <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '4px' }}>
-                              {venda.items.length} {venda.items.length === 1 ? 'item' : 'itens'}
+                              {(venda.items || []).length} {(venda.items || []).length === 1 ? 'item' : 'itens'}
                             </div>
                             <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                              {venda.items.map((item, idx) => (
+                              {(venda.items || []).map((item, idx) => (
                                 <div key={idx}>• {item.name} (x{item.quantidade})</div>
                               ))}
                             </div>
@@ -3002,7 +3202,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
                                 color: '#9ca3af',
                                 textTransform: 'capitalize'
                               }}>
-                                💳 {venda.paymentMethod.replace('_', ' ')}
+                                💳 {String(venda.paymentMethod).replace('_', ' ')}
                               </div>
                             )}
                           </div>
@@ -3146,7 +3346,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
                   <option value="">Selecione um cliente</option>
                   {clientes.map(cliente => (
                     <option key={cliente.id} value={cliente.id}>
-                      {cliente.name} {cliente.phone ? `(${cliente.phone})` : ''}
+                      {cliente.name} ({formatClienteWhatsAppDisplay(cliente)})
                     </option>
                   ))}
                 </select>
