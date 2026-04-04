@@ -403,6 +403,8 @@ app.use(express.json());
 
 // Armazenar clientes WPPConnect ativos
 const activeClients = new Map();
+/** Uma fila de checkout Stripe por conversa — evita corrida / webhook duplicado a reservar estoque duas vezes. */
+const stripeCheckoutQueues = new Map();
 /** Evita dois wppconnect.create em paralelo para o mesmo user (mesmo userDataDir → "browser already running") */
 const wppSessionCreationInFlight = new Map();
 const wppHealthCheckIntervals = new Map();
@@ -695,6 +697,43 @@ async function setLastOfferedCheckoutProduct(userId, contactSanitized, item) {
   } catch (e) {
     console.warn('⚠️ last_offered_checkout_product:', e.message);
   }
+}
+
+/** Evita segunda geração de sessão / reserva se já enviámos link há pouco (ex.: dois eventos onMessage). */
+async function hasRecentStripePaymentLink(userId, contactSanitized, maxAgeMs) {
+  try {
+    const snap = await conversationMessagesRef(userId, contactSanitized)
+      .orderByChild('timestamp')
+      .limitToLast(35)
+      .once('value');
+    if (!snap.exists()) return false;
+    const now = Date.now();
+    let found = false;
+    snap.forEach((child) => {
+      const m = child.val();
+      if (m?.type === 'payment_link' && m.timestamp) {
+        const t = new Date(m.timestamp).getTime();
+        if (!Number.isNaN(t) && now - t < maxAgeMs) found = true;
+      }
+    });
+    return found;
+  } catch (e) {
+    console.warn('⚠️ [Stripe] hasRecentStripePaymentLink:', e.message);
+    return false;
+  }
+}
+
+async function enqueueStripeCheckoutForChat(userId, phone, sanitizedNumber) {
+  const key = `${userId}:${sanitizedNumber}`;
+  const prev = stripeCheckoutQueues.get(key) || Promise.resolve();
+  const run = prev.then(() => tryAutoGenerateStripeLink(userId, phone, sanitizedNumber));
+  stripeCheckoutQueues.set(
+    key,
+    run.catch((err) => {
+      console.error('❌ [Stripe] Fila por conversa:', err?.message || err);
+    })
+  );
+  await run;
 }
 
 async function resolveConversationLineKey(userId) {
@@ -1784,7 +1823,8 @@ async function handleIncomingMessage(userId, message, client) {
           console.log(
             `🎯 Checkout Stripe (${stripeTrigger.reason}) — gerando link de pagamento...`
           );
-          await tryAutoGenerateStripeLink(userId, message.from, sanitizedNumber);
+          await sleepMs(450);
+          await enqueueStripeCheckoutForChat(userId, message.from, sanitizedNumber);
         }
         
         // ============================================
@@ -2030,19 +2070,20 @@ async function handleIncomingMessage(userId, message, client) {
           }
         }
         
-        // Intenção de compra / pedido explícito do link — não exige produto na última resposta da IA
-        // (tryAutoGenerateStripeLink resolve o item pelas últimas mensagens da conversa)
+        // Pedido explícito do link ou frase de compra (não só "sim" isolado — isso fica para o gatilho da resposta da IA)
+        // (tryAutoGenerateStripeLink resolve o item pelas últimas mensagens / last_offered_checkout_product)
         const paymentProviderForIntent = (aiConfig?.paymentProvider || 'stripe').toLowerCase();
-        const hasPurchaseIntent = detectPurchaseIntent(message.body);
         const wantsPaymentLink =
-          hasPurchaseIntent || detectExplicitPaymentLinkRequest(message.body);
+          detectExplicitPaymentLinkRequest(message.body) ||
+          detectPurchaseIntentExcludingBareAffirmation(message.body);
         
         if (
           paymentProviderForIntent === 'stripe' &&
           wantsPaymentLink &&
           !aiTriggeredStripeCheckout
         ) {
-          await tryAutoGenerateStripeLink(userId, message.from, sanitizedNumber);
+          await sleepMs(450);
+          await enqueueStripeCheckoutForChat(userId, message.from, sanitizedNumber);
         } else if (paymentProviderForIntent === 'manual' && wantsPaymentLink) {
           const integrations = await getIntegrationsConfig(userId);
           const manualMessage = aiConfig?.paymentManualMessage || 'Pagamento manual selecionado. Aguarde o envio do link.';
@@ -4173,6 +4214,20 @@ function detectPurchaseIntent(messageText) {
   return purchaseKeywords.some((keyword) => lowerText.includes(keyword));
 }
 
+/**
+ * Igual a detectPurchaseIntent, mas não trata só "sim"/"ok"/etc. como intenção de pagamento.
+ * Evita gerar checkout quando o cliente confirma um passo intermédio ("sim" ao catálogo) e a IA ainda pede dados.
+ * O checkout por "sim" no fecho fica a cargo das frases da IA / marcador Stripe (shouldRunAutoStripeCheckout).
+ */
+function detectPurchaseIntentExcludingBareAffirmation(messageText) {
+  if (!detectPurchaseIntent(messageText)) return false;
+  const lowerText = String(messageText).toLowerCase().trim().replace(/\s+/g, ' ');
+  if (/^(sim|ok|okay|pode ser|isso|vamos|bora|fechado|combinado)\s*[!?.]*\s*$/i.test(lowerText)) {
+    return false;
+  }
+  return true;
+}
+
 /** Cliente pediu o link de pagamento (ex.: «kd o link», «manda o link»). */
 function detectExplicitPaymentLinkRequest(messageText) {
   if (!messageText || typeof messageText !== 'string') return false;
@@ -5144,11 +5199,119 @@ async function tryAutoResendTvCredentialsForChat(userId, waFrom, sanitizedNumber
   }
 }
 
+const CRM_CHECKOUT_FIELD_LABELS_PT = {
+  name: 'nome completo',
+  phone: 'telefone',
+  product: 'produto ou serviço de interesse',
+  email: 'e-mail',
+  cpfCnpj: 'CPF ou CNPJ'
+};
+
+async function getCollectDataCrmFieldsForCheckout(userId) {
+  const assistantSettingsSnapshot = await db.ref(`users/data/${userId}/assistant_settings`).once('value');
+  const flowSteps = assistantSettingsSnapshot.val()?.flowSteps || [];
+  for (const step of flowSteps) {
+    if (
+      step?.type === 'collect_data' &&
+      step.crmAutoSave &&
+      Array.isArray(step.crmFields) &&
+      step.crmFields.length > 0
+    ) {
+      return { crmFields: step.crmFields };
+    }
+  }
+  return null;
+}
+
+async function hasCheckoutProductHintInMeta(userId, sanitizedNumber) {
+  try {
+    const hintSnap = await conversationAssistantMetaRef(userId, sanitizedNumber)
+      .child('last_offered_checkout_product')
+      .once('value');
+    const v = hintSnap.val();
+    return !!(v && (v.name || v.catalogItemId));
+  } catch {
+    return false;
+  }
+}
+
+function isNonEmptyTrimmedString(v) {
+  return typeof v === 'string' && v.trim().length > 0;
+}
+
+/**
+ * Exige campos do passo collect_data (CRM auto-save) antes de criar sessão Stripe no WhatsApp.
+ * Telefone não é validado (vem do próprio chat). Produto pode ser satisfeito por productOrService no CRM ou último card oferecido.
+ */
+async function assertCrmDataReadyForStripeCheckout(userId, phone, sanitizedNumber, customerData) {
+  const cfg = await getCollectDataCrmFieldsForCheckout(userId);
+  if (!cfg) {
+    return { ok: true, missing: [], reason: 'no_collect_step' };
+  }
+  const missing = [];
+  const fields = [...new Set(cfg.crmFields)];
+  for (const field of fields) {
+    if (field === 'phone') continue;
+    let satisfied = false;
+    switch (field) {
+      case 'name':
+        satisfied = isNonEmptyTrimmedString(customerData?.name);
+        break;
+      case 'email': {
+        const em = customerData?.email;
+        satisfied =
+          isNonEmptyTrimmedString(em) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(em).trim());
+        break;
+      }
+      case 'product':
+        satisfied =
+          isNonEmptyTrimmedString(customerData?.productOrService) ||
+          (await hasCheckoutProductHintInMeta(userId, sanitizedNumber));
+        break;
+      case 'cpfCnpj':
+        satisfied = isNonEmptyTrimmedString(customerData?.cpfCnpj);
+        break;
+      default:
+        satisfied = isNonEmptyTrimmedString(customerData?.customData?.[field]);
+        break;
+    }
+    if (!satisfied) missing.push(field);
+  }
+  if (!missing.length) {
+    return { ok: true, missing: [], reason: 'ok' };
+  }
+  const labels = missing.map((f) => CRM_CHECKOUT_FIELD_LABELS_PT[f] || f);
+  const userMessage = `Para enviar o link de pagamento com segurança, preciso primeiro de: ${labels.join(', ')}. Pode enviar aqui no chat?`;
+  return { ok: false, missing, userMessage, reason: 'crm_incomplete' };
+}
+
 // 🎯 Função para tentar gerar link automático do Stripe quando houver intenção de compra
 async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
   try {
     const client = activeClients.get(userId);
     if (!client) return;
+
+    if (await hasRecentStripePaymentLink(userId, sanitizedNumber, 120000)) {
+      console.log(
+        '⏭️ [Stripe] Link de pagamento já enviado há menos de 2 min nesta conversa — ignorando chamada duplicada.'
+      );
+      return;
+    }
+
+    const crmDigitsKey = phone.replace(/[^0-9]/g, '');
+    const customerSnapForGate = await db.ref(`customerData/${userId}/${crmDigitsKey}`).once('value');
+    const customerRowForGate = customerSnapForGate.val() || {};
+    const crmGate = await assertCrmDataReadyForStripeCheckout(
+      userId,
+      phone,
+      sanitizedNumber,
+      customerRowForGate
+    );
+    if (!crmGate.ok) {
+      console.log('⏸️ [Stripe] Checkout adiado — dados do CRM incompletos:', crmGate.missing.join(', '));
+      await client.sendText(phone, crmGate.userMessage);
+      return;
+    }
 
     const integrations = await getIntegrationsConfig(userId);
     const stripeApiKey = integrations?.stripeApiKey || null;
