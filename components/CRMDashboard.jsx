@@ -303,31 +303,19 @@ function clienteContactDigitCandidates(cliente) {
   return [...new Set(out)];
 }
 
-/** WhatsApp real na UI: prioriza mobilePhone do CRM, depois @c.us; nunca mostra LID como se fosse número. */
+/** Contato WhatsApp na UI: prioriza mobilePhone, depois JID armazenado, depois phone/id — exibe dígitos sem impor formato de país. */
 function formatClienteWhatsAppDisplay(cliente) {
   if (!cliente) return '';
   const m = crmDigitsOnly(cliente.mobilePhone);
-  if (m.length >= 8) return `+${m}`;
+  if (m.length > 0) return `+${m}`;
   const jid = String(cliente.whatsappJid || cliente.originalPhone || cliente.waJidStored || '').trim();
-  if (/@c\.us$/i.test(jid)) {
-    const d = crmDigitsOnly(jid);
-    if (d.length >= 10) return `+${d}`;
-  }
-  if (/@lid$/i.test(jid)) {
-    return 'Cadastre o número de WhatsApp no CRM';
+  if (jid) {
+    const jd = crmDigitsOnly(jid);
+    if (jd.length > 0) return `+${jd}`;
   }
   const keyD = crmDigitsOnly(cliente.phone || cliente.id);
-  if (keyD.length >= 10 && keyD.length <= 13) return `+${keyD}`;
-  if (keyD.length >= 8) {
-    return 'Cadastre o número de WhatsApp no CRM';
-  }
+  if (keyD.length > 0) return `+${keyD}`;
   return '—';
-}
-
-/** Subtítulo / badge: referência interna do CRM (chave Firebase), não o status “lead”. */
-function formatClienteCrmRef(cliente) {
-  const id = String(cliente?.id || cliente?.phone || '').trim();
-  return id || '—';
 }
 
 function customerPayloadMatchesCliente(cust, cliente) {
@@ -1766,9 +1754,6 @@ const CRMDashboard = ({
                       <div>
                         <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#ffffff', marginBottom: '2px' }}>
                           {cliente.name}
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontFamily: 'monospace' }}>
-                          Ref. CRM {formatClienteCrmRef(cliente)}
                         </div>
                       </div>
                     </div>
@@ -3224,19 +3209,6 @@ const CRMDashboard = ({
               }}>
                 {selectedCliente.name}
               </h3>
-              <div style={{
-                display: 'inline-block',
-                padding: '4px 12px',
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                borderRadius: '20px',
-                fontSize: '0.75rem',
-                fontWeight: '600',
-                color: '#10b981',
-                fontFamily: 'monospace',
-                letterSpacing: '0.02em'
-              }}>
-                Ref. CRM {formatClienteCrmRef(selectedCliente)}
-              </div>
             </div>
             
             {/* Informações */}
@@ -3256,7 +3228,7 @@ const CRMDashboard = ({
                 <div style={{ fontSize: '0.875rem', color: '#ffffff', fontFamily: 'monospace' }}>
                   {(() => {
                     const base = formatClienteWhatsAppDisplay(selectedCliente);
-                    if (!base || base.startsWith('Cadastre')) return base;
+                    if (!base || base === '—') return base;
                     let phoneDisplay = base.replace(/^\+/, '').replace('@c.us', '').replace(/\D/g, '');
                     if (phoneDisplay.startsWith('55') && phoneDisplay.length >= 12) {
                       const ddd = phoneDisplay.substring(2, 4);
