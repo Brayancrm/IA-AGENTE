@@ -296,6 +296,7 @@ function clienteContactDigitCandidates(cliente) {
   if (!cliente) return out;
   add(cliente.id);
   add(cliente.phone);
+  add(cliente.phoneJidFromDb);
   add(cliente.mobilePhone);
   add(cliente.originalPhone);
   add(cliente.whatsappJid);
@@ -303,16 +304,38 @@ function clienteContactDigitCandidates(cliente) {
   return [...new Set(out)];
 }
 
-/** Contato WhatsApp na UI: prioriza mobilePhone, depois JID armazenado, depois phone/id — exibe dígitos sem impor formato de país. */
+/**
+ * Contato na UI: mobilePhone (cadastro humano) > JID @c.us (+DDI) > @lid ou outro JID (texto cru, sem "+" enganoso).
+ * `cliente.phone` no estado do React é a chave do path no Firebase (só dígitos); o JID completo vem de phoneJidFromDb / waJidStored.
+ */
 function formatClienteWhatsAppDisplay(cliente) {
   if (!cliente) return '';
   const m = crmDigitsOnly(cliente.mobilePhone);
   if (m.length > 0) return `+${m}`;
-  const jid = String(cliente.whatsappJid || cliente.originalPhone || cliente.waJidStored || '').trim();
+
+  const jid = String(
+    cliente.whatsappJid ||
+      cliente.originalPhone ||
+      cliente.phoneJidFromDb ||
+      cliente.waJidStored ||
+      ''
+  ).trim();
+
   if (jid) {
+    if (/@c\.us$/i.test(jid)) {
+      const d = crmDigitsOnly(jid);
+      if (d.length > 0) return `+${d}`;
+    }
+    if (/@lid$/i.test(jid)) {
+      return jid;
+    }
+    if (jid.includes('@')) {
+      return jid;
+    }
     const jd = crmDigitsOnly(jid);
     if (jd.length > 0) return `+${jd}`;
   }
+
   const keyD = crmDigitsOnly(cliente.phone || cliente.id);
   if (keyD.length > 0) return `+${keyD}`;
   return '—';
@@ -540,6 +563,7 @@ const CRMDashboard = ({
             clientesList.push({
               id: firebaseKey,
               phone: firebaseKey,
+              phoneJidFromDb: typeof cliente.phone === 'string' ? cliente.phone : '',
               mobilePhone: cliente.mobilePhone || '',
               originalPhone: cliente.originalPhone || '',
               whatsappJid: cliente.whatsappJid || '',
@@ -3229,6 +3253,9 @@ const CRMDashboard = ({
                   {(() => {
                     const base = formatClienteWhatsAppDisplay(selectedCliente);
                     if (!base || base === '—') return base;
+                    if (base.includes('@') && !/@c\.us$/i.test(base)) {
+                      return base;
+                    }
                     let phoneDisplay = base.replace(/^\+/, '').replace('@c.us', '').replace(/\D/g, '');
                     if (phoneDisplay.startsWith('55') && phoneDisplay.length >= 12) {
                       const ddd = phoneDisplay.substring(2, 4);
