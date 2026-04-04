@@ -4802,17 +4802,29 @@ function detectTvCredentialRecoveryIntent(text) {
   ) {
     return false;
   }
-  if (/\bperdi\b/.test(n) && /\b(acesso|senha|login)\b/.test(n)) return true;
-  if (/\besqueci\b/.test(n) && /\b(senha|login)\b/.test(n)) return true;
+  /** login, usuario (pt/en normalizado), senha, password, acesso, creden(ciais) */
+  const kw = /\b(login|usuario|senha|password|acesso)\b/;
+  const kwc = /\b(login|usuario|senha|password|acesso|creden)\b/;
+
+  if (/\bperdi\b/.test(n) && kw.test(n)) return true;
+  if (/\besqueci\b/.test(n) && kw.test(n)) return true;
   if (/\bnao\s+consigo\s+entrar\b/.test(n) || /\bnao\s+entra\b/.test(n)) return true;
-  if (/\brecuperar\b/.test(n) && /\b(acesso|senha|login)\b/.test(n)) return true;
+  if (/\brecuperar\b/.test(n) && kw.test(n)) return true;
   if (/\b(minhas|meus)\s+antig/.test(n)) return true;
-  if (/\bqual\b/.test(n) && /\b(era|eram|foi)\b/.test(n) && /\b(senha|login)\b/.test(n)) return true;
-  if (/\b(manda|envia|reenvia|reenvie|preciso|quero|me\s+manda)\b/.test(n) && /\bcreden/.test(n))
+  if (/\bqual\b/.test(n) && kw.test(n)) return true;
+  if (
+    /\b(manda|envia|reenvia|reenvie|preciso|quero|me\s+manda|me\s+passa|passa|mande|envie|me\s+envia)\b/.test(
+      n
+    ) &&
+    kwc.test(n)
+  ) {
     return true;
-  if (/\breenvia\b/.test(n) && /\b(creden|login|senha|acesso)\b/.test(n)) return true;
-  if (/\blogin\b/.test(n) && /\b(senha|creden)\b/.test(n)) return true;
-  if (/\bsenha\b/.test(n) && /\blogin\b/.test(n)) return true;
+  }
+  if (/\breenvia\b/.test(n) && kwc.test(n)) return true;
+  if (/\blogin\b/.test(n) && /\b(senha|creden|password|usuario)\b/.test(n)) return true;
+  if (/\bsenha\b/.test(n) && /\b(login|usuario|password)\b/.test(n)) return true;
+  if (/\bpassword\b/.test(n) && /\b(login|usuario|senha)\b/.test(n)) return true;
+  if (/\busuario\b/.test(n) && /\b(senha|login|password)\b/.test(n)) return true;
   return false;
 }
 
@@ -4829,7 +4841,7 @@ function isAffirmativeTvCredentialFollowup(userText, mergedAssistantContext) {
   }
   const la = normalizeText(mergedAssistantContext || '');
   if (!la) return false;
-  const hasCredTopic = /\b(creden|senha|login|reenvi|acesso|wplay)\b/.test(la);
+  const hasCredTopic = /\b(creden|senha|login|usuario|password|reenvi|acesso|wplay)\b/.test(la);
   const hasOfferOrConfirm =
     /\b(gerar|nova|novo|enviar|mandar|reenvi|confirm|deseja|prossegu|segue|substitu|prosseguir)\b/.test(
       la
