@@ -9074,28 +9074,30 @@ const DashboardWithFirebase = ({
       case 'plans':
         return (
           <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
-            <div style={{ marginBottom: '32px' }}>
+            <div style={{ marginBottom: isMobile ? '14px' : '32px' }}>
               <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: '12px' }}>
                 {renderPageIcon('plans')}
                 {t('plans.title')}
               </h2>
-              <p style={{ fontSize: '1.125rem', color: '#9ca3af' }}>
+              <p style={{ fontSize: isMobile ? '0.78rem' : '1.125rem', color: '#9ca3af', lineHeight: 1.45 }}>
                 {user?.isMaster ? t('plans.masterSubtitle') : t('plans.userSubtitle')}
               </p>
             </div>
 
             {user?.isMaster && (
-              <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ marginBottom: isMobile ? '14px' : '24px', display: 'flex', justifyContent: isMobile ? 'stretch' : 'flex-end' }}>
                 <button
                   onClick={() => openPlanModal()}
                   style={{
                     backgroundColor: '#1a1f36',
                     border: '1px solid #10b981',
                     color: 'white',
-                    padding: '14px 28px',
+                    padding: isMobile ? '10px 14px' : '14px 28px',
                     borderRadius: '12px',
                     fontWeight: '700',
-                    fontSize: '1rem',
+                    fontSize: isMobile ? '0.8125rem' : '1rem',
+                    width: isMobile ? '100%' : 'auto',
+                    justifyContent: 'center',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -9113,7 +9115,7 @@ const DashboardWithFirebase = ({
                     e.target.style.borderColor = '#10b981';
                   }}
                 >
-                  <Plus size={20} />
+                  <Plus size={isMobile ? 18 : 20} />
                   {t('plans.createNew')}
                 </button>
               </div>
@@ -9168,33 +9170,49 @@ const DashboardWithFirebase = ({
                 </div>
               )
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fill, minmax(300px, 1fr))',
+                  gap: isMobile ? '12px' : '24px',
+                  width: '100%',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box'
+                }}
+              >
                 {(user?.isMaster ? plans : plans.filter(p => p.active)).map((plan) => (
                   <div
                     key={plan.id}
                     style={{
                       backgroundColor: '#1a1f36',
-                      borderRadius: '20px',
-                      padding: '32px',
-                      border: plan.active ? '2px solid #10b981' : '2px solid #4b5563',
-                      boxShadow: plan.active ? '0 8px 24px rgba(16, 185, 129, 0.2)' : '0 4px 12px rgba(0,0,0,0.2)',
+                      borderRadius: isMobile ? '14px' : '20px',
+                      padding: isMobile ? '14px' : '32px',
+                      border: plan.active
+                        ? (isMobile ? '1px solid #10b981' : '2px solid #10b981')
+                        : (isMobile ? '1px solid #4b5563' : '2px solid #4b5563'),
+                      boxShadow: plan.active ? '0 4px 16px rgba(16, 185, 129, 0.15)' : '0 2px 10px rgba(0,0,0,0.2)',
                       transition: 'all 0.2s ease',
                       cursor: 'pointer',
-                      position: 'relative'
+                      position: 'relative',
+                      maxWidth: '100%',
+                      boxSizing: 'border-box',
+                      overflow: 'hidden'
                     }}
                     onMouseEnter={(e) => {
+                      if (isMobile) return;
                       e.currentTarget.style.transform = 'translateY(-4px)';
                       e.currentTarget.style.boxShadow = '0 12px 32px rgba(16, 185, 129, 0.3)';
                       e.currentTarget.style.borderColor = '#10b981';
                     }}
                     onMouseLeave={(e) => {
+                      if (isMobile) return;
                       e.currentTarget.style.transform = 'translateY(0)';
                       e.currentTarget.style.boxShadow = plan.active ? '0 8px 24px rgba(16, 185, 129, 0.2)' : '0 4px 12px rgba(0,0,0,0.2)';
                       e.currentTarget.style.borderColor = plan.active ? '#10b981' : '#4b5563';
                     }}
                   >
                     {/* Nome do Plano com Badges */}
-                    <div style={{ marginBottom: '16px', position: 'relative', paddingRight: plan.active ? '80px' : '0' }}>
+                    <div style={{ marginBottom: isMobile ? '10px' : '16px', position: 'relative', paddingRight: plan.active ? (isMobile ? '72px' : '80px') : '0' }}>
                       {/* Badge de Status */}
                       {plan.active && (
                         <div style={{ position: 'absolute', top: '0', right: '0', zIndex: 1 }}>
@@ -9202,9 +9220,9 @@ const DashboardWithFirebase = ({
                             backgroundColor: '#1a1f36',
                     border: '1px solid #10b981',
                             color: 'white',
-                            padding: '4px 12px',
+                            padding: isMobile ? '3px 8px' : '4px 12px',
                             borderRadius: '12px',
-                            fontSize: '0.75rem',
+                            fontSize: isMobile ? '0.65rem' : '0.75rem',
                             fontWeight: '700',
                             whiteSpace: 'nowrap'
                           }}>
@@ -9213,59 +9231,59 @@ const DashboardWithFirebase = ({
                         </div>
                       )}
                       
-                      <h3 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', wordBreak: 'break-word' }}>
+                      <h3 style={{ fontSize: isMobile ? '1.05rem' : '1.75rem', fontWeight: '700', color: '#ffffff', marginBottom: '6px', wordBreak: 'break-word', lineHeight: 1.25 }}>
                         {plan.name}
                       </h3>
-                      <p style={{ fontSize: '0.9375rem', color: '#9ca3af', wordBreak: 'break-word' }}>
+                      <p style={{ fontSize: isMobile ? '0.75rem' : '0.9375rem', color: '#9ca3af', wordBreak: 'break-word', lineHeight: 1.4 }}>
                         {plan.description || t('plans.noDescription')}
                       </p>
                     </div>
 
                     {/* Preço */}
-                    <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: plan.isTrialPlan ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', border: `1px solid ${plan.isTrialPlan ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)'}` }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                    <div style={{ marginBottom: isMobile ? '14px' : '24px', padding: isMobile ? '10px' : '16px', backgroundColor: plan.isTrialPlan ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)', borderRadius: isMobile ? '10px' : '12px', border: `1px solid ${plan.isTrialPlan ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)'}` }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
                         {plan.isTrialPlan ? (
-                          <span style={{ fontSize: '2rem', fontWeight: '700', color: '#f59e0b' }}>
+                          <span style={{ fontSize: isMobile ? '1.2rem' : '2rem', fontWeight: '700', color: '#f59e0b' }}>
                             🎁 {t('plans.free')}
                           </span>
                         ) : (
                           <>
-                        <span style={{ fontSize: '2.5rem', fontWeight: '700', color: '#10b981' }}>
+                        <span style={{ fontSize: isMobile ? '1.45rem' : '2.5rem', fontWeight: '700', color: '#10b981' }}>
                           {formatPlanPrice(plan)}
                         </span>
-                        <span style={{ fontSize: '1rem', color: '#9ca3af' }}>
+                        <span style={{ fontSize: isMobile ? '0.78rem' : '1rem', color: '#9ca3af' }}>
                           / {plan.billingCycle === 'yearly' ? t('plans.perYear') : t('plans.perMonth')}
                         </span>
                           </>
                         )}
                       </div>
                       {plan.isTrialPlan && (
-                        <p style={{ fontSize: '0.875rem', color: '#f59e0b', marginTop: '8px', fontWeight: '600' }}>
+                        <p style={{ fontSize: isMobile ? '0.72rem' : '0.875rem', color: '#f59e0b', marginTop: '6px', fontWeight: '600', lineHeight: 1.35 }}>
                           {t('plans.trialFor')} {formatTrialDurationFull(plan.trialDurationHours, plan.trialDurationMinutes)}{plan.oneTimeUse ? ` • ${t('plans.oneTimeUse')}` : ''}
                         </p>
                       )}
                     </div>
 
                     {/* Limites */}
-                    <div style={{ marginBottom: '24px' }}>
-                      <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#ffffff', marginBottom: '12px' }}>
+                    <div style={{ marginBottom: isMobile ? '14px' : '24px' }}>
+                      <h4 style={{ fontSize: isMobile ? '0.8rem' : '1rem', fontWeight: '600', color: '#ffffff', marginBottom: isMobile ? '8px' : '12px' }}>
                         {t('plans.limitsTitle')}
                       </h4>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {plan.limits?.messagesPerMonth !== null && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d1d5db' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d1d5db', fontSize: isMobile ? '0.72rem' : '0.875rem', lineHeight: 1.35 }}>
                             <span>📨</span>
                             <span>{plan.limits.messagesPerMonth === -1 ? t('plans.unlimited') : `${plan.limits.messagesPerMonth} ${t('plans.messagesPerMonth')}`}</span>
                           </div>
                         )}
                         {plan.limits?.conversations !== null && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d1d5db' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d1d5db', fontSize: isMobile ? '0.72rem' : '0.875rem', lineHeight: 1.35 }}>
                             <span>💬</span>
                             <span>{plan.limits.conversations === -1 ? t('plans.unlimitedConversations') : `${plan.limits.conversations} ${t('plans.conversations')}`}</span>
                           </div>
                         )}
                         {plan.limits?.catalogItems !== null && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d1d5db' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d1d5db', fontSize: isMobile ? '0.72rem' : '0.875rem', lineHeight: 1.35 }}>
                             <span>📦</span>
                             <span>{plan.limits.catalogItems === -1 ? t('plans.unlimitedCatalog') : `${plan.limits.catalogItems} ${t('plans.catalogItems')}`}</span>
                           </div>
@@ -9275,7 +9293,7 @@ const DashboardWithFirebase = ({
 
                     {/* Ações */}
                     {user?.isMaster ? (
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '24px', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: isMobile ? '12px' : '24px', paddingTop: isMobile ? '12px' : '24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -9286,12 +9304,12 @@ const DashboardWithFirebase = ({
                             backgroundColor: '#1a1f36',
                     border: '1px solid #10b981',
                             color: 'white',
-                            padding: '10px 16px',
+                            padding: isMobile ? '8px 12px' : '10px 16px',
                             borderRadius: '8px',
                             border: 'none',
                             fontWeight: '600',
                             cursor: 'pointer',
-                            fontSize: '0.875rem',
+                            fontSize: isMobile ? '0.75rem' : '0.875rem',
                             transition: 'all 0.2s ease'
                           }}
                           onMouseEnter={(e) => e.target.style.backgroundColor = '#059669'}
@@ -9307,12 +9325,12 @@ const DashboardWithFirebase = ({
                           style={{
                             backgroundColor: '#ef4444',
                             color: 'white',
-                            padding: '10px 16px',
+                            padding: isMobile ? '8px 12px' : '10px 16px',
                             borderRadius: '8px',
                             border: 'none',
                             fontWeight: '600',
                             cursor: 'pointer',
-                            fontSize: '0.875rem',
+                            fontSize: isMobile ? '0.75rem' : '0.875rem',
                             transition: 'all 0.2s ease'
                           }}
                           onMouseEnter={(e) => e.target.style.backgroundColor = '#dc2626'}
@@ -9322,7 +9340,7 @@ const DashboardWithFirebase = ({
                         </button>
                       </div>
                     ) : (
-                      <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                      <div style={{ marginTop: isMobile ? '12px' : '24px', paddingTop: isMobile ? '12px' : '24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                         {(() => {
                           // Verificar se é plano de teste com uso único que já foi usado
                           const isUsedTrial = plan.isTrialPlan && plan.oneTimeUse && safeUsedTrials[plan.id];
@@ -9346,12 +9364,12 @@ const DashboardWithFirebase = ({
                             width: '100%',
                                 backgroundColor: isDisabled ? '#6b7280' : '#10b981',
                             color: 'white',
-                            padding: '14px 16px',
+                            padding: isMobile ? '10px 12px' : '14px 16px',
                             borderRadius: '10px',
                             border: 'none',
                             fontWeight: '700',
                                 cursor: isDisabled ? 'not-allowed' : 'pointer',
-                            fontSize: '1rem',
+                            fontSize: isMobile ? '0.8125rem' : '1rem',
                             transition: 'all 0.2s ease',
                                 boxShadow: isDisabled ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.3)',
                                 opacity: isDisabled ? 0.7 : 1
@@ -10337,64 +10355,48 @@ const DashboardWithFirebase = ({
                   left: 0,
                   right: 0,
                   zIndex: 1001,
-                  background: 'linear-gradient(135deg, #065f46 0%, #047857 38%, #5b21b6 78%, #4c1d95 100%)',
-                  boxShadow: '0 2px 14px rgba(0, 0, 0, 0.28)',
+                  background: 'linear-gradient(90deg, #022c22 0%, #065f46 42%, #059669 100%)',
+                  boxShadow: '0 1px 8px rgba(0, 0, 0, 0.2)',
                   display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'stretch'
+                  alignItems: 'center',
+                  paddingTop: 'max(2px, env(safe-area-inset-top, 0px))',
+                  paddingBottom: '6px',
+                  paddingLeft: '10px',
+                  paddingRight: '10px',
+                  minHeight: '36px'
                 }}
               >
-                <div
+                <img
+                  src="/logo.png"
+                  alt=""
                   style={{
-                    paddingTop: 'max(8px, env(safe-area-inset-top, 0px))',
-                    paddingBottom: '10px',
-                    paddingLeft: '16px',
-                    paddingRight: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
+                    height: '22px',
+                    width: 'auto',
+                    maxWidth: '100px',
+                    objectFit: 'contain',
+                    filter: 'brightness(0) invert(1)',
+                    flexShrink: 0
                   }}
-                >
-                  <img
-                    src="/logo.png"
-                    alt="dadosIA"
-                    style={{
-                      height: '28px',
-                      maxWidth: 'min(200px, 70vw)',
-                      objectFit: 'contain',
-                      filter: 'brightness(0) invert(1)'
-                    }}
-                  />
-                </div>
+                />
                 {mobileHeaderSectionTitle ? (
-                  <div
+                  <span
                     style={{
-                      padding: '8px 16px 10px',
-                      borderTop: '1px solid rgba(255, 255, 255, 0.14)',
-                      background: 'rgba(0, 0, 0, 0.12)',
-                      textAlign: 'center',
-                      minHeight: '40px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
+                      flex: 1,
+                      minWidth: 0,
+                      marginLeft: '10px',
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      color: 'rgba(255, 255, 255, 0.92)',
+                      letterSpacing: '0.02em',
+                      lineHeight: 1.25,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      textAlign: 'right'
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: '0.8125rem',
-                        fontWeight: 600,
-                        color: 'rgba(255, 255, 255, 0.95)',
-                        letterSpacing: '0.02em',
-                        lineHeight: 1.3,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        maxWidth: '100%'
-                      }}
-                    >
-                      {mobileHeaderSectionTitle}
-                    </span>
-                  </div>
+                    {mobileHeaderSectionTitle}
+                  </span>
                 ) : null}
               </header>
             )}
@@ -10409,28 +10411,31 @@ const DashboardWithFirebase = ({
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                  zIndex: 999,
+                  backgroundColor: 'rgba(0, 0, 0, 0.45)',
+                  zIndex: 1002,
                   transition: 'opacity 0.3s ease'
                 }}
               />
             )}
 
-            {/* Sidebar Lateral Esquerdo */}
+            {/* Sidebar: desktop escuro; mobile = painel claro (estilo barra inferior), acima do overlay, abaixo da nav inferior */}
             <div 
               style={{ 
                 position: 'fixed',
                 top: 0,
-                left: isMobile ? (isMobileMenuOpen ? '0' : '-280px') : '0',
-                width: '280px',
-                height: '100vh',
-                backgroundColor: '#1a1f36', 
-                color: 'white', 
+                left: isMobile
+                  ? (isMobileMenuOpen ? '0' : 'calc(-1 * min(300px, 88vw))')
+                  : '0',
+                width: isMobile ? 'min(300px, 88vw)' : '280px',
+                height: isMobile ? 'auto' : '100vh',
+                bottom: isMobile ? 'calc(52px + max(8px, env(safe-area-inset-bottom, 0px)))' : 'auto',
+                backgroundColor: isMobile ? '#ffffff' : '#1a1f36', 
+                color: isMobile ? '#0f172a' : 'white', 
                 display: 'flex',
                 flexDirection: 'column',
-                boxShadow: '4px 0 12px rgba(0,0,0,0.4)',
-                borderRight: '2px solid rgba(16, 185, 129, 0.2)',
-                zIndex: 1000,
+                boxShadow: isMobile ? '4px 0 24px rgba(0,0,0,0.12)' : '4px 0 12px rgba(0,0,0,0.4)',
+                borderRight: isMobile ? '1px solid rgba(15, 20, 25, 0.08)' : '2px solid rgba(16, 185, 129, 0.2)',
+                zIndex: isMobile ? 1003 : 1000,
                 transition: 'left 0.3s ease',
                 overflowY: 'auto',
                 overflowX: 'hidden'
@@ -10442,47 +10447,60 @@ const DashboardWithFirebase = ({
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'flex-start',
-                gap: '12px',
-                padding: '24px 16px',
-                borderBottom: '1px solid rgba(16, 185, 129, 0.1)',
+                gap: isMobile ? '8px' : '12px',
+                padding: isMobile ? '12px 14px 14px' : '24px 16px',
+                borderBottom: isMobile ? '1px solid rgba(15, 20, 25, 0.08)' : '1px solid rgba(16, 185, 129, 0.1)',
                 flexShrink: 0,
                 position: 'relative'
               }}>
                 {isMobile && (
                   <button
+                    type="button"
                     onClick={() => setIsMobileMenuOpen(false)}
                     style={{
                       position: 'absolute',
-                      top: '12px',
-                      right: '12px',
-                      backgroundColor: 'transparent',
+                      top: '8px',
+                      right: '10px',
+                      backgroundColor: 'rgba(15, 23, 42, 0.06)',
                       border: 'none',
-                      color: '#9ca3af',
+                      color: '#64748b',
                       cursor: 'pointer',
-                      fontSize: '24px',
-                      padding: '4px',
+                      fontSize: '20px',
+                      lineHeight: 1,
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '10px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       transition: 'all 0.2s ease',
                       zIndex: 10
                     }}
-                    onMouseEnter={(e) => {
-                      e.target.style.color = '#10b981';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.color = '#9ca3af';
-                    }}
+                    aria-label="Fechar menu"
                   >
                     ✕
                   </button>
                 )}
+                {isMobile ? (
+                  <div
+                    style={{
+                      width: '100%',
+                      paddingRight: '36px',
+                      fontSize: '0.8125rem',
+                      fontWeight: 700,
+                      color: '#0f172a',
+                      letterSpacing: '0.03em'
+                    }}
+                  >
+                    {t('nav.mobileMore')}
+                  </div>
+                ) : null}
                 <img 
                   src="/logo.png" 
                   alt="dadosIA Logo" 
                   style={{ 
-                    width: isMobile ? '120px' : '160px',
-                    height: isMobile ? '120px' : '160px',
+                    width: isMobile ? '72px' : '160px',
+                    height: isMobile ? '72px' : '160px',
                     objectFit: 'contain'
                   }} 
                 />
@@ -10509,9 +10527,9 @@ const DashboardWithFirebase = ({
               <nav style={{ 
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '4px', 
+                gap: isMobile ? '2px' : '4px', 
                 flex: 1,
-                padding: '16px 12px',
+                padding: isMobile ? '8px 10px' : '16px 12px',
                 overflowY: 'auto',
                 overflowX: 'hidden'
               }}>
@@ -10552,33 +10570,47 @@ const DashboardWithFirebase = ({
                       }}
                       style={{
                         textAlign: 'left',
-                        padding: '12px 16px',
-                        borderRadius: '8px',
+                        padding: isMobile ? '10px 12px' : '12px 16px',
+                        borderRadius: isMobile ? '12px' : '8px',
                         border: 'none',
-                        background: isLocked ? 'rgba(107, 114, 128, 0.1)' : 'transparent',
-                        color: isLocked 
-                          ? '#6b7280' 
-                          : (currentPage === item.id ? '#ffffff' : '#d1d5db'),
+                        borderBottom: isMobile ? '1px solid #f1f5f9' : 'none',
+                        background: isLocked
+                          ? (isMobile ? 'rgba(100, 116, 139, 0.06)' : 'rgba(107, 114, 128, 0.1)')
+                          : currentPage === item.id && isMobile
+                            ? 'rgba(16, 185, 129, 0.1)'
+                            : 'transparent',
+                        color: isLocked
+                          ? '#94a3b8'
+                          : currentPage === item.id
+                            ? (isMobile ? '#059669' : '#ffffff')
+                            : isMobile
+                              ? '#334155'
+                              : '#d1d5db',
                         cursor: isLocked ? 'not-allowed' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '12px',
-                        fontSize: '14px',
+                        fontSize: isMobile ? '13px' : '14px',
                         fontWeight: currentPage === item.id ? '600' : '500',
                         transition: 'all 0.2s ease',
-                        opacity: isLocked ? 0.5 : 1,
+                        opacity: isLocked ? 0.55 : 1,
                         width: '100%',
                         boxShadow: 'none',
                         position: 'relative',
-                        minHeight: '44px'
+                        minHeight: isMobile ? '48px' : '44px'
                       }}
                       onMouseEnter={(e) => {
                         if (currentPage !== item.id && !isLocked) {
-                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                          e.currentTarget.style.backgroundColor = isMobile
+                            ? 'rgba(16, 185, 129, 0.07)'
+                            : 'rgba(255, 255, 255, 0.05)';
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (currentPage !== item.id && !isLocked) {
+                        if (isLocked) return;
+                        if (currentPage === item.id && isMobile) {
+                          e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                        } else if (currentPage !== item.id) {
                           e.currentTarget.style.backgroundColor = 'transparent';
                         }
                       }}
@@ -10634,8 +10666,8 @@ const DashboardWithFirebase = ({
                             alignItems: 'center',
                             justifyContent: 'center',
                             filter: isLocked 
-                              ? (shouldBeColored ? 'opacity(0.4)' : 'brightness(0) invert(1) opacity(0.4)')
-                              : (shouldBeColored ? 'none' : 'brightness(0) invert(1)'),
+                              ? (shouldBeColored ? 'opacity(0.4)' : (isMobile ? 'opacity(0.45)' : 'brightness(0) invert(1) opacity(0.4)'))
+                              : (shouldBeColored ? 'none' : (isMobile ? 'none' : 'brightness(0) invert(1)')),
                             opacity: isLocked ? 0.4 : 1,
                             transition: 'all 0.2s ease',
                             visibility: 'visible',
@@ -10693,18 +10725,19 @@ const DashboardWithFirebase = ({
               {/* Footer do Sidebar - Perfil do Usuário e Logout */}
               <div style={{ 
                 padding: '16px',
-                borderTop: '1px solid rgba(16, 185, 129, 0.1)',
+                borderTop: isMobile ? '1px solid #e2e8f0' : '1px solid rgba(16, 185, 129, 0.1)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '12px',
-                flexShrink: 0
+                flexShrink: 0,
+                backgroundColor: isMobile ? '#f8fafc' : 'transparent'
               }}>
                 <div style={{ padding: '0 12px 4px' }}>
                   <label
                     style={{
                       display: 'block',
                       fontSize: '0.75rem',
-                      color: '#9ca3af',
+                      color: isMobile ? '#64748b' : '#9ca3af',
                       marginBottom: '6px',
                       fontWeight: 600
                     }}
@@ -10718,9 +10751,9 @@ const DashboardWithFirebase = ({
                       width: '100%',
                       padding: '10px 12px',
                       borderRadius: '8px',
-                      border: '1px solid rgba(255,255,255,0.12)',
-                      background: '#0f1419',
-                      color: '#fff',
+                      border: isMobile ? '1px solid #e2e8f0' : '1px solid rgba(255,255,255,0.12)',
+                      background: isMobile ? '#ffffff' : '#0f1419',
+                      color: isMobile ? '#0f172a' : '#fff',
                       fontSize: '0.875rem',
                       cursor: 'pointer'
                     }}
@@ -10747,8 +10780,8 @@ const DashboardWithFirebase = ({
                       borderRadius: '50%',
                     overflow: 'hidden',
                       flexShrink: 0,
-                      border: '2px solid rgba(16, 185, 129, 0.3)',
-                      backgroundColor: '#1a1f36',
+                      border: '2px solid rgba(16, 185, 129, 0.35)',
+                      backgroundColor: isMobile ? '#f1f5f9' : '#1a1f36',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center'
@@ -10789,7 +10822,7 @@ const DashboardWithFirebase = ({
                       style={{
                         fontSize: '0.9375rem',
                         fontWeight: '600',
-                        color: '#ffffff',
+                        color: isMobile ? '#0f172a' : '#ffffff',
                         marginBottom: '4px',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
@@ -10801,7 +10834,7 @@ const DashboardWithFirebase = ({
                     <div
                       style={{
                         fontSize: '0.8125rem',
-                        color: '#9ca3af',
+                        color: isMobile ? '#64748b' : '#9ca3af',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis'
@@ -10858,9 +10891,7 @@ const DashboardWithFirebase = ({
               style={{ 
                 marginLeft: isMobile ? '0' : '280px',
                 paddingTop: isMobile
-                  ? mobileHeaderSectionTitle
-                    ? 'calc(100px + max(8px, env(safe-area-inset-top, 0px)))'
-                    : 'calc(72px + max(8px, env(safe-area-inset-top, 0px)))'
+                  ? 'calc(36px + max(4px, env(safe-area-inset-top, 0px)))'
                   : '0',
                 paddingBottom: isMobile ? 'calc(100px + env(safe-area-inset-bottom, 0px))' : '0',
                 minHeight: '100vh',
@@ -10890,9 +10921,9 @@ const DashboardWithFirebase = ({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
-                      fontSize: '1rem',
+                      fontSize: '0.9rem',
                       fontWeight: 700,
-                      color: '#5b21b6',
+                      color: '#059669',
                       marginBottom: '6px',
                       lineHeight: 1.25
                     }}
@@ -10960,7 +10991,7 @@ const DashboardWithFirebase = ({
           fontWeight: 'bold',
           textDecoration: 'none',
           boxShadow: '0 12px 24px rgba(16, 185, 129, 0.35)',
-          zIndex: isMobile ? 955 : 1100,
+          zIndex: isMobile ? 999 : 1100,
           transition: 'transform 0.2s ease, box-shadow 0.2s ease'
         }}
         onMouseEnter={(e) => {
@@ -10989,14 +11020,14 @@ const DashboardWithFirebase = ({
               position: 'fixed',
               right: '16px',
               bottom: 'calc(76px + max(8px, env(safe-area-inset-bottom, 0px)))',
-              zIndex: 960,
+              zIndex: 999,
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              padding: '12px 16px',
+              padding: '10px 14px',
               borderRadius: '9999px',
               border: 'none',
-              background: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               color: '#fff',
               fontWeight: 700,
               fontSize: '0.8125rem',
@@ -11017,7 +11048,7 @@ const DashboardWithFirebase = ({
               left: 0,
               right: 0,
               bottom: 0,
-              zIndex: 950,
+              zIndex: 998,
               display: 'flex',
               alignItems: 'stretch',
               justifyContent: 'space-around',
@@ -11053,7 +11084,7 @@ const DashboardWithFirebase = ({
                     background: 'transparent',
                     cursor: 'pointer',
                     minWidth: 0,
-                    color: active ? (tab.wa ? '#047857' : '#5b21b6') : '#64748b'
+                    color: active ? (tab.wa ? '#047857' : '#059669') : '#64748b'
                   }}
                 >
                   {tab.wa ? (
