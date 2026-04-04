@@ -33,8 +33,90 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 
+/** Alinha à chave usada em conversations/ no backend (sanitizePhoneNumber). */
+function sanitizeConversationContactKey(s) {
+  return String(s || '').replace(/[\.\#\$\[\]@]/g, '_');
+}
+
+function collectIdentityDigitsForPurge(dataMap, toRemoveKeys, primaryKey) {
+  const identityDigits = new Set();
+  const add = (x) => {
+    const d = String(x || '').replace(/\D/g, '');
+    if (d.length >= 8 && d.length <= 20) identityDigits.add(d);
+  };
+  add(primaryKey);
+  for (const k of toRemoveKeys) {
+    add(k);
+    const v = dataMap[k];
+    if (!v || typeof v !== 'object') continue;
+    add(v.mobilePhone);
+    add(v.mirroredFromChatKey);
+    add(v.originalPhone);
+    add(v.whatsappJid);
+    add(v.phone);
+  }
+  return identityDigits;
+}
+
+function customerRecordMatchesIdentityDigits(cust, identityDigits) {
+  if (!cust || !identityDigits || identityDigits.size === 0) return false;
+  const cand = [
+    String(cust.mobilePhone || '').replace(/\D/g, ''),
+    String(cust.phone || '').replace(/\D/g, ''),
+    String(cust.whatsappJid || '').replace(/\D/g, ''),
+    String(cust.originalPhone || '').replace(/\D/g, '')
+  ].filter((d) => d.length >= 8);
+  return cand.some((d) => identityDigits.has(d));
+}
+
+function buildConversationKeyCandidates(identityDigits, dataMap, toRemoveKeys) {
+  const out = new Set();
+  const add = (s) => {
+    const t = String(s || '').trim();
+    if (t) out.add(t);
+  };
+  for (const d of identityDigits) {
+    add(d);
+    add(sanitizeConversationContactKey(`${d}@c.us`));
+    add(sanitizeConversationContactKey(`${d}@lid`));
+  }
+  for (const k of toRemoveKeys) {
+    const v = dataMap[k];
+    if (!v || typeof v !== 'object') continue;
+    add(sanitizeConversationContactKey(v.originalPhone));
+    add(sanitizeConversationContactKey(v.whatsappJid));
+    if (typeof v.phone === 'string' && v.phone.includes('@')) {
+      add(sanitizeConversationContactKey(v.phone));
+    }
+  }
+  return out;
+}
+
+/** Liberta reservas de TV no cliente Firebase (equivalente a releaseTvReservationsForOrder no servidor). */
+async function releaseTvReservationsForOrdersClient(database, userId, orderIds) {
+  if (!orderIds.length) return;
+  const idSet = new Set(orderIds);
+  const { ref, get, update } = await import('firebase/database');
+  const baseRef = ref(database, `users/data/${userId}/tv_logins`);
+  const snap = await get(baseRef);
+  if (!snap.exists()) return;
+  const data = snap.val();
+  const now = new Date().toISOString();
+  for (const [loginId, item] of Object.entries(data)) {
+    if (item?.status === 'reserved' && item.reservedOrderId && idSet.has(String(item.reservedOrderId))) {
+      await update(ref(database, `users/data/${userId}/tv_logins/${loginId}`), {
+        status: 'available',
+        reservedOrderId: null,
+        reservedUntil: null,
+        updatedAt: now
+      });
+    }
+  }
+}
+
 /**
- * Apaga customerData/{uid}/{chave} e registos ligados (espelho por mobilePhone, mirroredFromChatKey, mesmo JID).
+ * Apaga customerData/{uid}/{chave}, espelhos CRM e dados do agente ligados ao mesmo contacto:
+ * pedidos (orders), vendas (sales), assinaturas (subscriptions), conversas, collectionContext e liberta reservas TV.
  */
 async function deleteCustomerDataCascade(database, userId, customerKey) {
   const { ref, get, remove } = await import('firebase/database');
@@ -42,6 +124,60 @@ async function deleteCustomerDataCascade(database, userId, customerKey) {
   const rootRef = ref(database, `customerData/${userId}`);
   const snap = await get(rootRef);
   if (!snap.exists()) {
+    const identityDigits = new Set();
+    const dOnly = pk.replace(/\D/g, '');
+    if (dOnly.length >= 8 && dOnly.length <= 20) identityDigits.add(dOnly);
+    const toRemoveOrphan = new Set([pk]);
+    const convKeysOrphan = buildConversationKeyCandidates(identityDigits, {}, toRemoveOrphan);
+    const orderIdsOrphan = [];
+    const ordersSnapOrphan = await get(ref(database, `orders/${userId}`));
+    if (ordersSnapOrphan.exists()) {
+      const orders = ordersSnapOrphan.val();
+      Object.keys(orders).forEach((oid) => {
+        if (customerRecordMatchesIdentityDigits(orders[oid]?.customer, identityDigits)) {
+          orderIdsOrphan.push(oid);
+        }
+      });
+    }
+    await releaseTvReservationsForOrdersClient(database, userId, orderIdsOrphan);
+    for (const oid of orderIdsOrphan) {
+      await remove(ref(database, `orders/${userId}/${oid}`));
+    }
+    const salesSnapOrphan = await get(ref(database, `sales/${userId}`));
+    if (salesSnapOrphan.exists()) {
+      const sales = salesSnapOrphan.val();
+      await Promise.all(
+        Object.keys(sales).map(async (sid) => {
+          const cid = String(sales[sid]?.clientId || '');
+          if (cid && toRemoveOrphan.has(cid)) {
+            await remove(ref(database, `sales/${userId}/${sid}`));
+          }
+        })
+      );
+    }
+    const subsSnapOrphan = await get(ref(database, `subscriptions/${userId}`));
+    if (subsSnapOrphan.exists()) {
+      const subs = subsSnapOrphan.val();
+      await Promise.all(
+        Object.keys(subs).map(async (subId) => {
+          if (customerRecordMatchesIdentityDigits(subs[subId]?.customer, identityDigits)) {
+            await remove(ref(database, `subscriptions/${userId}/${subId}`));
+          }
+        })
+      );
+    }
+    for (const c of convKeysOrphan) {
+      await remove(ref(database, `conversations/${userId}/${c}`));
+      await remove(ref(database, `collectionContext/${userId}/${c}`));
+    }
+    const linesOrphan = await get(ref(database, `conversations/${userId}/lines`));
+    if (linesOrphan.exists()) {
+      for (const lineKey of Object.keys(linesOrphan.val())) {
+        for (const c of convKeysOrphan) {
+          await remove(ref(database, `conversations/${userId}/lines/${lineKey}/${c}`));
+        }
+      }
+    }
     await remove(ref(database, `customerData/${userId}/${pk}`));
     return;
   }
@@ -78,6 +214,66 @@ async function deleteCustomerDataCascade(database, userId, customerKey) {
         changed = true;
       }
     });
+  }
+
+  const identityDigits = collectIdentityDigitsForPurge(dataMap, toRemove, pk);
+  const convKeys = buildConversationKeyCandidates(identityDigits, dataMap, toRemove);
+
+  const orderIdsToDelete = [];
+  const ordersSnap = await get(ref(database, `orders/${userId}`));
+  if (ordersSnap.exists()) {
+    const orders = ordersSnap.val();
+    Object.keys(orders).forEach((oid) => {
+      const o = orders[oid];
+      if (customerRecordMatchesIdentityDigits(o?.customer, identityDigits)) {
+        orderIdsToDelete.push(oid);
+      }
+    });
+  }
+
+  await releaseTvReservationsForOrdersClient(database, userId, orderIdsToDelete);
+  for (const oid of orderIdsToDelete) {
+    await remove(ref(database, `orders/${userId}/${oid}`));
+  }
+
+  const salesSnap = await get(ref(database, `sales/${userId}`));
+  if (salesSnap.exists()) {
+    const sales = salesSnap.val();
+    await Promise.all(
+      Object.keys(sales).map(async (sid) => {
+        const s = sales[sid];
+        const cid = String(s?.clientId || '');
+        if (cid && toRemove.has(cid)) {
+          await remove(ref(database, `sales/${userId}/${sid}`));
+        }
+      })
+    );
+  }
+
+  const subsSnap = await get(ref(database, `subscriptions/${userId}`));
+  if (subsSnap.exists()) {
+    const subs = subsSnap.val();
+    await Promise.all(
+      Object.keys(subs).map(async (subId) => {
+        if (customerRecordMatchesIdentityDigits(subs[subId]?.customer, identityDigits)) {
+          await remove(ref(database, `subscriptions/${userId}/${subId}`));
+        }
+      })
+    );
+  }
+
+  for (const c of convKeys) {
+    await remove(ref(database, `conversations/${userId}/${c}`));
+    await remove(ref(database, `collectionContext/${userId}/${c}`));
+  }
+  const linesSnap = await get(ref(database, `conversations/${userId}/lines`));
+  if (linesSnap.exists()) {
+    const lineKeys = Object.keys(linesSnap.val());
+    for (const lineKey of lineKeys) {
+      for (const c of convKeys) {
+        await remove(ref(database, `conversations/${userId}/lines/${lineKey}/${c}`));
+      }
+    }
   }
 
   for (const k of toRemove) {
