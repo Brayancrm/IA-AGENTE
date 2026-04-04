@@ -3251,6 +3251,10 @@ const DashboardWithFirebase = ({
   const [tvLoginForm, setTvLoginForm] = useState({ login: '', password: '', planName: '', planKey: '', notes: '' });
   const [editingTvLoginId, setEditingTvLoginId] = useState(null);
   const [tvLoginSearch, setTvLoginSearch] = useState('');
+  /** all | available | reserved | sold — filtro da lista (estado efetivo, inclui reserva expirada). */
+  const [tvLoginStatusFilter, setTvLoginStatusFilter] = useState('all');
+  /** plan | login | recent — ordenação dentro de cada grupo de plano. */
+  const [tvLoginSort, setTvLoginSort] = useState('plan');
   const [savingTvLogin, setSavingTvLogin] = useState(false);
   const [tvPwVisible, setTvPwVisible] = useState({});
   /** CRM por login TV (quando Firebase ainda não tem soldBuyerName/email). */
@@ -6142,22 +6146,74 @@ const DashboardWithFirebase = ({
   const renderTvLoginsPanel = () => {
     const nowMs = Date.now();
     const query = String(tvLoginSearch || '').toLowerCase().trim();
-    const filtered = tvLogins.filter((item) => {
+    const matchesSearch = (item) => {
       const text = `${item.login || ''} ${item.planName || ''} ${item.planKey || ''} ${item.notes || ''}`.toLowerCase();
       return !query || text.includes(query);
-    });
+    };
+    const disp = (item) => getTvLoginDisplayStatus(item, nowMs);
+    let scoped = tvLogins.filter(matchesSearch);
+    if (tvLoginStatusFilter !== 'all') {
+      scoped = scoped.filter((item) => disp(item) === tvLoginStatusFilter);
+    }
     const availableCount = tvLogins.filter((i) => getTvLoginDisplayStatus(i, nowMs) === 'available').length;
     const reservedCount = tvLogins.filter((i) => getTvLoginDisplayStatus(i, nowMs) === 'reserved').length;
     const soldCount = tvLogins.filter((i) => i?.status === 'sold').length;
+
     const tvGrouped = (() => {
       const g = {};
-      filtered.forEach((item) => {
+      scoped.forEach((item) => {
         const k = normalizePlanKeyClient(item.planKey || item.planName || '_');
         if (!g[k]) g[k] = { label: item.planKey || item.planName || k, items: [] };
         g[k].items.push(item);
       });
-      return Object.entries(g);
+      let entries = Object.entries(g);
+      entries.forEach(([, grp]) => {
+        grp.items.sort((a, b) => {
+          if (tvLoginSort === 'recent') {
+            return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+          }
+          return String(a.login || '').localeCompare(String(b.login || ''), undefined, { sensitivity: 'base' });
+        });
+      });
+      const maxCreated = (items) =>
+        items.length ? Math.max(...items.map((i) => new Date(i.createdAt || 0).getTime())) : 0;
+      if (tvLoginSort === 'plan') {
+        entries.sort((a, b) =>
+          String(a[1].label || '').localeCompare(String(b[1].label || ''), undefined, { sensitivity: 'base' })
+        );
+      } else if (tvLoginSort === 'login') {
+        entries.sort((a, b) =>
+          String(a[1].items[0]?.login || '').localeCompare(String(b[1].items[0]?.login || ''), undefined, {
+            sensitivity: 'base'
+          })
+        );
+      } else if (tvLoginSort === 'recent') {
+        entries.sort((a, b) => maxCreated(b[1].items) - maxCreated(a[1].items));
+      }
+      return entries;
     })();
+
+    const copyTvCredentials = async (item) => {
+      const text = `Login: ${item.login || ''}\nSenha: ${item.password || ''}`;
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast(t('tvLogins.copyCredentialsOk'), 'success');
+      } catch {
+        showToast(t('tvLogins.copyCredentialsFail'), 'error');
+      }
+    };
+
+    const tvInputStyle = {
+      padding: '10px 12px',
+      borderRadius: '10px',
+      border: '1px solid #374151',
+      background: '#0f1419',
+      color: '#fff',
+      fontSize: '0.9rem',
+      outline: 'none',
+      width: '100%',
+      boxSizing: 'border-box'
+    };
 
     const statusBadge = (item) => {
       const disp = getTvLoginDisplayStatus(item, nowMs);
@@ -6200,17 +6256,161 @@ const DashboardWithFirebase = ({
           </div>
         ) : null}
 
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+            gap: '10px',
+            marginBottom: '20px'
+          }}
+        >
+          {[
+            { id: 'all', count: tvLogins.length, label: t('tvLogins.filterAll'), color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
+            {
+              id: 'available',
+              count: availableCount,
+              label: t('tvLogins.filterAvailable'),
+              color: '#10b981',
+              bg: 'rgba(16,185,129,0.12)'
+            },
+            {
+              id: 'reserved',
+              count: reservedCount,
+              label: t('tvLogins.filterReserved'),
+              color: '#f59e0b',
+              bg: 'rgba(245,158,11,0.12)'
+            },
+            { id: 'sold', count: soldCount, label: t('tvLogins.filterSold'), color: '#f87171', bg: 'rgba(248,113,113,0.12)' }
+          ].map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setTvLoginStatusFilter(s.id)}
+              style={{
+                padding: '12px 14px',
+                borderRadius: '14px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                border:
+                  tvLoginStatusFilter === s.id ? `2px solid ${s.color}` : '1px solid rgba(255,255,255,0.1)',
+                background: tvLoginStatusFilter === s.id ? s.bg : 'rgba(15,20,25,0.95)',
+                transition: 'border-color 0.15s ease, background 0.15s ease'
+              }}
+            >
+              <div
+                style={{
+                  fontSize: isMobile ? '1.35rem' : '1.55rem',
+                  fontWeight: 800,
+                  color: s.color,
+                  lineHeight: 1.1
+                }}
+              >
+                {s.count}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: '4px', fontWeight: 600 }}>{s.label}</div>
+            </button>
+          ))}
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(280px,1fr) minmax(0,2fr)', gap: '16px', alignItems: 'start' }}>
-          <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '16px', border: '1px solid rgba(16,185,129,0.2)' }}>
-            <h3 style={{ color: '#fff', marginBottom: '12px' }}>{editingTvLoginId ? t('tvLogins.editLogin') : t('tvLogins.newLogin')}</h3>
-            <form onSubmit={handleTvLoginSubmit} style={{ display: 'grid', gap: '10px' }}>
-              <label htmlFor="tv-login-user" style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Login</label>
-              <input id="tv-login-user" autoComplete="off" value={tvLoginForm.login} onChange={(e) => setTvLoginForm((p) => ({ ...p, login: e.target.value }))} placeholder="Login / usuario" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
-              <label htmlFor="tv-login-pass" style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Senha</label>
-              <input id="tv-login-pass" type="password" autoComplete="new-password" value={tvLoginForm.password} onChange={(e) => setTvLoginForm((p) => ({ ...p, password: e.target.value }))} placeholder="Senha" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
-              <input value={tvLoginForm.planName} onChange={(e) => setTvLoginForm((p) => ({ ...p, planName: e.target.value }))} placeholder="Nome do plano (exibicao)" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
-              <input value={tvLoginForm.planKey} onChange={(e) => setTvLoginForm((p) => ({ ...p, planKey: e.target.value }))} placeholder="Chave (tvPlanKey do catalogo)" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
-              <textarea value={tvLoginForm.notes} onChange={(e) => setTvLoginForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Observacoes (opcional)" rows={3} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }} />
+          <div
+            style={{
+              backgroundColor: '#1a1f36',
+              borderRadius: '16px',
+              padding: '18px',
+              border: '1px solid rgba(16,185,129,0.25)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.2)'
+            }}
+          >
+            <h3 style={{ color: '#fff', marginBottom: '8px', fontSize: '1.05rem' }}>
+              {editingTvLoginId ? t('tvLogins.editLogin') : t('tvLogins.newLogin')}
+            </h3>
+            <p style={{ margin: '0 0 14px 0', fontSize: '0.78rem', color: '#6b7280', lineHeight: 1.45 }}>
+              {t('tvLogins.formHint')}
+            </p>
+            <form onSubmit={handleTvLoginSubmit} style={{ display: 'grid', gap: '12px' }}>
+              <label htmlFor="tv-login-user" style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600 }}>
+                Login
+              </label>
+              <input
+                id="tv-login-user"
+                autoComplete="off"
+                value={tvLoginForm.login}
+                onChange={(e) => setTvLoginForm((p) => ({ ...p, login: e.target.value }))}
+                placeholder="Login / usuario"
+                style={tvInputStyle}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#10b981';
+                  e.target.style.boxShadow = '0 0 0 2px rgba(16,185,129,0.2)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#374151';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
+              <label htmlFor="tv-login-pass" style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600 }}>
+                Senha
+              </label>
+              <input
+                id="tv-login-pass"
+                type="password"
+                autoComplete="new-password"
+                value={tvLoginForm.password}
+                onChange={(e) => setTvLoginForm((p) => ({ ...p, password: e.target.value }))}
+                placeholder="Senha"
+                style={tvInputStyle}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#10b981';
+                  e.target.style.boxShadow = '0 0 0 2px rgba(16,185,129,0.2)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#374151';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
+              <input
+                value={tvLoginForm.planName}
+                onChange={(e) => setTvLoginForm((p) => ({ ...p, planName: e.target.value }))}
+                placeholder="Nome do plano (exibicao)"
+                style={tvInputStyle}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#10b981';
+                  e.target.style.boxShadow = '0 0 0 2px rgba(16,185,129,0.2)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#374151';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
+              <input
+                value={tvLoginForm.planKey}
+                onChange={(e) => setTvLoginForm((p) => ({ ...p, planKey: e.target.value }))}
+                placeholder="Chave (tvPlanKey do catalogo)"
+                style={tvInputStyle}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#10b981';
+                  e.target.style.boxShadow = '0 0 0 2px rgba(16,185,129,0.2)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#374151';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
+              <textarea
+                value={tvLoginForm.notes}
+                onChange={(e) => setTvLoginForm((p) => ({ ...p, notes: e.target.value }))}
+                placeholder="Observacoes (opcional)"
+                rows={3}
+                style={{ ...tvInputStyle, resize: 'vertical', minHeight: '72px' }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#10b981';
+                  e.target.style.boxShadow = '0 0 0 2px rgba(16,185,129,0.2)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#374151';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <button type="submit" disabled={savingTvLogin} style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 14px', cursor: 'pointer', fontWeight: '700' }}>
                   {savingTvLogin ? 'Salvando...' : (editingTvLoginId ? 'Atualizar' : 'Adicionar')}
@@ -6225,27 +6425,71 @@ const DashboardWithFirebase = ({
           </div>
 
           <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '16px', border: '1px solid rgba(124,58,237,0.25)', minWidth: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', marginBottom: '12px' }}>
               <input
                 value={tvLoginSearch}
                 onChange={(e) => setTvLoginSearch(e.target.value)}
                 placeholder={t('tvLogins.searchPlaceholder')}
                 aria-label={t('tvLogins.searchPlaceholder')}
-                style={{ flex: 1, minWidth: 'min(100%, 220px)', padding: '10px', borderRadius: '8px', border: '1px solid #374151', background: '#0f1419', color: '#fff' }}
+                style={{
+                  flex: 1,
+                  minWidth: 'min(100%, 200px)',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  border: '1px solid #374151',
+                  background: '#0f1419',
+                  color: '#fff',
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
               />
-              <div style={{ color: '#9ca3af', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
-                {t('tvLogins.available')}: <strong style={{ color: '#10b981' }}>{availableCount}</strong>
-                {' · '}{t('tvLogins.reserved')}: <strong style={{ color: '#f59e0b' }}>{reservedCount}</strong>
-                {' · '}{t('tvLogins.soldCount')}: <strong style={{ color: '#ef4444' }}>{soldCount}</strong>
-              </div>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  color: '#9ca3af',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {t('tvLogins.sortLabel')}
+                <select
+                  value={tvLoginSort}
+                  onChange={(e) => setTvLoginSort(e.target.value)}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid #374151',
+                    background: '#0f1419',
+                    color: '#e5e7eb',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="plan">{t('tvLogins.sortPlan')}</option>
+                  <option value="login">{t('tvLogins.sortLogin')}</option>
+                  <option value="recent">{t('tvLogins.sortRecent')}</option>
+                </select>
+              </label>
             </div>
 
             <div style={{ display: 'grid', gap: '12px', maxHeight: '560px', overflowY: 'auto' }}>
-              {filtered.length === 0 ? (
+              {scoped.length === 0 ? (
                 <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af' }}>
                   <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📭</div>
-                  <div style={{ fontWeight: 600, color: '#e5e7eb', marginBottom: '6px' }}>{t('tvLogins.emptyTitle')}</div>
-                  <div style={{ fontSize: '0.9rem' }}>{t('tvLogins.emptyHint')}</div>
+                  {tvLogins.length === 0 ? (
+                    <>
+                      <div style={{ fontWeight: 600, color: '#e5e7eb', marginBottom: '6px' }}>{t('tvLogins.emptyTitle')}</div>
+                      <div style={{ fontSize: '0.9rem' }}>{t('tvLogins.emptyHint')}</div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: '0.9rem', color: '#e5e7eb', fontWeight: 600, lineHeight: 1.5 }}>
+                      {t('tvLogins.emptyFilterHint')}
+                    </div>
+                  )}
                 </div>
               ) : (
                 tvGrouped.map(([gKey, group]) => (
@@ -6282,8 +6526,24 @@ const DashboardWithFirebase = ({
                           item,
                           item.status === 'reserved' ? orderHint : null
                         );
+                      const statusAccent =
+                        disp(item) === 'sold'
+                          ? '#ef4444'
+                          : disp(item) === 'reserved'
+                            ? '#f59e0b'
+                            : '#10b981';
                       return (
-                        <div key={item.id} style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px', backgroundColor: '#0f1419', marginBottom: '8px' }}>
+                        <div
+                          key={item.id}
+                          style={{
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderLeft: `4px solid ${statusAccent}`,
+                            borderRadius: '10px',
+                            padding: '12px',
+                            backgroundColor: '#0f1419',
+                            marginBottom: '8px'
+                          }}
+                        >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
                             <div style={{ minWidth: 0 }}>
                               <p style={{ margin: 0, color: '#fff', fontWeight: '700' }}>{item.login}</p>
@@ -6357,6 +6617,21 @@ const DashboardWithFirebase = ({
                           </div>
 
                           <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              onClick={() => copyTvCredentials(item)}
+                              style={{
+                                backgroundColor: '#4b5563',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '8px',
+                                padding: '6px 10px',
+                                cursor: 'pointer',
+                                fontSize: '0.8rem'
+                              }}
+                            >
+                              {t('tvLogins.copyCredentials')}
+                            </button>
                             <button type="button" onClick={() => editTvLogin(item)} style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Editar</button>
                             {item.status === 'sold' ? (
                               <>
