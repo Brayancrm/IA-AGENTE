@@ -5,6 +5,7 @@ const cors = require('cors');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const os = require('os');
 const FormData = require('form-data');
 const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
@@ -112,6 +113,60 @@ const db = admin.database();
 const firestore = admin.firestore();
 const app = express();
 const ENABLE_ASAAS_LEGACY = process.env.ENABLE_ASAAS_LEGACY === 'true';
+
+/** URL pública do API (Railway, etc.) — usada no link curto de pagamento. */
+function getPublicServerBaseUrl() {
+  return String(process.env.PUBLIC_SERVER_URL || process.env.BACKEND_URL || '').replace(/\/$/, '');
+}
+
+const PAY_REDIRECT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Gera URL curta tipo https://api.../p/a1b2c3d4e5f6g7h8 que redireciona ao Stripe.
+ * Sem PUBLIC_SERVER_URL/BACKEND_URL, devolve o URL longo original.
+ */
+async function createShortPaymentUrl(targetUrl, { userId, orderId } = {}) {
+  if (!targetUrl || typeof targetUrl !== 'string' || !/^https?:\/\//i.test(targetUrl)) {
+    return targetUrl;
+  }
+  const base = getPublicServerBaseUrl();
+  if (!base) {
+    console.warn('⚠️ [PAY] Defina PUBLIC_SERVER_URL ou BACKEND_URL para link curto de pagamento no WhatsApp.');
+    return targetUrl;
+  }
+  const token = crypto.randomBytes(8).toString('hex');
+  const now = Date.now();
+  await db.ref(`pay_redirects/${token}`).set({
+    targetUrl,
+    userId: userId || null,
+    orderId: orderId || null,
+    createdAt: new Date().toISOString(),
+    expiresAt: now + PAY_REDIRECT_TTL_MS
+  });
+  return `${base}/p/${token}`;
+}
+
+// Redirecionamento curto → Stripe (abre no browser do cliente)
+app.get('/p/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    if (!/^[a-f0-9]{16}$/i.test(token)) {
+      return res.status(400).type('text').send('Link inválido.');
+    }
+    const snap = await db.ref(`pay_redirects/${token.toLowerCase()}`).once('value');
+    const row = snap.val();
+    if (!row?.targetUrl) {
+      return res.status(404).type('text').send('Link não encontrado ou já utilizado.');
+    }
+    if (row.expiresAt && Date.now() > row.expiresAt) {
+      return res.status(410).type('text').send('Este link expirou. Peça um novo ao vendedor.');
+    }
+    return res.redirect(302, row.targetUrl);
+  } catch (e) {
+    console.error('❌ [PAY] redirect /p/:', e.message);
+    return res.status(500).type('text').send('Erro ao abrir o link.');
+  }
+});
 
 // Stripe Webhook (precisa de body raw)
 app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -2351,11 +2406,13 @@ ${stripeMarkerInstr}
 - O horário para escolher bom dia / boa tarde / boa noite (se o teu prompt usar Itália) é sempre o fuso **Europe/Rome** na hora actual do cliente na conversa — usa o que já tens escrito nas tuas regras de saudação.`;
 
     systemPrompt += `\n\n📱 RESPOSTAS NO WHATSAPP (OBRIGATÓRIO):
-- NUNCA termines no meio de uma frase ou de uma lista; cada mensagem deve soar completa.
-- Se precisares de muito texto, usa parágrafos curtos ou lista numerada (máx. 4–5 itens por mensagem).
-- Termina SEMPRE com uma pergunta clara ou o próximo passo (ex.: "Quer o link para pagar?" ou "Qual dúvida posso esclarecer?").
+- **Concisão:** preferir **1–3 frases curtas** por mensagem. Não repitas blocos longos (ex.: compatibilidade Android/TV/PC) se já respondeste na conversa, salvo o cliente perguntar de novo.
+- NUNCA termines no meio de uma frase; cada mensagem deve soar completa.
+- Lista numerada só quando o cliente pedir opções ou detalhes; no máximo **5 itens** por mensagem.
+- Fecho: pergunta ou próximo passo **quando faltar** clareza; se uma frase já responder, não forces pergunta vazia.
 - Só envia link de pagamento ou pede email/CPF quando o fluxo do assistente (pedido/CRM) indicar essa fase.
-- Se mencionares preço, indica sempre a moeda (€, R$, etc.) como no catálogo.`;
+- Preço: indica sempre a moeda (€, R$, etc.) como no catálogo.
+- **Canais / streaming / conteúdo:** só o que estiver **explícito** nas descrições de PRODUTOS/SERVIÇOS listados acima. Não inventes listas enormes nem digas que "não podes listar por ser muito" — se não houver lista no contexto, diz que **não tens a listagem oficial aqui** e oferece confirmar canais específicos ou seguir com o plano.`;
     
     // Valores muito baixos (ex.: 150) cortam a resposta no meio — mínimo seguro 512; predefinido 1024
     let maxTokens = 1024;
@@ -5084,6 +5141,11 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
       paymentProvider: 'stripe'
     });
 
+    const payLinkForWhatsApp = await createShortPaymentUrl(result.checkoutUrl, { userId, orderId });
+    if (payLinkForWhatsApp !== result.checkoutUrl) {
+      await orderRef.update({ paymentUrlShort: payLinkForWhatsApp });
+    }
+
     try {
       await reserveTvLoginsForCheckoutOrder(userId, orderId, enrichedOrderItems);
     } catch (e) {
@@ -5113,7 +5175,7 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
         return `• ${item.quantity}x ${item.name} - ${line || parseFloat(item.price).toFixed(2)}`;
       }).join('\n') +
       `\n\n💰 *Total: ${totalFmt}*\n\n` +
-      `🔗 *Link de Pagamento (Stripe):*\n${result.checkoutUrl}`;
+      `🔗 *Pagamento:*\n${payLinkForWhatsApp}`;
 
     await client.sendText(phone, paymentMessage);
 
@@ -6386,6 +6448,11 @@ async function handleCreateStripeCheckout(req, res) {
         paymentProvider: 'stripe'
       });
 
+      const shortCheckoutUrl = await createShortPaymentUrl(result.checkoutUrl, { userId, orderId });
+      if (shortCheckoutUrl !== result.checkoutUrl) {
+        await orderRef.update({ paymentUrlShort: shortCheckoutUrl });
+      }
+
       try {
         await reserveTvLoginsForCheckoutOrder(userId, orderId, enrichedItems);
       } catch (e) {
@@ -6395,6 +6462,7 @@ async function handleCreateStripeCheckout(req, res) {
       return res.json({
         success: true,
         orderId: orderId,
+        shortCheckoutUrl: shortCheckoutUrl !== result.checkoutUrl ? shortCheckoutUrl : undefined,
         ...result
       });
     }
@@ -7942,6 +8010,7 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log(`   GET  /api/sessions/status/:userId  - Status da sessão`);
   console.log(`   POST /api/messages/send            - Enviar mensagem`);
   console.log(`   GET  /api/conversations/:userId    - Listar conversas`);
+  console.log(`   GET  /p/:token                      - Link curto → checkout Stripe`);
   console.log('');
   if (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_SERVICE_NAME) {
     console.log(
