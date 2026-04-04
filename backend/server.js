@@ -1658,12 +1658,7 @@ async function handleIncomingMessage(userId, message, client) {
         });
         
         // ============================================
-        // DETECTAR SE O AGENTE FEZ UMA PERGUNTA (nome, cpf, email)
-        // ============================================
-        await detectAgentQuestion(userId, sanitizedNumber, aiResponse);
-        
-        // ============================================
-        // DETECTAR MENSAGEM DE GATILHO PARA GERAR LINK (Stripe)
+        // STRIPE: antes de detectAgentQuestion — evita que “whatsapp/e-mail” na mesma frase do link quebre o fluxo
         // ============================================
         const paymentProvider = (aiConfig?.paymentProvider || 'stripe').toLowerCase();
         const aiTriggeredStripeCheckout =
@@ -1672,6 +1667,11 @@ async function handleIncomingMessage(userId, message, client) {
           console.log('🎯 Resposta da IA indica checkout Stripe — gerando link de pagamento...');
           await tryAutoGenerateStripeLink(userId, message.from, sanitizedNumber);
         }
+        
+        // ============================================
+        // DETECTAR SE O AGENTE FEZ UMA PERGUNTA (nome, cpf, email)
+        // ============================================
+        await detectAgentQuestion(userId, sanitizedNumber, aiResponse);
         
         // ============================================
         // DETECTAR E SALVAR AGENDAMENTOS AUTOMATICAMENTE
@@ -2735,6 +2735,22 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
     const lowerText = messageText.toLowerCase();
     
     console.log('   Texto em minúsculas:', lowerText);
+
+    // Não confundir mensagem de “vou mandar o link” com pergunta de e-mail/telefone (ex.: “WhatsApp”, “e-mail” no texto)
+    const ntHandoff = normalizeText(messageText);
+    if (
+      /\bvou\s+gerar\s+(o\s+)?link\s+(de\s+)?pagamento\b/.test(ntHandoff) ||
+      /\bgerando\s+(o\s+)?link\s+(de\s+)?pagamento\b/.test(ntHandoff) ||
+      /\bestou\s+enviando\b[\s\S]{0,220}\blink\b[\s\S]{0,140}\bpagamento\b/.test(ntHandoff) ||
+      /\blink\s+para\s+(que\s+)?voce\s+efetue\s+o\s+pagamento\b/.test(ntHandoff) ||
+      (/(\bvou\s+enviar\b|\bestou\s+enviando\b)[\s\S]{0,180}\blink\b/.test(ntHandoff) &&
+        /\bpagamento\b/.test(ntHandoff))
+    ) {
+      console.log(
+        '⏭️ [detectAgentQuestion] Handoff de pagamento/link — ignorar palavras soltas (whatsapp, e-mail, etc.)'
+      );
+      return;
+    }
     
     // Detectar se o agente está perguntando sobre NOTA FISCAL
     const invoiceKeywords = [
@@ -2992,20 +3008,27 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
       return;
     }
     
-    // Detectar se o agente está perguntando TELEFONE
+    // Detectar se o agente está perguntando TELEFONE (evitar só “whatsapp”/“telefone” soltos — aparecem em “no WhatsApp”, “link de pagamento”)
     const phoneKeywords = [
-      'telefone',
-      'whatsapp',
+      'qual o telefone',
+      'qual é o telefone',
+      'qual seu telefone',
+      'me informe seu telefone',
+      'informe seu telefone',
+      'pode informar seu telefone',
       'número do telefone',
       'numero do telefone',
       'telefone de contato',
       'seu telefone',
-      'seu whatsapp',
       'número do whatsapp',
       'numero do whatsapp',
-      'celular',
+      'seu whatsapp',
+      'confirme seu número',
+      'confirme o número',
       'número do celular',
-      'numero do celular'
+      'numero do celular',
+      'qual o celular',
+      'qual é o celular'
     ];
 
     const hasPhoneQuestion = phoneKeywords.some(keyword => lowerText.includes(keyword));
@@ -3902,9 +3925,16 @@ function aiResponseShouldTriggerStripeCheckout(aiResponse) {
   if (n.includes(normalizeText(legacy))) return true;
   return (
     /gerando\s+(o\s+)?link\s+(de\s+)?pagamento/.test(n) ||
+    /vou\s+gerar\s+(o\s+)?link\s+(de\s+)?pagamento/.test(n) ||
     /vou\s+(te\s+)?enviar\s+(o\s+)?link\s+(de\s+)?pagamento/.test(n) ||
+    /estou\s+enviando\b[\s\S]{0,120}\blink\b[\s\S]{0,80}\bpagamento/.test(n) ||
+    /estou\s+enviando\s+(abaixo\s+)?(o\s+|seu\s+)?link\b/.test(n) &&
+      /\bpagamento\b/.test(n) ||
+    /link\s+para\s+(que\s+)?voce\s+(efetue|possa)/.test(n) ||
+    /\blink\s+para\s+que\s+efetue\s+o\s+pagamento/.test(n) ||
     /receber[a]?\s+.*\blink\b.*\bpagamento/.test(n) ||
-    /(em breve|logo)\s+.*\blink\b.*\bpagamento/.test(n)
+    /(em breve|logo)\s+.*\blink\b.*\bpagamento/.test(n) ||
+    /segue\s+(o\s+|abaixo\s+)?(o\s+)?link\s+(de\s+)?pagamento/.test(n)
   );
 }
 
