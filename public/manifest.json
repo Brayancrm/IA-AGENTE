@@ -4,10 +4,16 @@
   "description": "Painel de controle para configurar um assistente de vendas e suporte virtual para WhatsApp",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#25D366",
+  "background_color": "#1a1e2e",
+  "theme_color": "#76c893",
   "orientation": "portrait-primary",
   "icons": [
+    {
+      "src": "/dadosia-app-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
     {
       "src": "/icon-192x192.png",
       "sizes": "192x192",

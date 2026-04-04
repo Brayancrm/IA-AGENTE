@@ -65,8 +65,21 @@ import {
   Home,
   MessageSquare,
   MoreHorizontal,
-  Bot
+  Bot,
+  BookOpen,
+  User,
+  Calendar,
+  Settings,
+  Users,
+  Mail,
+  BarChart3,
+  Gem,
+  CircleUser
 } from 'lucide-react';
+
+const MOBILE_SUPPORT_WA_URL =
+  'https://wa.me/5561991442727?text=Ol%C3%A1%2C%20vim%20pela%20ferramenta%20DadosIA.';
+const MOBILE_BOTTOM_PRIMARY_IDS = ['dashboard', 'conversas', 'crm', 'catalog'];
 
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsappsalesagent';
 
@@ -239,8 +252,6 @@ const FirebaseApp = () => {
   
   // CRM temporariamente desativado - será reconstruído depois
   
-  // Estado do menu mobile
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   // Inicializar isMobile verificando se window existe (SSR-safe)
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -263,10 +274,6 @@ const FirebaseApp = () => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      // Em mobile, fechar sidebar por padrão
-      if (mobile) {
-        setIsMobileMenuOpen(false);
-      }
     };
     
     checkMobile();
@@ -3144,8 +3151,6 @@ const FirebaseApp = () => {
         formatTrialDuration={formatTrialDuration}
         formatTrialDurationFull={formatTrialDurationFull}
         isMobile={isMobile}
-        isMobileMenuOpen={isMobileMenuOpen}
-        setIsMobileMenuOpen={setIsMobileMenuOpen}
         handleCompanyPhotoUpload={handleCompanyPhotoUpload}
         companyPhotoPreview={companyPhotoPreview}
         setCompanyPhotoPreview={setCompanyPhotoPreview}
@@ -3227,8 +3232,6 @@ const DashboardWithFirebase = ({
   formatTrialDuration,
   formatTrialDurationFull,
   isMobile = false,
-  isMobileMenuOpen = false,
-  setIsMobileMenuOpen,
   handleCompanyPhotoUpload,
   companyPhotoPreview = undefined,
   setCompanyPhotoPreview = undefined,
@@ -3237,6 +3240,8 @@ const DashboardWithFirebase = ({
   // Garantir que usedTrials sempre seja um objeto
   const safeUsedTrials = usedTrials || {};
   const { t, locale, setLocale } = useI18n();
+  const [mobileBottomBank, setMobileBottomBank] = useState(0);
+  const [mobileAccountSheetOpen, setMobileAccountSheetOpen] = useState(false);
   const [isActive, setIsActive] = useState(assistantSettings.isActive || true);
   const [stripeOps, setStripeOps] = useState({
     loading: true,
@@ -3323,6 +3328,10 @@ const DashboardWithFirebase = ({
   const getTipoIcon = useCallback((tipo) => {
     return AGENDAMENTO_TIPO_ICON[tipo] || '📅';
   }, []);
+
+  useEffect(() => {
+    if (!isMobile) setMobileAccountSheetOpen(false);
+  }, [isMobile]);
 
   useEffect(() => {
     if (!database || !user?.isMaster || !user?.uid) {
@@ -10140,10 +10149,144 @@ const DashboardWithFirebase = ({
     [t, user?.isMaster, stripeOps.pastDue]
   );
 
+  const mobileNavBanks = useMemo(() => {
+    const moreTab = {
+      id: '__more__',
+      label: t('nav.mobileMore'),
+      Icon: MoreHorizontal,
+      isMore: true,
+      wa: false,
+      stripe: false,
+      waPage: false,
+      external: false,
+      account: false,
+      badge: 0
+    };
+    const primary = [
+      { id: 'dashboard', label: t('nav.mobileHome'), Icon: Home, wa: false, stripe: false, waPage: false, external: false, account: false, badge: 0 },
+      { id: 'conversas', label: t('nav.mobileChats'), Icon: MessageSquare, wa: true, stripe: false, waPage: false, external: false, account: false, badge: 0 },
+      { id: 'crm', label: t('nav.mobileCrmShort'), Icon: Target, wa: false, stripe: false, waPage: false, external: false, account: false, badge: 0 },
+      { id: 'catalog', label: t('nav.mobileCatalogShort'), Icon: Package, wa: false, stripe: false, waPage: false, external: false, account: false, badge: 0 },
+      moreTab
+    ];
+
+    const shortLabel = (id) => {
+      const key = {
+        tutorials: 'nav.mobileTutorials',
+        company: 'nav.mobileCompany',
+        agendamentos: 'nav.mobileAgendamentos',
+        integrations: 'nav.mobileIntegrations',
+        whatsapp: 'nav.mobileWhatsappShort',
+        assistant: 'nav.mobileAssistantShort',
+        plans: 'nav.mobilePlansShort',
+        reports: 'nav.mobileReportsShort',
+        stripe: 'nav.mobileStripeShort',
+        users: 'nav.mobileUsersShort',
+        email: 'nav.mobileEmailShort'
+      }[id];
+      return key ? t(key) : id;
+    };
+
+    const pageToTab = (item) => {
+      const base = {
+        id: item.id,
+        label: shortLabel(item.id),
+        wa: false,
+        stripe: false,
+        Icon: null,
+        waPage: false,
+        external: false,
+        account: false,
+        badge: item.badge ?? 0,
+        badgeTone: item.badgeTone
+      };
+      switch (item.id) {
+        case 'tutorials':
+          return { ...base, Icon: BookOpen };
+        case 'company':
+          return { ...base, Icon: User };
+        case 'agendamentos':
+          return { ...base, Icon: Calendar };
+        case 'integrations':
+          return { ...base, Icon: Settings };
+        case 'whatsapp':
+          return { ...base, waPage: true, wa: true };
+        case 'assistant':
+          return { ...base, Icon: Bot };
+        case 'plans':
+          return { ...base, Icon: Gem };
+        case 'reports':
+          return { ...base, Icon: BarChart3 };
+        case 'stripe':
+          return { ...base, stripe: true };
+        case 'users':
+          return { ...base, Icon: Users };
+        case 'email':
+          return { ...base, Icon: Mail };
+        default:
+          return { ...base, Icon: Settings };
+      }
+    };
+
+    const secondary = [];
+    menuItems.forEach((item) => {
+      if (MOBILE_BOTTOM_PRIMARY_IDS.includes(item.id)) return;
+      secondary.push(pageToTab(item));
+    });
+    const wIdx = secondary.findIndex((s) => s.id === 'whatsapp');
+    const insertAt = wIdx >= 0 ? wIdx + 1 : secondary.length;
+    secondary.splice(insertAt, 0, {
+      id: '__support_wa__',
+      label: t('nav.mobileSupport'),
+      wa: true,
+      external: true,
+      Icon: null,
+      stripe: false,
+      waPage: false,
+      account: false,
+      badge: 0
+    });
+    secondary.push({
+      id: '__mobile_account__',
+      label: t('mobileShell.accountTab'),
+      Icon: CircleUser,
+      account: true,
+      wa: false,
+      stripe: false,
+      waPage: false,
+      external: false,
+      badge: 0
+    });
+
+    const banks = [primary];
+    for (let i = 0; i < secondary.length; i += 4) {
+      banks.push([...secondary.slice(i, i + 4), { ...moreTab }]);
+    }
+    return banks;
+  }, [menuItems, t]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    const idx = mobileNavBanks.findIndex((bank) =>
+      bank.some((tab) => tab.id === currentPage && !tab.isMore)
+    );
+    if (idx >= 0) setMobileBottomBank(idx);
+  }, [isMobile, currentPage, mobileNavBanks]);
+
   const navigateMobileTab = useCallback(
     (pageId) => {
       if (pageId === '__more__') {
-        setIsMobileMenuOpen(true);
+        setMobileBottomBank((b) => (b + 1) % Math.max(1, mobileNavBanks.length));
+        return;
+      }
+      if (pageId === '__support_wa__') {
+        if (typeof window !== 'undefined') {
+          window.open(MOBILE_SUPPORT_WA_URL, '_blank', 'noopener,noreferrer');
+        }
+        return;
+      }
+      if (pageId === '__mobile_account__') {
+        setMobileAccountSheetOpen(true);
         return;
       }
       const isAlwaysAvailable = pageId === 'plans' || pageId === 'users';
@@ -10161,23 +10304,11 @@ const DashboardWithFirebase = ({
         setCurrentPage('plans');
         return;
       }
+      setMobileAccountSheetOpen(false);
       setCurrentPage(pageId);
     },
-    [user?.isMaster, userActivePlan, showToast, t, setCurrentPage, setIsMobileMenuOpen]
+    [user?.isMaster, userActivePlan, showToast, t, setCurrentPage, mobileNavBanks]
   );
-
-  const mobileBottomTabs = useMemo(
-    () => [
-      { id: 'dashboard', label: t('nav.mobileHome'), Icon: Home, wa: false },
-      { id: 'conversas', label: t('nav.mobileChats'), Icon: MessageSquare, wa: true },
-      { id: 'crm', label: t('nav.mobileCrmShort'), Icon: Target, wa: false },
-      { id: 'catalog', label: t('nav.mobileCatalogShort'), Icon: Package, wa: false },
-      { id: '__more__', label: t('nav.mobileMore'), Icon: MoreHorizontal, wa: false }
-    ],
-    [t]
-  );
-
-  const mobileBottomPrimaryIds = useMemo(() => new Set(['dashboard', 'conversas', 'crm', 'catalog']), []);
 
   const mobileHeaderSectionTitle = useMemo(() => {
     const item = menuItems.find((i) => i.id === currentPage);
@@ -10354,9 +10485,10 @@ const DashboardWithFirebase = ({
                   top: 0,
                   left: 0,
                   right: 0,
-                  zIndex: 1001,
-                  background: 'linear-gradient(90deg, #022c22 0%, #065f46 42%, #059669 100%)',
-                  boxShadow: '0 1px 8px rgba(0, 0, 0, 0.2)',
+                  zIndex: 1010,
+                  backgroundColor: '#022c22',
+                  backgroundImage: 'linear-gradient(90deg, #022c22 0%, #065f46 42%, #059669 100%)',
+                  boxShadow: '0 2px 12px rgba(0, 0, 0, 0.35)',
                   display: 'flex',
                   alignItems: 'center',
                   paddingTop: 'max(2px, env(safe-area-inset-top, 0px))',
@@ -10401,42 +10533,21 @@ const DashboardWithFirebase = ({
               </header>
             )}
 
-            {/* Overlay para mobile quando sidebar está aberto */}
-            {isMobile && isMobileMenuOpen && (
-              <div
-                onClick={() => setIsMobileMenuOpen(false)}
-                style={{
-                  position: 'fixed',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: 'rgba(0, 0, 0, 0.45)',
-                  zIndex: 1002,
-                  transition: 'opacity 0.3s ease'
-                }}
-              />
-            )}
-
-            {/* Sidebar: desktop escuro; mobile = painel claro (estilo barra inferior), acima do overlay, abaixo da nav inferior */}
+            {/* Sidebar só desktop — no mobile a navegação extra fica na barra inferior (Mais) */}
             <div 
               style={{ 
                 position: 'fixed',
                 top: 0,
-                left: isMobile
-                  ? (isMobileMenuOpen ? '0' : 'calc(-1 * min(300px, 88vw))')
-                  : '0',
-                width: isMobile ? 'min(300px, 88vw)' : '280px',
-                height: isMobile ? 'auto' : '100vh',
-                bottom: isMobile ? 'calc(52px + max(8px, env(safe-area-inset-bottom, 0px)))' : 'auto',
-                backgroundColor: isMobile ? '#ffffff' : '#1a1f36', 
-                color: isMobile ? '#0f172a' : 'white', 
-                display: 'flex',
+                left: 0,
+                width: '280px',
+                height: '100vh',
+                backgroundColor: '#1a1f36', 
+                color: 'white', 
+                display: isMobile ? 'none' : 'flex',
                 flexDirection: 'column',
-                boxShadow: isMobile ? '4px 0 24px rgba(0,0,0,0.12)' : '4px 0 12px rgba(0,0,0,0.4)',
-                borderRight: isMobile ? '1px solid rgba(15, 20, 25, 0.08)' : '2px solid rgba(16, 185, 129, 0.2)',
-                zIndex: isMobile ? 1003 : 1000,
-                transition: 'left 0.3s ease',
+                boxShadow: '4px 0 12px rgba(0,0,0,0.4)',
+                borderRight: '2px solid rgba(16, 185, 129, 0.2)',
+                zIndex: 1000,
                 overflowY: 'auto',
                 overflowX: 'hidden'
               }}
@@ -10447,60 +10558,18 @@ const DashboardWithFirebase = ({
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'flex-start',
-                gap: isMobile ? '8px' : '12px',
-                padding: isMobile ? '12px 14px 14px' : '24px 16px',
-                borderBottom: isMobile ? '1px solid rgba(15, 20, 25, 0.08)' : '1px solid rgba(16, 185, 129, 0.1)',
+                gap: '12px',
+                padding: '24px 16px',
+                borderBottom: '1px solid rgba(16, 185, 129, 0.1)',
                 flexShrink: 0,
                 position: 'relative'
               }}>
-                {isMobile && (
-                  <button
-                    type="button"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    style={{
-                      position: 'absolute',
-                      top: '8px',
-                      right: '10px',
-                      backgroundColor: 'rgba(15, 23, 42, 0.06)',
-                      border: 'none',
-                      color: '#64748b',
-                      cursor: 'pointer',
-                      fontSize: '20px',
-                      lineHeight: 1,
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '10px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'all 0.2s ease',
-                      zIndex: 10
-                    }}
-                    aria-label="Fechar menu"
-                  >
-                    ✕
-                  </button>
-                )}
-                {isMobile ? (
-                  <div
-                    style={{
-                      width: '100%',
-                      paddingRight: '36px',
-                      fontSize: '0.8125rem',
-                      fontWeight: 700,
-                      color: '#0f172a',
-                      letterSpacing: '0.03em'
-                    }}
-                  >
-                    {t('nav.mobileMore')}
-                  </div>
-                ) : null}
                 <img 
                   src="/logo.png" 
                   alt="dadosIA Logo" 
                   style={{ 
-                    width: isMobile ? '72px' : '160px',
-                    height: isMobile ? '72px' : '160px',
+                    width: '160px',
+                    height: '160px',
                     objectFit: 'contain'
                   }} 
                 />
@@ -10563,9 +10632,6 @@ const DashboardWithFirebase = ({
                           setCurrentPage('plans');
                         } else {
                           setCurrentPage(item.id);
-                          if (isMobile) {
-                            setIsMobileMenuOpen(false);
-                          }
                         }
                       }}
                       style={{
@@ -10883,18 +10949,21 @@ const DashboardWithFirebase = ({
               </div>
             </div>
 
-            {/* Menu hamburger só no desktop estreito / fallback; no mobile o item "Mais" abre o painel lateral */}
+            {/* Navegação completa no desktop pela sidebar; no mobile usa a barra inferior e "Mais" */}
 
             {/* Main Content - Responsivo */}
             <div 
               className="main-content"
               style={{ 
                 marginLeft: isMobile ? '0' : '280px',
-                paddingTop: isMobile
-                  ? 'calc(36px + max(4px, env(safe-area-inset-top, 0px)))'
+                marginTop: isMobile
+                  ? 'calc(36px + max(4px, env(safe-area-inset-top, 0px)) + 6px)'
                   : '0',
+                paddingTop: 0,
                 paddingBottom: isMobile ? 'calc(100px + env(safe-area-inset-bottom, 0px))' : '0',
-                minHeight: '100vh',
+                minHeight: isMobile
+                  ? 'calc(100vh - 36px - max(4px, env(safe-area-inset-top, 0px)) - 6px - 100px - env(safe-area-inset-bottom, 0px))'
+                  : '100vh',
                 backgroundColor: '#0f1419',
                 overflowY: 'auto',
                 overflowX: 'hidden',
@@ -10969,29 +11038,26 @@ const DashboardWithFirebase = ({
 
       {/* Botão flutuante de Suporte via WhatsApp */}
       <a
-        href="https://wa.me/5561991442727?text=Ol%C3%A1%2C%20vim%20pela%20ferramenta%20DadosIA."
+        href={MOBILE_SUPPORT_WA_URL}
         target="_blank"
         rel="noopener noreferrer"
         style={{
           position: 'fixed',
-          bottom: isMobile
-            ? 'calc(76px + max(8px, env(safe-area-inset-bottom, 0px)))'
-            : '24px',
-          left: isMobile ? '16px' : 'auto',
-          right: isMobile ? 'auto' : '24px',
-          width: isMobile ? '48px' : '60px',
-          height: isMobile ? '48px' : '60px',
+          bottom: '24px',
+          right: '24px',
+          width: '60px',
+          height: '60px',
           borderRadius: '50%',
           background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
           color: '#ffffff',
-          display: isMobile && isMobileMenuOpen ? 'none' : 'flex',
+          display: isMobile ? 'none' : 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: isMobile ? '20px' : '26px',
+          fontSize: '26px',
           fontWeight: 'bold',
           textDecoration: 'none',
           boxShadow: '0 12px 24px rgba(16, 185, 129, 0.35)',
-          zIndex: isMobile ? 999 : 1100,
+          zIndex: 1100,
           transition: 'transform 0.2s ease, box-shadow 0.2s ease'
         }}
         onMouseEnter={(e) => {
@@ -11008,39 +11074,180 @@ const DashboardWithFirebase = ({
         }}
         title="Suporte DadosIA"
       >
-        <WhatsAppIcon size={isMobile ? 20 : 26} color="#ffffff" />
+        <WhatsAppIcon size={26} color="#ffffff" />
       </a>
 
-      {isMobile && !isMobileMenuOpen && (
+      {isMobile && (
         <>
-          <button
-            type="button"
-            onClick={() => navigateMobileTab('assistant')}
-            style={{
-              position: 'fixed',
-              right: '16px',
-              bottom: 'calc(76px + max(8px, env(safe-area-inset-bottom, 0px)))',
-              zIndex: 999,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 14px',
-              borderRadius: '9999px',
-              border: 'none',
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              color: '#fff',
-              fontWeight: 700,
-              fontSize: '0.8125rem',
-              boxShadow: '0 10px 28px rgba(13, 148, 136, 0.42)',
-              cursor: 'pointer',
-              maxWidth: 'calc(100vw - 100px)'
-            }}
-          >
-            <Bot size={20} strokeWidth={2.25} aria-hidden />
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {t('nav.mobileFabAssistant')}
-            </span>
-          </button>
+          {mobileAccountSheetOpen && (
+            <>
+              <button
+                type="button"
+                aria-label={t('mobileShell.closeAccount')}
+                onClick={() => setMobileAccountSheetOpen(false)}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  zIndex: 1004,
+                  border: 'none',
+                  padding: 0,
+                  margin: 0,
+                  background: 'rgba(0, 0, 0, 0.4)',
+                  cursor: 'pointer'
+                }}
+              />
+              <div
+                role="dialog"
+                aria-labelledby="mobile-account-sheet-title"
+                style={{
+                  position: 'fixed',
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: 1005,
+                  maxHeight: 'min(72vh, 520px)',
+                  backgroundColor: '#ffffff',
+                  borderTopLeftRadius: '18px',
+                  borderTopRightRadius: '18px',
+                  boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.12)',
+                  borderTop: '1px solid rgba(15, 20, 25, 0.08)',
+                  padding: '16px 16px calc(72px + max(12px, env(safe-area-inset-bottom, 0px)))',
+                  overflowY: 'auto'
+                }}
+              >
+                <div
+                  id="mobile-account-sheet-title"
+                  style={{
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    color: '#0f172a',
+                    marginBottom: '14px'
+                  }}
+                >
+                  {t('mobileShell.accountSheetTitle')}
+                </div>
+                <div style={{ marginBottom: '14px' }}>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '0.75rem',
+                      color: '#64748b',
+                      marginBottom: '6px',
+                      fontWeight: 600
+                    }}
+                  >
+                    {t('common.language')}
+                  </label>
+                  <select
+                    value={locale}
+                    onChange={(e) => setLocale(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '10px',
+                      border: '1px solid #e2e8f0',
+                      background: '#ffffff',
+                      color: '#0f172a',
+                      fontSize: '0.875rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="pt">Português (PT)</option>
+                    <option value="it">Italiano (IT)</option>
+                    <option value="es">Español (ES)</option>
+                    <option value="en">English (EN)</option>
+                  </select>
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '10px 0',
+                    borderTop: '1px solid #f1f5f9',
+                    marginBottom: '12px'
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      border: '2px solid rgba(16, 185, 129, 0.35)',
+                      backgroundColor: '#f1f5f9',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 700,
+                      color: '#059669'
+                    }}
+                  >
+                    {finalCompanyPhotoPreview ? (
+                      <img
+                        src={finalCompanyPhotoPreview}
+                        alt=""
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      (companyProfile?.companyName || user?.displayName || user?.email || 'U').charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: '#0f172a',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {companyProfile?.companyName || user?.displayName || t('common.user')}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: '#64748b',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {user?.email || ''}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileAccountSheetOpen(false);
+                    handleLogout();
+                  }}
+                  style={{
+                    width: '100%',
+                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    color: 'white',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <span>🚪</span>
+                  {t('common.logout')}
+                </button>
+              </div>
+            </>
+          )}
 
           <nav
             style={{
@@ -11061,15 +11268,18 @@ const DashboardWithFirebase = ({
             role="navigation"
             aria-label={t('mobileShell.bottomNavAria')}
           >
-            {mobileBottomTabs.map((tab) => {
-              const active =
-                tab.id === '__more__'
-                  ? isMobileMenuOpen || !mobileBottomPrimaryIds.has(currentPage)
-                  : currentPage === tab.id;
+            {(mobileNavBanks[mobileBottomBank] || mobileNavBanks[0]).map((tab, tabIdx) => {
+              const waVisual = tab.wa || tab.waPage;
+              const active = tab.isMore
+                ? mobileBottomBank > 0
+                : tab.account
+                  ? mobileAccountSheetOpen
+                  : tab.id === currentPage;
+              const accentWa = active && waVisual;
               const IconC = tab.Icon;
               return (
                 <button
-                  key={tab.id}
+                  key={`${mobileBottomBank}-${tab.id}-${tabIdx}`}
                   type="button"
                   onClick={() => navigateMobileTab(tab.id)}
                   style={{
@@ -11084,16 +11294,49 @@ const DashboardWithFirebase = ({
                     background: 'transparent',
                     cursor: 'pointer',
                     minWidth: 0,
-                    color: active ? (tab.wa ? '#047857' : '#059669') : '#64748b'
+                    color: accentWa ? '#047857' : active ? '#059669' : '#64748b',
+                    position: 'relative'
                   }}
                 >
-                  {tab.wa ? (
-                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '24px' }}>
+                  <span
+                    style={{
+                      position: 'relative',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      height: '24px'
+                    }}
+                  >
+                    {tab.stripe ? (
+                      <StripeIcon size={22} opacity={active ? 1 : 0.85} />
+                    ) : waVisual ? (
                       <WhatsAppIcon size={22} color={active ? '#25D366' : '#64748b'} />
-                    </span>
-                  ) : (
-                    <IconC size={22} strokeWidth={active ? 2.5 : 2} aria-hidden />
-                  )}
+                    ) : IconC ? (
+                      <IconC size={22} strokeWidth={active ? 2.5 : 2} aria-hidden />
+                    ) : null}
+                    {!tab.isMore && !tab.account && !tab.external && (tab.badge || 0) > 0 && (
+                      <span
+                        style={{
+                          position: 'absolute',
+                          top: '-2px',
+                          right: '8px',
+                          minWidth: '16px',
+                          height: '16px',
+                          borderRadius: '9999px',
+                          backgroundColor: tab.badgeTone === 'warning' ? '#f59e0b' : '#ef4444',
+                          color: '#fff',
+                          fontSize: '9px',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '0 4px'
+                        }}
+                      >
+                        {tab.badge > 99 ? '99+' : tab.badge}
+                      </span>
+                    )}
+                  </span>
                   <span
                     style={{
                       fontSize: '0.65rem',

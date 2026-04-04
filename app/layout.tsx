@@ -11,14 +11,16 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   icons: {
     icon: [
+      { url: '/dadosia-app-icon.svg', type: 'image/svg+xml' },
       { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
       { url: '/icon-512x512.png', sizes: '512x512', type: 'image/png' },
       { url: '/logo.png', sizes: 'any' },
     ],
     apple: [
+      { url: '/dadosia-app-icon.svg', type: 'image/svg+xml' },
       { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
     ],
-    shortcut: '/icon-192x192.png',
+    shortcut: '/dadosia-app-icon.svg',
   },
   appleWebApp: {
     capable: true,
@@ -45,7 +47,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
-  themeColor: '#25D366',
+  themeColor: '#76c893',
 }
 
 export default function RootLayout({

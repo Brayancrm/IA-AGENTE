@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="108" fill="#1a1e2e"/>
+  <circle cx="256" cy="268" r="168" stroke="#76c893" stroke-width="18" fill="none"/>
+  <circle cx="256" cy="268" r="138" stroke="#ffffff" stroke-opacity="0.9" stroke-width="8" fill="none"/>
+  <!-- Dado isométrico simplificado -->
+  <path fill="#76c893" d="M256 128l102 59v118l-102 59-102-59V187l102-59z"/>
+  <path fill="#5ab87a" d="M256 128v118l102 59V187l-102-59z"/>
+  <path fill="#8fd4a8" d="M154 187l102 59v118l-102-59V187z"/>
+  <circle fill="#ffffff" cx="256" cy="218" r="14"/>
+  <circle fill="#ffffff" cx="220" cy="248" r="12"/>
+  <circle fill="#ffffff" cx="292" cy="248" r="12"/>
+  <circle fill="#ffffff" cx="256" cy="278" r="12"/>
+  <circle fill="#ffffff" cx="220" cy="308" r="12"/>
+  <circle fill="#ffffff" cx="292" cy="308" r="12"/>
+</svg>
