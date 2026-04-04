@@ -33,6 +33,58 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 
+/**
+ * Apaga customerData/{uid}/{chave} e registos ligados (espelho por mobilePhone, mirroredFromChatKey, mesmo JID).
+ */
+async function deleteCustomerDataCascade(database, userId, customerKey) {
+  const { ref, get, remove } = await import('firebase/database');
+  const pk = String(customerKey);
+  const rootRef = ref(database, `customerData/${userId}`);
+  const snap = await get(rootRef);
+  if (!snap.exists()) {
+    await remove(ref(database, `customerData/${userId}/${pk}`));
+    return;
+  }
+  const dataMap = snap.val();
+  const toRemove = new Set([pk]);
+
+  const v0 = dataMap[pk];
+  if (v0) {
+    const mob = v0.mobilePhone ? String(v0.mobilePhone).replace(/\D/g, '') : '';
+    if (mob.length >= 8) toRemove.add(mob);
+    if (v0.mirroredFromChatKey) toRemove.add(String(v0.mirroredFromChatKey));
+  }
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    Object.keys(dataMap).forEach((k) => {
+      if (toRemove.has(k)) return;
+      const v = dataMap[k];
+      if (v?.mirroredFromChatKey && toRemove.has(String(v.mirroredFromChatKey))) {
+        toRemove.add(k);
+        changed = true;
+        return;
+      }
+      const mob = v?.mobilePhone ? String(v.mobilePhone).replace(/\D/g, '') : '';
+      if (mob.length >= 8 && toRemove.has(mob)) {
+        toRemove.add(k);
+        changed = true;
+        return;
+      }
+      const od = String(v?.originalPhone || v?.whatsappJid || v?.phone || '').replace(/\D/g, '');
+      if (od.length >= 8 && toRemove.has(od)) {
+        toRemove.add(k);
+        changed = true;
+      }
+    });
+  }
+
+  for (const k of toRemove) {
+    await remove(ref(database, `customerData/${userId}/${k}`));
+  }
+}
+
 const CRMDashboard = ({ user, database, showToast }) => {
   const [activeTab, setActiveTab] = useState('visao-geral');
   const [clientes, setClientes] = useState([]);
@@ -154,6 +206,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
           const data = snapshot.val();
           Object.keys(data).forEach(phone => {
             const cliente = data[phone];
+            if (cliente.mirroredFromChatKey) return;
             clientesList.push({
               id: phone,
               phone: phone,
@@ -535,9 +588,8 @@ const CRMDashboard = ({ user, database, showToast }) => {
         }
         
         try {
-          const { ref, set } = await import('firebase/database');
-          // Remover @c.us e caracteres não numéricos para usar como chave no Firebase
-          const phoneKey = telefone.replace(/[@c.us]/g, '').replace(/\D/g, '');
+          const { ref, set, update, get } = await import('firebase/database');
+          const phoneKey = telefone.replace(/@c\.us/gi, '').replace(/\D/g, '');
           const clienteRef = ref(database, `customerData/${user.uid}/${phoneKey}`);
           
           const clienteData = {
@@ -546,11 +598,15 @@ const CRMDashboard = ({ user, database, showToast }) => {
             cpfCnpj: cpfcnpjIndex >= 0 ? values[cpfcnpjIndex] || '' : '',
             status: statusIndex >= 0 ? values[statusIndex] || 'lead' : 'lead',
             phone: phoneKey,
-            updatedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString()
+            updatedAt: new Date().toISOString()
           };
           
-          await set(clienteRef, clienteData);
+          const ex = await get(clienteRef);
+          if (ex.exists()) {
+            await update(clienteRef, { ...ex.val(), ...clienteData });
+          } else {
+            await set(clienteRef, { ...clienteData, createdAt: new Date().toISOString() });
+          }
           importedCount++;
         } catch (error) {
           console.error('Erro ao importar cliente:', error);
@@ -1139,8 +1195,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
                   
                   for (const cliente of clientesFiltrados) {
                     try {
-                      const clienteRef = ref(database, `customerData/${user.uid}/${cliente.id}`);
-                      await remove(clienteRef);
+                      await deleteCustomerDataCascade(database, user.uid, cliente.id);
                       deletedCount++;
                     } catch (error) {
                       console.error('Erro ao excluir cliente:', error);
@@ -1417,9 +1472,7 @@ const CRMDashboard = ({ user, database, showToast }) => {
                           }
                           
                           try {
-                            const { ref, remove } = await import('firebase/database');
-                            const clienteRef = ref(database, `customerData/${user.uid}/${cliente.id}`);
-                            await remove(clienteRef);
+                            await deleteCustomerDataCascade(database, user.uid, cliente.id);
                             showToast('Cliente excluído com sucesso!', 'success');
                             loadCRMData();
                           } catch (error) {
@@ -2571,9 +2624,8 @@ const CRMDashboard = ({ user, database, showToast }) => {
                   }
                   
                   try {
-                    const { ref, set, update } = await import('firebase/database');
-                    // Remover @c.us e caracteres não numéricos para usar como chave no Firebase
-                    const phoneKey = telefone.replace(/[@c.us]/g, '').replace(/\D/g, '');
+                    const { ref, set, update, get } = await import('firebase/database');
+                    const phoneKey = telefone.replace(/@c\.us/gi, '').replace(/\D/g, '');
                     const clienteRef = ref(database, `customerData/${user.uid}/${phoneKey}`);
                     
                     const clienteData = {
@@ -2586,14 +2638,36 @@ const CRMDashboard = ({ user, database, showToast }) => {
                     };
                     
                     if (editingCliente) {
-                      await update(clienteRef, clienteData);
+                      const oldId = editingCliente.id;
+                      if (oldId === phoneKey) {
+                        await update(clienteRef, clienteData);
+                      } else {
+                        const oldRef = ref(database, `customerData/${user.uid}/${oldId}`);
+                        const oldSnap = await get(oldRef);
+                        const prev = oldSnap.val() || {};
+                        await deleteCustomerDataCascade(database, user.uid, oldId);
+                        await set(clienteRef, {
+                          ...prev,
+                          ...clienteData,
+                          createdAt: prev.createdAt || new Date().toISOString()
+                        });
+                      }
                       showToast('Cliente atualizado com sucesso!', 'success');
                     } else {
-                      await set(clienteRef, {
-                        ...clienteData,
-                        createdAt: new Date().toISOString()
-                      });
-                      showToast('Cliente adicionado com sucesso!', 'success');
+                      const existing = await get(clienteRef);
+                      if (existing.exists()) {
+                        await update(clienteRef, {
+                          ...existing.val(),
+                          ...clienteData
+                        });
+                        showToast('Cliente atualizado (já existia nesta chave).', 'success');
+                      } else {
+                        await set(clienteRef, {
+                          ...clienteData,
+                          createdAt: new Date().toISOString()
+                        });
+                        showToast('Cliente adicionado com sucesso!', 'success');
+                      }
                     }
                     
                     setShowClienteModal(false);

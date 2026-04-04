@@ -3254,14 +3254,17 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
         // O nome será atualizado quando o agente perguntar explicitamente (ver lógica abaixo com context.waitingFor === 'name')
       }
       
-      // Detectar e salvar email se estiver nos campos configurados
-      if (crmFields.includes('email') && !customerData.email) {
+      // Detectar e salvar email se estiver nos campos configurados (atualiza se o cliente enviar outro)
+      if (crmFields.includes('email')) {
         const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
         const emailMatch = messageText.match(emailPattern);
         if (emailMatch) {
-          customerData.email = emailMatch[0];
-          dataUpdated = true;
-          console.log('✅ [CRM AUTO-SAVE] Email detectado e salvo:', customerData.email);
+          const nextEm = emailMatch[0].toLowerCase().trim();
+          if (customerData.email !== nextEm) {
+            customerData.email = nextEm;
+            dataUpdated = true;
+            console.log('✅ [CRM AUTO-SAVE] Email detectado e salvo:', customerData.email);
+          }
         }
       }
       
@@ -3583,15 +3586,18 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
         }
       }
       
-      // Cliente está respondendo à pergunta do EMAIL
-      else if (context.waitingFor === 'email' && !customerData.email) {
+      // Cliente está respondendo à pergunta do EMAIL (sempre atualiza o valor no mesmo contacto)
+      else if (context.waitingFor === 'email') {
         const emailRegex = /[\w\.-]+@[\w\.-]+\.\w+/;
         const emailMatch = messageText.match(emailRegex);
         
         if (emailMatch) {
-          customerData.email = emailMatch[0].toLowerCase().trim();
-          dataUpdated = true;
-          console.log('✅ Email detectado e salvo:', customerData.email);
+          const nextEm = emailMatch[0].toLowerCase().trim();
+          if (customerData.email !== nextEm) {
+            customerData.email = nextEm;
+            dataUpdated = true;
+            console.log('✅ Email detectado e salvo:', customerData.email);
+          }
           await contextRef.remove();
         }
       }
@@ -3657,6 +3663,31 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
           await contextRef.remove();
         } else {
           console.log(`⚠️ Resposta inválida para campo ${fieldName} (tipo ${fieldType})`);
+        }
+      }
+    }
+
+    // Frases explícitas de nome (mesmo contacto / mesma chave) — atualiza sem criar novo registo
+    if (
+      crmAutoSaveStep &&
+      crmAutoSaveStep.crmFields &&
+      crmAutoSaveStep.crmFields.includes('name') &&
+      !(context && context.waitingFor)
+    ) {
+      const m1 = messageText.match(/^(?:meu\s+nome\s+(?:é|e|eh)\s+|chamo-me\s+|sou\s+(?:o\s+|a\s+)?)(.+)$/i);
+      const m2 = messageText.match(/\bnome\s*(?:é|e|eh|:)\s*(.+)$/i);
+      const raw = (m1 && m1[1]) || (m2 && m2[1]);
+      if (raw) {
+        const candidate = raw.trim();
+        if (
+          candidate.length >= 2 &&
+          candidate.length <= 100 &&
+          !/^\d+$/.test(candidate) &&
+          customerData.name !== candidate
+        ) {
+          customerData.name = candidate;
+          dataUpdated = true;
+          console.log('✅ [CRM] Nome atualizado (frase explícita):', candidate);
         }
       }
     }
@@ -7205,13 +7236,20 @@ app.post('/api/customer-data/save', async (req, res) => {
 
     console.log(`💾 Salvando dados do cliente: ${phone}`);
 
-    // Salvar no Realtime Database
-    const customerRef = ref(realtimeDb, `customerData/${userId}/${phone.replace(/[^0-9]/g, '')}`);
-    await set(customerRef, {
+    const key = phone.replace(/[^0-9]/g, '');
+    const r = db.ref(`customerData/${userId}/${key}`);
+    const prevSnap = await r.once('value');
+    const prev = prevSnap.val() || {};
+    const merged = {
+      ...prev,
       ...data,
       phone: phone,
       updatedAt: new Date().toISOString()
-    });
+    };
+    if (!merged.createdAt) {
+      merged.createdAt = prev.createdAt || new Date().toISOString();
+    }
+    await r.set(merged);
 
     console.log('✅ Dados do cliente salvos com sucesso');
     res.json({ success: true, message: 'Dados salvos com sucesso' });
@@ -7229,8 +7267,8 @@ app.get('/api/customer-data/get/:userId/:phone', async (req, res) => {
     
     console.log(`🔍 Buscando dados do cliente: ${phone}`);
 
-    const customerRef = ref(realtimeDb, `customerData/${userId}/${phone.replace(/[^0-9]/g, '')}`);
-    const snapshot = await get(customerRef);
+    const key = phone.replace(/[^0-9]/g, '');
+    const snapshot = await db.ref(`customerData/${userId}/${key}`).once('value');
 
     if (snapshot.exists()) {
       console.log('✅ Dados do cliente encontrados');
