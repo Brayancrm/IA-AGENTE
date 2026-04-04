@@ -2313,6 +2313,13 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
           ? '- Catálogo com foto: na primeira vez que você oferecer cada item (nome completo), o sistema envia o card completo (foto + legenda com preço/descrição/link). Nas menções seguintes do MESMO item, o sistema NÃO manda card nem foto — responda só no texto (dúvidas como “e quanto a futebol?” não disparam reenvio). Se o cliente pedir explicitamente foto/imagem de novo, o sistema manda só a foto com legenda curta; se pedir preço, descrição, detalhes ou link de novo, reenvia o card completo'
           : '- Os itens do catálogo têm foto cadastrada: ao mencionar o nome completo do produto/serviço, o sistema pode enviar a imagem automaticamente no WhatsApp em cada menção'
         : '- O envio automático de fotos no WhatsApp está desativado nas configurações do assistente: descreva bem os itens em texto e não prometa envio automático de imagens';
+      const catalogCardMinimalOffer = sendCatalogImages
+        ? `\n\n🖼️ **PRIMEIRA OFERTA COM FOTO NO CATÁLOGO (OBRIGATÓRIO):**
+- O WhatsApp recebe **logo a seguir** à tua mensagem o **card** (imagem + legenda com preço e toda a descrição/benefícios). **Não escrevas** no texto: preço, valores em moeda, listas numeradas, bullets nem parágrafos que repitam o que já vai na legenda do card.
+- A tua mensagem fica **só** com: **(A)** saudação/apresentação (Felipe + Wplay/TV conforme as tuas regras), no máximo 2 frases curtas; **(B)** uma linha com o **nome completo exato** do produto/serviço tal como no catálogo (obrigatório para o sistema enviar o card); **(C)** **última linha, exatamente** esta frase, sem mudar uma palavra nem a pontuação: Deseja aproveitar esse valor e fechar agora?
+- **Não** antecipar nesta mensagem FAQs longas, “informações importantes”, compatibilidade de aparelhos ou suporte — isso só quando o cliente **perguntar** noutra mensagem.
+- **Única exceção à pergunta fixa (C):** se nesta mesma resposta for o momento do checkout Stripe, a **última linha** deve ser **apenas** ${STRIPE_CHECKOUT_MARKER} (o sistema trata o link); nesse caso não uses a pergunta fixa na mesma mensagem.`
+        : '';
       const payProvCat = (aiConfig?.paymentProvider || 'stripe').toLowerCase();
       const stripeMarkerInstr =
         payProvCat === 'stripe'
@@ -2323,19 +2330,19 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
           : '';
       systemPrompt += `\n⚠️ INSTRUÇÕES IMPORTANTES:
 - Você DEVE mencionar e oferecer esses produtos/serviços quando relevante
-- Seja proativo e sugira produtos/serviços que possam ajudar o cliente
-- Inclua descrição curta de 1 linha quando listar itens
+- Seja proativo e sugira produtos/serviços que possam ajudar o cliente quando fizer sentido
+- Quando listar itens **sem** envio de card (sem foto no catálogo ou item já oferecido antes nesta conversa só em texto), podes usar até 1 linha de descrição. Na **primeira oferta com card** (foto + legenda automáticos), **não** descrevas preço nem benefícios no texto — regra 🖼️ acima.
 - Itens marcados como FORA DE ESTOQUE, SEM CAPACIDADE ou SEM ACESSOS TV: informe o cliente com clareza; NÃO prometa venda nem link de pagamento para esse item. Para TV indisponível, explique que pode tentar de novo em cerca de ${tvReserveMinAi} minutos (reservas temporárias expiram).
 - Para itens disponíveis, não precisa citar números de estoque na conversa
 ${imageInstruction}
+${catalogCardMinimalOffer}
 ${stripeMarkerInstr}
 
 🎯 **CRÍTICO - CONFIRMAÇÃO DE PRODUTO:**
-- Quando o cliente escolher/clicar em um produto, você DEVE SEMPRE confirmar explicitamente o nome COMPLETO do produto na sua resposta
-- EXEMPLO CORRETO: "Ótimo! Você escolheu TESTE 9. Quantas unidades deseja?"
-- EXEMPLO CORRETO: "Perfeito! Vou adicionar Lavagem Externa ao seu pedido. Quantas unidades?"
+- Quando o cliente escolher/clicar em um produto, inclua sempre o **nome COMPLETO exato** na resposta.
+- Na **primeira oferta com card automático** (foto), o fecho é a **pergunta fixa** da regra 🖼️ (salvo última linha ser só o marcador de checkout Stripe para pagamento).
+- Noutras fases (ex.: quantidade, confirmação de pedido), pode perguntar de forma curta (ex.: unidades), mantendo o nome completo do item.
 - Isso é ESSENCIAL para o sistema processar o pedido corretamente
-- SEMPRE repita o nome exato do produto na mensagem
 
 📄 **FLUXO DE NOTA FISCAL - PASSO A PASSO (MUITO IMPORTANTE):**
 
