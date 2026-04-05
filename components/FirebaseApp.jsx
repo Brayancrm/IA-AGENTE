@@ -10514,7 +10514,7 @@ const DashboardWithFirebase = ({
                   paddingBottom: 'calc(6px * 1.4)',
                   paddingLeft: '12px',
                   paddingRight: '12px',
-                  minHeight: 'calc(36px * 1.4)',
+                  minHeight: 'max(calc(36px * 1.4), calc(22px * 1.4 * 2))',
                   boxSizing: 'border-box'
                 }}
               >
@@ -10522,9 +10522,9 @@ const DashboardWithFirebase = ({
                   src="/logo.png"
                   alt="dadosIA"
                   style={{
-                    height: 'calc(22px * 1.4)',
+                    height: 'calc(22px * 1.4 * 2)',
                     width: 'auto',
-                    maxWidth: 'min(200px, 70vw)',
+                    maxWidth: 'min(400px, 88vw)',
                     objectFit: 'contain',
                     filter: 'brightness(0) invert(1)',
                     flexShrink: 0
@@ -10977,12 +10977,12 @@ const DashboardWithFirebase = ({
               style={{ 
                 marginLeft: isMobile ? '0' : '280px',
                 marginTop: isMobile
-                  ? 'calc(max(2px, env(safe-area-inset-top, 0px)) + (36px + 6px) * 1.4)'
+                  ? 'calc(max(2px, env(safe-area-inset-top, 0px)) + max(calc(36px * 1.4), calc(22px * 1.4 * 2)) + calc(6px * 1.4))'
                   : '0',
                 paddingTop: 0,
                 paddingBottom: isMobile ? 'calc(100px + env(safe-area-inset-bottom, 0px))' : '0',
                 minHeight: isMobile
-                  ? 'calc(100vh - max(2px, env(safe-area-inset-top, 0px)) - (36px + 6px) * 1.4 - 100px - env(safe-area-inset-bottom, 0px))'
+                  ? 'calc(100vh - max(2px, env(safe-area-inset-top, 0px)) - max(calc(36px * 1.4), calc(22px * 1.4 * 2)) - calc(6px * 1.4) - 100px - env(safe-area-inset-bottom, 0px))'
                   : '100vh',
                 backgroundColor: '#0f1419',
                 overflowY: 'auto',
