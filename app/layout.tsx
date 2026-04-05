@@ -11,16 +11,17 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   icons: {
     icon: [
-      { url: '/dadosia-app-icon.svg', type: 'image/svg+xml' },
       { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
       { url: '/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+      { url: '/dadosia-app-icon.svg', type: 'image/svg+xml' },
       { url: '/logo.png', sizes: 'any' },
     ],
     apple: [
-      { url: '/dadosia-app-icon.svg', type: 'image/svg+xml' },
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
       { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
     ],
-    shortcut: '/dadosia-app-icon.svg',
+    shortcut: '/icon-192x192.png',
   },
   appleWebApp: {
     capable: true,

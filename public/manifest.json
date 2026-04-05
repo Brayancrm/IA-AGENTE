@@ -9,12 +9,6 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/dadosia-app-icon.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    },
-    {
       "src": "/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
@@ -25,6 +19,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/dadosia-app-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
   "categories": ["business", "productivity"],

@@ -39,6 +39,8 @@
     "accountTab": "Account",
     "accountSheetTitle": "Account & language",
     "closeAccount": "Close",
+    "switchToDark": "🌙 Dark",
+    "switchToLight": "☀️ Light",
     "promoTitle": "Your assistant works 24/7",
     "promoSubtitle": "Tune the flow and auto-replies in a few steps.",
     "promoCta": "Open assistant",

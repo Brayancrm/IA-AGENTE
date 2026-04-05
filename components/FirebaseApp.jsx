@@ -3242,6 +3242,7 @@ const DashboardWithFirebase = ({
   const { t, locale, setLocale } = useI18n();
   const [mobileBottomBank, setMobileBottomBank] = useState(0);
   const [mobileAccountSheetOpen, setMobileAccountSheetOpen] = useState(false);
+  const [mobileBottomNavDark, setMobileBottomNavDark] = useState(false);
   const [isActive, setIsActive] = useState(assistantSettings.isActive || true);
   const [stripeOps, setStripeOps] = useState({
     loading: true,
@@ -3332,6 +3333,28 @@ const DashboardWithFirebase = ({
   useEffect(() => {
     if (!isMobile) setMobileAccountSheetOpen(false);
   }, [isMobile]);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('dadosia-mobile-nav-theme') === 'dark') {
+        setMobileBottomNavDark(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const toggleMobileBottomNavTheme = useCallback(() => {
+    setMobileBottomNavDark((d) => {
+      const next = !d;
+      try {
+        localStorage.setItem('dadosia-mobile-nav-theme', next ? 'dark' : 'light');
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (!database || !user?.isMaster || !user?.uid) {
@@ -10310,11 +10333,6 @@ const DashboardWithFirebase = ({
     [user?.isMaster, userActivePlan, showToast, t, setCurrentPage, mobileNavBanks]
   );
 
-  const mobileHeaderSectionTitle = useMemo(() => {
-    const item = menuItems.find((i) => i.id === currentPage);
-    return item?.label || '';
-  }, [menuItems, currentPage]);
-
   // Função helper para renderizar ícones de página (mesma lógica do sidebar)
   const renderPageIcon = (pageId, customSize = null) => {
     const coloredIcons = ['dashboard', 'catalog', 'agendamentos', 'conversas', 'whatsapp', 'assistant', 'plans', 'tutorials', 'email', 'stripe'];
@@ -10491,45 +10509,27 @@ const DashboardWithFirebase = ({
                   boxShadow: '0 2px 12px rgba(0, 0, 0, 0.35)',
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   paddingTop: 'max(2px, env(safe-area-inset-top, 0px))',
-                  paddingBottom: '6px',
-                  paddingLeft: '10px',
-                  paddingRight: '10px',
-                  minHeight: '36px'
+                  paddingBottom: 'calc(6px * 1.4)',
+                  paddingLeft: '12px',
+                  paddingRight: '12px',
+                  minHeight: 'calc(36px * 1.4)',
+                  boxSizing: 'border-box'
                 }}
               >
                 <img
                   src="/logo.png"
-                  alt=""
+                  alt="dadosIA"
                   style={{
-                    height: '22px',
+                    height: 'calc(22px * 1.4)',
                     width: 'auto',
-                    maxWidth: '100px',
+                    maxWidth: 'min(200px, 70vw)',
                     objectFit: 'contain',
                     filter: 'brightness(0) invert(1)',
                     flexShrink: 0
                   }}
                 />
-                {mobileHeaderSectionTitle ? (
-                  <span
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      marginLeft: '10px',
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      color: 'rgba(255, 255, 255, 0.92)',
-                      letterSpacing: '0.02em',
-                      lineHeight: 1.25,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      textAlign: 'right'
-                    }}
-                  >
-                    {mobileHeaderSectionTitle}
-                  </span>
-                ) : null}
               </header>
             )}
 
@@ -10831,6 +10831,26 @@ const DashboardWithFirebase = ({
                   </select>
                 </div>
 
+                <button
+                  type="button"
+                  onClick={toggleMobileBottomNavTheme}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.14)',
+                    background: 'rgba(255,255,255,0.06)',
+                    color: '#e2e8f0',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'background 0.2s ease'
+                  }}
+                >
+                  {mobileBottomNavDark ? t('mobileShell.switchToLight') : t('mobileShell.switchToDark')}
+                </button>
+
                 {/* Perfil do Usuário */}
                 <div style={{ 
                   display: 'flex', 
@@ -10957,12 +10977,12 @@ const DashboardWithFirebase = ({
               style={{ 
                 marginLeft: isMobile ? '0' : '280px',
                 marginTop: isMobile
-                  ? 'calc(36px + max(4px, env(safe-area-inset-top, 0px)) + 6px)'
+                  ? 'calc(max(2px, env(safe-area-inset-top, 0px)) + (36px + 6px) * 1.4)'
                   : '0',
                 paddingTop: 0,
                 paddingBottom: isMobile ? 'calc(100px + env(safe-area-inset-bottom, 0px))' : '0',
                 minHeight: isMobile
-                  ? 'calc(100vh - 36px - max(4px, env(safe-area-inset-top, 0px)) - 6px - 100px - env(safe-area-inset-bottom, 0px))'
+                  ? 'calc(100vh - max(2px, env(safe-area-inset-top, 0px)) - (36px + 6px) * 1.4 - 100px - env(safe-area-inset-bottom, 0px))'
                   : '100vh',
                 backgroundColor: '#0f1419',
                 overflowY: 'auto',
@@ -11126,6 +11146,25 @@ const DashboardWithFirebase = ({
                 >
                   {t('mobileShell.accountSheetTitle')}
                 </div>
+                <button
+                  type="button"
+                  onClick={toggleMobileBottomNavTheme}
+                  style={{
+                    width: '100%',
+                    marginBottom: '14px',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                    color: '#0f172a',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textAlign: 'center'
+                  }}
+                >
+                  {mobileBottomNavDark ? t('mobileShell.switchToLight') : t('mobileShell.switchToDark')}
+                </button>
                 <div style={{ marginBottom: '14px' }}>
                   <label
                     style={{
@@ -11261,9 +11300,13 @@ const DashboardWithFirebase = ({
               justifyContent: 'space-around',
               paddingBottom: 'max(6px, env(safe-area-inset-bottom, 0px))',
               paddingTop: '6px',
-              backgroundColor: '#ffffff',
-              borderTop: '1px solid rgba(15, 20, 25, 0.08)',
-              boxShadow: '0 -4px 22px rgba(0, 0, 0, 0.07)'
+              backgroundColor: mobileBottomNavDark ? '#0f172a' : '#ffffff',
+              borderTop: mobileBottomNavDark
+                ? '1px solid rgba(16, 185, 129, 0.22)'
+                : '1px solid rgba(15, 20, 25, 0.08)',
+              boxShadow: mobileBottomNavDark
+                ? '0 -6px 28px rgba(0, 0, 0, 0.5)'
+                : '0 -4px 22px rgba(0, 0, 0, 0.07)'
             }}
             role="navigation"
             aria-label={t('mobileShell.bottomNavAria')}
@@ -11277,6 +11320,7 @@ const DashboardWithFirebase = ({
                   : tab.id === currentPage;
               const accentWa = active && waVisual;
               const IconC = tab.Icon;
+              const navMuted = mobileBottomNavDark ? '#94a3b8' : '#64748b';
               return (
                 <button
                   key={`${mobileBottomBank}-${tab.id}-${tabIdx}`}
@@ -11294,7 +11338,7 @@ const DashboardWithFirebase = ({
                     background: 'transparent',
                     cursor: 'pointer',
                     minWidth: 0,
-                    color: accentWa ? '#047857' : active ? '#059669' : '#64748b',
+                    color: accentWa ? '#047857' : active ? '#059669' : navMuted,
                     position: 'relative'
                   }}
                 >
@@ -11310,7 +11354,7 @@ const DashboardWithFirebase = ({
                     {tab.stripe ? (
                       <StripeIcon size={22} opacity={active ? 1 : 0.85} />
                     ) : waVisual ? (
-                      <WhatsAppIcon size={22} color={active ? '#25D366' : '#64748b'} />
+                      <WhatsAppIcon size={22} color={active ? '#25D366' : navMuted} />
                     ) : IconC ? (
                       <IconC size={22} strokeWidth={active ? 2.5 : 2} aria-hidden />
                     ) : null}
