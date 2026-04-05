@@ -10510,11 +10510,11 @@ const DashboardWithFirebase = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  paddingTop: 'max(2px, env(safe-area-inset-top, 0px))',
+                  /* Mesma distância acima e abaixo do logo (abaixo do safe-area) */
+                  paddingTop: 'calc(env(safe-area-inset-top, 0px) + (6px * 1.4))',
                   paddingBottom: 'calc(6px * 1.4)',
                   paddingLeft: '12px',
                   paddingRight: '12px',
-                  minHeight: 'max(calc(36px * 1.4), calc(22px * 1.4 * 2))',
                   boxSizing: 'border-box'
                 }}
               >
@@ -10977,12 +10977,12 @@ const DashboardWithFirebase = ({
               style={{ 
                 marginLeft: isMobile ? '0' : '280px',
                 marginTop: isMobile
-                  ? 'calc(max(2px, env(safe-area-inset-top, 0px)) + max(calc(36px * 1.4), calc(22px * 1.4 * 2)) + calc(6px * 1.4))'
+                  ? 'calc(env(safe-area-inset-top, 0px) + (6px * 1.4) + (22px * 1.4 * 2) + (6px * 1.4))'
                   : '0',
                 paddingTop: 0,
                 paddingBottom: isMobile ? 'calc(100px + env(safe-area-inset-bottom, 0px))' : '0',
                 minHeight: isMobile
-                  ? 'calc(100vh - max(2px, env(safe-area-inset-top, 0px)) - max(calc(36px * 1.4), calc(22px * 1.4 * 2)) - calc(6px * 1.4) - 100px - env(safe-area-inset-bottom, 0px))'
+                  ? 'calc(100vh - env(safe-area-inset-top, 0px) - (6px * 1.4) * 2 - (22px * 1.4 * 2) - 100px - env(safe-area-inset-bottom, 0px))'
                   : '100vh',
                 backgroundColor: '#0f1419',
                 overflowY: 'auto',
