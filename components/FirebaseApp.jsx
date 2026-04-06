@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { useFirebase } from '../hooks/useFirebase';
 
 // Suprimir erros não críticos de scripts externos (Firebase/Vercel feedback)
@@ -80,6 +80,129 @@ import {
 const MOBILE_SUPPORT_WA_URL =
   'https://wa.me/5561991442727?text=Ol%C3%A1%2C%20vim%20pela%20ferramenta%20DadosIA.';
 const MOBILE_BOTTOM_PRIMARY_IDS = ['dashboard', 'conversas', 'crm', 'catalog'];
+
+const TV_IMPORT_MAX_ROWS = 500;
+
+function normalizeTvImportHeader(s) {
+  return String(s ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+function mapTvImportHeaderToField(headerCell) {
+  const x = normalizeTvImportHeader(headerCell);
+  if (!x) return null;
+  if (/\b(login|logon|usuario|user)\b/.test(x) || x === 'e-mail' || x === 'email') return 'login';
+  if (/\b(senha|password|passwd|pwd|pass)\b/.test(x)) return 'password';
+  if (x.includes('tvplankey') || x === 'plankey' || x.includes('plan key')) return 'planKey';
+  if (x.includes('chave') && !x.includes('nome')) return 'planKey';
+  if ((x.includes('nome') && x.includes('plano')) || x.includes('planname')) return 'planName';
+  if (x.includes('observ') || x.includes('notas') || x.includes('notes') || x === 'obs') return 'notes';
+  return null;
+}
+
+function parseCsvLine(line, delim) {
+  const out = [];
+  let c = '';
+  let i = 0;
+  let q = false;
+  while (i < line.length) {
+    const ch = line[i];
+    if (q) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') {
+          c += '"';
+          i += 2;
+          continue;
+        }
+        q = false;
+        i++;
+        continue;
+      }
+      c += ch;
+      i++;
+    } else {
+      if (ch === '"') {
+        q = true;
+        i++;
+        continue;
+      }
+      if (ch === delim) {
+        out.push(c.trim());
+        c = '';
+        i++;
+        continue;
+      }
+      c += ch;
+      i++;
+    }
+  }
+  out.push(c.trim());
+  return out;
+}
+
+function parseCsvToMatrix(text) {
+  const lines = text.split(/\r?\n/).filter((ln) => ln.trim());
+  if (!lines.length) return [];
+  const first = lines[0];
+  const semi = first.split(';').length;
+  const comma = first.split(',').length;
+  const delim = semi > comma ? ';' : ',';
+  return lines.map((ln) => parseCsvLine(ln, delim));
+}
+
+function parseTvSpreadsheetMatrix(matrix) {
+  if (!matrix || matrix.length < 1) {
+    return { errorKey: 'tvLogins.importErrorEmpty', rows: [] };
+  }
+  const headerRow = (matrix[0] || []).map((c) => String(c ?? ''));
+  const colIndex = {};
+  headerRow.forEach((cell, i) => {
+    const f = mapTvImportHeaderToField(cell);
+    if (f != null && colIndex[f] === undefined) colIndex[f] = i;
+  });
+  if (colIndex.login === undefined || colIndex.password === undefined || colIndex.planKey === undefined) {
+    return { errorKey: 'tvLogins.importErrorColumns', rows: [] };
+  }
+  const rows = [];
+  for (let r = 1; r < matrix.length; r++) {
+    const line = matrix[r] || [];
+    const login = String(line[colIndex.login] ?? '').trim();
+    if (!login) continue;
+    const password = String(line[colIndex.password] ?? '').trim();
+    const planKey = String(line[colIndex.planKey] ?? '').trim();
+    const planName = colIndex.planName !== undefined ? String(line[colIndex.planName] ?? '').trim() : '';
+    const notes = colIndex.notes !== undefined ? String(line[colIndex.notes] ?? '').trim() : '';
+    let errorKey = '';
+    if (!password) errorKey = 'tvLogins.importRowNoPassword';
+    else if (!planKey) errorKey = 'tvLogins.importRowNoPlanKey';
+    rows.push({ rowIndex: r + 1, login, password, planName, planKey, notes, errorKey });
+    if (rows.length >= TV_IMPORT_MAX_ROWS) break;
+  }
+  return { errorKey: null, rows };
+}
+
+function enrichTvImportRowsForDuplicates(rows, existingLogins) {
+  const seen = new Set();
+  return rows.map((row) => {
+    let errorKey = row.errorKey;
+    if (!errorKey) {
+      const lk = row.login.toLowerCase();
+      if (seen.has(lk)) errorKey = 'tvLogins.importRowDupFile';
+      seen.add(lk);
+    }
+    if (
+      !errorKey &&
+      existingLogins.some((i) => String(i.login || '').toLowerCase() === row.login.toLowerCase())
+    ) {
+      errorKey = 'tvLogins.importRowDupDb';
+    }
+    return { ...row, errorKey };
+  });
+}
 
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsappsalesagent';
 
@@ -3265,6 +3388,11 @@ const DashboardWithFirebase = ({
   const [tvLoginStatusFilter, setTvLoginStatusFilter] = useState('all');
   /** plan | login | recent — ordenação dentro de cada grupo de plano. */
   const [tvLoginSort, setTvLoginSort] = useState('plan');
+  const [tvImportModalOpen, setTvImportModalOpen] = useState(false);
+  const [tvImportPreview, setTvImportPreview] = useState([]);
+  const [tvImportParseError, setTvImportParseError] = useState(null);
+  const [tvBulkImporting, setTvBulkImporting] = useState(false);
+  const tvImportFileInputRef = useRef(null);
   const [savingTvLogin, setSavingTvLogin] = useState(false);
   const [tvPwVisible, setTvPwVisible] = useState({});
   /** CRM por login TV (quando Firebase ainda não tem soldBuyerName/email). */
@@ -4555,11 +4683,11 @@ const DashboardWithFirebase = ({
     const notes = String(tvLoginForm.notes || '').trim();
 
     if (!login || !password) {
-      showToast('Informe login e senha.', 'error');
+      showToast(t('tvLogins.toastNeedLoginPassword'), 'error');
       return;
     }
     if (!planKey) {
-      showToast('Informe a chave do plano (igual ao catálogo).', 'error');
+      showToast(t('tvLogins.toastNeedPlanKey'), 'error');
       return;
     }
 
@@ -4569,7 +4697,7 @@ const DashboardWithFirebase = ({
       String(item.login || '').toLowerCase() === login.toLowerCase()
     ));
     if (hasDuplicate) {
-      showToast('Este login ja foi cadastrado.', 'error');
+      showToast(t('tvLogins.toastDuplicateLogin'), 'error');
       return;
     }
 
@@ -4588,7 +4716,7 @@ const DashboardWithFirebase = ({
       if (editingTvLoginId) {
         const itemRef = ref(database, `users/data/${user.uid}/tv_logins/${editingTvLoginId}`);
         await update(itemRef, payload);
-        showToast('Login atualizado com sucesso!', 'success');
+        showToast(t('tvLogins.toastLoginUpdated'), 'success');
       } else {
         const listRef = ref(database, `users/data/${user.uid}/tv_logins`);
         const newRef = push(listRef);
@@ -4596,11 +4724,11 @@ const DashboardWithFirebase = ({
           ...payload,
           createdAt: new Date().toISOString()
         });
-        showToast('Login adicionado com sucesso!', 'success');
+        showToast(t('tvLogins.toastLoginAdded'), 'success');
       }
       resetTvLoginForm();
     } catch (error) {
-      showToast(`Erro ao salvar login: ${error.message}`, 'error');
+      showToast(t('tvLogins.toastLoginSaveError', { message: error.message }), 'error');
     } finally {
       setSavingTvLogin(false);
     }
@@ -4628,9 +4756,9 @@ const DashboardWithFirebase = ({
         soldAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
-      showToast('Login marcado como vendido.', 'success');
+      showToast(t('tvLogins.toastMarkedSold'), 'success');
     } catch (error) {
-      showToast(`Erro ao atualizar status: ${error.message}`, 'error');
+      showToast(t('tvLogins.toastStatusError', { message: error.message }), 'error');
     }
   };
 
@@ -4654,9 +4782,9 @@ const DashboardWithFirebase = ({
         reservedUntil: null,
         updatedAt: new Date().toISOString()
       });
-      showToast('Login marcado como disponivel.', 'success');
+      showToast(t('tvLogins.toastMarkedAvailable'), 'success');
     } catch (error) {
-      showToast(`Erro ao atualizar status: ${error.message}`, 'error');
+      showToast(t('tvLogins.toastStatusError', { message: error.message }), 'error');
     }
   };
 
@@ -4768,11 +4896,187 @@ const DashboardWithFirebase = ({
       if (editingTvLoginId === item.id) {
         resetTvLoginForm();
       }
-      showToast('Login excluido com sucesso!', 'success');
+      showToast(t('tvLogins.toastLoginDeleted'), 'success');
     } catch (error) {
-      showToast(`Erro ao excluir login: ${error.message}`, 'error');
+      showToast(t('tvLogins.toastLoginDeleteError', { message: error.message }), 'error');
     }
   };
+
+  const openTvImportModal = useCallback(() => {
+    setTvImportPreview([]);
+    setTvImportParseError(null);
+    setTvImportModalOpen(true);
+  }, []);
+
+  const downloadTvLoginsTemplate = useCallback(async (format) => {
+    const headers = ['login', 'password', 'planName', 'planKey', 'notes'];
+    const example = ['usuario_exemplo', 'sua_senha', 'Plano Mensal', 'wplay_mensal', ''];
+    if (format === 'csv') {
+      const BOM = '\uFEFF';
+      const esc = (cells) =>
+        cells.map((c) => {
+          const s = String(c ?? '');
+          if (/[",;\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+          return s;
+        });
+      const body = `${esc(headers).join(';')}\n${esc(example).join(';')}\n`;
+      const blob = new Blob([BOM + body], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'dadosia-tv-logins-modelo.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      return;
+    }
+    const XLSX = await import('xlsx');
+    const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Logins TV');
+    XLSX.writeFile(wb, 'dadosia-tv-logins-modelo.xlsx');
+  }, []);
+
+  const exportTvLoginsCsv = useCallback(
+    (items) => {
+      if (!window.confirm(t('tvLogins.exportSensitiveConfirm'))) return;
+      const nowMs = Date.now();
+      const headers = ['login', 'password', 'planName', 'planKey', 'notes', 'status', 'createdAt'];
+      const esc = (cells) =>
+        cells.map((c) => {
+          const s = String(c ?? '');
+          if (/[",;\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+          return s;
+        });
+      const lines = [esc(headers).join(';')];
+      items.forEach((item) => {
+        lines.push(
+          esc([
+            item.login,
+            item.password,
+            item.planName,
+            item.planKey,
+            item.notes || '',
+            getTvLoginDisplayStatus(item, nowMs),
+            item.createdAt || ''
+          ]).join(';')
+        );
+      });
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `dadosia-tv-logins-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    },
+    [t]
+  );
+
+  const exportTvLoginsXlsx = useCallback(
+    async (items) => {
+      if (!window.confirm(t('tvLogins.exportSensitiveConfirm'))) return;
+      const XLSX = await import('xlsx');
+      const nowMs = Date.now();
+      const aoa = [['login', 'password', 'planName', 'planKey', 'notes', 'status', 'createdAt']];
+      items.forEach((item) => {
+        aoa.push([
+          item.login,
+          item.password,
+          item.planName,
+          item.planKey,
+          item.notes || '',
+          getTvLoginDisplayStatus(item, nowMs),
+          item.createdAt || ''
+        ]);
+      });
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'TV Logins');
+      XLSX.writeFile(wb, `dadosia-tv-logins-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    },
+    [t]
+  );
+
+  const processTvImportFile = useCallback(
+    async (file) => {
+      if (!file) return;
+      const name = file.name.toLowerCase();
+      setTvImportParseError(null);
+      try {
+        let matrix;
+        if (name.endsWith('.csv')) {
+          const text = await file.text();
+          matrix = parseCsvToMatrix(text);
+        } else if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+          const buf = await file.arrayBuffer();
+          const XLSX = await import('xlsx');
+          const wb = XLSX.read(buf, { type: 'array' });
+          const sh = wb.Sheets[wb.SheetNames[0]];
+          matrix = XLSX.utils.sheet_to_json(sh, { header: 1, defval: '', raw: false });
+        } else {
+          showToast(t('tvLogins.importUnsupported'), 'error');
+          return;
+        }
+        const { errorKey, rows } = parseTvSpreadsheetMatrix(matrix);
+        if (errorKey) {
+          setTvImportParseError(errorKey);
+          setTvImportPreview([]);
+          return;
+        }
+        if (!rows.length) {
+          setTvImportParseError('tvLogins.importErrorEmpty');
+          setTvImportPreview([]);
+          return;
+        }
+        const enriched = enrichTvImportRowsForDuplicates(rows, tvLogins);
+        setTvImportPreview(enriched);
+      } catch (e) {
+        setTvImportParseError('tvLogins.importReadError');
+        setTvImportPreview([]);
+        showToast(e.message || t('tvLogins.importReadError'), 'error');
+      }
+    },
+    [tvLogins, showToast, t]
+  );
+
+  const confirmTvBulkImport = useCallback(async () => {
+    if (!database || !user?.isMaster || !user?.uid) return;
+    const valid = tvImportPreview.filter((r) => !r.errorKey);
+    if (!valid.length) {
+      showToast(t('tvLogins.importNoValidRows'), 'error');
+      return;
+    }
+    if (!window.confirm(t('tvLogins.importConfirmBulk', { n: valid.length }))) return;
+    setTvBulkImporting(true);
+    let ok = 0;
+    let fail = 0;
+    try {
+      const listRef = ref(database, `users/data/${user.uid}/tv_logins`);
+      for (const row of valid) {
+        try {
+          const newRef = push(listRef);
+          await set(newRef, {
+            login: row.login,
+            password: row.password,
+            planName: row.planName || row.planKey || '',
+            planKey: row.planKey,
+            notes: row.notes || '',
+            status: 'available',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+          ok++;
+        } catch {
+          fail++;
+        }
+      }
+      showToast(t('tvLogins.importDone', { ok, fail }), ok ? 'success' : 'error');
+      setTvImportModalOpen(false);
+      setTvImportPreview([]);
+      setTvImportParseError(null);
+    } finally {
+      setTvBulkImporting(false);
+    }
+  }, [database, user?.isMaster, user?.uid, tvImportPreview, showToast, t]);
 
   // Handlers para formulários
   const handleCompanySubmit = (e) => {
@@ -6181,6 +6485,8 @@ const DashboardWithFirebase = ({
 
   const renderTvLoginsPanel = () => {
     const nowMs = Date.now();
+    const dateLocaleTag =
+      locale === 'en' ? 'en-US' : locale === 'es' ? 'es-ES' : locale === 'it' ? 'it-IT' : 'pt-BR';
     const query = String(tvLoginSearch || '').toLowerCase().trim();
     const matchesSearch = (item) => {
       const text = `${item.login || ''} ${item.planName || ''} ${item.planKey || ''} ${item.notes || ''}`.toLowerCase();
@@ -6230,7 +6536,7 @@ const DashboardWithFirebase = ({
     })();
 
     const copyTvCredentials = async (item) => {
-      const text = `Login: ${item.login || ''}\nSenha: ${item.password || ''}`;
+      const text = `${t('tvLogins.clipboardLoginLine', { value: item.login || '' })}\n${t('tvLogins.clipboardPasswordLine', { value: item.password || '' })}`;
       try {
         await navigator.clipboard.writeText(text);
         showToast(t('tvLogins.copyCredentialsOk'), 'success');
@@ -6262,7 +6568,22 @@ const DashboardWithFirebase = ({
       return { bg: 'rgba(16,185,129,0.2)', color: '#10b981', text: t('tvLogins.statusAvailable') };
     };
 
+    const tbBtn = {
+      padding: '8px 12px',
+      borderRadius: '10px',
+      border: '1px solid rgba(16,185,129,0.35)',
+      background: 'rgba(16,185,129,0.1)',
+      color: '#d1fae5',
+      fontSize: '0.78rem',
+      fontWeight: 700,
+      cursor: 'pointer',
+      transition: 'background 0.2s ease, border-color 0.2s ease'
+    };
+
+    const tvImportValidCount = tvImportPreview.filter((r) => !r.errorKey).length;
+
     return (
+      <>
       <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
         <div style={{ marginBottom: '24px' }}>
           <h2 style={{ fontSize: isMobile ? '1.75rem' : '2.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px', display: isMobile ? 'none' : 'block' }}>
@@ -6348,6 +6669,42 @@ const DashboardWithFirebase = ({
           ))}
         </div>
 
+        <div
+          style={{
+            marginBottom: '18px',
+            padding: '14px 16px',
+            borderRadius: '14px',
+            border: '1px solid rgba(16,185,129,0.28)',
+            background: 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(15,23,42,0.92) 100%)',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: '10px'
+          }}
+        >
+          <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#ecfdf5', marginRight: '4px' }}>{t('tvLogins.toolbarTitle')}</span>
+          <span style={{ fontSize: '0.72rem', color: '#94a3b8', flex: '1 1 200px', minWidth: 0 }}>{t('tvLogins.exportFilteredHint')}</span>
+          <button type="button" style={tbBtn} onClick={() => exportTvLoginsCsv(scoped)}>
+            {t('tvLogins.exportCsv')}
+          </button>
+          <button type="button" style={tbBtn} onClick={() => exportTvLoginsXlsx(scoped)}>
+            {t('tvLogins.exportXlsx')}
+          </button>
+          <button type="button" style={tbBtn} onClick={() => downloadTvLoginsTemplate('csv')}>
+            {t('tvLogins.templateCsv')}
+          </button>
+          <button type="button" style={tbBtn} onClick={() => downloadTvLoginsTemplate('xlsx')}>
+            {t('tvLogins.templateXlsx')}
+          </button>
+          <button
+            type="button"
+            style={{ ...tbBtn, background: 'rgba(16,185,129,0.24)', borderColor: 'rgba(16,185,129,0.5)' }}
+            onClick={openTvImportModal}
+          >
+            {t('tvLogins.importOpen')}
+          </button>
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(280px,1fr) minmax(0,2fr)', gap: '16px', alignItems: 'start' }}>
           <div
             style={{
@@ -6366,14 +6723,14 @@ const DashboardWithFirebase = ({
             </p>
             <form onSubmit={handleTvLoginSubmit} style={{ display: 'grid', gap: '12px' }}>
               <label htmlFor="tv-login-user" style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600 }}>
-                Login
+                {t('tvLogins.formFieldLogin')}
               </label>
               <input
                 id="tv-login-user"
                 autoComplete="off"
                 value={tvLoginForm.login}
                 onChange={(e) => setTvLoginForm((p) => ({ ...p, login: e.target.value }))}
-                placeholder="Login / usuario"
+                placeholder={t('tvLogins.formPlaceholderLogin')}
                 style={tvInputStyle}
                 onFocus={(e) => {
                   e.target.style.borderColor = '#10b981';
@@ -6385,7 +6742,7 @@ const DashboardWithFirebase = ({
                 }}
               />
               <label htmlFor="tv-login-pass" style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600 }}>
-                Senha
+                {t('tvLogins.formFieldPassword')}
               </label>
               <input
                 id="tv-login-pass"
@@ -6393,7 +6750,7 @@ const DashboardWithFirebase = ({
                 autoComplete="new-password"
                 value={tvLoginForm.password}
                 onChange={(e) => setTvLoginForm((p) => ({ ...p, password: e.target.value }))}
-                placeholder="Senha"
+                placeholder={t('tvLogins.formPlaceholderPassword')}
                 style={tvInputStyle}
                 onFocus={(e) => {
                   e.target.style.borderColor = '#10b981';
@@ -6404,10 +6761,14 @@ const DashboardWithFirebase = ({
                   e.target.style.boxShadow = 'none';
                 }}
               />
+              <label htmlFor="tv-login-plan-name" style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600 }}>
+                {t('tvLogins.formFieldPlanName')}
+              </label>
               <input
+                id="tv-login-plan-name"
                 value={tvLoginForm.planName}
                 onChange={(e) => setTvLoginForm((p) => ({ ...p, planName: e.target.value }))}
-                placeholder="Nome do plano (exibicao)"
+                placeholder={t('tvLogins.formPlaceholderPlanName')}
                 style={tvInputStyle}
                 onFocus={(e) => {
                   e.target.style.borderColor = '#10b981';
@@ -6418,10 +6779,14 @@ const DashboardWithFirebase = ({
                   e.target.style.boxShadow = 'none';
                 }}
               />
+              <label htmlFor="tv-login-plan-key" style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600 }}>
+                {t('tvLogins.formFieldPlanKey')}
+              </label>
               <input
+                id="tv-login-plan-key"
                 value={tvLoginForm.planKey}
                 onChange={(e) => setTvLoginForm((p) => ({ ...p, planKey: e.target.value }))}
-                placeholder="Chave (tvPlanKey do catalogo)"
+                placeholder={t('tvLogins.formPlaceholderPlanKey')}
                 style={tvInputStyle}
                 onFocus={(e) => {
                   e.target.style.borderColor = '#10b981';
@@ -6432,10 +6797,14 @@ const DashboardWithFirebase = ({
                   e.target.style.boxShadow = 'none';
                 }}
               />
+              <label htmlFor="tv-login-notes" style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600 }}>
+                {t('tvLogins.formFieldNotes')}
+              </label>
               <textarea
+                id="tv-login-notes"
                 value={tvLoginForm.notes}
                 onChange={(e) => setTvLoginForm((p) => ({ ...p, notes: e.target.value }))}
-                placeholder="Observacoes (opcional)"
+                placeholder={t('tvLogins.formPlaceholderNotes')}
                 rows={3}
                 style={{ ...tvInputStyle, resize: 'vertical', minHeight: '72px' }}
                 onFocus={(e) => {
@@ -6449,18 +6818,27 @@ const DashboardWithFirebase = ({
               />
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <button type="submit" disabled={savingTvLogin} style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 14px', cursor: 'pointer', fontWeight: '700' }}>
-                  {savingTvLogin ? 'Salvando...' : (editingTvLoginId ? 'Atualizar' : 'Adicionar')}
+                  {savingTvLogin ? t('tvLogins.formSaving') : editingTvLoginId ? t('tvLogins.formSubmitUpdate') : t('tvLogins.formSubmitAdd')}
                 </button>
                 {editingTvLoginId && (
                   <button type="button" onClick={resetTvLoginForm} style={{ backgroundColor: '#374151', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 14px', cursor: 'pointer' }}>
-                    Cancelar
+                    {t('tvLogins.formCancel')}
                   </button>
                 )}
               </div>
             </form>
           </div>
 
-          <div style={{ backgroundColor: '#1a1f36', borderRadius: '16px', padding: '16px', border: '1px solid rgba(124,58,237,0.25)', minWidth: 0 }}>
+          <div
+            style={{
+              backgroundColor: '#1a1f36',
+              borderRadius: '16px',
+              padding: '16px',
+              border: '1px solid rgba(16,185,129,0.28)',
+              boxShadow: '0 8px 28px rgba(0,0,0,0.22)',
+              minWidth: 0
+            }}
+          >
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', marginBottom: '12px' }}>
               <input
                 value={tvLoginSearch}
@@ -6514,7 +6892,16 @@ const DashboardWithFirebase = ({
 
             <div style={{ display: 'grid', gap: '12px', maxHeight: '560px', overflowY: 'auto' }}>
               {scoped.length === 0 ? (
-                <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af' }}>
+                <div
+                  style={{
+                    padding: '28px 20px',
+                    textAlign: 'center',
+                    color: '#9ca3af',
+                    borderRadius: '14px',
+                    border: '1px dashed rgba(16,185,129,0.35)',
+                    background: 'rgba(16,185,129,0.04)'
+                  }}
+                >
                   <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📭</div>
                   {tvLogins.length === 0 ? (
                     <>
@@ -6530,7 +6917,7 @@ const DashboardWithFirebase = ({
               ) : (
                 tvGrouped.map(([gKey, group]) => (
                   <div key={gKey}>
-                    <div style={{ fontSize: '0.8rem', color: '#a78bfa', marginBottom: '8px', fontWeight: 700 }}>
+                    <div style={{ fontSize: '0.8rem', color: '#6ee7b7', marginBottom: '8px', fontWeight: 700 }}>
                       {t('tvLogins.groupByPlan')}: {group.label} ({group.items.length})
                     </div>
                     {group.items.map((item) => {
@@ -6587,11 +6974,11 @@ const DashboardWithFirebase = ({
                                 {item.planName || '—'} · {item.planKey || '—'}
                               </p>
                               <p style={{ margin: '4px 0 0 0', color: '#cbd5e1', fontSize: '0.82rem' }}>
-                                Senha: {showPw ? item.password : '••••••••'}
+                                {t('tvLogins.listPasswordPrefix')} {showPw ? item.password : '••••••••'}
                                 <button
                                   type="button"
                                   onClick={() => setTvPwVisible((p) => ({ ...p, [item.id]: !p[item.id] }))}
-                                  style={{ marginLeft: '8px', background: 'transparent', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '0.75rem' }}
+                                  style={{ marginLeft: '8px', background: 'transparent', border: 'none', color: '#34d399', cursor: 'pointer', fontSize: '0.75rem' }}
                                 >
                                   {showPw ? t('tvLogins.hidePassword') : t('tvLogins.showPassword')}
                                 </button>
@@ -6601,14 +6988,14 @@ const DashboardWithFirebase = ({
                                 <p style={{ margin: '6px 0 0 0', color: '#fca5a5', fontSize: '0.78rem' }}>
                                   {t('tvLogins.soldTo', {
                                     phone: formatTvSoldToDisplayPhone(item, crmHint, t),
-                                    date: item.soldAt ? new Date(item.soldAt).toLocaleString('pt-BR') : '—'
+                                    date: item.soldAt ? new Date(item.soldAt).toLocaleString(dateLocaleTag) : '—'
                                   })}
                                 </p>
                               )}
                               {(item.status === 'sold' ||
                                 (item.status === 'reserved' && isTvLoginReservedStillActive(item, nowMs))) &&
                               (buyerName || buyerEmail) ? (
-                                <p style={{ margin: '6px 0 0 0', color: '#a5b4fc', fontSize: '0.78rem', lineHeight: 1.45 }}>
+                                <p style={{ margin: '6px 0 0 0', color: '#86efac', fontSize: '0.78rem', lineHeight: 1.45 }}>
                                   {buyerName ? (
                                     <>
                                       {t('tvLogins.buyerName')}: {buyerName}
@@ -6625,9 +7012,7 @@ const DashboardWithFirebase = ({
                               {item.status === 'reserved' && item.reservedUntil && isTvLoginReservedStillActive(item, nowMs) ? (
                                 <p style={{ margin: '4px 0 0 0', color: '#fcd34d', fontSize: '0.75rem' }}>
                                   {t('tvLogins.reservationUntil', {
-                                    date: new Date(item.reservedUntil).toLocaleString(
-                                      locale === 'en' ? 'en-US' : locale === 'es' ? 'es-ES' : locale === 'it' ? 'it-IT' : 'pt-BR'
-                                    )
+                                    date: new Date(item.reservedUntil).toLocaleString(dateLocaleTag)
                                   })}
                                 </p>
                               ) : null}
@@ -6641,7 +7026,10 @@ const DashboardWithFirebase = ({
                                   <summary style={{ cursor: 'pointer' }}>{t('tvLogins.history')} ({item.history.length})</summary>
                                   <ul style={{ margin: '6px 0 0 16px', padding: 0 }}>
                                     {item.history.slice(-8).map((h, idx) => (
-                                      <li key={idx}>{h.event || '—'} {h.at ? new Date(h.at).toLocaleString('pt-BR') : ''}</li>
+                                      <li key={idx}>
+                                        {h.event || '—'}{' '}
+                                        {h.at ? new Date(h.at).toLocaleString(dateLocaleTag) : ''}
+                                      </li>
                                     ))}
                                   </ul>
                                 </details>
@@ -6668,16 +7056,30 @@ const DashboardWithFirebase = ({
                             >
                               {t('tvLogins.copyCredentials')}
                             </button>
-                            <button type="button" onClick={() => editTvLogin(item)} style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Editar</button>
+                            <button
+                              type="button"
+                              onClick={() => editTvLogin(item)}
+                              style={{
+                                backgroundColor: '#059669',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '8px',
+                                padding: '6px 10px',
+                                cursor: 'pointer',
+                                fontSize: '0.8rem'
+                              }}
+                            >
+                              {t('tvLogins.btnEdit')}
+                            </button>
                             {item.status === 'sold' ? (
                               <>
-                                <button type="button" onClick={() => markTvLoginAsAvailable(item)} style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Marcar disponivel</button>
+                                <button type="button" onClick={() => markTvLoginAsAvailable(item)} style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', fontSize: '0.8rem' }}>{t('tvLogins.btnMarkAvailable')}</button>
                                 {item.soldToWhatsAppJid || item.soldToPhone ? (
-                                  <button type="button" onClick={() => resendTvCredentials(item)} style={{ backgroundColor: '#7c3aed', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>{t('tvLogins.resend')}</button>
+                                  <button type="button" onClick={() => resendTvCredentials(item)} style={{ backgroundColor: '#059669', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>{t('tvLogins.resend')}</button>
                                 ) : null}
                               </>
                             ) : (
-                              <button type="button" onClick={() => markTvLoginAsSold(item)} style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Marcar vendido</button>
+                              <button type="button" onClick={() => markTvLoginAsSold(item)} style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', fontSize: '0.8rem' }}>{t('tvLogins.btnMarkSold')}</button>
                             )}
                             {canFollowUp ? (
                               <button
@@ -6700,7 +7102,7 @@ const DashboardWithFirebase = ({
                                 {t('tvLogins.followUpGreeting')}
                               </button>
                             ) : null}
-                            <button type="button" onClick={() => deleteTvLogin(item)} style={{ backgroundColor: '#6b7280', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer' }}>Excluir</button>
+                            <button type="button" onClick={() => deleteTvLogin(item)} style={{ backgroundColor: '#6b7280', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', fontSize: '0.8rem' }}>{t('tvLogins.btnDelete')}</button>
                           </div>
                         </div>
                       );
@@ -6712,6 +7114,160 @@ const DashboardWithFirebase = ({
           </div>
         </div>
       </div>
+
+      {tvImportModalOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="tv-import-modal-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1200,
+            background: 'rgba(0,0,0,0.62)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={() => {
+            if (!tvBulkImporting) setTvImportModalOpen(false);
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '680px',
+              maxHeight: 'min(90vh, 760px)',
+              overflow: 'auto',
+              background: '#111827',
+              borderRadius: '16px',
+              border: '1px solid rgba(16,185,129,0.35)',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.55)',
+              padding: '22px'
+            }}
+          >
+            <h3 id="tv-import-modal-title" style={{ margin: '0 0 8px 0', color: '#fff', fontSize: '1.15rem', fontWeight: 800 }}>
+              {t('tvLogins.importTitle')}
+            </h3>
+            <p style={{ margin: '0 0 14px 0', fontSize: '0.82rem', color: '#9ca3af', lineHeight: 1.5 }}>{t('tvLogins.importIntro')}</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
+              <button type="button" style={tbBtn} onClick={() => downloadTvLoginsTemplate('csv')}>
+                {t('tvLogins.templateCsv')}
+              </button>
+              <button type="button" style={tbBtn} onClick={() => downloadTvLoginsTemplate('xlsx')}>
+                {t('tvLogins.templateXlsx')}
+              </button>
+            </div>
+            <input
+              ref={tvImportFileInputRef}
+              type="file"
+              accept=".csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) processTvImportFile(f);
+                e.target.value = '';
+              }}
+            />
+            <button
+              type="button"
+              disabled={tvBulkImporting}
+              style={{ ...tbBtn, opacity: tvBulkImporting ? 0.6 : 1 }}
+              onClick={() => tvImportFileInputRef.current?.click()}
+            >
+              {t('tvLogins.importPickFile')}
+            </button>
+            {tvImportParseError ? (
+              <div style={{ color: '#fca5a5', fontSize: '0.85rem', marginTop: '12px', lineHeight: 1.45 }}>{t(tvImportParseError)}</div>
+            ) : null}
+            {tvImportPreview.length > 0 ? (
+              <>
+                <div style={{ marginTop: '14px', fontSize: '0.8rem', color: '#94a3b8' }}>
+                  {t('tvLogins.importSummary', {
+                    valid: tvImportValidCount,
+                    invalid: tvImportPreview.length - tvImportValidCount
+                  })}
+                </div>
+                <div
+                  style={{
+                    marginTop: '10px',
+                    maxHeight: 'min(42vh, 320px)',
+                    overflow: 'auto',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '12px'
+                  }}
+                >
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', color: '#e5e7eb' }}>
+                    <thead>
+                      <tr style={{ background: 'rgba(16,185,129,0.12)' }}>
+                        <th style={{ textAlign: 'left', padding: '8px 10px', fontWeight: 700 }}>#</th>
+                        <th style={{ textAlign: 'left', padding: '8px 10px', fontWeight: 700 }}>login</th>
+                        <th style={{ textAlign: 'left', padding: '8px 10px', fontWeight: 700 }}>planKey</th>
+                        <th style={{ textAlign: 'left', padding: '8px 10px', fontWeight: 700 }}>{t('tvLogins.importColStatus')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tvImportPreview.map((r) => (
+                        <tr key={`${r.rowIndex}-${r.login}`} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                          <td style={{ padding: '8px 10px', color: '#9ca3af' }}>{r.rowIndex}</td>
+                          <td style={{ padding: '8px 10px', wordBreak: 'break-word' }}>{r.login}</td>
+                          <td style={{ padding: '8px 10px', wordBreak: 'break-word' }}>{r.planKey || '—'}</td>
+                          <td style={{ padding: '8px 10px' }}>
+                            {r.errorKey ? (
+                              <span style={{ color: '#fca5a5' }}>{t(r.errorKey)}</span>
+                            ) : (
+                              <span style={{ color: '#6ee7b7' }}>{t('tvLogins.importStatusOk')}</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : null}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                disabled={tvBulkImporting}
+                onClick={() => !tvBulkImporting && setTvImportModalOpen(false)}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: '10px',
+                  border: '1px solid #4b5563',
+                  background: '#1f2937',
+                  color: '#e5e7eb',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: tvBulkImporting ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {t('tvLogins.importCancel')}
+              </button>
+              <button
+                type="button"
+                disabled={tvBulkImporting || tvImportValidCount === 0}
+                onClick={confirmTvBulkImport}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: tvBulkImporting || tvImportValidCount === 0 ? '#374151' : '#059669',
+                  color: '#fff',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  cursor: tvBulkImporting || tvImportValidCount === 0 ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {tvBulkImporting ? t('tvLogins.importImporting') : t('tvLogins.importConfirm', { n: tvImportValidCount })}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
     );
   };
 
