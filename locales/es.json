@@ -174,6 +174,24 @@
     "tableTotal": "Total",
     "tableDate": "Creado"
   },
+  "stripeReceipts": {
+    "title": "Recibos de pago (Stripe)",
+    "subtitle": "Últimos cargos en tu cuenta de Stripe. \"Ver recibo\" abre la página oficial de Stripe cuando hay recibo.",
+    "loading": "Cargando pagos…",
+    "empty": "No se encontraron cargos o aún no hay datos.",
+    "loadError": "No se pudieron cargar los recibos.",
+    "colDate": "Fecha",
+    "colAmount": "Importe",
+    "colStatus": "Estado",
+    "colEmail": "Correo (facturación)",
+    "colReceipt": "Recibo",
+    "openReceipt": "Ver recibo",
+    "noReceipt": "No disponible",
+    "statusSucceeded": "Pagado",
+    "statusPending": "Pendiente",
+    "statusFailed": "Fallido",
+    "footerHint": "Hasta 50 cargos recientes. Algunos métodos no tienen receipt_url; usa el panel de Stripe para el historial completo."
+  },
   "common": {
     "language": "Idioma de la interfaz",
     "logout": "Salir",

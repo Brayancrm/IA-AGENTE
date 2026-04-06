@@ -3378,6 +3378,9 @@ const DashboardWithFirebase = ({
     recent: []
   });
   const [stripeOpsFilter, setStripeOpsFilter] = useState('all');
+  const [stripeReceipts, setStripeReceipts] = useState([]);
+  const [stripeReceiptsLoading, setStripeReceiptsLoading] = useState(false);
+  const [stripeReceiptsError, setStripeReceiptsError] = useState(null);
   const [tvLogins, setTvLogins] = useState([]);
   /** Força re-render quando reservas expiram (sem escrita no Firebase). */
   const [tvReservedTick, setTvReservedTick] = useState(0);
@@ -3769,6 +3772,33 @@ const DashboardWithFirebase = ({
       clearInterval(intervalId);
     };
   }, [user?.uid, user?.isMaster, database]);
+
+  useEffect(() => {
+    if (!user?.isMaster || !user?.uid || currentPage !== 'stripe') return;
+    let cancelled = false;
+    (async () => {
+      setStripeReceiptsLoading(true);
+      setStripeReceiptsError(null);
+      try {
+        const res = await fetch(
+          `${BACKEND_URL}/api/stripe/payment-receipts?userId=${encodeURIComponent(user.uid)}&limit=50`
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || t('stripeReceipts.loadError'));
+        if (!cancelled) setStripeReceipts(Array.isArray(data.payments) ? data.payments : []);
+      } catch (e) {
+        if (!cancelled) {
+          setStripeReceiptsError(e.message || t('stripeReceipts.loadError'));
+          setStripeReceipts([]);
+        }
+      } finally {
+        if (!cancelled) setStripeReceiptsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.isMaster, user?.uid, currentPage, BACKEND_URL, t]);
   
   // Componente EmailTemplateModal (movido para dentro do DashboardWithFirebase)
   // MIGRADO PARA BEEFREE - Editor mais estável e gratuito
@@ -8168,6 +8198,25 @@ const DashboardWithFirebase = ({
       }
 
       case 'stripe': {
+        const stripeDateLocale =
+          locale === 'en' ? 'en-US' : locale === 'es' ? 'es-ES' : locale === 'it' ? 'it-IT' : 'pt-BR';
+        const formatStripeMoney = (amount, currency) => {
+          const n = (amount || 0) / 100;
+          const cur = String(currency || 'usd').toUpperCase();
+          try {
+            return new Intl.NumberFormat(stripeDateLocale, { style: 'currency', currency: cur }).format(n);
+          } catch {
+            return `${n.toFixed(2)} ${cur}`;
+          }
+        };
+        const stripeChargeStatusLabel = (st) => {
+          const s = String(st || '').toLowerCase();
+          if (s === 'succeeded') return t('stripeReceipts.statusSucceeded');
+          if (s === 'pending') return t('stripeReceipts.statusPending');
+          if (s === 'failed') return t('stripeReceipts.statusFailed');
+          return st || '—';
+        };
+
         const normalizeStripeStatus = (status) => {
           const s = String(status || '').toLowerCase();
           if (s === 'active') return 'active';
@@ -8329,6 +8378,78 @@ const DashboardWithFirebase = ({
                   </div>
                 )}
               </div>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: '#1a1f36',
+                borderRadius: '16px',
+                padding: '24px',
+                marginBottom: '24px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                border: '1px solid rgba(99, 91, 255, 0.35)'
+              }}
+            >
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#ffffff', marginBottom: '6px' }}>
+                {t('stripeReceipts.title')}
+              </h3>
+              <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '16px', lineHeight: 1.5 }}>
+                {t('stripeReceipts.subtitle')}
+              </p>
+              {stripeReceiptsLoading ? (
+                <p style={{ margin: 0, fontSize: '0.875rem', color: '#9ca3af' }}>{t('stripeReceipts.loading')}</p>
+              ) : stripeReceiptsError ? (
+                <p style={{ margin: 0, fontSize: '0.875rem', color: '#fca5a5' }}>{stripeReceiptsError}</p>
+              ) : stripeReceipts.length === 0 ? (
+                <p style={{ margin: 0, fontSize: '0.875rem', color: '#9ca3af' }}>{t('stripeReceipts.empty')}</p>
+              ) : (
+                <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem', color: '#e5e7eb' }}>
+                    <thead>
+                      <tr style={{ background: 'rgba(99, 91, 255, 0.12)' }}>
+                        <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 700 }}>{t('stripeReceipts.colDate')}</th>
+                        <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 700 }}>{t('stripeReceipts.colAmount')}</th>
+                        <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 700 }}>{t('stripeReceipts.colStatus')}</th>
+                        <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 700 }}>{t('stripeReceipts.colEmail')}</th>
+                        <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 700 }}>{t('stripeReceipts.colReceipt')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stripeReceipts.map((row) => (
+                        <tr key={row.id} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                          <td style={{ padding: '10px 12px', color: '#cbd5e1', whiteSpace: 'nowrap' }}>
+                            {row.created
+                              ? new Date(row.created * 1000).toLocaleString(stripeDateLocale)
+                              : '—'}
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>{formatStripeMoney(row.amount, row.currency)}</td>
+                          <td style={{ padding: '10px 12px' }}>{stripeChargeStatusLabel(row.status)}</td>
+                          <td style={{ padding: '10px 12px', wordBreak: 'break-all', color: '#94a3b8' }}>
+                            {row.customerEmail || '—'}
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            {row.receiptUrl ? (
+                              <a
+                                href={row.receiptUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: '#a5b4fc', fontWeight: 600, textDecoration: 'none' }}
+                              >
+                                {t('stripeReceipts.openReceipt')}
+                              </a>
+                            ) : (
+                              <span style={{ color: '#6b7280' }}>{t('stripeReceipts.noReceipt')}</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <p style={{ margin: '14px 0 0 0', fontSize: '0.75rem', color: '#6b7280', lineHeight: 1.45 }}>
+                {t('stripeReceipts.footerHint')}
+              </p>
             </div>
           </div>
         );

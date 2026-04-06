@@ -6885,6 +6885,63 @@ async function handleCreateStripeSubscription(req, res) {
 // Novo endpoint Stripe para assinatura
 app.post('/api/stripe/create-subscription', handleCreateStripeSubscription);
 
+/** Lista cobranças da conta Stripe (recibo hospedado em receipt_url quando disponível). Só master. */
+async function handleStripePaymentReceipts(req, res) {
+  try {
+    const userId = req.query.userId;
+    const limit = Math.min(Math.max(parseInt(String(req.query.limit || '50'), 10) || 50, 1), 100);
+    if (!userId) {
+      return res.status(400).json({ error: 'userId obrigatório' });
+    }
+
+    const regSnap = await db.ref('users/registered').once('value');
+    let isMaster = false;
+    if (regSnap.exists()) {
+      const users = regSnap.val();
+      const entry = Object.values(users).find((u) => u && u.uid === userId);
+      if (entry) {
+        isMaster =
+          entry.isMaster === true ||
+          String(entry.email || '').toLowerCase() === 'brayan.italy@gmail.com';
+      }
+    }
+    if (!isMaster) {
+      return res.status(403).json({ error: 'Apenas o utilizador master pode consultar recibos' });
+    }
+
+    const stripeApiKey = await getMasterStripeApiKey();
+    if (!stripeApiKey) {
+      return res.status(400).json({ error: 'API Key do Stripe não configurada' });
+    }
+
+    const stripe = new Stripe(stripeApiKey, { apiVersion: '2023-10-16' });
+    const charges = await stripe.charges.list({ limit });
+
+    const payments = charges.data.map((ch) => ({
+      id: ch.id,
+      amount: ch.amount,
+      currency: ch.currency,
+      status: ch.status,
+      created: ch.created,
+      description: ch.description || null,
+      receiptUrl: ch.receipt_url || null,
+      customerEmail: ch.billing_details?.email || null,
+      paymentMethodType: ch.payment_method_details?.type || null
+    }));
+
+    return res.json({
+      success: true,
+      payments,
+      hasMore: charges.has_more
+    });
+  } catch (error) {
+    console.error('❌ Erro ao listar recibos Stripe:', error);
+    return res.status(500).json({ error: error.message || 'Erro ao listar pagamentos' });
+  }
+}
+
+app.get('/api/stripe/payment-receipts', handleStripePaymentReceipts);
+
 app.post('/api/tv/resend-credentials', async (req, res) => {
   try {
     const { userId, tvLoginId, phone } = req.body;

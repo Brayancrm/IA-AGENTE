@@ -174,6 +174,24 @@
     "tableTotal": "Total R$",
     "tableDate": "Criado em"
   },
+  "stripeReceipts": {
+    "title": "Recibos de pagamento (Stripe)",
+    "subtitle": "Últimas cobranças na sua conta Stripe. O link \"Ver recibo\" abre a página oficial do Stripe quando o recibo estiver disponível.",
+    "loading": "A carregar pagamentos…",
+    "empty": "Nenhuma cobrança encontrada ou ainda não sincronizada.",
+    "loadError": "Não foi possível carregar os recibos.",
+    "colDate": "Data",
+    "colAmount": "Valor",
+    "colStatus": "Estado",
+    "colEmail": "E-mail (fatura)",
+    "colReceipt": "Recibo",
+    "openReceipt": "Ver recibo",
+    "noReceipt": "Indisponível",
+    "statusSucceeded": "Pago",
+    "statusPending": "Pendente",
+    "statusFailed": "Falhou",
+    "footerHint": "Lista limitada às últimas 50 cobranças. Alguns métodos de pagamento não geram receipt_url; use o Stripe Dashboard para o histórico completo."
+  },
   "common": {
     "language": "Idioma da interface",
     "logout": "Sair",
