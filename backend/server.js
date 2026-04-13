@@ -2270,8 +2270,11 @@ function formatCatalogPriceForMessage(price, currencyCode) {
   }
 }
 
-/** ~chars por token (PT/EN); conservador para não estourar o limite da API. */
-const AI_CHARS_PER_TOKEN_EST = 3.5;
+/**
+ * Chars por token (estimativa). PT + emoji + markdown gasta mais tokens que inglês;
+ * 3.5 subestimava (~6800 est. vs ~9500 reais na API).
+ */
+const AI_CHARS_PER_TOKEN_EST = 2.25;
 function estimateTokensFromText(text) {
   return Math.ceil(String(text || '').length / AI_CHARS_PER_TOKEN_EST);
 }
@@ -2306,6 +2309,32 @@ function getMaxInputTokenBudget(modelId, responseMaxTokens) {
   return shortWindow;
 }
 
+/** Modelos com janela grande (não aplicar corte agressivo de orçamento). */
+function isLongContextModelId(modelId) {
+  const m = String(modelId || '').toLowerCase();
+  return (
+    m.includes('128k') ||
+    m.includes('128000') ||
+    m.includes('32k') ||
+    (m.includes('16k') && !m.includes('8k')) ||
+    m.includes('gpt-4o') ||
+    m.includes('o1') ||
+    m.includes('o3') ||
+    m.includes('gpt-4-turbo') ||
+    m.includes('turbo-preview') ||
+    m.includes('gpt-4-32k') ||
+    /gpt-4\.\d/.test(m)
+  );
+}
+
+/**
+ * Folga para modelos ~8k: a contagem real da OpenAI costuma ser > estimativa por caracteres.
+ */
+function applyInputBudgetSafetyMargin(nominalBudget, modelId) {
+  if (nominalBudget > 10000 || isLongContextModelId(modelId)) return nominalBudget;
+  return Math.max(2000, Math.floor(nominalBudget * 0.52));
+}
+
 /**
  * Reduz sistema + histórico + última mensagem até caber em maxInputTokens.
  */
@@ -2313,17 +2342,21 @@ function shrinkChatPromptToBudget(systemPrompt, historyMessages, lastUserContent
   let sys = String(systemPrompt || '');
   let hist = (historyMessages || []).map((x) => ({
     role: x.role === 'assistant' ? 'assistant' : 'user',
-    content: String(x.content || '').slice(0, 6000)
+    content: String(x.content || '').slice(0, 4000)
   }));
-  let user = String(lastUserContent || 'Olá').slice(0, 6000);
+  let user = String(lastUserContent || 'Olá').slice(0, 4000);
 
   const totalEst = () =>
     estimateTokensFromText(sys) +
     hist.reduce((a, h) => a + estimateTokensFromText(h.content), 0) +
     estimateTokensFromText(user);
 
+  if (hist.length > 8) {
+    hist = hist.slice(-8);
+  }
+
   let iterations = 0;
-  while (totalEst() > maxInputTokens && iterations < 60) {
+  while (totalEst() > maxInputTokens && iterations < 80) {
     iterations++;
     if (hist.length > 1) {
       hist.shift();
@@ -2369,12 +2402,12 @@ function shrinkChatPromptToBudget(systemPrompt, historyMessages, lastUserContent
   return { systemPrompt: sys, history: hist, user };
 }
 
-const MAX_CATALOG_ITEMS_AI = 45;
-const MAX_CATALOG_DESC_CHARS_AI = 420;
+const MAX_CATALOG_ITEMS_AI = 30;
+const MAX_CATALOG_DESC_CHARS_AI = 300;
 
 async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) {
   try {
-    const HISTORY_FETCH = 14;
+    const HISTORY_FETCH = 12;
     const messagesSnapshot = await conversationMessagesRef(userId, contactNumber)
       .orderByChild('timestamp')
       .limitToLast(HISTORY_FETCH)
@@ -2491,7 +2524,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
     // Construir prompt do sistema com contexto (base limitada para não estourar o modelo)
     let systemPrompt = truncateAiBlock(
       aiConfig.systemPrompt || 'Você é um assistente virtual prestativo.',
-      20000,
+      14000,
       '\n\n[… instruções iniciais truncadas — mantenha tom e regras já descritos acima.]'
     );
 
@@ -2717,7 +2750,8 @@ ${stripeMarkerInstr}
     }
 
     const modelUsed = aiConfig.model || 'gpt-3.5-turbo';
-    const inputTokenBudget = getMaxInputTokenBudget(modelUsed, maxTokens);
+    const nominalBudget = getMaxInputTokenBudget(modelUsed, maxTokens);
+    const inputTokenBudget = applyInputBudgetSafetyMargin(nominalBudget, modelUsed);
     const shrunk = shrinkChatPromptToBudget(
       systemPrompt,
       messages,
@@ -2728,29 +2762,53 @@ ${stripeMarkerInstr}
     messages = shrunk.history;
     const finalUserLine = shrunk.user;
 
-    // Chamar API de IA (OpenAI exemplo)
-    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+    const openaiHeaders = {
+      Authorization: `Bearer ${aiConfig.apiKey}`,
+      'Content-Type': 'application/json'
+    };
+
+    const buildPayload = (sys, hist, userLine) => ({
       model: modelUsed,
       messages: [
-        {
-          role: 'system',
-          content: systemPrompt
-        },
-        ...messages,
-        {
-          role: 'user',
-          content: finalUserLine
-        }
+        { role: 'system', content: sys },
+        ...hist,
+        { role: 'user', content: userLine }
       ],
       temperature: aiConfig.temperature || 0.7,
       max_tokens: maxTokens
-    }, {
-      headers: {
-        'Authorization': `Bearer ${aiConfig.apiKey}`,
-        'Content-Type': 'application/json'
-      }
     });
-    
+
+    let response;
+    try {
+      response = await axios.post(
+        'https://api.openai.com/v1/chat/completions',
+        buildPayload(systemPrompt, messages, finalUserLine),
+        { headers: openaiHeaders }
+      );
+    } catch (firstErr) {
+      const code = firstErr.response?.data?.error?.code;
+      if (code === 'context_length_exceeded') {
+        console.warn('⚠️ [IA] context_length_exceeded — nova tentativa com contexto mínimo');
+        const emerg = shrinkChatPromptToBudget(
+          truncateAiBlock(
+            systemPrompt,
+            5500,
+            '\n\n[Contexto reduzido automaticamente — segue catálogo/resumo acima.]'
+          ),
+          messages.slice(-3),
+          finalUserLine,
+          Math.max(1800, Math.floor(inputTokenBudget * 0.42))
+        );
+        response = await axios.post(
+          'https://api.openai.com/v1/chat/completions',
+          buildPayload(emerg.systemPrompt, emerg.history, emerg.user),
+          { headers: openaiHeaders }
+        );
+      } else {
+        throw firstErr;
+      }
+    }
+
     const aiResponse = response.data.choices[0].message.content;
     
     // Retornar resposta e mapa de itens para detecção de imagens
