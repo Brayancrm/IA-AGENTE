@@ -9056,6 +9056,10 @@ const DashboardWithFirebase = ({
                       2️⃣ Vá em <strong>Configurações</strong> → <strong>Aparelhos conectados</strong><br />
                       3️⃣ Toque em <strong>"Conectar aparelho"</strong><br />
                       4️⃣ Escaneie este QR Code com a câmera
+                      <br />
+                      <span style={{ color: '#b45309', fontWeight: 600 }}>
+                        ⏱️ Após um deploy, escaneie assim que o QR aparecer — no servidor há um tempo máximo de espera; se expirar, use &quot;Tentar novamente&quot;.
+                      </span>
                     </p>
                   </div>
                   <button

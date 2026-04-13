@@ -435,6 +435,25 @@ function parseEnvMs(key, defaultMs) {
   return Number.isFinite(n) ? Math.max(0, n) : defaultMs;
 }
 
+/**
+ * Tempo máximo com QR à espera de leitura antes do WPPConnect fechar o browser.
+ * Valores muito baixos (ex. 70s) fazem falhar quem demora a abrir o painel após deploy.
+ * WPP_AUTO_CLOSE_MS=0 desliga o timer (QR não expira por tempo no servidor).
+ */
+function getWppAutoCloseMs() {
+  const DEFAULT_MS = 900000; // 15 min
+  const d = parseEnvMs('WPP_AUTO_CLOSE_MS', DEFAULT_MS);
+  if (d === 0) return 0;
+  const MIN_MS = 180000; // 3 min — abaixo disto é quase impossível escanear a tempo em produção
+  if (d < MIN_MS) {
+    console.warn(
+      `⚠️ [WPP] WPP_AUTO_CLOSE_MS=${d} é curto demais; a usar ${MIN_MS} ms (mínimo). Para desligar: WPP_AUTO_CLOSE_MS=0`
+    );
+    return MIN_MS;
+  }
+  return d;
+}
+
 /** Ficheiros de lock / estado do Chrome em qualquer profundidade (órfãos após deploy). */
 const CHROME_LOCK_FILE_NAMES = new Set([
   'SingletonLock',
@@ -800,6 +819,17 @@ function isChromiumProfileRemoteLock(err) {
 
 function formatWhatsAppLaunchError(err) {
   const raw = err?.message || String(err || '');
+  const lower = raw.toLowerCase();
+  if (lower.includes('auto close') || lower.includes('autoclose')) {
+    return (
+      'O servidor fechou a sessão porque o QR Code não foi lido a tempo (limite “auto close” do WPPConnect). ' +
+      'Isto é frequente após um deploy: o backend gera um novo QR e, se ninguém escanear dentro desse tempo, a ligação encerra com “Auto Close Called”. ' +
+      'O que fazer: (1) abra já esta página, clique em Conectar e escaneie o QR assim que aparecer; ' +
+      '(2) no Railway, defina WPP_AUTO_CLOSE_MS=900000 (15 minutos) ou WPP_AUTO_CLOSE_MS=0 para desligar o fecho automático; ' +
+      '(3) se precisar, use “Limpar sessão no servidor” e conecte de novo. ' +
+      `Técnico: ${raw.slice(0, 180)}`
+    );
+  }
   if (isChromiumProfileRemoteLock(err)) {
     return (
       'Perfil do Chrome bloqueado: outro processo usa o mesmo diretório (muito comum com 2+ réplicas no Railway a partilhar o volume). ' +
@@ -953,6 +983,19 @@ async function createSessionInternal(userId) {
             lastActivity: new Date().toISOString()
           });
           console.log('❌ WhatsApp desconectado para:', userId);
+        } else if (
+          statusSession === 'autocloseCalled' ||
+          statusSession === 'qrReadError' ||
+          statusSession === 'QRReadError'
+        ) {
+          const friendly = formatWhatsAppLaunchError(new Error('Auto Close Called'));
+          sessionRef.update({
+            status: 'error',
+            qrCode: null,
+            error: friendly,
+            lastActivity: new Date().toISOString()
+          });
+          console.log('❌ WhatsApp: QR / auto-close para:', userId, statusSession);
         }
       },
       headless: true,
@@ -963,7 +1006,7 @@ async function createSessionInternal(userId) {
       disableWelcome: true,
       updatesLog: false,
       // WPPConnect: tempo máx. com QR sem login antes de fechar o browser (ms). WPP_AUTO_CLOSE_MS=0 desliga o timer.
-      autoClose: parseEnvMs('WPP_AUTO_CLOSE_MS', 600000),
+      autoClose: getWppAutoCloseMs(),
       deviceSyncTimeout: parseEnvMs('WPP_DEVICE_SYNC_TIMEOUT_MS', 180000),
       puppeteerOptions: {
         headless: true,
@@ -1001,6 +1044,12 @@ async function createSessionInternal(userId) {
         ]
       }
     };
+
+    console.log(
+      '📱 [WPP] autoClose (ms):',
+      clientOptions.autoClose,
+      clientOptions.autoClose === 0 ? '(desligado — QR não fecha por tempo)' : ''
+    );
     
     // 🔥 Criar/Restaurar client WPPConnect (retry + opcional reset total do perfil Chrome no Railway)
     console.log('🚀 Iniciando WPPConnect...');
