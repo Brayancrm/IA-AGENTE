@@ -1766,6 +1766,7 @@ async function handleIncomingMessage(userId, message, client) {
         const { cleaned: aiResponseStripped, fromMarker: stripeCheckoutFromMarker } =
           extractStripeCheckoutMarker(aiResponse);
         aiResponse = aiResponseStripped;
+        aiResponse = sanitizeAiClientVisibleText(aiResponse);
 
         let catalogClosingDeferred = false;
         let textToSendClient = aiResponse;
@@ -2638,6 +2639,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
         ? `\n\n🖼️ **PRIMEIRA OFERTA COM FOTO NO CATÁLOGO (OBRIGATÓRIO):**
 - O WhatsApp recebe **logo a seguir** à tua mensagem o **card** (imagem + legenda com preço e toda a descrição/benefícios). **Não escrevas** no texto: preço, valores em moeda, listas numeradas, bullets nem parágrafos que repitam o que já vai na legenda do card.
 - A tua mensagem fica **só** com: **(A)** saudação/apresentação (Felipe + Wplay/TV conforme as tuas regras), no máximo 2 frases curtas; **(B)** uma linha com o **nome completo exato** do produto/serviço tal como no catálogo (obrigatório para o sistema enviar o card). **Não** coloques pergunta de fecho nem call-to-action nesta mensagem — o sistema envia **automaticamente**, numa mensagem separada **depois** do card, a frase exata: Deseja aproveitar esse valor e fechar agora?
+- **Proibido** escrever qualquer texto entre colchetes [assim] na resposta ao cliente (ex.: instruções internas tipo “envia imagem”); o cliente vê tudo o que escreves. **Proibido** escrever “Quer aproveitar…” ou “Deseja aproveitar…” — isso só o servidor envia, depois do card.
 - **Não** antecipar nesta mensagem FAQs longas, “informações importantes”, compatibilidade de aparelhos ou suporte — isso só quando o cliente **perguntar** noutra mensagem.
 - **Checkout Stripe nesta mesma resposta:** se for o momento do pagamento, a **última linha** da tua mensagem deve ser **apenas** ${STRIPE_CHECKOUT_MARKER} (o sistema trata o link). Nesse caso também **não** escrevas a pergunta de fecho no texto.`
         : '';
@@ -2857,22 +2859,58 @@ function detectMentionedProducts(responseText, catalogItemsMap) {
 /** Pergunta de fecho após o card (foto + legenda); enviada numa mensagem separada pelo servidor. */
 const CATALOG_CLOSING_QUESTION_PT = 'Deseja aproveitar esse valor e fechar agora?';
 
+/** Remove marcadores tipo [Envia produto...] que o modelo às vezes copia para a resposta visível. */
+function removeAiBracketPlaceholders(text) {
+  if (!text || typeof text !== 'string') return text;
+  let t = text;
+  t = t.replace(/\*\*\s*\[[^\]]+\]\s*\*\*/g, '');
+  t = t.replace(/\[[^\]]+\]/g, '');
+  t = t.replace(/\n{3,}/g, '\n\n');
+  return t.replace(/[ \t]+\n/g, '\n').trimEnd();
+}
+
+/** Linhas que são só a pergunta de fecho (o servidor manda depois do card). */
+function stripCatalogClosingQuestionLines(text) {
+  if (!text || typeof text !== 'string') return text;
+  const lineRes = [
+    /^\s*\*\*Deseja aproveitar esse valor e fechar agora\??\*\*\s*$/i,
+    /^\s*Deseja aproveitar esse valor e fechar agora\??\s*$/i,
+    /^\s*\*\*Quer aproveitar esse valor e fechar agora\??\*\*\s*$/i,
+    /^\s*Quer aproveitar esse valor e fechar agora\??\s*$/i
+  ];
+  const kept = text.split(/\r?\n/).filter((line) => !lineRes.some((re) => re.test(line)));
+  return kept.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd();
+}
+
 function stripCatalogClosingQuestion(text) {
   if (!text || typeof text !== 'string') return text;
   let t = text.trimEnd();
-  const q = CATALOG_CLOSING_QUESTION_PT;
-  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const variants = [
-    new RegExp(`\\s*\\*\\*${escaped}\\*\\*\\s*$`, 'm'),
-    new RegExp(`\\s*${escaped}\\s*$`, 'm')
+  const questions = [
+    CATALOG_CLOSING_QUESTION_PT,
+    'Quer aproveitar esse valor e fechar agora?'
   ];
-  for (const re of variants) {
-    const n = t.replace(re, '');
-    if (n !== t) {
-      t = n.trimEnd();
-      break;
+  for (const q of questions) {
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const variants = [
+      new RegExp(`\\s*\\*\\*${escaped}\\*\\*\\s*$`, 'm'),
+      new RegExp(`\\s*${escaped}\\s*$`, 'm')
+    ];
+    for (const re of variants) {
+      const n = t.replace(re, '');
+      if (n !== t) {
+        t = n.trimEnd();
+        break;
+      }
     }
   }
+  return t;
+}
+
+function sanitizeAiClientVisibleText(text) {
+  if (!text || typeof text !== 'string') return text;
+  let t = removeAiBracketPlaceholders(text);
+  t = stripCatalogClosingQuestionLines(t);
+  t = stripCatalogClosingQuestion(t);
   return t;
 }
 
