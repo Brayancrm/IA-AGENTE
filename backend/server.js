@@ -35,6 +35,8 @@ if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
 }
 
 const APP_ID = 'whatsapp-sales-agent';
+/** Modelo predefinido para respostas do assistente no WhatsApp (janela grande vs gpt-3.5 8k). */
+const DEFAULT_OPENAI_ASSISTANT_MODEL = 'gpt-4o-mini';
 
 console.log('🚀 Iniciando servidor WPPConnect + IA...');
 
@@ -1714,7 +1716,7 @@ async function handleIncomingMessage(userId, message, client) {
               ...aiConfig,
               apiKey: masterConfig.apiKey,
               aiProvider: masterConfig.aiProvider || 'openai',
-              model: aiConfig.model || masterConfig.model || 'gpt-3.5-turbo'
+              model: aiConfig.model || masterConfig.model || DEFAULT_OPENAI_ASSISTANT_MODEL
             };
             console.log('✅ Usando API Key do master (primeiros 10 caracteres):', masterConfig.apiKey.substring(0, 10) + '...');
           } else {
@@ -2749,7 +2751,7 @@ ${stripeMarkerInstr}
       }
     }
 
-    const modelUsed = aiConfig.model || 'gpt-3.5-turbo';
+    const modelUsed = aiConfig.model || DEFAULT_OPENAI_ASSISTANT_MODEL;
     const nominalBudget = getMaxInputTokenBudget(modelUsed, maxTokens);
     const inputTokenBudget = applyInputBudgetSafetyMargin(nominalBudget, modelUsed);
     const shrunk = shrinkChatPromptToBudget(
@@ -8410,7 +8412,7 @@ app.post('/api/test-prompt', async (req, res) => {
 
     // Chamar OpenAI API
     const openaiResponse = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-3.5-turbo',
+      model: DEFAULT_OPENAI_ASSISTANT_MODEL,
       messages: [
         {
           role: 'system',

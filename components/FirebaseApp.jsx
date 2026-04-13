@@ -205,6 +205,8 @@ function enrichTvImportRowsForDuplicates(rows, existingLogins) {
 }
 
 const APP_ID = process.env.NEXT_PUBLIC_APP_ID || 'whatsappsalesagent';
+/** Predefinição do assistente: mais contexto que gpt-3.5-turbo (8k), custo moderado. */
+const DEFAULT_OPENAI_ASSISTANT_MODEL = 'gpt-4o-mini';
 
 const AGENDAMENTO_STATUS_CONFIG = {
   pendente: { label: 'Pendente', color: '#eab308' },
@@ -4264,7 +4266,7 @@ const DashboardWithFirebase = ({
   const [assistantForm, setAssistantForm] = useState({
     aiProvider: 'openai',
     apiKey: '',
-    model: 'gpt-3.5-turbo',
+    model: DEFAULT_OPENAI_ASSISTANT_MODEL,
     systemPrompt: '',
     welcomeMessage: '',
     enabledFeatures: [],
@@ -4445,7 +4447,7 @@ const DashboardWithFirebase = ({
     setAssistantForm({
       aiProvider: assistantSettings.aiProvider || 'openai',
       apiKey: assistantSettings.apiKey || '',
-      model: assistantSettings.model || 'gpt-3.5-turbo',
+      model: assistantSettings.model || DEFAULT_OPENAI_ASSISTANT_MODEL,
       systemPrompt: assistantSettings.systemPrompt || '',
       welcomeMessage: assistantSettings.welcomeMessage || '',
       enabledFeatures: assistantSettings.enabledFeatures || [],
@@ -9492,7 +9494,7 @@ const DashboardWithFirebase = ({
                         Modelo
                       </label>
                       <select
-                        value={assistantForm.model || 'gpt-3.5-turbo'}
+                        value={assistantForm.model || DEFAULT_OPENAI_ASSISTANT_MODEL}
                         onChange={(e) => setAssistantForm(prev => ({ ...prev, model: e.target.value }))}
                         style={{
                           width: '100%',
@@ -9514,9 +9516,10 @@ const DashboardWithFirebase = ({
                           e.target.style.boxShadow = 'none';
                         }}
                       >
-                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Rápido e Econômico)</option>
-                        <option value="gpt-4">GPT-4 (Mais Inteligente)</option>
-                        <option value="gpt-4-turbo">GPT-4 Turbo (Equilibrado)</option>
+                        <option value="gpt-4o-mini">GPT-4o mini (recomendado — contexto grande)</option>
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo (rápido e econômico)</option>
+                        <option value="gpt-4">GPT-4 (mais capaz)</option>
+                        <option value="gpt-4-turbo">GPT-4 Turbo (equilibrado)</option>
                       </select>
                     </div>
                   </>
