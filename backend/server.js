@@ -580,7 +580,11 @@ async function bindWhatsAppLineKey(userId) {
   }
 }
 
-/** Ref às mensagens do contacto, por linha WhatsApp conectada (evita misturar números antigos). */
+/**
+ * Ref às mensagens do contacto, por linha WhatsApp conectada (evita misturar números antigos).
+ * Recomendado nas regras do Realtime Database: ".indexOn": "timestamp" no nó `.../messages`
+ * (evita aviso "unspecified index" e leituras pesadas).
+ */
 function conversationMessagesRef(userId, contactSanitized) {
   const lineKey = wppConnectedLineByUser.get(userId);
   if (lineKey) {
@@ -2217,26 +2221,138 @@ function formatCatalogPriceForMessage(price, currencyCode) {
   }
 }
 
+/** ~chars por token (PT/EN); conservador para não estourar o limite da API. */
+const AI_CHARS_PER_TOKEN_EST = 3.5;
+function estimateTokensFromText(text) {
+  return Math.ceil(String(text || '').length / AI_CHARS_PER_TOKEN_EST);
+}
+
+function truncateAiBlock(text, maxLen, suffix) {
+  const s = String(text || '');
+  if (s.length <= maxLen) return s;
+  const suf = suffix || '…';
+  const n = Math.max(0, maxLen - suf.length);
+  return s.slice(0, n) + suf;
+}
+
+/** Orçamento de tokens de entrada conforme modelo (evita context_length_exceeded). */
+function getMaxInputTokenBudget(modelId, responseMaxTokens) {
+  const m = String(modelId || '').toLowerCase();
+  const out = Math.min(4096, Math.max(256, Number(responseMaxTokens) || 1024));
+  const margin = 320;
+  const shortWindow = Math.max(2800, 8192 - out - margin);
+
+  if (m.includes('128k') || m.includes('128000')) return 100000;
+  if (m.includes('32k')) return 28000;
+  if (m.includes('16k')) return 14000;
+  if (m.includes('gpt-4o-mini')) return 120000;
+  if (m.includes('gpt-4o')) return 120000;
+  if (m.includes('o1') || m.includes('o3')) return 80000;
+  if (m.includes('gpt-4-turbo') || m.includes('turbo-preview')) return 100000;
+  if (m.includes('gpt-4-32k')) return Math.max(8000, 32768 - out - margin);
+  if (m.includes('gpt-3.5-turbo') && m.includes('16k')) return 14000;
+  if (m.includes('gpt-3.5-turbo')) return shortWindow;
+  if (m.includes('gpt-4.')) return 120000;
+  if (m.includes('gpt-4')) return shortWindow;
+  return shortWindow;
+}
+
+/**
+ * Reduz sistema + histórico + última mensagem até caber em maxInputTokens.
+ */
+function shrinkChatPromptToBudget(systemPrompt, historyMessages, lastUserContent, maxInputTokens) {
+  let sys = String(systemPrompt || '');
+  let hist = (historyMessages || []).map((x) => ({
+    role: x.role === 'assistant' ? 'assistant' : 'user',
+    content: String(x.content || '').slice(0, 6000)
+  }));
+  let user = String(lastUserContent || 'Olá').slice(0, 6000);
+
+  const totalEst = () =>
+    estimateTokensFromText(sys) +
+    hist.reduce((a, h) => a + estimateTokensFromText(h.content), 0) +
+    estimateTokensFromText(user);
+
+  let iterations = 0;
+  while (totalEst() > maxInputTokens && iterations < 60) {
+    iterations++;
+    if (hist.length > 1) {
+      hist.shift();
+      continue;
+    }
+    if (sys.length > 10000) {
+      sys = truncateAiBlock(
+        sys,
+        Math.floor(sys.length * 0.8),
+        '\n\n[… contexto truncado por limite do modelo — priorize instruções e catálogo acima.]'
+      );
+      continue;
+    }
+    if (user.length > 600) {
+      user = truncateAiBlock(user, 600, '…');
+      continue;
+    }
+    if (hist.length === 1 && hist[0].content.length > 500) {
+      hist = [
+        {
+          ...hist[0],
+          content: truncateAiBlock(hist[0].content, Math.floor(hist[0].content.length * 0.7), '…')
+        }
+      ];
+      continue;
+    }
+    if (sys.length > 5000) {
+      sys = truncateAiBlock(sys, 5000, '\n[…]');
+      continue;
+    }
+    break;
+  }
+
+  if (iterations > 0) {
+    console.warn('⚠️ [IA] Contexto ajustado para o limite do modelo:', {
+      iterations,
+      estTokensApprox: totalEst(),
+      maxInputTokens,
+      mensagensHistorico: hist.length,
+      charsSistema: sys.length
+    });
+  }
+  return { systemPrompt: sys, history: hist, user };
+}
+
+const MAX_CATALOG_ITEMS_AI = 45;
+const MAX_CATALOG_DESC_CHARS_AI = 420;
+
 async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) {
   try {
-    // Buscar histórico da conversa (últimas 10 mensagens)
+    const HISTORY_FETCH = 14;
     const messagesSnapshot = await conversationMessagesRef(userId, contactNumber)
       .orderByChild('timestamp')
-      .limitToLast(10)
+      .limitToLast(HISTORY_FETCH)
       .once('value');
-    
-    const messages = [];
+
+    const rawRows = [];
     messagesSnapshot.forEach((child) => {
       const msg = child.val();
-      
-      // Ignorar mensagens sem body ou com body null/undefined
       if (msg.body && typeof msg.body === 'string' && msg.body.trim() !== '') {
-        messages.push({
+        rawRows.push({
+          ts: msg.timestamp || '',
           role: msg.isFromMe ? 'assistant' : 'user',
-          content: msg.body
+          content: msg.body.trim()
         });
       }
     });
+    rawRows.sort((a, b) => String(a.ts).localeCompare(String(b.ts)));
+
+    let messages = rawRows.map(({ role, content }) => ({ role, content }));
+
+    const userTrim = String(userMessage || '').trim();
+    if (userTrim && messages.length > 0) {
+      const last = messages[messages.length - 1];
+      if (last.role === 'user' && last.content.trim() === userTrim) {
+        messages = messages.slice(0, -1);
+      }
+    }
     
     // 📄 A pergunta sobre nota fiscal agora é feita automaticamente após o pagamento
     // Esta verificação não é mais necessária
@@ -2300,6 +2416,13 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
         }
       });
     }
+
+    if (catalogProducts.length > MAX_CATALOG_ITEMS_AI) {
+      catalogProducts.splice(MAX_CATALOG_ITEMS_AI);
+    }
+    if (catalogServices.length > MAX_CATALOG_ITEMS_AI) {
+      catalogServices.splice(MAX_CATALOG_ITEMS_AI);
+    }
     
     // Acessos TV realmente disponíveis (exclui vendidos e reservas ainda ativas — NUNCA enviar credenciais ao modelo)
     const tvLoginsSnapshot = await db.ref(`users/data/${userId}/tv_logins`).once('value');
@@ -2316,8 +2439,12 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
     }
     const tvReserveMinAi = getTvReservationMinutes();
 
-    // Construir prompt do sistema com contexto
-    let systemPrompt = aiConfig.systemPrompt || 'Você é um assistente virtual prestativo.';
+    // Construir prompt do sistema com contexto (base limitada para não estourar o modelo)
+    let systemPrompt = truncateAiBlock(
+      aiConfig.systemPrompt || 'Você é um assistente virtual prestativo.',
+      20000,
+      '\n\n[… instruções iniciais truncadas — mantenha tom e regras já descritos acima.]'
+    );
 
     // Reconhecer cliente que já comprou (LID @lid vs número real no CRM)
     const crmKeyCtx = customerDataKeyFromChatKey(contactNumber);
@@ -2371,7 +2498,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
           systemPrompt += ` - Preço disponível no link`;
         }
         if (product.description) {
-          systemPrompt += ` - ${product.description}`;
+          systemPrompt += ` - ${truncateAiBlock(product.description, MAX_CATALOG_DESC_CHARS_AI)}`;
         }
         if (product.tvLoginProduct && product.tvPlanKey) {
           const pk = normalizePlanKey(product.tvPlanKey);
@@ -2403,7 +2530,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
           systemPrompt += ` - Preço disponível no link`;
         }
         if (service.description) {
-          systemPrompt += ` - ${service.description}`;
+          systemPrompt += ` - ${truncateAiBlock(service.description, MAX_CATALOG_DESC_CHARS_AI)}`;
         }
         if (typeof service.capacity === 'number' && service.capacity < 1) {
           systemPrompt += ` [SEM CAPACIDADE/VAGAS — não finalize venda nem envie link de pagamento]`;
@@ -2540,9 +2667,21 @@ ${stripeMarkerInstr}
       }
     }
 
+    const modelUsed = aiConfig.model || 'gpt-3.5-turbo';
+    const inputTokenBudget = getMaxInputTokenBudget(modelUsed, maxTokens);
+    const shrunk = shrinkChatPromptToBudget(
+      systemPrompt,
+      messages,
+      userTrim || userMessage || 'Olá',
+      inputTokenBudget
+    );
+    systemPrompt = shrunk.systemPrompt;
+    messages = shrunk.history;
+    const finalUserLine = shrunk.user;
+
     // Chamar API de IA (OpenAI exemplo)
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: aiConfig.model || 'gpt-3.5-turbo',
+      model: modelUsed,
       messages: [
         {
           role: 'system',
@@ -2551,7 +2690,7 @@ ${stripeMarkerInstr}
         ...messages,
         {
           role: 'user',
-          content: userMessage || 'Olá'
+          content: finalUserLine
         }
       ],
       temperature: aiConfig.temperature || 0.7,
