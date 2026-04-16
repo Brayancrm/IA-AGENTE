@@ -24,6 +24,16 @@ const normalizePlanCurrency = (currency) => (
   PLAN_CURRENCY_OPTIONS.includes(currency) ? currency : 'R$'
 );
 
+const isTvWplayPlan = (planId, planData) => {
+  const raw = `${String(planId || '')} ${String(planData?.name || '')}`.toLowerCase();
+  const normalized = raw.replace(/\s+/g, ' ').trim();
+  return (
+    normalized.includes('tv/wplay') ||
+    normalized.includes('tv / wplay') ||
+    (normalized.includes('tv') && normalized.includes('wplay'))
+  );
+};
+
 let app, db, auth, database;
 if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
   app = initializeApp(firebaseConfig);
@@ -288,6 +298,9 @@ const SimpleLanding = ({ onLoginSuccess }) => {
         
         Object.keys(data).forEach((key) => {
           const planData = data[key];
+          if (isTvWplayPlan(key, planData)) {
+            return;
+          }
           // Apenas planos ativos devem aparecer na landing page
           if (planData.active !== false) {
             plansList.push({ 

@@ -291,6 +291,16 @@ const formatPlanPrice = (plan) => (
   `${normalizePlanCurrency(plan?.currency)} ${parseFloat(plan?.price || 0).toFixed(2)}`
 );
 
+const isTvWplayPlan = (planId, planData) => {
+  const raw = `${String(planId || '')} ${String(planData?.name || '')}`.toLowerCase();
+  const normalized = raw.replace(/\s+/g, ' ').trim();
+  return (
+    normalized.includes('tv/wplay') ||
+    normalized.includes('tv / wplay') ||
+    (normalized.includes('tv') && normalized.includes('wplay'))
+  );
+};
+
 const CATALOG_CURRENCY_CODES = ['BRL', 'USD', 'EUR', 'GBP', 'ARS', 'MXN', 'CLP', 'COP', 'UYU', 'PYG', 'PEN', 'BOB'];
 
 function normalizeCatalogCurrency(code) {
@@ -1272,7 +1282,7 @@ const FirebaseApp = () => {
     });
     cleanupFunctions.push(() => off(agendamentosRef));
 
-    // 💎 Listener para planos (todos os usuários precisam ver os planos)
+    // 💎 Listener para planos (TV/WPLAY é exclusivo do master)
     const plansRef = ref(database, 'plans');
     onValue(plansRef, (snapshot) => {
       const plansList = [];
@@ -1280,6 +1290,9 @@ const FirebaseApp = () => {
         const data = snapshot.val();
         Object.keys(data).forEach((key) => {
           const planData = data[key];
+          if (!user?.isMaster && isTvWplayPlan(key, planData)) {
+            return;
+          }
           // Garantir que limits existe com valores padrão
           plansList.push({ 
             id: key, 
