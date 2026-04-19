@@ -320,7 +320,9 @@ function formatCatalogItemPrice(price, currencyCode) {
 }
 
 const FirebaseApp = () => {
-  const { app, db, auth, database, isReady, error } = useFirebase();
+  // `app` sozinho no JSX deste ficheiro enorme pode gerar ReferenceError em produção (minify);
+  // usar alias estável na desestruturação.
+  const { app: fbApp, db, auth, database, isReady, error } = useFirebase();
   const { t } = useI18n();
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -9689,7 +9691,7 @@ const DashboardWithFirebase = ({
                       </p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                         <PanelAndroidApkField
-                          firebaseApp={app}
+                          firebaseApp={fbApp}
                           userId={user?.uid}
                           sectionEnabled={assistantForm.autoPanelTestOnRequest === true}
                           androidLink={assistantForm.panelTestAndroidLink || ''}
