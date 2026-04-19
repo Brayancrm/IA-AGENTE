@@ -118,6 +118,55 @@ const panelService = require('./services/panelService');
 /** Cooldown entre testes automáticos por conversa (evita spam à API do painel). */
 const PANEL_TEST_AUTO_COOLDOWN_MS = 75_000;
 const panelTestAutoLastByChat = new Map();
+
+const PANEL_TEST_QUOTA_SUBPATH = 'panel_test_quotas';
+const DEFAULT_PANEL_FOLLOWUP_MSG_PT =
+  'Olá! Tudo bem com o teste? Conseguiu usar normalmente?\n\nSe quiser seguir com a adesão do plano, diga por aqui que eu te ajudo no próximo passo. 😊';
+
+const PANEL_TEST_LIMIT_CLIENT_PT =
+  'Para cada cliente disponibilizamos apenas um período de teste. Se precisar de mais tempo, fale com o suporte para avaliarmos o seu caso.';
+
+function panelTestQuotaUtcYyyyMmDd(d = new Date()) {
+  return d.toISOString().slice(0, 10);
+}
+
+function panelTestCustomerDigits(s) {
+  return String(s || '').replace(/\D/g, '');
+}
+
+/** Máx. 1 teste por cliente (chave = dígitos) por dia civil UTC. */
+async function assertPanelTestDailyQuota(ownerUserId, customerDigits) {
+  const d = panelTestCustomerDigits(customerDigits);
+  if (d.length < 8) return;
+  const key = `${d}_${panelTestQuotaUtcYyyyMmDd()}`;
+  const snap = await db.ref(`users/data/${ownerUserId}/${PANEL_TEST_QUOTA_SUBPATH}/${key}`).once('value');
+  if (snap.exists() && Number(snap.val()) >= 1) {
+    const err = new Error('PANEL_TEST_QUOTA_EXCEEDED');
+    err.code = 'PANEL_TEST_DAILY_LIMIT';
+    err.publicMessage = PANEL_TEST_LIMIT_CLIENT_PT;
+    throw err;
+  }
+}
+
+async function markPanelTestDailyQuota(ownerUserId, customerDigits) {
+  const d = panelTestCustomerDigits(customerDigits);
+  if (d.length < 8) return;
+  const key = `${d}_${panelTestQuotaUtcYyyyMmDd()}`;
+  await db.ref(`users/data/${ownerUserId}/${PANEL_TEST_QUOTA_SUBPATH}/${key}`).set(1);
+}
+
+async function enqueuePanelTestFollowUp(ownerUserId, targetJid, messageText) {
+  if (!ownerUserId || !targetJid) return;
+  const dueAt = Date.now() + 60 * 60 * 1000;
+  await db.ref(`users/data/${ownerUserId}/panel_test_follow_up_queue`).push({
+    dueAt,
+    targetJid: String(targetJid),
+    sent: false,
+    createdAt: new Date().toISOString(),
+    messageText: String(messageText || DEFAULT_PANEL_FOLLOWUP_MSG_PT)
+  });
+}
+
 const app = express();
 const ENABLE_ASAAS_LEGACY = process.env.ENABLE_ASAAS_LEGACY === 'true';
 
@@ -416,6 +465,40 @@ panelService.setTokenExpiredNotifier(() => {
 
 // Armazenar clientes WPPConnect ativos
 const activeClients = new Map();
+
+/** Processa follow-ups agendados (1h) para sessões WhatsApp ativas. */
+async function processPanelTestFollowUpQueueTick() {
+  for (const ownerId of [...activeClients.keys()]) {
+    const client = activeClients.get(ownerId);
+    if (!client) continue;
+    let snap;
+    try {
+      snap = await db.ref(`users/data/${ownerId}/panel_test_follow_up_queue`).once('value');
+    } catch (_) {
+      continue;
+    }
+    if (!snap.exists()) continue;
+    const jobs = snap.val();
+    const now = Date.now();
+    for (const [jobId, job] of Object.entries(jobs)) {
+      if (!job || job.sent) continue;
+      const due = Number(job.dueAt);
+      if (!Number.isFinite(due) || due > now) continue;
+      const jid = String(job.targetJid || '');
+      const txt = String(job.messageText || DEFAULT_PANEL_FOLLOWUP_MSG_PT);
+      if (!jid) continue;
+      try {
+        await client.sendText(jid, txt);
+        await db.ref(`users/data/${ownerId}/panel_test_follow_up_queue/${jobId}`).update({
+          sent: true,
+          sentAt: new Date().toISOString()
+        });
+      } catch (e) {
+        console.error(`❌ [panel-followup] ${ownerId} ${jobId}:`, e.message);
+      }
+    }
+  }
+}
 /** Uma fila de checkout Stripe por conversa — evita corrida / webhook duplicado a reservar estoque duas vezes. */
 const stripeCheckoutQueues = new Map();
 /** Evita dois wppconnect.create em paralelo para o mesmo user (mesmo userDataDir → "browser already running") */
@@ -1616,6 +1699,20 @@ async function tryAutoPanelTestFromChat(
   if (!wantsPanelIptvFreeTestMessage(messageText)) return { sent: false };
   if (!(await isRegisteredMasterUid(userId))) return { sent: false };
 
+  try {
+    await assertPanelTestDailyQuota(userId, sanitizedNumber);
+  } catch (quotaErr) {
+    if (quotaErr.code === 'PANEL_TEST_DAILY_LIMIT') {
+      try {
+        await client.sendText(messageFrom, quotaErr.publicMessage || quotaErr.message);
+      } catch (e) {
+        console.warn('⚠️ panel test quota msg:', e.message);
+      }
+      return { sent: true };
+    }
+    throw quotaErr;
+  }
+
   const coolKey = `${userId}:${sanitizedNumber}`;
   const last = panelTestAutoLastByChat.get(coolKey) || 0;
   if (Date.now() - last < PANEL_TEST_AUTO_COOLDOWN_MS) {
@@ -1645,6 +1742,7 @@ async function tryAutoPanelTestFromChat(
   try {
     const out = await panelService.generateTestAccount({});
     panelTestAutoLastByChat.set(coolKey, Date.now());
+    await markPanelTestDailyQuota(userId, sanitizedNumber);
     const expLocal = out.expiresAt
       ? new Date(out.expiresAt).toLocaleString('pt-PT', {
           dateStyle: 'short',
@@ -1655,7 +1753,7 @@ async function tryAutoPanelTestFromChat(
       `✅ *Conta de teste*\n\n` +
       `👤 *Utilizador:* ${out.usuario}\n` +
       `🔑 *Senha:* ${out.senha}\n` +
-      `⏱️ *Expira (aprox.):* ${expLocal}\n\n` +
+      `⏱️ *Expira em:* ${expLocal}\n\n` +
       `_Em caso de dúvida, fale com o suporte._`;
     await client.sendText(messageFrom, bodyMsg);
     await savePanelTestGenerationLog(userId, {
@@ -1666,6 +1764,14 @@ async function tryAutoPanelTestFromChat(
       source: 'whatsapp_auto',
       channel: 'whatsapp'
     });
+    if (aiConfig.panelTestFollowUpAfterOneHour) {
+      const customFu = String(aiConfig.panelTestFollowUpMessage || '').trim();
+      await enqueuePanelTestFollowUp(
+        userId,
+        messageFrom,
+        customFu || DEFAULT_PANEL_FOLLOWUP_MSG_PT
+      );
+    }
     return { sent: true };
   } catch (error) {
     console.error('❌ [panel] auto test WhatsApp:', error.message);
@@ -7425,13 +7531,32 @@ async function isRegisteredMasterUid(userId) {
 
 app.post('/api/panel/generate-test', async (req, res) => {
   try {
-    const { userId, payload, recipientLabel, recipientPhone, source } = req.body || {};
+    const { userId, payload, recipientLabel, recipientPhone, source, customerWhatsApp } = req.body || {};
     if (!(await isRegisteredMasterUid(userId))) {
       return res.status(403).json({ error: 'Apenas o utilizador master pode gerar testes do painel.' });
+    }
+    const quotaDigits =
+      typeof customerWhatsApp === 'string' && customerWhatsApp.trim()
+        ? customerWhatsApp
+        : typeof recipientPhone === 'string'
+          ? recipientPhone
+          : '';
+    try {
+      await assertPanelTestDailyQuota(userId, quotaDigits);
+    } catch (quotaErr) {
+      if (quotaErr.code === 'PANEL_TEST_DAILY_LIMIT') {
+        return res.status(429).json({
+          success: false,
+          error: quotaErr.publicMessage || PANEL_TEST_LIMIT_CLIENT_PT,
+          code: quotaErr.code
+        });
+      }
+      throw quotaErr;
     }
     const out = await panelService.generateTestAccount(
       payload && typeof payload === 'object' ? payload : {}
     );
+    await markPanelTestDailyQuota(userId, quotaDigits);
     const src = source === 'whatsapp_auto' ? 'whatsapp_auto' : 'crm';
     const label =
       (typeof recipientLabel === 'string' && recipientLabel.trim()) ||
@@ -9030,6 +9155,12 @@ app.listen(PORT, '0.0.0.0', async () => {
   } else {
     console.log('ℹ️  [WHATSAPP] Auto-restore desligado (WHATSAPP_AUTO_RESTORE_ON_STARTUP=false)');
   }
+
+  setInterval(() => {
+    processPanelTestFollowUpQueueTick().catch((e) =>
+      console.error('❌ [panel-followup] tick:', e.message)
+    );
+  }, 60_000);
 
   console.log('');
 });

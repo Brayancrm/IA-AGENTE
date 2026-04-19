@@ -233,7 +233,8 @@ async function generateTestAccount(payloadOverrides = {}) {
       throw e;
     }
 
-    const expiresAt = extractExpiryIso(data, body);
+    /** Regra de negócio: expiração apresentada ao cliente = 1 hora após a geração (independente do painel). */
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     return { usuario, senha, expiresAt };
   } catch (err) {
     if (err && err.response && err.response.status === 401) {
@@ -252,7 +253,7 @@ async function generateTestAccount(payloadOverrides = {}) {
 module.exports = {
   getApiConfig,
   generateTestAccount,
-  extractExpiryIso,
+  extractExpiryIso, // mantido para testes / extensões; generateTestAccount usa +1h fixo
   notifyAdmin,
   setTokenExpiredNotifier,
   DEFAULT_TEST_PAYLOAD: { ...DEFAULT_TEST_PAYLOAD },

@@ -4300,7 +4300,10 @@ const DashboardWithFirebase = ({
     catalogImagesOncePerConversation: true,
     wizardTemplateId: null, // modelo escolhido no assistente guiado (ex.: consultive_tv)
     /** Master: gerar e enviar conta de teste do painel por WhatsApp quando o cliente pede (palavras-chave). */
-    autoPanelTestOnRequest: false
+    autoPanelTestOnRequest: false,
+    /** Master: 1h após enviar teste automático, enviar mensagem de acompanhamento no WhatsApp. */
+    panelTestFollowUpAfterOneHour: false,
+    panelTestFollowUpMessage: ''
   });
   const [wizardResetKey, setWizardResetKey] = useState(0);
   const [userForm, setUserForm] = useState({
@@ -4488,7 +4491,9 @@ const DashboardWithFirebase = ({
       showCatalogImagesWhenOffering: assistantSettings.showCatalogImagesWhenOffering !== false,
       catalogImagesOncePerConversation: assistantSettings.catalogImagesOncePerConversation !== false,
       wizardTemplateId: assistantSettings.wizardTemplateId || null,
-      autoPanelTestOnRequest: assistantSettings.autoPanelTestOnRequest === true
+      autoPanelTestOnRequest: assistantSettings.autoPanelTestOnRequest === true,
+      panelTestFollowUpAfterOneHour: assistantSettings.panelTestFollowUpAfterOneHour === true,
+      panelTestFollowUpMessage: assistantSettings.panelTestFollowUpMessage || ''
     });
   }, [assistantSettings]);
 
@@ -9560,12 +9565,14 @@ const DashboardWithFirebase = ({
                         <input
                           type="checkbox"
                           checked={assistantForm.autoPanelTestOnRequest === true}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const on = e.target.checked;
                             setAssistantForm((prev) => ({
                               ...prev,
-                              autoPanelTestOnRequest: e.target.checked
-                            }))
-                          }
+                              autoPanelTestOnRequest: on,
+                              ...(!on ? { panelTestFollowUpAfterOneHour: false } : {})
+                            }));
+                          }}
                           style={{ width: '18px', height: '18px', marginTop: '2px', flexShrink: 0 }}
                         />
                         <span>
@@ -9577,6 +9584,84 @@ const DashboardWithFirebase = ({
                           </span>
                         </span>
                       </label>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: '16px 18px',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(245, 158, 11, 0.35)',
+                        background: 'rgba(245, 158, 11, 0.08)',
+                        opacity: assistantForm.autoPanelTestOnRequest ? 1 : 0.55
+                      }}
+                    >
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '12px',
+                          cursor: assistantForm.autoPanelTestOnRequest ? 'pointer' : 'not-allowed',
+                          color: '#e5e7eb'
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={!assistantForm.autoPanelTestOnRequest}
+                          checked={assistantForm.panelTestFollowUpAfterOneHour === true}
+                          onChange={(e) =>
+                            setAssistantForm((prev) => ({
+                              ...prev,
+                              panelTestFollowUpAfterOneHour: e.target.checked
+                            }))
+                          }
+                          style={{ width: '18px', height: '18px', marginTop: '2px', flexShrink: 0 }}
+                        />
+                        <span>
+                          <span style={{ fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                            {t('assistantConfig.panelTestFollowUpTitle')}
+                          </span>
+                          <span style={{ fontSize: '0.875rem', color: '#9ca3af', lineHeight: 1.45 }}>
+                            {t('assistantConfig.panelTestFollowUpHint')}
+                          </span>
+                        </span>
+                      </label>
+                      {assistantForm.panelTestFollowUpAfterOneHour && assistantForm.autoPanelTestOnRequest && (
+                        <div style={{ marginTop: '14px' }}>
+                          <label
+                            style={{
+                              display: 'block',
+                              fontWeight: 600,
+                              color: '#e5e7eb',
+                              marginBottom: '6px',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            {t('assistantConfig.panelTestFollowUpMessageLabel')}
+                          </label>
+                          <textarea
+                            value={assistantForm.panelTestFollowUpMessage || ''}
+                            onChange={(e) =>
+                              setAssistantForm((prev) => ({
+                                ...prev,
+                                panelTestFollowUpMessage: e.target.value
+                              }))
+                            }
+                            rows={4}
+                            placeholder={t('assistantConfig.panelTestFollowUpMessagePlaceholder')}
+                            style={{
+                              width: '100%',
+                              boxSizing: 'border-box',
+                              padding: '12px',
+                              borderRadius: '10px',
+                              border: '1px solid rgba(255,255,255,0.12)',
+                              background: '#0f1419',
+                              color: '#fff',
+                              fontSize: '0.875rem',
+                              resize: 'vertical'
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </>
                 )}

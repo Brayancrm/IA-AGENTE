@@ -476,6 +476,7 @@ const CRMDashboard = ({
   const [panelBearerSaveError, setPanelBearerSaveError] = useState(null);
   const [panelBearerSaveOk, setPanelBearerSaveOk] = useState(null);
   const [panelTestLogs, setPanelTestLogs] = useState([]);
+  const [panelTestCustomerPhone, setPanelTestCustomerPhone] = useState('');
   const panelTestLogsUnsubRef = useRef(null);
 
   useEffect(() => {
@@ -2299,10 +2300,46 @@ const CRMDashboard = ({
             )}
           </div>
 
-          <p style={{ color: '#9ca3af', fontSize: '0.9375rem', marginBottom: '24px', lineHeight: 1.5 }}>
+          <p style={{ color: '#9ca3af', fontSize: '0.9375rem', marginBottom: '16px', lineHeight: 1.5 }}>
             Depois de guardar um token válido, use o botão abaixo para gerar uma conta de teste na API do
-            painel.
+            painel. A data de expiração mostrada é sempre <strong style={{ color: '#e5e7eb' }}>1 hora após a
+            geração</strong>.
           </p>
+          <div style={{ marginBottom: '20px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontWeight: '600',
+                color: '#e5e7eb',
+                marginBottom: '8px',
+                fontSize: '0.875rem'
+              }}
+            >
+              WhatsApp do cliente (opcional, só números)
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Ex.: 5511999998888 — para aplicar o limite de 1 teste por cliente por dia"
+              value={panelTestCustomerPhone}
+              onChange={(e) => setPanelTestCustomerPhone(e.target.value)}
+              style={{
+                width: '100%',
+                maxWidth: '420px',
+                boxSizing: 'border-box',
+                padding: '12px 14px',
+                borderRadius: '12px',
+                border: '1px solid rgba(255,255,255,0.12)',
+                background: 'rgba(0,0,0,0.25)',
+                color: '#fff',
+                fontSize: '0.875rem'
+              }}
+            />
+            <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: '#6b7280', maxWidth: '520px' }}>
+              Se preencher, o sistema impede mais de um teste por dia para esse número. Se deixar vazio, o
+              limite por cliente não é aplicado nesta geração manual.
+            </p>
+          </div>
           <button
             type="button"
             disabled={panelTestLoading}
@@ -2327,7 +2364,8 @@ const CRMDashboard = ({
                     userId: user.uid,
                     payload: {},
                     source: 'crm',
-                    recipientLabel: 'Manual (CRM)'
+                    recipientLabel: 'Manual (CRM)',
+                    customerWhatsApp: String(panelTestCustomerPhone || '').trim() || undefined
                   })
                 });
                 const data = await res.json().catch(() => ({}));
@@ -2413,10 +2451,10 @@ const CRMDashboard = ({
             >
               <div style={{ marginBottom: '12px', fontWeight: '700', color: '#10b981' }}>Credenciais geradas</div>
               <div style={{ marginBottom: '12px', fontSize: '0.9rem', color: '#fcd34d' }}>
-                <span style={{ color: '#9ca3af' }}>Expira (aprox.): </span>
+                <span style={{ color: '#9ca3af' }}>Expira em: </span>
                 <strong style={{ color: '#fef3c7' }}>{formatPanelExpiresPt(panelTestResult.expiresAt)}</strong>
                 <span style={{ color: '#6b7280', fontSize: '0.8rem', marginLeft: '8px' }}>
-                  (resposta da API ou duração padrão do teste)
+                  (1 hora após a geração)
                 </span>
               </div>
               <div style={{ marginBottom: '12px', fontSize: '0.85rem', color: '#9ca3af' }}>
@@ -2478,8 +2516,8 @@ const CRMDashboard = ({
               Histórico de testes gerados
             </h3>
             <p style={{ color: '#6b7280', fontSize: '0.8125rem', marginBottom: '14px', lineHeight: 1.45 }}>
-              Utilizador e expiração por registo; senhas não são guardadas no histórico. Envios automáticos do
-              WhatsApp aparecem com origem indicada.
+              Utilizador e hora de expiração (1 h após a geração) por registo; senhas não são guardadas no
+              histórico. Envios automáticos do WhatsApp aparecem com origem indicada.
             </p>
             {panelTestLogs.length === 0 ? (
               <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
@@ -2493,7 +2531,7 @@ const CRMDashboard = ({
                     <tr style={{ background: 'rgba(0,0,0,0.35)', color: '#9ca3af', textAlign: 'left' }}>
                       <th style={{ padding: '10px 12px' }}>Quando</th>
                       <th style={{ padding: '10px 12px' }}>Utilizador</th>
-                      <th style={{ padding: '10px 12px' }}>Expira (aprox.)</th>
+                      <th style={{ padding: '10px 12px' }}>Expira em</th>
                       <th style={{ padding: '10px 12px' }}>Destino / origem</th>
                     </tr>
                   </thead>

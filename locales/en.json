@@ -552,6 +552,10 @@
     "tvAppDownloadUrl": "App download link (after TV credentials)",
     "tvAppDownloadUrlHint": "Full URL (Play Store, App Store, or website). Appended after Wplay login/password on confirmed payment and on resend from the dashboard.",
     "autoPanelTestTitle": "Auto-generate and send panel trial on WhatsApp",
-    "autoPanelTestHint": "When enabled, if the customer writes things like “I want a trial”, “test account”, or “IPTV test”, the bot replies immediately with login and password (master WhatsApp account only). Requires a valid panel token in Firestore. A short cooldown applies per chat."
+    "autoPanelTestHint": "When enabled, if the customer writes things like “I want a trial”, “test account”, or “IPTV test”, the bot replies immediately with login and password (master WhatsApp account only). Requires a valid panel token in Firestore. A short cooldown applies per chat.",
+    "panelTestFollowUpTitle": "One hour later, follow up with the customer on WhatsApp",
+    "panelTestFollowUpHint": "After the automatic trial is sent, schedule a follow-up message (~1 hour later) asking if everything went well and if they want to subscribe. Requires auto trial enabled and an active WhatsApp session on the server.",
+    "panelTestFollowUpMessageLabel": "Follow-up message text (optional)",
+    "panelTestFollowUpMessagePlaceholder": "Leave empty to use the app’s default friendly message inviting them to subscribe."
   }
 }
