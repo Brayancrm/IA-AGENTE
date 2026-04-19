@@ -1659,23 +1659,6 @@ async function savePanelTestGenerationLog(ownerUserId, entry) {
   }
 }
 
-/**
- * Formata ISO de expiração do teste para texto em WhatsApp.
- * O Railway costuma estar em UTC: sem timeZone, toLocaleString mostra hora errada para clientes BR.
- * Override: env PANEL_TEST_EXPIRY_TZ (ex.: Europe/Lisbon).
- */
-function formatPanelTestExpiryIsoForClient(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  const tz = String(process.env.PANEL_TEST_EXPIRY_TZ || 'America/Sao_Paulo').trim() || 'America/Sao_Paulo';
-  try {
-    return d.toLocaleString('pt-BR', { timeZone: tz, dateStyle: 'short', timeStyle: 'short' });
-  } catch {
-    return d.toISOString();
-  }
-}
-
 /** Heurística: cliente pede conta / login de teste IPTV. */
 function wantsPanelIptvFreeTestMessage(messageText) {
   const t = String(messageText || '')
@@ -1826,12 +1809,11 @@ async function tryAutoPanelTestFromChat(
     const out = await panelService.generateTestAccount({});
     panelTestAutoLastByChat.set(coolKey, Date.now());
     await markPanelTestDailyQuota(userId, sanitizedNumber);
-    const expLocal = formatPanelTestExpiryIsoForClient(out.expiresAt);
     const bodyMsg =
       `✅ *Conta de teste*\n\n` +
       `👤 *Utilizador:* ${out.usuario}\n` +
       `🔑 *Senha:* ${out.senha}\n` +
-      `⏱️ *Expira em:* ${expLocal}\n\n` +
+      `⏱️ *Expira em cerca de 1 hora* após o envio desta mensagem.\n\n` +
       `_Em caso de dúvida, fale com o suporte._`;
     const { textSuffix, androidApkUrl } = buildPanelTestAppsLinksSection(aiConfig);
     await client.sendText(messageFrom, bodyMsg + textSuffix);
