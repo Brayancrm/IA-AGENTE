@@ -1659,6 +1659,23 @@ async function savePanelTestGenerationLog(ownerUserId, entry) {
   }
 }
 
+/**
+ * Formata ISO de expiração do teste para texto em WhatsApp.
+ * O Railway costuma estar em UTC: sem timeZone, toLocaleString mostra hora errada para clientes BR.
+ * Override: env PANEL_TEST_EXPIRY_TZ (ex.: Europe/Lisbon).
+ */
+function formatPanelTestExpiryIsoForClient(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const tz = String(process.env.PANEL_TEST_EXPIRY_TZ || 'America/Sao_Paulo').trim() || 'America/Sao_Paulo';
+  try {
+    return d.toLocaleString('pt-BR', { timeZone: tz, dateStyle: 'short', timeStyle: 'short' });
+  } catch {
+    return d.toISOString();
+  }
+}
+
 /** Heurística: cliente pede conta / login de teste IPTV. */
 function wantsPanelIptvFreeTestMessage(messageText) {
   const t = String(messageText || '')
@@ -1735,7 +1752,7 @@ async function trySendPanelTestAndroidApk(client, toJid, url) {
       validateStatus: (s) => s >= 200 && s < 400
     });
     fs.writeFileSync(tmp, Buffer.from(r.data));
-    await client.sendFile(toJid, tmp, 'app-android.apk', '📱 App Android (teste).');
+    await client.sendFile(toJid, tmp, 'app-android.apk', '📱 App Android');
     return true;
   } catch (e) {
     console.warn('⚠️ [panel-test] envio APK:', e.message);
@@ -1809,12 +1826,7 @@ async function tryAutoPanelTestFromChat(
     const out = await panelService.generateTestAccount({});
     panelTestAutoLastByChat.set(coolKey, Date.now());
     await markPanelTestDailyQuota(userId, sanitizedNumber);
-    const expLocal = out.expiresAt
-      ? new Date(out.expiresAt).toLocaleString('pt-PT', {
-          dateStyle: 'short',
-          timeStyle: 'short'
-        })
-      : '—';
+    const expLocal = formatPanelTestExpiryIsoForClient(out.expiresAt);
     const bodyMsg =
       `✅ *Conta de teste*\n\n` +
       `👤 *Utilizador:* ${out.usuario}\n` +
@@ -7642,11 +7654,15 @@ app.post('/api/panel/generate-test', async (req, res) => {
       (typeof recipientLabel === 'string' && recipientLabel.trim()) ||
       (typeof recipientPhone === 'string' && recipientPhone.trim()) ||
       (src === 'crm' ? 'Manual (CRM)' : 'CRM');
+    const phoneForLog =
+      (typeof recipientPhone === 'string' && recipientPhone.trim()) ||
+      (typeof customerWhatsApp === 'string' && customerWhatsApp.trim()) ||
+      null;
     await savePanelTestGenerationLog(userId, {
       usuario: out.usuario,
       expiresAt: out.expiresAt,
       recipientLabel: label,
-      recipientPhone: typeof recipientPhone === 'string' ? recipientPhone.trim() || null : null,
+      recipientPhone: phoneForLog,
       source: src,
       channel: src === 'whatsapp_auto' ? 'whatsapp' : 'crm'
     });

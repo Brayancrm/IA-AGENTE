@@ -43,12 +43,20 @@ function sanitizeConversationContactKey(s) {
   return String(s || '').replace(/[\.\#\$\[\]@]/g, '_');
 }
 
+/** Mesmo fuso que o backend usa em mensagens WhatsApp (evita CRM vs WA desalinhados). */
+const PANEL_TEST_LOG_TZ =
+  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_PANEL_TEST_EXPIRY_TZ) || 'America/Sao_Paulo';
+
 function formatPanelExpiresPt(iso) {
   if (!iso) return '—';
   try {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '—';
-    return d.toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' });
+    return d.toLocaleString('pt-BR', {
+      timeZone: PANEL_TEST_LOG_TZ,
+      dateStyle: 'short',
+      timeStyle: 'short'
+    });
   } catch {
     return '—';
   }
@@ -477,6 +485,7 @@ const CRMDashboard = ({
   const [panelBearerSaveOk, setPanelBearerSaveOk] = useState(null);
   const [panelTestLogs, setPanelTestLogs] = useState([]);
   const [panelTestCustomerPhone, setPanelTestCustomerPhone] = useState('');
+  const [panelTestLogDeletingId, setPanelTestLogDeletingId] = useState(null);
   const panelTestLogsUnsubRef = useRef(null);
 
   useEffect(() => {
@@ -525,6 +534,39 @@ const CRMDashboard = ({
       }
     };
   }, [activeTab, user?.uid, database]);
+
+  /** Apaga o registo e repõe a quota diária (UTC) do backend para o mesmo telefone, quando aplicável. */
+  const handleDeletePanelTestLog = async (row) => {
+    if (!user?.uid || !database || !row?.id) return;
+    const msg =
+      'Remover este registo do histórico? Se houver telefone com 8+ dígitos, o limite de um teste por dia (calendário UTC) para esse número é libertado nas datas relevantes — pode voltar a gerar ou a deixar o cliente pedir outro teste automático.';
+    if (!window.confirm(msg)) return;
+    setPanelTestLogDeletingId(row.id);
+    try {
+      const { ref, remove } = await import('firebase/database');
+      await remove(ref(database, `users/data/${user.uid}/panel_test_logs/${row.id}`));
+      const digits = String(row.recipientPhone || '').replace(/\D/g, '');
+      if (digits.length >= 8) {
+        const days = new Set();
+        if (row.createdAt) {
+          try {
+            days.add(new Date(row.createdAt).toISOString().slice(0, 10));
+          } catch (_) {
+            /* ignore */
+          }
+        }
+        days.add(new Date().toISOString().slice(0, 10));
+        for (const day of days) {
+          await remove(ref(database, `users/data/${user.uid}/panel_test_quotas/${digits}_${day}`));
+        }
+      }
+      showToast?.('Registo removido.', 'success');
+    } catch (e) {
+      showToast?.(String(e?.message || 'Não foi possível remover.'), 'error');
+    } finally {
+      setPanelTestLogDeletingId(null);
+    }
+  };
   
   // Estados para Pipeline
   const [draggedCliente, setDraggedCliente] = useState(null);
@@ -2517,7 +2559,8 @@ const CRMDashboard = ({
             </h3>
             <p style={{ color: '#6b7280', fontSize: '0.8125rem', marginBottom: '14px', lineHeight: 1.45 }}>
               Utilizador e hora de expiração (1 h após a geração) por registo; senhas não são guardadas no
-              histórico. Envios automáticos do WhatsApp aparecem com origem indicada.
+              histórico. Envios automáticos do WhatsApp aparecem com origem indicada. Pode apagar um registo
+              para libertar o limite de um teste por dia (UTC) para esse contacto e voltar a gerar outro.
             </p>
             {panelTestLogs.length === 0 ? (
               <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
@@ -2533,6 +2576,7 @@ const CRMDashboard = ({
                       <th style={{ padding: '10px 12px' }}>Utilizador</th>
                       <th style={{ padding: '10px 12px' }}>Expira em</th>
                       <th style={{ padding: '10px 12px' }}>Destino / origem</th>
+                      <th style={{ padding: '10px 12px', width: '1%', textAlign: 'right' }}> </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2556,6 +2600,28 @@ const CRMDashboard = ({
                             {row.source === 'whatsapp_auto' ? 'WhatsApp (automático)' : 'CRM / manual'}
                             {row.recipientPhone ? ` · ${String(row.recipientPhone).slice(0, 28)}` : ''}
                           </div>
+                        </td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', verticalAlign: 'middle' }}>
+                          <button
+                            type="button"
+                            title="Apagar registo e libertar limite diário (se houver telefone)"
+                            disabled={panelTestLogDeletingId === row.id}
+                            onClick={() => handleDeletePanelTestLog(row)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '8px',
+                              borderRadius: '8px',
+                              border: '1px solid rgba(239,68,68,0.35)',
+                              background: 'rgba(239,68,68,0.12)',
+                              color: '#fca5a5',
+                              cursor: panelTestLogDeletingId === row.id ? 'not-allowed' : 'pointer',
+                              opacity: panelTestLogDeletingId === row.id ? 0.5 : 1
+                            }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </td>
                       </tr>
                     ))}
