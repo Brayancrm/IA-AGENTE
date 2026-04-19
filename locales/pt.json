@@ -556,6 +556,6 @@
     "panelTestFollowUpTitle": "Uma hora depois, voltar a contactar o cliente (WhatsApp)",
     "panelTestFollowUpHint": "Após o envio automático do teste, agenda uma mensagem de acompanhamento (cerca de 1 hora depois) a perguntar se correu bem e se quer seguir com a adesão. Exige teste automático ligado e sessão WhatsApp ativa no servidor.",
     "panelTestFollowUpMessageLabel": "Texto da mensagem de acompanhamento (opcional)",
-    "panelTestFollowUpMessagePlaceholder": "Vazio = texto sugerido pela aplicação (tom cordial, convite a aderir ao plano)."
+    "panelTestFollowUpMessagePlaceholder": "Vazio = texto sugerido pela aplicação. Use {{nome}} ou {{name}} para o nome do cliente no CRM (customerData)."
   }
 }

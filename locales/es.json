@@ -556,6 +556,6 @@
     "panelTestFollowUpTitle": "Una hora después, volver a contactar al cliente (WhatsApp)",
     "panelTestFollowUpHint": "Tras enviar la prueba automática, programa un mensaje de seguimiento (~1 h después) preguntando si todo fue bien y si desea continuar con la suscripción. Requiere prueba automática activa y sesión WhatsApp en el servidor.",
     "panelTestFollowUpMessageLabel": "Texto del mensaje de seguimiento (opcional)",
-    "panelTestFollowUpMessagePlaceholder": "Vacío = texto sugerido por la aplicación (tono cordial, invitación a suscribirse)."
+    "panelTestFollowUpMessagePlaceholder": "Vacío = texto por defecto. Use {{nome}} o {{name}} para el nombre del cliente en el CRM (customerData)."
   }
 }

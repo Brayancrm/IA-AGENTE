@@ -488,7 +488,8 @@ async function processPanelTestFollowUpQueueTick() {
       const txt = String(job.messageText || DEFAULT_PANEL_FOLLOWUP_MSG_PT);
       if (!jid) continue;
       try {
-        await client.sendText(jid, txt);
+        const finalText = await replaceTemplateVariables(txt, ownerId, jid);
+        await client.sendText(jid, finalText);
         await db.ref(`users/data/${ownerId}/panel_test_follow_up_queue/${jobId}`).update({
           sent: true,
           sentAt: new Date().toISOString()

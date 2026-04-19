@@ -556,6 +556,6 @@
     "panelTestFollowUpTitle": "One hour later, follow up with the customer on WhatsApp",
     "panelTestFollowUpHint": "After the automatic trial is sent, schedule a follow-up message (~1 hour later) asking if everything went well and if they want to subscribe. Requires auto trial enabled and an active WhatsApp session on the server.",
     "panelTestFollowUpMessageLabel": "Follow-up message text (optional)",
-    "panelTestFollowUpMessagePlaceholder": "Leave empty to use the app’s default friendly message inviting them to subscribe."
+    "panelTestFollowUpMessagePlaceholder": "Leave empty for the default message. Use {{nome}} or {{name}} for the CRM customer name (customerData)."
   }
 }
