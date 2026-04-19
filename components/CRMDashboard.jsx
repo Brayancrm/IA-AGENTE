@@ -31,7 +31,9 @@ import {
   X,
   Upload,
   FileSpreadsheet,
-  Tv
+  Tv,
+  FlaskConical,
+  Copy
 } from 'lucide-react';
 import { useI18n } from '../contexts/I18nContext';
 
@@ -425,6 +427,7 @@ const CRMDashboard = ({
   onCrmSubTabChange,
   renderTvLoginsPanel,
   tvLoginsTabBadge = 0,
+  backendUrl,
   isMobile = false
 }) => {
   const { t } = useI18n();
@@ -451,6 +454,11 @@ const CRMDashboard = ({
   const [editingCliente, setEditingCliente] = useState(null);
   const [selectedCliente, setSelectedCliente] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
+
+  /** Master: geração de conta de teste via API do painel (Bearer no Firestore). */
+  const [panelTestLoading, setPanelTestLoading] = useState(false);
+  const [panelTestResult, setPanelTestResult] = useState(null);
+  const [panelTestError, setPanelTestError] = useState(null);
   
   // Estados para Pipeline
   const [draggedCliente, setDraggedCliente] = useState(null);
@@ -2005,6 +2013,9 @@ const CRMDashboard = ({
           ...(user?.isMaster && typeof renderTvLoginsPanel === 'function'
             ? [{ id: 'tv-logins', label: t('nav.tvLogins'), icon: Tv, badge: tvLoginsTabBadge }]
             : []),
+          ...(user?.isMaster
+            ? [{ id: 'panel-testes', label: 'Testes painel', icon: FlaskConical }]
+            : []),
           { id: 'vendas', label: 'Vendas', icon: ShoppingCart },
           { id: 'pipeline', label: 'Pipeline', icon: Target },
           { id: 'relatorios', label: 'Relatórios', icon: BarChart3 }
@@ -2075,6 +2086,169 @@ const CRMDashboard = ({
       {activeTab === 'visao-geral' && <VisaoGeral />}
       {activeTab === 'clientes' && <ClientesTab />}
       {activeTab === 'tv-logins' && typeof renderTvLoginsPanel === 'function' && renderTvLoginsPanel()}
+
+      {activeTab === 'panel-testes' && user?.isMaster && (
+        <div style={{ maxWidth: '720px' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
+            Contas de teste (painel)
+          </h2>
+          <p style={{ color: '#9ca3af', fontSize: '0.9375rem', marginBottom: '24px', lineHeight: 1.5 }}>
+            Gera uma conta de teste na API do painel. O token Bearer deve estar em{' '}
+            <strong style={{ color: '#e5e7eb' }}>Firestore → configs → api_panel → bearer_token</strong>.
+            Apenas o utilizador master pode usar esta ação.
+          </p>
+          <button
+            type="button"
+            disabled={panelTestLoading}
+            onClick={async () => {
+              setPanelTestLoading(true);
+              setPanelTestError(null);
+              setPanelTestResult(null);
+              try {
+                const base = String(
+                  backendUrl || (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BACKEND_URL) || ''
+                ).replace(/\/$/, '');
+                if (!base) {
+                  const msg = 'Configure NEXT_PUBLIC_BACKEND_URL (URL do backend no Railway).';
+                  setPanelTestError(msg);
+                  showToast?.(msg, 'error');
+                  return;
+                }
+                const res = await fetch(`${base}/api/panel/generate-test`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ userId: user.uid, payload: {} })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                  const msg =
+                    data.error ||
+                    data.message ||
+                    (data.code === 'TOKEN_EXPIRED'
+                      ? 'Token expirado (401). Atualize bearer_token no Firestore.'
+                      : `Erro HTTP ${res.status}`);
+                  setPanelTestError(msg);
+                  showToast?.(msg, 'error');
+                  return;
+                }
+                if (data.usuario && data.senha) {
+                  setPanelTestResult({ usuario: data.usuario, senha: data.senha });
+                  showToast?.('Conta de teste gerada.', 'success');
+                } else {
+                  const msg = 'Resposta sem utilizador/senha.';
+                  setPanelTestError(msg);
+                  showToast?.(msg, 'error');
+                }
+              } catch (e) {
+                const msg = e?.message || 'Falha de rede ao contactar o backend.';
+                setPanelTestError(msg);
+                showToast?.(msg, 'error');
+              } finally {
+                setPanelTestLoading(false);
+              }
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '14px 24px',
+              borderRadius: '12px',
+              border: 'none',
+              cursor: panelTestLoading ? 'not-allowed' : 'pointer',
+              fontWeight: '700',
+              fontSize: '0.9375rem',
+              color: '#ffffff',
+              background: panelTestLoading
+                ? 'rgba(107, 114, 128, 0.5)'
+                : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              boxShadow: panelTestLoading ? 'none' : '0 4px 16px rgba(16, 185, 129, 0.35)',
+              marginBottom: '24px',
+              opacity: panelTestLoading ? 0.85 : 1
+            }}
+          >
+            <FlaskConical size={20} />
+            {panelTestLoading ? 'A gerar…' : 'Gerar conta de teste'}
+          </button>
+
+          {panelTestError && (
+            <div
+              style={{
+                padding: '16px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.45)',
+                color: '#fecaca',
+                marginBottom: '20px',
+                fontSize: '0.9375rem'
+              }}
+            >
+              {panelTestError}
+            </div>
+          )}
+
+          {panelTestResult && (
+            <div
+              style={{
+                padding: '20px',
+                borderRadius: '16px',
+                backgroundColor: '#0f1419',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                color: '#e5e7eb'
+              }}
+            >
+              <div style={{ marginBottom: '12px', fontWeight: '700', color: '#10b981' }}>Credenciais geradas</div>
+              <div style={{ marginBottom: '10px', fontSize: '0.9rem' }}>
+                <span style={{ color: '#9ca3af' }}>Utilizador: </span>
+                <code style={{ color: '#fff', wordBreak: 'break-all' }}>{panelTestResult.usuario}</code>
+                <button
+                  type="button"
+                  title="Copiar utilizador"
+                  onClick={() => {
+                    navigator.clipboard?.writeText?.(panelTestResult.usuario);
+                    showToast?.('Utilizador copiado', 'success');
+                  }}
+                  style={{
+                    marginLeft: '8px',
+                    verticalAlign: 'middle',
+                    background: 'rgba(255,255,255,0.08)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '6px',
+                    cursor: 'pointer',
+                    color: '#10b981'
+                  }}
+                >
+                  <Copy size={16} />
+                </button>
+              </div>
+              <div style={{ fontSize: '0.9rem' }}>
+                <span style={{ color: '#9ca3af' }}>Senha: </span>
+                <code style={{ color: '#fff', wordBreak: 'break-all' }}>{panelTestResult.senha}</code>
+                <button
+                  type="button"
+                  title="Copiar senha"
+                  onClick={() => {
+                    navigator.clipboard?.writeText?.(panelTestResult.senha);
+                    showToast?.('Senha copiada', 'success');
+                  }}
+                  style={{
+                    marginLeft: '8px',
+                    verticalAlign: 'middle',
+                    background: 'rgba(255,255,255,0.08)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '6px',
+                    cursor: 'pointer',
+                    color: '#10b981'
+                  }}
+                >
+                  <Copy size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       
       {/* Tab VENDAS */}
       {activeTab === 'vendas' && (

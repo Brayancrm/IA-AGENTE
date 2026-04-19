@@ -8501,6 +8501,7 @@ const DashboardWithFirebase = ({
             onCrmSubTabChange={setCrmSubTab}
             renderTvLoginsPanel={user?.isMaster ? renderTvLoginsPanel : undefined}
             tvLoginsTabBadge={user?.isMaster ? tvStockAlerts.length : 0}
+            backendUrl={BACKEND_URL}
             isMobile={isMobile}
           />
         );
