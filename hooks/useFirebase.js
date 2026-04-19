@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { initializeApp, getApp, getApps } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
 import { getStorage } from 'firebase/storage';
 
@@ -17,53 +17,85 @@ const firebaseConfig = {
   databaseURL: 'https://ia-agente-b2f46.firebaseio.com'
 };
 
+const EMPTY = {
+  app: null,
+  db: null,
+  auth: null,
+  database: null,
+  storage: null,
+  isReady: false,
+  error: null
+};
+
+/** Estado único do cliente; vários `useFirebase()` partilham a mesma instância. */
+let clientSnapshot = { ...EMPTY };
+let clientInitDone = false;
+const listeners = new Set();
+
+function notifyListeners() {
+  listeners.forEach((cb) => cb());
+}
+
+function bootstrapFirebaseClient() {
+  if (typeof window === 'undefined') return;
+  if (clientInitDone) {
+    notifyListeners();
+    return;
+  }
+  clientInitDone = true;
+
+  try {
+    console.log('Inicializando Firebase com Realtime Database...');
+    const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    const database = getDatabase(app);
+    const storage = getStorage(app);
+
+    console.log('Firebase inicializado com sucesso!', {
+      hasApp: !!app,
+      hasDb: !!db,
+      hasAuth: !!auth,
+      hasDatabase: !!database,
+      hasStorage: !!storage
+    });
+
+    clientSnapshot = {
+      app,
+      db,
+      auth,
+      database,
+      storage,
+      isReady: true,
+      error: null
+    };
+  } catch (error) {
+    console.error('Erro ao inicializar Firebase:', error);
+    clientSnapshot = {
+      ...EMPTY,
+      error: error.message,
+      isReady: false
+    };
+  }
+  notifyListeners();
+}
+
+/**
+ * Cliente Firebase partilhado. Pode ser chamado em vários componentes (ex.: FirebaseApp + PanelAndroidApkField)
+ * sem duplicar `initializeApp` nem estado desincronizado.
+ */
 export const useFirebase = () => {
-  const [firebase, setFirebase] = useState({
-    app: null,
-    db: null,
-    auth: null,
-    database: null,
-    storage: null,
-    isReady: false,
-    error: null
-  });
+  const [firebase, setFirebase] = useState(() => ({ ...clientSnapshot }));
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    try {
-      console.log('Inicializando Firebase com Realtime Database...');
-      const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);
-      const auth = getAuth(app);
-      const database = getDatabase(app);
-      const storage = getStorage(app);
-      
-      console.log('Firebase inicializado com sucesso!', {
-        hasApp: !!app,
-        hasDb: !!db,
-        hasAuth: !!auth,
-        hasDatabase: !!database,
-        hasStorage: !!storage
-      });
-
-      setFirebase({
-        app,
-        db,
-        auth,
-        database,
-        storage,
-        isReady: true,
-        error: null
-      });
-    } catch (error) {
-      console.error('Erro ao inicializar Firebase:', error);
-      setFirebase(prev => ({
-        ...prev,
-        error: error.message,
-        isReady: false
-      }));
-    }
+    const onChange = () => {
+      setFirebase({ ...clientSnapshot });
+    };
+    listeners.add(onChange);
+    bootstrapFirebaseClient();
+    return () => {
+      listeners.delete(onChange);
+    };
   }, []);
 
   return firebase;

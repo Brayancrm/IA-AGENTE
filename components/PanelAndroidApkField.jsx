@@ -4,24 +4,25 @@ import { useCallback, useRef, useState } from 'react';
 import { ref as firebaseStorageRef, uploadBytes, getDownloadURL, getStorage } from 'firebase/storage';
 import { Upload } from 'lucide-react';
 import { useI18n } from '../contexts/I18nContext';
+import { useFirebase } from '../hooks/useFirebase';
 
 /**
- * URL Android + upload de APK (Storage). Está num módulo pequeno para o bundle
- * não gerar ReferenceError ao referenciar o Firebase App no FirebaseApp.jsx gigante.
+ * URL Android + upload de APK (Storage). useFirebase() fica aqui para o FirebaseApp.jsx
+ * (ficheiro enorme) não passar a instância do app no JSX — evita ReferenceError no minify.
  */
 export default function PanelAndroidApkField({
-  firebaseApp,
   userId,
   sectionEnabled,
   androidLink,
   onAndroidLinkChange,
   showToast
 }) {
+  const { app } = useFirebase();
   const { t } = useI18n();
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  const canInteract = Boolean(sectionEnabled && firebaseApp && userId && !uploading);
+  const canInteract = Boolean(sectionEnabled && app && userId && !uploading);
 
   const pickFile = useCallback(() => {
     fileInputRef.current?.click();
@@ -32,7 +33,7 @@ export default function PanelAndroidApkField({
       const inputEl = e.target;
       const file = inputEl.files?.[0];
       inputEl.value = '';
-      if (!file || !firebaseApp || !userId) return;
+      if (!file || !app || !userId) return;
       if (!file.name.toLowerCase().endsWith('.apk')) {
         showToast(t('assistantConfig.panelTestAndroidUploadInvalid'), 'error');
         return;
@@ -41,7 +42,7 @@ export default function PanelAndroidApkField({
       try {
         const safe = file.name.replace(/[^\w.\-]+/g, '_').slice(0, 80);
         const objectPath = `assistant_panel_test/${userId}/${Date.now()}-${safe}`;
-        const sRef = firebaseStorageRef(getStorage(firebaseApp), objectPath);
+        const sRef = firebaseStorageRef(getStorage(app), objectPath);
         await uploadBytes(sRef, file, {
           contentType: file.type || 'application/vnd.android.package-archive'
         });
@@ -55,7 +56,7 @@ export default function PanelAndroidApkField({
         setUploading(false);
       }
     },
-    [firebaseApp, userId, onAndroidLinkChange, showToast, t]
+    [app, userId, onAndroidLinkChange, showToast, t]
   );
 
   return (
@@ -114,7 +115,7 @@ export default function PanelAndroidApkField({
             fontWeight: 600,
             fontSize: '0.8125rem',
             cursor: canInteract ? 'pointer' : 'not-allowed',
-            opacity: sectionEnabled && firebaseApp && userId ? 1 : 0.5
+            opacity: sectionEnabled && app && userId ? 1 : 0.5
           }}
         >
           <Upload size={16} />
@@ -122,7 +123,7 @@ export default function PanelAndroidApkField({
             ? t('assistantConfig.panelTestAndroidUploading')
             : t('assistantConfig.panelTestAndroidUploadButton')}
         </button>
-        {!firebaseApp && (
+        {!app && (
           <span style={{ fontSize: '0.72rem', color: '#f87171', alignSelf: 'center' }}>
             {t('assistantConfig.panelTestAndroidStorageMissing')}
           </span>
