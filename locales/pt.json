@@ -558,7 +558,7 @@
     "panelTestFollowUpMessageLabel": "Texto da mensagem de acompanhamento (opcional)",
     "panelTestFollowUpMessagePlaceholder": "Vazio = texto sugerido pela aplicação. Use {{nome}} ou {{name}} para o nome do cliente no CRM (customerData).",
     "panelTestAppsSectionTitle": "Apps e leitores (com o teste automático no WhatsApp)",
-    "panelTestAppsSectionHint": "Estes links são enviados na mesma conversa logo após as credenciais de teste. Se o cliente escrever “android”, “iphone” ou “tv” no pedido, a lista ordena-se para destacar o que combina. URL que termina em .apk tenta enviar-se como ficheiro no WhatsApp.",
+    "panelTestAppsSectionHint": "Os links preenchidos são enviados todos na mesma mensagem, logo após as credenciais (ordem: Android, iPhone, TV/outros). Não se pergunta qual o aparelho. URL https que termina em .apk tenta enviar-se como ficheiro no WhatsApp.",
     "panelTestAndroidLinkLabel": "Android — link ou APK (https)",
     "panelTestAndroidLinkHint": "Link direto para download ou página. Se for .apk por HTTPS, o servidor tenta enviar o ficheiro; se falhar, envia o link em texto.",
     "panelTestIosLinkLabel": "iPhone / iOS — link (App Store, TestFlight, etc.)",

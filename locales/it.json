@@ -558,7 +558,7 @@
     "panelTestFollowUpMessageLabel": "Testo del messaggio di follow-up (opzionale)",
     "panelTestFollowUpMessagePlaceholder": "Vuoto = testo predefinito. Usa {{nome}} o {{name}} per il nome cliente nel CRM (customerData).",
     "panelTestAppsSectionTitle": "App e lettori (con prova automatica su WhatsApp)",
-    "panelTestAppsSectionHint": "Inviati subito dopo le credenziali. Se il cliente scrive «android», «iphone» o «tv», l’elenco si riordina. Gli URL https che finiscono in .apk si provano a inviare come file.",
+    "panelTestAppsSectionHint": "Tutti i link compilati vanno nello stesso messaggio dopo le credenziali (ordine: Android, iPhone, TV/altri). Non si chiede il dispositivo. Gli URL https che finiscono in .apk si provano a inviare come file.",
     "panelTestAndroidLinkLabel": "Android — link o APK (https)",
     "panelTestAndroidLinkHint": "Link di download o pagina. Per .apk via HTTPS il server prova a inviare il file; in caso di errore invia il link in testo.",
     "panelTestIosLinkLabel": "iPhone / iOS — link (App Store, TestFlight, ecc.)",

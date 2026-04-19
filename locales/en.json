@@ -558,7 +558,7 @@
     "panelTestFollowUpMessageLabel": "Follow-up message text (optional)",
     "panelTestFollowUpMessagePlaceholder": "Leave empty for the default message. Use {{nome}} or {{name}} for the CRM customer name (customerData).",
     "panelTestAppsSectionTitle": "Apps & players (with automatic WhatsApp trial)",
-    "panelTestAppsSectionHint": "Sent right after trial credentials in the same chat. If the customer mentions “android”, “iphone” or “tv”, the list is reordered to match. HTTPS URLs ending in .apk are sent as a file when possible.",
+    "panelTestAppsSectionHint": "All filled links are sent in the same message right after the credentials (order: Android, iPhone, TV/others). We don’t ask which device. HTTPS URLs ending in .apk are sent as a file when possible.",
     "panelTestAndroidLinkLabel": "Android — link or APK (https)",
     "panelTestAndroidLinkHint": "Direct download or page. For .apk over HTTPS the server tries to send the file; on failure it sends the link as text.",
     "panelTestIosLinkLabel": "iPhone / iOS — link (App Store, TestFlight, …)",
