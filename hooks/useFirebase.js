@@ -81,7 +81,7 @@ function bootstrapFirebaseClient() {
 }
 
 /**
- * Cliente Firebase partilhado. Pode ser chamado em vários componentes (ex.: FirebaseApp + PanelAndroidApkField)
+ * Cliente Firebase partilhado. Pode ser chamado em vários componentes (ex.: FirebaseApp).
  * sem duplicar `initializeApp` nem estado desincronizado.
  */
 export const useFirebase = () => {

@@ -559,15 +559,8 @@
     "panelTestFollowUpMessagePlaceholder": "Vuoto = testo predefinito. Usa {{nome}} o {{name}} per il nome cliente nel CRM (customerData).",
     "panelTestAppsSectionTitle": "App e lettori (con prova automatica su WhatsApp)",
     "panelTestAppsSectionHint": "Tutti i link compilati vanno nello stesso messaggio dopo le credenziali (ordine: Android, iPhone, TV/altri). Non si chiede il dispositivo. Gli URL https che finiscono in .apk si provano a inviare come file.",
-    "panelTestAndroidLinkLabel": "Android — link o APK (https)",
-    "panelTestAndroidLinkHint": "Incolla un link https o usa «Allega file .apk». Se l’URL contiene .apk, il server prova a inviare il file su WhatsApp; in caso di errore invia il link in testo.",
-    "panelTestAndroidUploadButton": "Allega file .apk",
-    "panelTestAndroidUploading": "Caricamento…",
-    "panelTestAndroidUploadDone": "APK caricato. Salva le impostazioni dell’assistente sotto per applicare.",
-    "panelTestAndroidUploadInvalid": "Seleziona un file .apk",
-    "panelTestAndroidUploadError": "Caricamento APK non riuscito",
-    "panelTestAndroidUploadSubhint": "L'invio passa dal server (niente CORS browser→Storage) in assistant_panel_test/{tuo uid}/. Solo utente master.",
-    "panelTestAndroidStorageMissing": "Storage non pronto — controlla NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET.",
+    "panelTestAndroidLinkLabel": "Android — link (https)",
+    "panelTestAndroidLinkHint": "Incolla un link https (es. dove è ospitato l’APK). Se l’URL contiene .apk, il server prova a inviare il file su WhatsApp; in caso di errore invia il link in testo.",
     "panelTestIosLinkLabel": "iPhone / iOS — link (App Store, TestFlight, ecc.)",
     "panelTestTvLinkLabel": "TV e altri dispositivi — link"
   }

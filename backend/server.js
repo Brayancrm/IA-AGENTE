@@ -11,7 +11,6 @@ const FormData = require('form-data');
 const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
 const Stripe = require('stripe');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
-const multer = require('multer');
 
 // Inicializar AWS SES
 let sesClient = null;
@@ -7606,68 +7605,6 @@ async function isRegisteredMasterUid(userId) {
     String(entry.email || '').toLowerCase() === 'brayan.italy@gmail.com'
   );
 }
-
-async function verifyFirebaseIdTokenUid(req) {
-  const h = req.headers.authorization || '';
-  const m = h.match(/^Bearer\s+(.+)$/i);
-  if (!m) return null;
-  try {
-    const decoded = await admin.auth().verifyIdToken(m[1].trim());
-    return decoded.uid || null;
-  } catch {
-    return null;
-  }
-}
-
-const assistantApkUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024 }
-});
-
-/** Upload APK para Firebase Storage via Admin SDK (evita CORS browser → Google Storage). Só master. */
-app.post('/api/storage/upload-assistant-apk', (req, res, next) => {
-  assistantApkUpload.single('file')(req, res, (err) => {
-    if (err) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(413).json({ error: 'APK muito grande (máx. 100 MB).' });
-      }
-      return res.status(400).json({ error: err.message || 'Erro no upload' });
-    }
-    next();
-  });
-}, async (req, res) => {
-  try {
-    const uid = await verifyFirebaseIdTokenUid(req);
-    if (!uid) {
-      return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
-    }
-    if (!(await isRegisteredMasterUid(uid))) {
-      return res.status(403).json({ error: 'Apenas o utilizador master pode enviar APK.' });
-    }
-    if (!req.file || !req.file.buffer) {
-      return res.status(400).json({ error: 'Nenhum ficheiro recebido.' });
-    }
-    if (!String(req.file.originalname || '').toLowerCase().endsWith('.apk')) {
-      return res.status(400).json({ error: 'Apenas ficheiros .apk.' });
-    }
-    const bucketName = (process.env.FIREBASE_STORAGE_BUCKET || '').trim() || 'ia-agente-b2f46.firebasestorage.app';
-    const bucket = admin.storage().bucket(bucketName);
-    const safe = String(req.file.originalname).replace(/[^\w.\-]+/g, '_').slice(0, 80);
-    const objectPath = `assistant_panel_test/${uid}/${Date.now()}-${safe}`;
-    const gcsFile = bucket.file(objectPath);
-    await gcsFile.save(req.file.buffer, {
-      contentType: req.file.mimetype || 'application/vnd.android.package-archive',
-      resumable: false,
-      metadata: { cacheControl: 'public, max-age=31536000' }
-    });
-    const enc = encodeURIComponent(objectPath);
-    const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${enc}?alt=media`;
-    return res.json({ ok: true, downloadUrl, objectPath });
-  } catch (error) {
-    console.error('❌ upload-assistant-apk:', error);
-    return res.status(500).json({ error: error.message || 'Erro ao gravar no Storage' });
-  }
-});
 
 app.post('/api/panel/generate-test', async (req, res) => {
   try {

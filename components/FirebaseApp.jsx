@@ -34,8 +34,6 @@ import {
 import { useI18n } from '../contexts/I18nContext';
 import BeefreeEditor from './BeefreeEditor';
 import SetupChecklist from './SetupChecklist';
-import PanelAndroidApkField from './PanelAndroidApkField';
-
 // Unlayer Editor será carregado via script tag (embed)
 
 // Import dinâmico para evitar problemas de SSR
@@ -9688,15 +9686,45 @@ const DashboardWithFirebase = ({
                         {t('assistantConfig.panelTestAppsSectionHint')}
                       </p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                        <PanelAndroidApkField
-                          userId={user?.uid}
-                          sectionEnabled={assistantForm.autoPanelTestOnRequest === true}
-                          androidLink={assistantForm.panelTestAndroidLink || ''}
-                          onAndroidLinkChange={(value) =>
-                            setAssistantForm((prev) => ({ ...prev, panelTestAndroidLink: value }))
-                          }
-                          showToast={showToast}
-                        />
+                        <div>
+                          <label
+                            style={{
+                              display: 'block',
+                              fontWeight: 600,
+                              color: '#e5e7eb',
+                              marginBottom: '6px',
+                              fontSize: '0.8125rem'
+                            }}
+                          >
+                            {t('assistantConfig.panelTestAndroidLinkLabel')}
+                          </label>
+                          <input
+                            type="text"
+                            disabled={!assistantForm.autoPanelTestOnRequest}
+                            value={assistantForm.panelTestAndroidLink || ''}
+                            onChange={(e) =>
+                              setAssistantForm((prev) => ({
+                                ...prev,
+                                panelTestAndroidLink: e.target.value
+                              }))
+                            }
+                            placeholder="https://..."
+                            style={{
+                              width: '100%',
+                              boxSizing: 'border-box',
+                              padding: '10px 12px',
+                              borderRadius: '10px',
+                              border: '1px solid rgba(255,255,255,0.12)',
+                              background: '#0f1419',
+                              color: '#fff',
+                              fontSize: '0.875rem',
+                              opacity: assistantForm.autoPanelTestOnRequest ? 1 : 0.7
+                            }}
+                          />
+                          <p style={{ margin: '6px 0 0 0', fontSize: '0.72rem', color: '#6b7280' }}>
+                            {t('assistantConfig.panelTestAndroidLinkHint')}
+                          </p>
+                        </div>
                         <div>
                           <label
                             style={{
