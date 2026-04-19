@@ -1664,8 +1664,11 @@ function wantsPanelIptvFreeTestMessage(messageText) {
   const t = String(messageText || '')
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
   if (t.length < 4) return false;
+  // Mensagem só com "teste" (muito comum no WhatsApp) — evita exigir sempre "quero teste"
+  if (/^teste[!?.…]{0,4}$/.test(t)) return true;
   const patterns = [
     /\bconta\s+de\s+teste\b/,
     /\bconta\s+teste\b/,

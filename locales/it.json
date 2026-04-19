@@ -552,7 +552,7 @@
     "tvAppDownloadUrl": "Link per scaricare l'app (dopo credenziali TV)",
     "tvAppDownloadUrlHint": "URL completo (Play Store, App Store o sito). Aggiunto dopo login/password Wplay a pagamento confermato e al reinvio dal pannello.",
     "autoPanelTestTitle": "Genera e invia automaticamente la prova del panel su WhatsApp",
-    "autoPanelTestHint": "Se attivo, quando il cliente scrive frasi come «voglio prova», «account di prova» o «test IPTV», il bot risponde subito con utente e password (solo account master collegato a WhatsApp). Serve un token panel valido su Firestore. Tra un invio e l'altro nella stessa chat c'è una breve attesa.",
+    "autoPanelTestHint": "Se attivo, quando il cliente scrive solo «test»/«prova», o frasi come «voglio prova», «account di prova» o «test IPTV», il bot risponde subito con utente e password (solo account master collegato a WhatsApp). Serve un token panel valido su Firestore. Tra un invio e l'altro nella stessa chat c'è una breve attesa.",
     "panelTestFollowUpTitle": "Dopo un'ora, ricontattare il cliente su WhatsApp",
     "panelTestFollowUpHint": "Dopo l'invio automatico della prova, viene programmato un messaggio di follow-up (~1 ora dopo) per chiedere se è andato tutto bene e se vuole procedere con l'abbonamento. Richiede prova automatica attiva e sessione WhatsApp sul server.",
     "panelTestFollowUpMessageLabel": "Testo del messaggio di follow-up (opzionale)",
