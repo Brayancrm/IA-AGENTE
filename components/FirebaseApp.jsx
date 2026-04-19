@@ -330,7 +330,6 @@ const FirebaseApp = () => {
   const [crmSubTab, setCrmSubTab] = useState('visao-geral');
   const [toast, setToast] = useState(null);
   const [panelAndroidApkUploading, setPanelAndroidApkUploading] = useState(false);
-  const panelAndroidApkFileRef = useRef(null);
 
   // Estado para página de pagamento removido - agora redirecionamos diretamente
 
@@ -9726,7 +9725,7 @@ const DashboardWithFirebase = ({
                             }}
                           />
                           <input
-                            ref={panelAndroidApkFileRef}
+                            id="panel-android-apk-file-input"
                             type="file"
                             accept=".apk,application/vnd.android.package-archive"
                             style={{ display: 'none' }}
@@ -9780,7 +9779,10 @@ const DashboardWithFirebase = ({
                                 !user?.uid ||
                                 panelAndroidApkUploading
                               }
-                              onClick={() => panelAndroidApkFileRef.current?.click()}
+                              onClick={() => {
+                                if (typeof document === 'undefined') return;
+                                document.getElementById('panel-android-apk-file-input')?.click();
+                              }}
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
