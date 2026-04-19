@@ -7314,6 +7314,47 @@ app.post('/api/panel/generate-test', async (req, res) => {
   }
 });
 
+/** Grava bearer_token em Firestore (configs/api_panel). Só utilizador master. */
+app.post('/api/panel/save-token', async (req, res) => {
+  try {
+    const { userId, bearer_token } = req.body || {};
+    if (!(await isRegisteredMasterUid(userId))) {
+      return res.status(403).json({
+        success: false,
+        error: 'Apenas o utilizador master pode alterar o token do painel.'
+      });
+    }
+    const token = String(bearer_token || '').trim();
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        error: 'Indique o token (campo bearer_token vazio).',
+        code: 'TOKEN_EMPTY'
+      });
+    }
+    await firestore
+      .collection('configs')
+      .doc('api_panel')
+      .set(
+        {
+          bearer_token: token,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        },
+        { merge: true }
+      );
+    return res.json({
+      success: true,
+      message: 'Token guardado no Firestore (configs → api_panel).'
+    });
+  } catch (error) {
+    console.error('❌ [PANEL API] save-token:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao guardar token'
+    });
+  }
+});
+
 app.get('/api/orders/summary', async (req, res) => {
   try {
     const { userId, start, end } = req.query;

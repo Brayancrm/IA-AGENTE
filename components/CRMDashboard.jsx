@@ -33,7 +33,8 @@ import {
   FileSpreadsheet,
   Tv,
   FlaskConical,
-  Copy
+  Copy,
+  Save
 } from 'lucide-react';
 import { useI18n } from '../contexts/I18nContext';
 
@@ -459,6 +460,18 @@ const CRMDashboard = ({
   const [panelTestLoading, setPanelTestLoading] = useState(false);
   const [panelTestResult, setPanelTestResult] = useState(null);
   const [panelTestError, setPanelTestError] = useState(null);
+  const [panelBearerDraft, setPanelBearerDraft] = useState('');
+  const [panelBearerSaving, setPanelBearerSaving] = useState(false);
+  const [panelBearerSaveError, setPanelBearerSaveError] = useState(null);
+  const [panelBearerSaveOk, setPanelBearerSaveOk] = useState(null);
+
+  useEffect(() => {
+    if (activeTab !== 'panel-testes') {
+      setPanelBearerDraft('');
+      setPanelBearerSaveError(null);
+      setPanelBearerSaveOk(null);
+    }
+  }, [activeTab]);
   
   // Estados para Pipeline
   const [draggedCliente, setDraggedCliente] = useState(null);
@@ -2092,10 +2105,151 @@ const CRMDashboard = ({
           <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
             Contas de teste (painel)
           </h2>
+          <p style={{ color: '#9ca3af', fontSize: '0.9375rem', marginBottom: '20px', lineHeight: 1.5 }}>
+            Atualize o token da API do painel sem abrir o Firebase. Cole o valor completo (sem a palavra{' '}
+            <code style={{ color: '#d1d5db' }}>Bearer</code>) e guarde. Só o utilizador master pode usar esta
+            área.
+          </p>
+
+          <div
+            style={{
+              marginBottom: '28px',
+              padding: '20px',
+              borderRadius: '16px',
+              backgroundColor: '#0f1419',
+              border: '1px solid rgba(255,255,255,0.08)'
+            }}
+          >
+            <div style={{ fontWeight: '700', color: '#e5e7eb', marginBottom: '10px', fontSize: '0.95rem' }}>
+              Token Bearer → Firestore (configs / api_panel)
+            </div>
+            <textarea
+              value={panelBearerDraft}
+              onChange={(e) => {
+                setPanelBearerDraft(e.target.value);
+                setPanelBearerSaveError(null);
+                setPanelBearerSaveOk(null);
+              }}
+              placeholder="Cole aqui o JWT ou token devolvido pelo painel…"
+              autoComplete="off"
+              spellCheck={false}
+              rows={4}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: '12px 14px',
+                borderRadius: '12px',
+                border: '1px solid rgba(255,255,255,0.12)',
+                background: 'rgba(0,0,0,0.35)',
+                color: '#f9fafb',
+                fontSize: '0.8125rem',
+                fontFamily: 'ui-monospace, monospace',
+                resize: 'vertical',
+                marginBottom: '14px'
+              }}
+            />
+            <button
+              type="button"
+              disabled={panelBearerSaving || !String(panelBearerDraft).trim()}
+              onClick={async () => {
+                setPanelBearerSaving(true);
+                setPanelBearerSaveError(null);
+                setPanelBearerSaveOk(null);
+                try {
+                  const base = String(
+                    backendUrl || (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BACKEND_URL) || ''
+                  ).replace(/\/$/, '');
+                  if (!base) {
+                    const msg = 'Configure NEXT_PUBLIC_BACKEND_URL (URL do backend no Railway).';
+                    setPanelBearerSaveError(msg);
+                    showToast?.(msg, 'error');
+                    return;
+                  }
+                  const res = await fetch(`${base}/api/panel/save-token`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      userId: user.uid,
+                      bearer_token: String(panelBearerDraft).trim()
+                    })
+                  });
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok) {
+                    const msg = data.error || data.message || `Erro HTTP ${res.status}`;
+                    setPanelBearerSaveError(msg);
+                    showToast?.(msg, 'error');
+                    return;
+                  }
+                  setPanelBearerDraft('');
+                  setPanelBearerSaveOk(data.message || 'Token guardado.');
+                  showToast?.('Token do painel guardado.', 'success');
+                } catch (e) {
+                  const msg = e?.message || 'Falha de rede ao contactar o backend.';
+                  setPanelBearerSaveError(msg);
+                  showToast?.(msg, 'error');
+                } finally {
+                  setPanelBearerSaving(false);
+                }
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 20px',
+                borderRadius: '12px',
+                border: 'none',
+                cursor: panelBearerSaving || !String(panelBearerDraft).trim() ? 'not-allowed' : 'pointer',
+                fontWeight: '700',
+                fontSize: '0.875rem',
+                color: '#ffffff',
+                background:
+                  panelBearerSaving || !String(panelBearerDraft).trim()
+                    ? 'rgba(107, 114, 128, 0.45)'
+                    : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                boxShadow:
+                  panelBearerSaving || !String(panelBearerDraft).trim()
+                    ? 'none'
+                    : '0 4px 14px rgba(59, 130, 246, 0.35)'
+              }}
+            >
+              <Save size={18} />
+              {panelBearerSaving ? 'A guardar…' : 'Guardar token no Firestore'}
+            </button>
+            {panelBearerSaveError && (
+              <div
+                style={{
+                  marginTop: '14px',
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.45)',
+                  color: '#fecaca',
+                  fontSize: '0.875rem'
+                }}
+              >
+                {panelBearerSaveError}
+              </div>
+            )}
+            {panelBearerSaveOk && !panelBearerSaveError && (
+              <div
+                style={{
+                  marginTop: '14px',
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  color: '#a7f3d0',
+                  fontSize: '0.875rem'
+                }}
+              >
+                {panelBearerSaveOk}
+              </div>
+            )}
+          </div>
+
           <p style={{ color: '#9ca3af', fontSize: '0.9375rem', marginBottom: '24px', lineHeight: 1.5 }}>
-            Gera uma conta de teste na API do painel. O token Bearer deve estar em{' '}
-            <strong style={{ color: '#e5e7eb' }}>Firestore → configs → api_panel → bearer_token</strong>.
-            Apenas o utilizador master pode usar esta ação.
+            Depois de guardar um token válido, use o botão abaixo para gerar uma conta de teste na API do
+            painel.
           </p>
           <button
             type="button"
