@@ -118,9 +118,70 @@ function extractCredentials(data) {
 }
 
 /**
+ * Tenta obter data/hora de expiração da resposta do painel; senão estima por testDuration (dias) do body enviado.
+ * @param {unknown} data — JSON da API
+ * @param {Record<string, unknown>} mergedBody — body efetivo (inclui testDuration)
+ * @returns {string} ISO 8601
+ */
+function extractExpiryIso(data, mergedBody) {
+  const tryCoerceIso = (v) => {
+    if (v == null || v === '') return null;
+    if (typeof v === 'number') {
+      const ms = v < 1e12 ? v * 1000 : v;
+      const d = new Date(ms);
+      return Number.isNaN(d.getTime()) ? null : d.toISOString();
+    }
+    const s = String(v).trim();
+    if (!s) return null;
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  };
+
+  const scan = (obj, depth) => {
+    if (!obj || typeof obj !== 'object' || depth > 6) return null;
+    const keys = [
+      'expiry',
+      'expire_at',
+      'expireAt',
+      'expiration',
+      'expires',
+      'expires_at',
+      'ended_at',
+      'end_at',
+      'valid_until',
+      'expire_date',
+      'expirationDate',
+      'endDate',
+      'end_time',
+      'expiration_time'
+    ];
+    for (const k of keys) {
+      if (Object.prototype.hasOwnProperty.call(obj, k)) {
+        const iso = tryCoerceIso(obj[k]);
+        if (iso) return iso;
+      }
+    }
+    for (const v of Object.values(obj)) {
+      if (v && typeof v === 'object') {
+        const found = scan(v, depth + 1);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  const fromApi = scan(data, 0);
+  if (fromApi) return fromApi;
+
+  const td = Number(mergedBody?.testDuration ?? mergedBody?.days ?? mergedBody?.durationDays);
+  const days = Number.isFinite(td) && td > 0 ? td : 1;
+  return new Date(Date.now() + days * 86400000).toISOString();
+}
+
+/**
  * Gera conta de teste via API do painel.
  * @param {Record<string, unknown>} [payloadOverrides] — campos opcionais a fundir no body (ex.: notes, package_iptv).
- * @returns {Promise<{ usuario: string, senha: string }>}
+ * @returns {Promise<{ usuario: string, senha: string, expiresAt: string }>}
  */
 async function generateTestAccount(payloadOverrides = {}) {
   const config = await getApiConfig();
@@ -172,7 +233,8 @@ async function generateTestAccount(payloadOverrides = {}) {
       throw e;
     }
 
-    return { usuario, senha };
+    const expiresAt = extractExpiryIso(data, body);
+    return { usuario, senha, expiresAt };
   } catch (err) {
     if (err && err.response && err.response.status === 401) {
       notifyAdmin('TOKEN_EXPIRED', { at: new Date().toISOString() });
@@ -190,6 +252,7 @@ async function generateTestAccount(payloadOverrides = {}) {
 module.exports = {
   getApiConfig,
   generateTestAccount,
+  extractExpiryIso,
   notifyAdmin,
   setTokenExpiredNotifier,
   DEFAULT_TEST_PAYLOAD: { ...DEFAULT_TEST_PAYLOAD },

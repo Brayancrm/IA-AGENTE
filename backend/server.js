@@ -114,6 +114,10 @@ try {
 const db = admin.database();
 const firestore = admin.firestore();
 const panelService = require('./services/panelService');
+
+/** Cooldown entre testes automáticos por conversa (evita spam à API do painel). */
+const PANEL_TEST_AUTO_COOLDOWN_MS = 75_000;
+const panelTestAutoLastByChat = new Map();
 const app = express();
 const ENABLE_ASAAS_LEGACY = process.env.ENABLE_ASAAS_LEGACY === 'true';
 
@@ -1558,6 +1562,128 @@ async function generateAudioFromText(text, language = 'pt-BR', voice = null) {
   }
 }
 
+/** Regista geração de teste (sem guardar senha) para histórico no CRM. */
+async function savePanelTestGenerationLog(ownerUserId, entry) {
+  if (!ownerUserId || !entry || typeof entry !== 'object') return;
+  try {
+    await db.ref(`users/data/${ownerUserId}/panel_test_logs`).push({
+      ...entry,
+      createdAt: entry.createdAt || new Date().toISOString()
+    });
+  } catch (e) {
+    console.error('❌ [panel_test_logs]', e.message);
+  }
+}
+
+/** Heurística: cliente pede conta / login de teste IPTV. */
+function wantsPanelIptvFreeTestMessage(messageText) {
+  const t = String(messageText || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  if (t.length < 4) return false;
+  const patterns = [
+    /\bconta\s+de\s+teste\b/,
+    /\bconta\s+teste\b/,
+    /\bteste\s+iptv\b/,
+    /\biptv\s+teste\b/,
+    /\b(teste|trial)\s+(gratis|grátis)\b/,
+    /\b(quero|preciso|da|dá)\s+(um\s+)?teste\b/,
+    /\benvia\s+teste\b/,
+    /\bmanda\s+teste\b/,
+    /\bcria(r)?\s+uma?\s+conta\s+teste\b/,
+    /\blogin\s+de\s+teste\b/,
+    /\bsenha\s+de\s+teste\b/,
+    /\bpreciso\s+de\s+um\s+teste\b/,
+    /\bme\s+manda\s+um\s+teste\b/
+  ];
+  return patterns.some((re) => re.test(t));
+}
+
+/**
+ * Gera teste do painel e envia por WhatsApp (só conta master + opção ligada nas definições do assistente).
+ */
+async function tryAutoPanelTestFromChat(
+  userId,
+  messageFrom,
+  message,
+  sanitizedNumber,
+  messageText,
+  client,
+  aiConfig
+) {
+  if (!aiConfig || !aiConfig.autoPanelTestOnRequest) return { sent: false };
+  if (!wantsPanelIptvFreeTestMessage(messageText)) return { sent: false };
+  if (!(await isRegisteredMasterUid(userId))) return { sent: false };
+
+  const coolKey = `${userId}:${sanitizedNumber}`;
+  const last = panelTestAutoLastByChat.get(coolKey) || 0;
+  if (Date.now() - last < PANEL_TEST_AUTO_COOLDOWN_MS) {
+    try {
+      await client.sendText(
+        messageFrom,
+        'Acabei de enviar um teste há pouco. Aguarde cerca de 1 minuto antes de pedir outro, por favor.'
+      );
+    } catch (e) {
+      console.warn('⚠️ panel test cooldown msg:', e.message);
+    }
+    return { sent: true };
+  }
+
+  let pushName = message?.pushName || message?.notifyName || null;
+  try {
+    if (!pushName) {
+      const c = await client.getContactById(messageFrom);
+      pushName = c?.pushname || c?.name || null;
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  const recipientLabel = pushName || sanitizedNumber || messageFrom;
+  const recipientPhone = messageFrom || null;
+
+  try {
+    const out = await panelService.generateTestAccount({});
+    panelTestAutoLastByChat.set(coolKey, Date.now());
+    const expLocal = out.expiresAt
+      ? new Date(out.expiresAt).toLocaleString('pt-PT', {
+          dateStyle: 'short',
+          timeStyle: 'short'
+        })
+      : '—';
+    const bodyMsg =
+      `✅ *Conta de teste*\n\n` +
+      `👤 *Utilizador:* ${out.usuario}\n` +
+      `🔑 *Senha:* ${out.senha}\n` +
+      `⏱️ *Expira (aprox.):* ${expLocal}\n\n` +
+      `_Em caso de dúvida, fale com o suporte._`;
+    await client.sendText(messageFrom, bodyMsg);
+    await savePanelTestGenerationLog(userId, {
+      usuario: out.usuario,
+      expiresAt: out.expiresAt,
+      recipientLabel,
+      recipientPhone,
+      source: 'whatsapp_auto',
+      channel: 'whatsapp'
+    });
+    return { sent: true };
+  } catch (error) {
+    console.error('❌ [panel] auto test WhatsApp:', error.message);
+    let reply =
+      'Não consegui gerar o teste agora. Tente de novo em instantes ou fale com o suporte.';
+    if (error.code === 'TOKEN_EXPIRED' || error.status === 401) {
+      reply =
+        'O acesso ao painel de testes está temporariamente indisponível (token). O administrador já pode atualizar o token nas definições.';
+    }
+    try {
+      await client.sendText(messageFrom, reply);
+    } catch (e) {
+      console.warn('⚠️ panel test err msg:', e.message);
+    }
+    return { sent: true };
+  }
+}
+
 // Handler de mensagens recebidas
 async function handleIncomingMessage(userId, message, client) {
   try {
@@ -1754,6 +1880,19 @@ async function handleIncomingMessage(userId, message, client) {
           client
         );
         if (tvCredResend.sent) {
+          return;
+        }
+
+        const panelAuto = await tryAutoPanelTestFromChat(
+          userId,
+          message.from,
+          message,
+          sanitizedNumber,
+          messageText,
+          client,
+          aiConfig
+        );
+        if (panelAuto.sent) {
           return;
         }
         
@@ -7286,14 +7425,32 @@ async function isRegisteredMasterUid(userId) {
 
 app.post('/api/panel/generate-test', async (req, res) => {
   try {
-    const { userId, payload } = req.body || {};
+    const { userId, payload, recipientLabel, recipientPhone, source } = req.body || {};
     if (!(await isRegisteredMasterUid(userId))) {
       return res.status(403).json({ error: 'Apenas o utilizador master pode gerar testes do painel.' });
     }
     const out = await panelService.generateTestAccount(
       payload && typeof payload === 'object' ? payload : {}
     );
-    return res.json({ success: true, usuario: out.usuario, senha: out.senha });
+    const src = source === 'whatsapp_auto' ? 'whatsapp_auto' : 'crm';
+    const label =
+      (typeof recipientLabel === 'string' && recipientLabel.trim()) ||
+      (typeof recipientPhone === 'string' && recipientPhone.trim()) ||
+      (src === 'crm' ? 'Manual (CRM)' : 'CRM');
+    await savePanelTestGenerationLog(userId, {
+      usuario: out.usuario,
+      expiresAt: out.expiresAt,
+      recipientLabel: label,
+      recipientPhone: typeof recipientPhone === 'string' ? recipientPhone.trim() || null : null,
+      source: src,
+      channel: src === 'whatsapp_auto' ? 'whatsapp' : 'crm'
+    });
+    return res.json({
+      success: true,
+      usuario: out.usuario,
+      senha: out.senha,
+      expiresAt: out.expiresAt
+    });
   } catch (error) {
     if (error.code === 'TOKEN_EXPIRED' || error.status === 401) {
       return res.status(401).json({

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Users, 
   TrendingUp, 
@@ -41,6 +41,17 @@ import { useI18n } from '../contexts/I18nContext';
 /** Alinha à chave usada em conversations/ no backend (sanitizePhoneNumber). */
 function sanitizeConversationContactKey(s) {
   return String(s || '').replace(/[\.\#\$\[\]@]/g, '_');
+}
+
+function formatPanelExpiresPt(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' });
+  } catch {
+    return '—';
+  }
 }
 
 function collectIdentityDigitsForPurge(dataMap, toRemoveKeys, primaryKey) {
@@ -464,6 +475,8 @@ const CRMDashboard = ({
   const [panelBearerSaving, setPanelBearerSaving] = useState(false);
   const [panelBearerSaveError, setPanelBearerSaveError] = useState(null);
   const [panelBearerSaveOk, setPanelBearerSaveOk] = useState(null);
+  const [panelTestLogs, setPanelTestLogs] = useState([]);
+  const panelTestLogsUnsubRef = useRef(null);
 
   useEffect(() => {
     if (activeTab !== 'panel-testes') {
@@ -472,6 +485,45 @@ const CRMDashboard = ({
       setPanelBearerSaveOk(null);
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (panelTestLogsUnsubRef.current) {
+      try {
+        panelTestLogsUnsubRef.current();
+      } catch (_) {
+        /* ignore */
+      }
+      panelTestLogsUnsubRef.current = null;
+    }
+    if (activeTab !== 'panel-testes' || !user?.uid || !database) {
+      setPanelTestLogs([]);
+      return undefined;
+    }
+    let cancelled = false;
+    import('firebase/database').then(({ ref, onValue }) => {
+      if (cancelled) return;
+      const r = ref(database, `users/data/${user.uid}/panel_test_logs`);
+      panelTestLogsUnsubRef.current = onValue(r, (snap) => {
+        const v = snap.val();
+        const rows = Object.entries(v || {})
+          .map(([id, x]) => ({ id, ...(typeof x === 'object' && x ? x : {}) }))
+          .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+          .slice(0, 40);
+        setPanelTestLogs(rows);
+      });
+    });
+    return () => {
+      cancelled = true;
+      if (panelTestLogsUnsubRef.current) {
+        try {
+          panelTestLogsUnsubRef.current();
+        } catch (_) {
+          /* ignore */
+        }
+        panelTestLogsUnsubRef.current = null;
+      }
+    };
+  }, [activeTab, user?.uid, database]);
   
   // Estados para Pipeline
   const [draggedCliente, setDraggedCliente] = useState(null);
@@ -2271,7 +2323,12 @@ const CRMDashboard = ({
                 const res = await fetch(`${base}/api/panel/generate-test`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ userId: user.uid, payload: {} })
+                  body: JSON.stringify({
+                    userId: user.uid,
+                    payload: {},
+                    source: 'crm',
+                    recipientLabel: 'Manual (CRM)'
+                  })
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) {
@@ -2286,7 +2343,11 @@ const CRMDashboard = ({
                   return;
                 }
                 if (data.usuario && data.senha) {
-                  setPanelTestResult({ usuario: data.usuario, senha: data.senha });
+                  setPanelTestResult({
+                    usuario: data.usuario,
+                    senha: data.senha,
+                    expiresAt: data.expiresAt || null
+                  });
                   showToast?.('Conta de teste gerada.', 'success');
                 } else {
                   const msg = 'Resposta sem utilizador/senha.';
@@ -2351,6 +2412,16 @@ const CRMDashboard = ({
               }}
             >
               <div style={{ marginBottom: '12px', fontWeight: '700', color: '#10b981' }}>Credenciais geradas</div>
+              <div style={{ marginBottom: '12px', fontSize: '0.9rem', color: '#fcd34d' }}>
+                <span style={{ color: '#9ca3af' }}>Expira (aprox.): </span>
+                <strong style={{ color: '#fef3c7' }}>{formatPanelExpiresPt(panelTestResult.expiresAt)}</strong>
+                <span style={{ color: '#6b7280', fontSize: '0.8rem', marginLeft: '8px' }}>
+                  (resposta da API ou duração padrão do teste)
+                </span>
+              </div>
+              <div style={{ marginBottom: '12px', fontSize: '0.85rem', color: '#9ca3af' }}>
+                Destinatário (CRM): <strong style={{ color: '#e5e7eb' }}>Manual (CRM)</strong>
+              </div>
               <div style={{ marginBottom: '10px', fontSize: '0.9rem' }}>
                 <span style={{ color: '#9ca3af' }}>Utilizador: </span>
                 <code style={{ color: '#fff', wordBreak: 'break-all' }}>{panelTestResult.usuario}</code>
@@ -2401,6 +2472,60 @@ const CRMDashboard = ({
               </div>
             </div>
           )}
+
+          <div style={{ marginTop: '28px' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#ffffff', marginBottom: '10px' }}>
+              Histórico de testes gerados
+            </h3>
+            <p style={{ color: '#6b7280', fontSize: '0.8125rem', marginBottom: '14px', lineHeight: 1.45 }}>
+              Utilizador e expiração por registo; senhas não são guardadas no histórico. Envios automáticos do
+              WhatsApp aparecem com origem indicada.
+            </p>
+            {panelTestLogs.length === 0 ? (
+              <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
+                Ainda não há registos. Gere um teste aqui ou ative o envio automático nas definições do
+                assistente (master).
+              </p>
+            ) : (
+              <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+                  <thead>
+                    <tr style={{ background: 'rgba(0,0,0,0.35)', color: '#9ca3af', textAlign: 'left' }}>
+                      <th style={{ padding: '10px 12px' }}>Quando</th>
+                      <th style={{ padding: '10px 12px' }}>Utilizador</th>
+                      <th style={{ padding: '10px 12px' }}>Expira (aprox.)</th>
+                      <th style={{ padding: '10px 12px' }}>Destino / origem</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {panelTestLogs.map((row) => (
+                      <tr
+                        key={row.id}
+                        style={{ borderTop: '1px solid rgba(255,255,255,0.06)', color: '#e5e7eb' }}
+                      >
+                        <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', color: '#9ca3af' }}>
+                          {formatPanelExpiresPt(row.createdAt)}
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <code style={{ color: '#fff' }}>{row.usuario || '—'}</code>
+                        </td>
+                        <td style={{ padding: '10px 12px', color: '#fcd34d' }}>
+                          {formatPanelExpiresPt(row.expiresAt)}
+                        </td>
+                        <td style={{ padding: '10px 12px', maxWidth: '220px' }}>
+                          <div style={{ fontWeight: 600, color: '#fff' }}>{row.recipientLabel || '—'}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '4px' }}>
+                            {row.source === 'whatsapp_auto' ? 'WhatsApp (automático)' : 'CRM / manual'}
+                            {row.recipientPhone ? ` · ${String(row.recipientPhone).slice(0, 28)}` : ''}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
       

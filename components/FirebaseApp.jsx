@@ -4298,7 +4298,9 @@ const DashboardWithFirebase = ({
     fixedApproaches: [], // abordagens fixas do modo guiado (por etapa)
     showCatalogImagesWhenOffering: true,
     catalogImagesOncePerConversation: true,
-    wizardTemplateId: null // modelo escolhido no assistente guiado (ex.: consultive_tv)
+    wizardTemplateId: null, // modelo escolhido no assistente guiado (ex.: consultive_tv)
+    /** Master: gerar e enviar conta de teste do painel por WhatsApp quando o cliente pede (palavras-chave). */
+    autoPanelTestOnRequest: false
   });
   const [wizardResetKey, setWizardResetKey] = useState(0);
   const [userForm, setUserForm] = useState({
@@ -4485,7 +4487,8 @@ const DashboardWithFirebase = ({
         : [],
       showCatalogImagesWhenOffering: assistantSettings.showCatalogImagesWhenOffering !== false,
       catalogImagesOncePerConversation: assistantSettings.catalogImagesOncePerConversation !== false,
-      wizardTemplateId: assistantSettings.wizardTemplateId || null
+      wizardTemplateId: assistantSettings.wizardTemplateId || null,
+      autoPanelTestOnRequest: assistantSettings.autoPanelTestOnRequest === true
     });
   }, [assistantSettings]);
 
@@ -9535,6 +9538,45 @@ const DashboardWithFirebase = ({
                         <option value="gpt-4">GPT-4 (mais capaz)</option>
                         <option value="gpt-4-turbo">GPT-4 Turbo (equilibrado)</option>
                       </select>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: '16px 18px',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(59, 130, 246, 0.35)',
+                        background: 'rgba(59, 130, 246, 0.08)'
+                      }}
+                    >
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '12px',
+                          cursor: 'pointer',
+                          color: '#e5e7eb'
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={assistantForm.autoPanelTestOnRequest === true}
+                          onChange={(e) =>
+                            setAssistantForm((prev) => ({
+                              ...prev,
+                              autoPanelTestOnRequest: e.target.checked
+                            }))
+                          }
+                          style={{ width: '18px', height: '18px', marginTop: '2px', flexShrink: 0 }}
+                        />
+                        <span>
+                          <span style={{ fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                            {t('assistantConfig.autoPanelTestTitle')}
+                          </span>
+                          <span style={{ fontSize: '0.875rem', color: '#9ca3af', lineHeight: 1.45 }}>
+                            {t('assistantConfig.autoPanelTestHint')}
+                          </span>
+                        </span>
+                      </label>
                     </div>
                   </>
                 )}

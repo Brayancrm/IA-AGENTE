@@ -550,6 +550,8 @@
     "messageBeforePaymentLinkHint": "Enviado numa mensagem imediatamente antes do resumo do pedido e do link Stripe. Deixe vazio para pular. Se também usou o assistente guiado, o texto do passo Stripe pode ser usado como fallback quando este campo estiver vazio.",
     "messageBeforePaymentLinkPlaceholder": "Ex.: Leia as instruções abaixo antes de pagar…",
     "tvAppDownloadUrl": "Link para baixar o app (após credenciais TV)",
-    "tvAppDownloadUrlHint": "URL completa (Play Store, App Store ou site). É enviada no fim da mensagem com login e senha Wplay após pagamento confirmado, e no reenvio pelo painel."
+    "tvAppDownloadUrlHint": "URL completa (Play Store, App Store ou site). É enviada no fim da mensagem com login e senha Wplay após pagamento confirmado, e no reenvio pelo painel.",
+    "autoPanelTestTitle": "Gerar e enviar teste do painel automaticamente no WhatsApp",
+    "autoPanelTestHint": "Quando ativo, se o cliente escrever algo como “quero teste”, “conta teste” ou “teste IPTV”, o bot responde na hora com login e senha (só na conta master ligada ao WhatsApp). Requer token do painel válido no Firestore. Há um intervalo mínimo entre envios na mesma conversa."
   }
 }
