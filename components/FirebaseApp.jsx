@@ -320,7 +320,7 @@ function formatCatalogItemPrice(price, currencyCode) {
 }
 
 const FirebaseApp = () => {
-  const { app, db, auth, database, storage, isReady, error } = useFirebase();
+  const { app, db, auth, database, storage: firebaseStorage, isReady, error } = useFirebase();
   const { t } = useI18n();
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -9731,13 +9731,13 @@ const DashboardWithFirebase = ({
                             style={{ display: 'none' }}
                             disabled={
                               !assistantForm.autoPanelTestOnRequest ||
-                              !storage ||
+                              !firebaseStorage ||
                               !user?.uid ||
                               panelAndroidApkUploading
                             }
                             onChange={async (e) => {
                               const file = e.target.files?.[0];
-                              if (!file || !storage || !user?.uid) {
+                              if (!file || !firebaseStorage || !user?.uid) {
                                 e.target.value = '';
                                 return;
                               }
@@ -9750,7 +9750,7 @@ const DashboardWithFirebase = ({
                               try {
                                 const safe = file.name.replace(/[^\w.\-]+/g, '_').slice(0, 80);
                                 const objectPath = `assistant_panel_test/${user.uid}/${Date.now()}-${safe}`;
-                                const sRef = firebaseStorageRef(storage, objectPath);
+                                const sRef = firebaseStorageRef(firebaseStorage, objectPath);
                                 await uploadBytes(sRef, file, {
                                   contentType:
                                     file.type || 'application/vnd.android.package-archive'
@@ -9775,7 +9775,7 @@ const DashboardWithFirebase = ({
                               type="button"
                               disabled={
                                 !assistantForm.autoPanelTestOnRequest ||
-                                !storage ||
+                                !firebaseStorage ||
                                 !user?.uid ||
                                 panelAndroidApkUploading
                               }
@@ -9795,11 +9795,11 @@ const DashboardWithFirebase = ({
                                 fontWeight: 600,
                                 fontSize: '0.8125rem',
                                 cursor:
-                                  assistantForm.autoPanelTestOnRequest && storage && user?.uid && !panelAndroidApkUploading
+                                  assistantForm.autoPanelTestOnRequest && firebaseStorage && user?.uid && !panelAndroidApkUploading
                                     ? 'pointer'
                                     : 'not-allowed',
                                 opacity:
-                                  assistantForm.autoPanelTestOnRequest && storage && user?.uid ? 1 : 0.5
+                                  assistantForm.autoPanelTestOnRequest && firebaseStorage && user?.uid ? 1 : 0.5
                               }}
                             >
                               <Upload size={16} />
@@ -9807,7 +9807,7 @@ const DashboardWithFirebase = ({
                                 ? t('assistantConfig.panelTestAndroidUploading')
                                 : t('assistantConfig.panelTestAndroidUploadButton')}
                             </button>
-                            {!storage && (
+                            {!firebaseStorage && (
                               <span style={{ fontSize: '0.72rem', color: '#f87171', alignSelf: 'center' }}>
                                 {t('assistantConfig.panelTestAndroidStorageMissing')}
                               </span>
