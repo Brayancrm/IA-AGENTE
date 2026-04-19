@@ -113,6 +113,7 @@ try {
 
 const db = admin.database();
 const firestore = admin.firestore();
+const panelService = require('./services/panelService');
 const app = express();
 const ENABLE_ASAAS_LEGACY = process.env.ENABLE_ASAAS_LEGACY === 'true';
 
@@ -402,6 +403,12 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
+
+panelService.setTokenExpiredNotifier(() => {
+  console.error(
+    '🔐 [PANEL API] TOKEN_EXPIRED — atualize no Firestore: coleção configs, documento api_panel, campo bearer_token'
+  );
+});
 
 // Armazenar clientes WPPConnect ativos
 const activeClients = new Map();
@@ -7260,6 +7267,50 @@ app.post('/api/tv/resend-credentials', async (req, res) => {
   } catch (error) {
     console.error('❌ Erro reenvio TV:', error);
     return res.status(500).json({ error: error.message });
+  }
+});
+
+/** Gera conta de teste no painel externo (Bearer em Firestore). Só utilizador master. */
+async function isRegisteredMasterUid(userId) {
+  if (!userId || typeof userId !== 'string') return false;
+  const regSnap = await db.ref('users/registered').once('value');
+  if (!regSnap.exists()) return false;
+  const users = regSnap.val();
+  const entry = Object.values(users).find((u) => u && u.uid === userId);
+  if (!entry) return false;
+  return (
+    entry.isMaster === true ||
+    String(entry.email || '').toLowerCase() === 'brayan.italy@gmail.com'
+  );
+}
+
+app.post('/api/panel/generate-test', async (req, res) => {
+  try {
+    const { userId, payload } = req.body || {};
+    if (!(await isRegisteredMasterUid(userId))) {
+      return res.status(403).json({ error: 'Apenas o utilizador master pode gerar testes do painel.' });
+    }
+    const out = await panelService.generateTestAccount(
+      payload && typeof payload === 'object' ? payload : {}
+    );
+    return res.json({ success: true, usuario: out.usuario, senha: out.senha });
+  } catch (error) {
+    if (error.code === 'TOKEN_EXPIRED' || error.status === 401) {
+      return res.status(401).json({
+        success: false,
+        error: error.message,
+        code: 'TOKEN_EXPIRED'
+      });
+    }
+    if (error.code === 'CONFIG_NOT_FOUND' || error.code === 'TOKEN_MISSING') {
+      return res.status(400).json({ success: false, error: error.message, code: error.code });
+    }
+    console.error('❌ [PANEL API] generate-test:', error.message);
+    return res.status(error.status && error.status >= 400 && error.status < 600 ? error.status : 500).json({
+      success: false,
+      error: error.message || 'Erro ao gerar teste',
+      code: error.code || 'UNKNOWN'
+    });
   }
 });
 
