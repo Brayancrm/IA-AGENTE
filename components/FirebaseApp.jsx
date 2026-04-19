@@ -24,6 +24,7 @@ if (typeof window !== 'undefined') {
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as firebaseSignOut, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { ref, push, set, remove, onValue, off, get, update } from 'firebase/database';
+import { ref as firebaseStorageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import SimpleLanding from './SimpleLanding';
 import dynamic from 'next/dynamic';
 import { convertStepsToPrompt } from '../hooks/useFlowBuilder';
@@ -319,7 +320,7 @@ function formatCatalogItemPrice(price, currencyCode) {
 }
 
 const FirebaseApp = () => {
-  const { app, db, auth, database, isReady, error } = useFirebase();
+  const { app, db, auth, database, storage, isReady, error } = useFirebase();
   const { t } = useI18n();
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -328,6 +329,8 @@ const FirebaseApp = () => {
   /** Sub-aba do CRM (ex.: Logins TV dentro do dashboard CRM). */
   const [crmSubTab, setCrmSubTab] = useState('visao-geral');
   const [toast, setToast] = useState(null);
+  const [panelAndroidApkUploading, setPanelAndroidApkUploading] = useState(false);
+  const panelAndroidApkFileRef = useRef(null);
 
   // Estado para página de pagamento removido - agora redirecionamos diretamente
 
@@ -9700,7 +9703,7 @@ const DashboardWithFirebase = ({
                             {t('assistantConfig.panelTestAndroidLinkLabel')}
                           </label>
                           <input
-                            type="url"
+                            type="text"
                             disabled={!assistantForm.autoPanelTestOnRequest}
                             value={assistantForm.panelTestAndroidLink || ''}
                             onChange={(e) =>
@@ -9709,7 +9712,7 @@ const DashboardWithFirebase = ({
                                 panelTestAndroidLink: e.target.value
                               }))
                             }
-                            placeholder="https://...apk ou página de download"
+                            placeholder="https://... ou carregue um .apk abaixo"
                             style={{
                               width: '100%',
                               boxSizing: 'border-box',
@@ -9722,8 +9725,97 @@ const DashboardWithFirebase = ({
                               opacity: assistantForm.autoPanelTestOnRequest ? 1 : 0.7
                             }}
                           />
+                          <input
+                            ref={panelAndroidApkFileRef}
+                            type="file"
+                            accept=".apk,application/vnd.android.package-archive"
+                            style={{ display: 'none' }}
+                            disabled={
+                              !assistantForm.autoPanelTestOnRequest ||
+                              !storage ||
+                              !user?.uid ||
+                              panelAndroidApkUploading
+                            }
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file || !storage || !user?.uid) {
+                                e.target.value = '';
+                                return;
+                              }
+                              if (!file.name.toLowerCase().endsWith('.apk')) {
+                                showToast(t('assistantConfig.panelTestAndroidUploadInvalid'), 'error');
+                                e.target.value = '';
+                                return;
+                              }
+                              setPanelAndroidApkUploading(true);
+                              try {
+                                const safe = file.name.replace(/[^\w.\-]+/g, '_').slice(0, 80);
+                                const objectPath = `assistant_panel_test/${user.uid}/${Date.now()}-${safe}`;
+                                const sRef = firebaseStorageRef(storage, objectPath);
+                                await uploadBytes(sRef, file, {
+                                  contentType:
+                                    file.type || 'application/vnd.android.package-archive'
+                                });
+                                const url = await getDownloadURL(sRef);
+                                setAssistantForm((prev) => ({ ...prev, panelTestAndroidLink: url }));
+                                showToast(t('assistantConfig.panelTestAndroidUploadDone'), 'success');
+                              } catch (err) {
+                                console.error(err);
+                                showToast(
+                                  err?.message || t('assistantConfig.panelTestAndroidUploadError'),
+                                  'error'
+                                );
+                              } finally {
+                                setPanelAndroidApkUploading(false);
+                                e.target.value = '';
+                              }
+                            }}
+                          />
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '10px' }}>
+                            <button
+                              type="button"
+                              disabled={
+                                !assistantForm.autoPanelTestOnRequest ||
+                                !storage ||
+                                !user?.uid ||
+                                panelAndroidApkUploading
+                              }
+                              onClick={() => panelAndroidApkFileRef.current?.click()}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '10px 16px',
+                                borderRadius: '10px',
+                                border: '1px solid rgba(16, 185, 129, 0.45)',
+                                background: 'rgba(16, 185, 129, 0.15)',
+                                color: '#a7f3d0',
+                                fontWeight: 600,
+                                fontSize: '0.8125rem',
+                                cursor:
+                                  assistantForm.autoPanelTestOnRequest && storage && user?.uid && !panelAndroidApkUploading
+                                    ? 'pointer'
+                                    : 'not-allowed',
+                                opacity:
+                                  assistantForm.autoPanelTestOnRequest && storage && user?.uid ? 1 : 0.5
+                              }}
+                            >
+                              <Upload size={16} />
+                              {panelAndroidApkUploading
+                                ? t('assistantConfig.panelTestAndroidUploading')
+                                : t('assistantConfig.panelTestAndroidUploadButton')}
+                            </button>
+                            {!storage && (
+                              <span style={{ fontSize: '0.72rem', color: '#f87171', alignSelf: 'center' }}>
+                                {t('assistantConfig.panelTestAndroidStorageMissing')}
+                              </span>
+                            )}
+                          </div>
                           <p style={{ margin: '6px 0 0 0', fontSize: '0.72rem', color: '#6b7280' }}>
                             {t('assistantConfig.panelTestAndroidLinkHint')}
+                          </p>
+                          <p style={{ margin: '4px 0 0 0', fontSize: '0.68rem', color: '#52525b' }}>
+                            {t('assistantConfig.panelTestAndroidUploadSubhint')}
                           </p>
                         </div>
                         <div>

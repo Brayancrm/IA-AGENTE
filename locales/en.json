@@ -560,7 +560,14 @@
     "panelTestAppsSectionTitle": "Apps & players (with automatic WhatsApp trial)",
     "panelTestAppsSectionHint": "All filled links are sent in the same message right after the credentials (order: Android, iPhone, TV/others). We don’t ask which device. HTTPS URLs ending in .apk are sent as a file when possible.",
     "panelTestAndroidLinkLabel": "Android — link or APK (https)",
-    "panelTestAndroidLinkHint": "Direct download or page. For .apk over HTTPS the server tries to send the file; on failure it sends the link as text.",
+    "panelTestAndroidLinkHint": "Paste an https link or use «Attach .apk file». If the URL contains .apk, the server tries to send the file on WhatsApp; on failure it sends the link as text.",
+    "panelTestAndroidUploadButton": "Attach .apk file",
+    "panelTestAndroidUploading": "Uploading…",
+    "panelTestAndroidUploadDone": "APK uploaded. Save assistant settings below to apply.",
+    "panelTestAndroidUploadInvalid": "Please choose a .apk file",
+    "panelTestAndroidUploadError": "APK upload failed",
+    "panelTestAndroidUploadSubhint": "Files go to Firebase Storage under assistant_panel_test/{your uid}/. Storage rules must allow authenticated writes there.",
+    "panelTestAndroidStorageMissing": "Storage not ready — check NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET.",
     "panelTestIosLinkLabel": "iPhone / iOS — link (App Store, TestFlight, …)",
     "panelTestTvLinkLabel": "TV & other devices — link"
   }

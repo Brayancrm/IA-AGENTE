@@ -1686,7 +1686,12 @@ function wantsPanelIptvFreeTestMessage(messageText) {
 
 function panelTestAndroidUrlLooksLikeApk(url) {
   const u = String(url || '').trim();
-  return /^https?:\/\//i.test(u) && /\.apk(\?|#|$)/i.test(u);
+  if (!/^https?:\/\//i.test(u)) return false;
+  try {
+    return decodeURIComponent(u).toLowerCase().includes('.apk');
+  } catch {
+    return /\.apk/i.test(u);
+  }
 }
 
 /** Lista fixa Android → iOS → TV: envia tudo o que estiver preenchido, sem perguntar aparelho. */

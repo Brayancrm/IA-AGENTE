@@ -558,9 +558,16 @@
     "panelTestFollowUpMessageLabel": "Texto da mensagem de acompanhamento (opcional)",
     "panelTestFollowUpMessagePlaceholder": "Vazio = texto sugerido pela aplicação. Use {{nome}} ou {{name}} para o nome do cliente no CRM (customerData).",
     "panelTestAppsSectionTitle": "Apps e leitores (com o teste automático no WhatsApp)",
-    "panelTestAppsSectionHint": "Os links preenchidos são enviados todos na mesma mensagem, logo após as credenciais (ordem: Android, iPhone, TV/outros). Não se pergunta qual o aparelho. URL https que termina em .apk tenta enviar-se como ficheiro no WhatsApp.",
+    "panelTestAppsSectionHint": "Os links (e o APK anexado, se houver) são enviados na mesma mensagem após as credenciais (ordem: Android, iPhone, TV/outros). URL com .apk tenta enviar-se como ficheiro no WhatsApp.",
     "panelTestAndroidLinkLabel": "Android — link ou APK (https)",
-    "panelTestAndroidLinkHint": "Link direto para download ou página. Se for .apk por HTTPS, o servidor tenta enviar o ficheiro; se falhar, envia o link em texto.",
+    "panelTestAndroidLinkHint": "Cole um link https ou use «Anexar ficheiro .apk». Com URL que contenha .apk, o servidor tenta enviar o ficheiro pelo WhatsApp; se falhar, envia o link em texto.",
+    "panelTestAndroidUploadButton": "Anexar ficheiro .apk",
+    "panelTestAndroidUploading": "A enviar…",
+    "panelTestAndroidUploadDone": "APK carregado. Guarde as definições do assistente em baixo para aplicar.",
+    "panelTestAndroidUploadInvalid": "Selecione um ficheiro .apk",
+    "panelTestAndroidUploadError": "Falha ao enviar o APK",
+    "panelTestAndroidUploadSubhint": "O ficheiro vai para o Firebase Storage (pasta assistant_panel_test/{o seu uid}/). As regras de Storage têm de permitir escrita a utilizadores autenticados nesse caminho.",
+    "panelTestAndroidStorageMissing": "Storage não inicializado — confira NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET no projeto.",
     "panelTestIosLinkLabel": "iPhone / iOS — link (App Store, TestFlight, etc.)",
     "panelTestTvLinkLabel": "TV e outros aparelhos — link (instruções, APK genérico, etc.)"
   }

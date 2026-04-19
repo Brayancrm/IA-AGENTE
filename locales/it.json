@@ -560,7 +560,14 @@
     "panelTestAppsSectionTitle": "App e lettori (con prova automatica su WhatsApp)",
     "panelTestAppsSectionHint": "Tutti i link compilati vanno nello stesso messaggio dopo le credenziali (ordine: Android, iPhone, TV/altri). Non si chiede il dispositivo. Gli URL https che finiscono in .apk si provano a inviare come file.",
     "panelTestAndroidLinkLabel": "Android — link o APK (https)",
-    "panelTestAndroidLinkHint": "Link di download o pagina. Per .apk via HTTPS il server prova a inviare il file; in caso di errore invia il link in testo.",
+    "panelTestAndroidLinkHint": "Incolla un link https o usa «Allega file .apk». Se l’URL contiene .apk, il server prova a inviare il file su WhatsApp; in caso di errore invia il link in testo.",
+    "panelTestAndroidUploadButton": "Allega file .apk",
+    "panelTestAndroidUploading": "Caricamento…",
+    "panelTestAndroidUploadDone": "APK caricato. Salva le impostazioni dell’assistente sotto per applicare.",
+    "panelTestAndroidUploadInvalid": "Seleziona un file .apk",
+    "panelTestAndroidUploadError": "Caricamento APK non riuscito",
+    "panelTestAndroidUploadSubhint": "Il file va su Firebase Storage (assistant_panel_test/{tuo uid}/). Le regole Storage devono consentire la scrittura agli utenti autenticati.",
+    "panelTestAndroidStorageMissing": "Storage non pronto — controlla NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET.",
     "panelTestIosLinkLabel": "iPhone / iOS — link (App Store, TestFlight, ecc.)",
     "panelTestTvLinkLabel": "TV e altri dispositivi — link"
   }
