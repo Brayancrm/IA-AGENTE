@@ -1,15 +1,13 @@
 // Service Worker para PWA
-const CACHE_NAME = 'whatsapp-sales-agent-v1';
-const urlsToCache = [
-  '/',
-  '/globals.css',
-  '/manifest.json'
-];
+// v2: não interceptar pedidos cross-origin (Firebase Storage, Google APIs, etc.) —
+//     o SW a quebrar o fluxo CORS e o .catch devolver undefined gera TypeError em Response.
+const CACHE_NAME = 'whatsapp-sales-agent-v2';
+const urlsToCache = ['/', '/globals.css', '/manifest.json'];
 
-// Instalar Service Worker
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
+    caches
+      .open(CACHE_NAME)
       .then((cache) => {
         console.log('Service Worker: Cache aberto');
         return cache.addAll(urlsToCache);
@@ -21,45 +19,45 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Ativar Service Worker
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
+    caches.keys().then((cacheNames) =>
+      Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
             console.log('Service Worker: Removendo cache antigo', cacheName);
             return caches.delete(cacheName);
           }
+          return undefined;
         })
-      );
-    })
+      )
+    )
   );
   return self.clients.claim();
 });
 
-// Interceptar requisições
 self.addEventListener('fetch', (event) => {
-  // Estratégia: Network First, depois Cache
+  const req = event.request;
+  const url = new URL(req.url);
+
+  // Deixar o browser tratar sozinho: Storage, Auth, RTDB, outros domínios Google/Firebase
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
   event.respondWith(
-    fetch(event.request)
+    fetch(req)
       .then((response) => {
-        // Clonar a resposta
         const responseToCache = response.clone();
-        
-        // Adicionar ao cache se for uma requisição GET
-        if (event.request.method === 'GET') {
+        if (req.method === 'GET' && response.ok) {
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
+            cache.put(req, responseToCache);
           });
         }
-        
         return response;
       })
-      .catch(() => {
-        // Se a rede falhar, tentar buscar do cache
-        return caches.match(event.request);
-      })
+      .catch(() =>
+        caches.match(req).then((cached) => cached || Response.error())
+      )
   );
 });
-
