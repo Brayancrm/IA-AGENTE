@@ -1684,6 +1684,83 @@ function wantsPanelIptvFreeTestMessage(messageText) {
   return patterns.some((re) => re.test(t));
 }
 
+/** Ordenação das opções Android / iOS / TV conforme o que o cliente mencionou na mesma mensagem. */
+function detectPanelTestDeviceHintFromMessage(messageText) {
+  const t = String(messageText || '').toLowerCase();
+  if (/\b(android|apk)\b/.test(t)) return 'android';
+  if (/\b(iphone|ios|ipad|apple)\b/.test(t)) return 'ios';
+  if (/\b(tv|smarttv|androidtv|android\s*tv|firetv|fire\s*tv|mi\s*box|chromecast|roku)\b/.test(t)) return 'tv';
+  return null;
+}
+
+function panelTestAndroidUrlLooksLikeApk(url) {
+  const u = String(url || '').trim();
+  return /^https?:\/\//i.test(u) && /\.apk(\?|#|$)/i.test(u);
+}
+
+function buildPanelTestAppsLinksSection(aiConfig, messageHint) {
+  const android = String(aiConfig?.panelTestAndroidLink || '').trim();
+  const ios = String(aiConfig?.panelTestIosLink || '').trim();
+  const tv = String(aiConfig?.panelTestTvOrOtherLink || '').trim();
+  if (!android && !ios && !tv) return { textSuffix: '', androidApkUrl: null };
+
+  const apk = panelTestAndroidUrlLooksLikeApk(android);
+  const part = (emoji, title, url) => (url ? `${emoji} *${title}:*\n${url}` : '');
+  const byKey = {
+    android: apk
+      ? `📱 *Android (celular):*\n_Enviamos o ficheiro APK na mensagem seguinte. Se não receber, peça o link ao suporte._`
+      : part('📱', 'Android (celular)', android),
+    ios: part('🍎', 'iPhone / iOS', ios),
+    tv: part('📺', 'TV e outros aparelhos', tv)
+  };
+  const order =
+    messageHint === 'ios'
+      ? ['ios', 'android', 'tv']
+      : messageHint === 'tv'
+        ? ['tv', 'android', 'ios']
+        : messageHint === 'android'
+          ? ['android', 'ios', 'tv']
+          : ['android', 'ios', 'tv'];
+  const lines = order.map((k) => byKey[k]).filter(Boolean);
+  if (!lines.length) return { textSuffix: '', androidApkUrl: null };
+  const hintLine = messageHint
+    ? '\n_Ordenámos as opções conforme o aparelho que mencionou._\n'
+    : '\n_Escolha a linha que corresponde ao seu equipamento._\n';
+  return {
+    textSuffix: `\n\n📲 *Apps e leitores*\n${hintLine}${lines.join('\n\n')}`,
+    androidApkUrl: apk ? android : null
+  };
+}
+
+async function trySendPanelTestAndroidApk(client, toJid, url) {
+  const u = String(url || '').trim();
+  if (!panelTestAndroidUrlLooksLikeApk(u)) return false;
+  const tmp = path.join(
+    os.tmpdir(),
+    `panel-apk-${Date.now()}-${Math.random().toString(16).slice(2)}.apk`
+  );
+  try {
+    const r = await axios.get(u, {
+      responseType: 'arraybuffer',
+      timeout: 120000,
+      maxContentLength: 45 * 1024 * 1024,
+      validateStatus: (s) => s >= 200 && s < 400
+    });
+    fs.writeFileSync(tmp, Buffer.from(r.data));
+    await client.sendFile(toJid, tmp, 'app-android.apk', '📱 App Android (teste).');
+    return true;
+  } catch (e) {
+    console.warn('⚠️ [panel-test] envio APK:', e.message);
+    return false;
+  } finally {
+    try {
+      fs.unlinkSync(tmp);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+}
+
 /**
  * Gera teste do painel e envia por WhatsApp (só conta master + opção ligada nas definições do assistente).
  */
@@ -1756,7 +1833,22 @@ async function tryAutoPanelTestFromChat(
       `🔑 *Senha:* ${out.senha}\n` +
       `⏱️ *Expira em:* ${expLocal}\n\n` +
       `_Em caso de dúvida, fale com o suporte._`;
-    await client.sendText(messageFrom, bodyMsg);
+    const hint = detectPanelTestDeviceHintFromMessage(messageText);
+    const { textSuffix, androidApkUrl } = buildPanelTestAppsLinksSection(aiConfig, hint);
+    await client.sendText(messageFrom, bodyMsg + textSuffix);
+    if (androidApkUrl) {
+      const ok = await trySendPanelTestAndroidApk(client, messageFrom, androidApkUrl);
+      if (!ok) {
+        try {
+          await client.sendText(
+            messageFrom,
+            `📱 *Link Android (fallback):*\n${androidApkUrl}`
+          );
+        } catch (e2) {
+          console.warn('⚠️ [panel-test] fallback link:', e2.message);
+        }
+      }
+    }
     await savePanelTestGenerationLog(userId, {
       usuario: out.usuario,
       expiresAt: out.expiresAt,

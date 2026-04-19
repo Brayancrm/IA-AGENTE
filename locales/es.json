@@ -556,6 +556,12 @@
     "panelTestFollowUpTitle": "Una hora después, volver a contactar al cliente (WhatsApp)",
     "panelTestFollowUpHint": "Tras enviar la prueba automática, programa un mensaje de seguimiento (~1 h después) preguntando si todo fue bien y si desea continuar con la suscripción. Requiere prueba automática activa y sesión WhatsApp en el servidor.",
     "panelTestFollowUpMessageLabel": "Texto del mensaje de seguimiento (opcional)",
-    "panelTestFollowUpMessagePlaceholder": "Vacío = texto por defecto. Use {{nome}} o {{name}} para el nombre del cliente en el CRM (customerData)."
+    "panelTestFollowUpMessagePlaceholder": "Vacío = texto por defecto. Use {{nome}} o {{name}} para el nombre del cliente en el CRM (customerData).",
+    "panelTestAppsSectionTitle": "Apps y lectores (con prueba automática por WhatsApp)",
+    "panelTestAppsSectionHint": "Se envían justo después de las credenciales. Si el cliente escribe «android», «iphone» o «tv», se reordena la lista. Las URL https que terminan en .apk intentan enviarse como archivo.",
+    "panelTestAndroidLinkLabel": "Android — enlace o APK (https)",
+    "panelTestAndroidLinkHint": "Enlace de descarga o página. Si es .apk por HTTPS, el servidor intenta enviar el archivo; si falla, envía el enlace en texto.",
+    "panelTestIosLinkLabel": "iPhone / iOS — enlace (App Store, TestFlight, etc.)",
+    "panelTestTvLinkLabel": "TV y otros dispositivos — enlace"
   }
 }

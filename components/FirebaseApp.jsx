@@ -4303,7 +4303,11 @@ const DashboardWithFirebase = ({
     autoPanelTestOnRequest: false,
     /** Master: 1h após enviar teste automático, enviar mensagem de acompanhamento no WhatsApp. */
     panelTestFollowUpAfterOneHour: false,
-    panelTestFollowUpMessage: ''
+    panelTestFollowUpMessage: '',
+    /** Links/apps enviados junto ao teste automático (WhatsApp). */
+    panelTestAndroidLink: '',
+    panelTestIosLink: '',
+    panelTestTvOrOtherLink: ''
   });
   const [wizardResetKey, setWizardResetKey] = useState(0);
   const [userForm, setUserForm] = useState({
@@ -4493,7 +4497,10 @@ const DashboardWithFirebase = ({
       wizardTemplateId: assistantSettings.wizardTemplateId || null,
       autoPanelTestOnRequest: assistantSettings.autoPanelTestOnRequest === true,
       panelTestFollowUpAfterOneHour: assistantSettings.panelTestFollowUpAfterOneHour === true,
-      panelTestFollowUpMessage: assistantSettings.panelTestFollowUpMessage || ''
+      panelTestFollowUpMessage: assistantSettings.panelTestFollowUpMessage || '',
+      panelTestAndroidLink: assistantSettings.panelTestAndroidLink || '',
+      panelTestIosLink: assistantSettings.panelTestIosLink || '',
+      panelTestTvOrOtherLink: assistantSettings.panelTestTvOrOtherLink || ''
     });
   }, [assistantSettings]);
 
@@ -9662,6 +9669,133 @@ const DashboardWithFirebase = ({
                           />
                         </div>
                       )}
+                    </div>
+
+                    <div
+                      style={{
+                        padding: '16px 18px',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(16, 185, 129, 0.28)',
+                        background: 'rgba(16, 185, 129, 0.06)',
+                        opacity: assistantForm.autoPanelTestOnRequest ? 1 : 0.55
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, color: '#e5e7eb', marginBottom: '8px', fontSize: '0.95rem' }}>
+                        {t('assistantConfig.panelTestAppsSectionTitle')}
+                      </div>
+                      <p style={{ fontSize: '0.8125rem', color: '#9ca3af', marginBottom: '14px', lineHeight: 1.45 }}>
+                        {t('assistantConfig.panelTestAppsSectionHint')}
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        <div>
+                          <label
+                            style={{
+                              display: 'block',
+                              fontWeight: 600,
+                              color: '#e5e7eb',
+                              marginBottom: '6px',
+                              fontSize: '0.8125rem'
+                            }}
+                          >
+                            {t('assistantConfig.panelTestAndroidLinkLabel')}
+                          </label>
+                          <input
+                            type="url"
+                            disabled={!assistantForm.autoPanelTestOnRequest}
+                            value={assistantForm.panelTestAndroidLink || ''}
+                            onChange={(e) =>
+                              setAssistantForm((prev) => ({
+                                ...prev,
+                                panelTestAndroidLink: e.target.value
+                              }))
+                            }
+                            placeholder="https://...apk ou página de download"
+                            style={{
+                              width: '100%',
+                              boxSizing: 'border-box',
+                              padding: '10px 12px',
+                              borderRadius: '10px',
+                              border: '1px solid rgba(255,255,255,0.12)',
+                              background: '#0f1419',
+                              color: '#fff',
+                              fontSize: '0.875rem',
+                              opacity: assistantForm.autoPanelTestOnRequest ? 1 : 0.7
+                            }}
+                          />
+                          <p style={{ margin: '6px 0 0 0', fontSize: '0.72rem', color: '#6b7280' }}>
+                            {t('assistantConfig.panelTestAndroidLinkHint')}
+                          </p>
+                        </div>
+                        <div>
+                          <label
+                            style={{
+                              display: 'block',
+                              fontWeight: 600,
+                              color: '#e5e7eb',
+                              marginBottom: '6px',
+                              fontSize: '0.8125rem'
+                            }}
+                          >
+                            {t('assistantConfig.panelTestIosLinkLabel')}
+                          </label>
+                          <input
+                            type="url"
+                            disabled={!assistantForm.autoPanelTestOnRequest}
+                            value={assistantForm.panelTestIosLink || ''}
+                            onChange={(e) =>
+                              setAssistantForm((prev) => ({ ...prev, panelTestIosLink: e.target.value }))
+                            }
+                            placeholder="https://apps.apple.com/..."
+                            style={{
+                              width: '100%',
+                              boxSizing: 'border-box',
+                              padding: '10px 12px',
+                              borderRadius: '10px',
+                              border: '1px solid rgba(255,255,255,0.12)',
+                              background: '#0f1419',
+                              color: '#fff',
+                              fontSize: '0.875rem',
+                              opacity: assistantForm.autoPanelTestOnRequest ? 1 : 0.7
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label
+                            style={{
+                              display: 'block',
+                              fontWeight: 600,
+                              color: '#e5e7eb',
+                              marginBottom: '6px',
+                              fontSize: '0.8125rem'
+                            }}
+                          >
+                            {t('assistantConfig.panelTestTvLinkLabel')}
+                          </label>
+                          <input
+                            type="url"
+                            disabled={!assistantForm.autoPanelTestOnRequest}
+                            value={assistantForm.panelTestTvOrOtherLink || ''}
+                            onChange={(e) =>
+                              setAssistantForm((prev) => ({
+                                ...prev,
+                                panelTestTvOrOtherLink: e.target.value
+                              }))
+                            }
+                            placeholder="https://..."
+                            style={{
+                              width: '100%',
+                              boxSizing: 'border-box',
+                              padding: '10px 12px',
+                              borderRadius: '10px',
+                              border: '1px solid rgba(255,255,255,0.12)',
+                              background: '#0f1419',
+                              color: '#fff',
+                              fontSize: '0.875rem',
+                              opacity: assistantForm.autoPanelTestOnRequest ? 1 : 0.7
+                            }}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </>
                 )}
