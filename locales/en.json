@@ -566,7 +566,7 @@
     "panelTestAndroidUploadDone": "APK uploaded. Save assistant settings below to apply.",
     "panelTestAndroidUploadInvalid": "Please choose a .apk file",
     "panelTestAndroidUploadError": "APK upload failed",
-    "panelTestAndroidUploadSubhint": "Files go to Firebase Storage under assistant_panel_test/{your uid}/. Storage rules must allow authenticated writes there.",
+    "panelTestAndroidUploadSubhint": "Upload goes through the server (no browser→Storage CORS) into assistant_panel_test/{your uid}/. Master users only.",
     "panelTestAndroidStorageMissing": "Storage not ready — check NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET.",
     "panelTestIosLinkLabel": "iPhone / iOS — link (App Store, TestFlight, …)",
     "panelTestTvLinkLabel": "TV & other devices — link"

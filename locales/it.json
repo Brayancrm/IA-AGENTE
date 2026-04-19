@@ -566,7 +566,7 @@
     "panelTestAndroidUploadDone": "APK caricato. Salva le impostazioni dell’assistente sotto per applicare.",
     "panelTestAndroidUploadInvalid": "Seleziona un file .apk",
     "panelTestAndroidUploadError": "Caricamento APK non riuscito",
-    "panelTestAndroidUploadSubhint": "Il file va su Firebase Storage (assistant_panel_test/{tuo uid}/). Le regole Storage devono consentire la scrittura agli utenti autenticati.",
+    "panelTestAndroidUploadSubhint": "L'invio passa dal server (niente CORS browser→Storage) in assistant_panel_test/{tuo uid}/. Solo utente master.",
     "panelTestAndroidStorageMissing": "Storage non pronto — controlla NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET.",
     "panelTestIosLinkLabel": "iPhone / iOS — link (App Store, TestFlight, ecc.)",
     "panelTestTvLinkLabel": "TV e altri dispositivi — link"

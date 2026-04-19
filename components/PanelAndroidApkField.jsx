@@ -1,14 +1,20 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import { ref as firebaseStorageRef, uploadBytes, getDownloadURL, getStorage } from 'firebase/storage';
 import { Upload } from 'lucide-react';
 import { useI18n } from '../contexts/I18nContext';
 import { useFirebase } from '../hooks/useFirebase';
 
+function getBackendUrl() {
+  if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BACKEND_URL) {
+    return process.env.NEXT_PUBLIC_BACKEND_URL.replace(/\/$/, '');
+  }
+  return 'http://localhost:3001';
+}
+
 /**
- * URL Android + upload de APK (Storage). useFirebase() fica aqui para o FirebaseApp.jsx
- * (ficheiro enorme) não passar a instância do app no JSX — evita ReferenceError no minify.
+ * URL Android + upload de APK. O ficheiro vai pelo backend (Firebase Admin → Storage)
+ * para não depender de CORS no browser para firebasestorage.googleapis.com.
  */
 export default function PanelAndroidApkField({
   userId,
@@ -17,12 +23,12 @@ export default function PanelAndroidApkField({
   onAndroidLinkChange,
   showToast
 }) {
-  const { app } = useFirebase();
+  const { app, auth } = useFirebase();
   const { t } = useI18n();
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  const canInteract = Boolean(sectionEnabled && app && userId && !uploading);
+  const canInteract = Boolean(sectionEnabled && app && userId && auth?.currentUser && !uploading);
 
   const pickFile = useCallback(() => {
     fileInputRef.current?.click();
@@ -33,22 +39,32 @@ export default function PanelAndroidApkField({
       const inputEl = e.target;
       const file = inputEl.files?.[0];
       inputEl.value = '';
-      if (!file || !app || !userId) return;
+      if (!file || !app || !userId || !auth?.currentUser) return;
       if (!file.name.toLowerCase().endsWith('.apk')) {
         showToast(t('assistantConfig.panelTestAndroidUploadInvalid'), 'error');
         return;
       }
       setUploading(true);
       try {
-        const safe = file.name.replace(/[^\w.\-]+/g, '_').slice(0, 80);
-        const objectPath = `assistant_panel_test/${userId}/${Date.now()}-${safe}`;
-        const sRef = firebaseStorageRef(getStorage(app), objectPath);
-        await uploadBytes(sRef, file, {
-          contentType: file.type || 'application/vnd.android.package-archive'
+        const idToken = await auth.currentUser.getIdToken();
+        const fd = new FormData();
+        fd.append('file', file, file.name);
+        const res = await fetch(`${getBackendUrl()}/api/storage/upload-assistant-apk`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${idToken}` },
+          body: fd
         });
-        const url = await getDownloadURL(sRef);
-        onAndroidLinkChange(url);
-        showToast(t('assistantConfig.panelTestAndroidUploadDone'), 'success');
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          showToast(data.error || t('assistantConfig.panelTestAndroidUploadError'), 'error');
+          return;
+        }
+        if (data.downloadUrl) {
+          onAndroidLinkChange(data.downloadUrl);
+          showToast(t('assistantConfig.panelTestAndroidUploadDone'), 'success');
+        } else {
+          showToast(t('assistantConfig.panelTestAndroidUploadError'), 'error');
+        }
       } catch (err) {
         console.error(err);
         showToast(err?.message || t('assistantConfig.panelTestAndroidUploadError'), 'error');
@@ -56,7 +72,7 @@ export default function PanelAndroidApkField({
         setUploading(false);
       }
     },
-    [app, userId, onAndroidLinkChange, showToast, t]
+    [app, auth, userId, onAndroidLinkChange, showToast, t]
   );
 
   return (
@@ -115,7 +131,7 @@ export default function PanelAndroidApkField({
             fontWeight: 600,
             fontSize: '0.8125rem',
             cursor: canInteract ? 'pointer' : 'not-allowed',
-            opacity: sectionEnabled && app && userId ? 1 : 0.5
+            opacity: sectionEnabled && app && userId && auth?.currentUser ? 1 : 0.5
           }}
         >
           <Upload size={16} />
