@@ -1953,12 +1953,12 @@ async function handleIncomingMessage(userId, message, client) {
     if (!message.isFromMe && messageText) {
       // Obter nome do perfil do WhatsApp (pushName ou notifyName)
       let whatsappProfileName = null;
+      let prefetchedWaContact = null;
       try {
         whatsappProfileName = message.pushName || message.notifyName || null;
+        prefetchedWaContact = await client.getContactById(message.from);
         if (!whatsappProfileName) {
-          // Tentar obter do contato
-          const contact = await client.getContactById(message.from);
-          whatsappProfileName = contact?.pushname || contact?.name || null;
+          whatsappProfileName = prefetchedWaContact?.pushname || prefetchedWaContact?.name || null;
         }
         if (whatsappProfileName) {
           console.log('👤 Nome do perfil WhatsApp:', whatsappProfileName);
@@ -1967,7 +1967,16 @@ async function handleIncomingMessage(userId, message, client) {
         console.log('⚠️ Não foi possível obter nome do perfil WhatsApp:', error.message);
       }
       
-      await detectAndSaveCustomerData(userId, message.from, messageText, sanitizedNumber, whatsappProfileName);
+      await detectAndSaveCustomerData(
+        userId,
+        message.from,
+        messageText,
+        sanitizedNumber,
+        whatsappProfileName,
+        client,
+        prefetchedWaContact,
+        message
+      );
     }
     
     // Se não for mensagem enviada pelo usuário, processar com IA
@@ -2081,7 +2090,7 @@ async function handleIncomingMessage(userId, message, client) {
         }
 
         /** @lid: inferir moeda/preço via CRM ou número real do contato */
-        const pricingWaRef = await resolvePricingWhatsAppRef(userId, message.from, sanitizedNumber, client);
+        const pricingWaRef = await resolvePricingWhatsAppRef(userId, message.from, sanitizedNumber, client, message);
         
         // Gerar resposta com IA usando o texto transcrito (ou texto original)
         console.log(`💬 Processando mensagem para IA: "${messageText}" (${isAudioMessage ? 'transcrita de áudio' : 'texto'})`);
@@ -4070,7 +4079,16 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
 }
 
 // Função MELHORADA para detectar e salvar dados do cliente (baseada no contexto)
-async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNumber, whatsappProfileName = null) {
+async function detectAndSaveCustomerData(
+  userId,
+  phone,
+  messageText,
+  sanitizedNumber,
+  whatsappProfileName = null,
+  client = null,
+  prefetchedWaContact = null,
+  waMessage = null
+) {
   try {
     // Verificar se messageText existe
     if (!messageText || typeof messageText !== 'string') {
@@ -4085,7 +4103,15 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
     
     // Buscar dados existentes
     const snapshot = await customerRef.once('value');
-    let customerData = snapshot.val() || {};
+    const existingForPhoneSig = snapshot.val() || {};
+    const crmPhoneFingerprint = (obj) => {
+      if (!obj || typeof obj !== 'object') return '';
+      return ['phone', 'mobilePhone', 'whatsappJid', 'contactPhoneStatus', 'contactPhoneDisplay', 'waLidChatJid']
+        .map((k) => String(obj[k] ?? ''))
+        .join('|');
+    };
+    const prevPhoneFingerprint = crmPhoneFingerprint(existingForPhoneSig);
+    let customerData = { ...existingForPhoneSig };
     
     // Buscar contexto (qual pergunta foi feita)
     const contextSnapshot = await contextRef.once('value');
@@ -4582,15 +4608,24 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
         }
       }
     }
+
+    const waResolved = await resolveBestCusJidWithClient(client, phone, waMessage, prefetchedWaContact);
+    finalizeCustomerPhoneForCrmRecord(customerData, phone, waResolved);
+    if (waResolved?.jid) {
+      console.log('📞 Número WhatsApp resolvido para CRM/preço:', waResolved.mobileDigits, `(${waResolved.source})`);
+    } else if (/@lid$/i.test(String(phone || ''))) {
+      console.log('📞 Número não exposto pelo WhatsApp (LID) — CRM: desconhecido até haver cadastro ou API.');
+    }
+    const phoneFieldsChanged = crmPhoneFingerprint(customerData) !== prevPhoneFingerprint;
     
-    // Se algum dado foi atualizado, salvar no Firebase
-    if (dataUpdated) {
-      customerData.phone = phone;
+    // Se algum dado foi atualizado (incl. resolução de telefone @c.us), salvar no Firebase
+    if (dataUpdated || phoneFieldsChanged) {
       customerData.updatedAt = new Date().toISOString();
       
       // Usar update() ao invés de set() para não sobrescrever dados existentes
       await customerRef.update(customerData);
-      await mirrorCustomerDataUnderMobileKey(userId, phoneNumber, phone, customerData);
+      const waJidForMirror = customerData.whatsappJid || customerData.phone || phone;
+      await mirrorCustomerDataUnderMobileKey(userId, phoneNumber, waJidForMirror, customerData);
       console.log('💾 Dados do cliente atualizados no Firebase');
       
       // Log de resumo dos dados coletados
@@ -5001,13 +5036,160 @@ function currencyByPhoneCountry(phoneOrJid) {
   return null;
 }
 
+function digitsLookLikeInternationalMsisdn(d) {
+  return typeof d === 'string' && /^\d{10,15}$/.test(d);
+}
+
+function pushWppStringCandidate(out, v) {
+  if (v == null) return;
+  if (typeof v === 'string') {
+    const t = v.trim();
+    if (t) out.push(t);
+    return;
+  }
+  if (typeof v === 'object' && v._serialized) pushWppStringCandidate(out, v._serialized);
+}
+
+/** Strings candidatas a número real (Contact + payload da mensagem WA). */
+function collectWppPhoneCandidates(ct, waMsg) {
+  const out = [];
+  if (waMsg && typeof waMsg === 'object') {
+    pushWppStringCandidate(out, waMsg.senderPn);
+    pushWppStringCandidate(out, waMsg.author);
+    const d = waMsg._data;
+    if (d && typeof d === 'object') {
+      pushWppStringCandidate(out, d.senderPn);
+      pushWppStringCandidate(out, d.notifyName);
+      if (d.from) pushWppStringCandidate(out, d.from);
+      if (d.id) {
+        if (typeof d.id === 'string') pushWppStringCandidate(out, d.id);
+        else if (d.id.user && d.id.server) pushWppStringCandidate(out, `${d.id.user}@${d.id.server}`);
+      }
+    }
+  }
+  if (ct && typeof ct === 'object') {
+    pushWppStringCandidate(out, ct.number);
+    pushWppStringCandidate(out, ct.formattedNumber);
+    pushWppStringCandidate(out, ct.shortPhone);
+    pushWppStringCandidate(out, ct.notifyName);
+    if (ct.id) {
+      if (typeof ct.id === 'string') pushWppStringCandidate(out, ct.id);
+      else {
+        pushWppStringCandidate(out, ct.id._serialized);
+        if (ct.id.user && ct.id.server) pushWppStringCandidate(out, `${ct.id.user}@${ct.id.server}`);
+      }
+    }
+    if (ct.wid) {
+      if (typeof ct.wid === 'string') pushWppStringCandidate(out, ct.wid);
+      else pushWppStringCandidate(out, ct.wid._serialized);
+    }
+  }
+  return out;
+}
+
 /**
- * Chats @lid não trazem DDI no JID — usa CRM (mobilePhone / phone @c.us) ou o contato do WPP quando possível,
- * para `selectCatalogPriceForCustomer` e Stripe escolherem a moeda certa.
+ * Extrai JID @c.us + dígitos a partir do Contact / mensagem (chats @lid costumam expor `number`).
+ * @returns {{ jid: string|null, mobileDigits: string|null, source: string }}
  */
-async function resolvePricingWhatsAppRef(userId, messageFrom, sanitizedNumber, client = null) {
+function extractBestCusJidFromWppContact(ct, chatJid, waMsg = null) {
+  const from = String(chatJid || '').trim();
+  if (/@c\.us$/i.test(from)) {
+    const d = from.replace(/@c\.us/i, '').replace(/\D/g, '');
+    if (digitsLookLikeInternationalMsisdn(d)) {
+      return { jid: `${d}@c.us`, mobileDigits: d, source: 'chat_jid_c_us' };
+    }
+  }
+  const cands = collectWppPhoneCandidates(ct, waMsg);
+  if (/@c\.us$/i.test(from)) cands.unshift(from);
+  const seen = new Set();
+  for (const raw0 of cands) {
+    const raw = String(raw0 || '').trim();
+    if (!raw) continue;
+    const lk = raw.toLowerCase();
+    if (seen.has(lk)) continue;
+    seen.add(lk);
+    if (/@lid$/i.test(raw) || /@g\.us$/i.test(raw) || /@newsletter\b/i.test(raw)) continue;
+    if (/@c\.us$/i.test(raw) || /@s\.whatsapp\.net$/i.test(raw)) {
+      const d = raw.replace(/@c\.us/i, '').replace(/@s\.whatsapp\.net/i, '').replace(/\D/g, '');
+      if (digitsLookLikeInternationalMsisdn(d)) {
+        return { jid: `${d}@c.us`, mobileDigits: d, source: 'candidate_jid' };
+      }
+      continue;
+    }
+    if (raw.includes('@')) continue;
+    const digits = raw.replace(/\D/g, '');
+    if (digitsLookLikeInternationalMsisdn(digits)) {
+      return { jid: `${digits}@c.us`, mobileDigits: digits, source: 'candidate_digits' };
+    }
+  }
+  return { jid: null, mobileDigits: null, source: 'none' };
+}
+
+async function resolveBestCusJidWithClient(client, chatJid, waMsg = null, prefetchedCt = null) {
+  const from = String(chatJid || '').trim();
+  const fromCt = extractBestCusJidFromWppContact(prefetchedCt, from, waMsg);
+  if (fromCt.jid) return fromCt;
+  if (prefetchedCt) return fromCt;
+  if (!client || typeof client.getContactById !== 'function') return fromCt;
+  try {
+    const ct = await client.getContactById(from);
+    return extractBestCusJidFromWppContact(ct, from, waMsg);
+  } catch (e) {
+    console.warn('⚠️ resolveBestCusJidWithClient:', e.message);
+    return { ...fromCt, source: 'fetch_error' };
+  }
+}
+
+/** Garante phone / whatsappJid / mobilePhone coerentes no CRM; @lid sem número → desconhecido. */
+function finalizeCustomerPhoneForCrmRecord(customerData, rawChatJid, waResolved) {
+  const raw = String(rawChatJid || '').trim();
+  const resolved = waResolved && waResolved.jid && waResolved.mobileDigits ? waResolved : null;
+  const mobExisting = customerData.mobilePhone ? String(customerData.mobilePhone).replace(/\D/g, '') : '';
+  if (!resolved && digitsLookLikeInternationalMsisdn(mobExisting)) {
+    const jid = `${mobExisting}@c.us`;
+    customerData.mobilePhone = mobExisting;
+    customerData.whatsappJid = jid;
+    customerData.phone = jid;
+    customerData.contactPhoneStatus = 'resolved';
+    delete customerData.contactPhoneDisplay;
+    if (/@lid$/i.test(raw)) customerData.waLidChatJid = raw;
+    return;
+  }
+  if (resolved) {
+    customerData.mobilePhone = resolved.mobileDigits;
+    customerData.whatsappJid = resolved.jid;
+    customerData.phone = resolved.jid;
+    if (!customerData.originalPhone || /@lid$/i.test(String(customerData.originalPhone))) {
+      customerData.originalPhone = resolved.jid;
+    }
+    if (/@lid$/i.test(raw)) customerData.waLidChatJid = raw;
+    customerData.contactPhoneStatus = 'resolved';
+    delete customerData.contactPhoneDisplay;
+    return;
+  }
+  if (/@lid$/i.test(raw)) {
+    customerData.waLidChatJid = raw;
+    customerData.contactPhoneStatus = 'unknown';
+    customerData.contactPhoneDisplay = 'desconhecido';
+    if (!/@c\.us$/i.test(String(customerData.phone || ''))) {
+      customerData.phone = raw;
+    }
+    return;
+  }
+  if (!customerData.phone) customerData.phone = raw;
+  if (!customerData.originalPhone) customerData.originalPhone = raw;
+}
+
+/**
+ * Chats @lid não trazem DDI no JID — API do contato + CRM (mobilePhone / @c.us).
+ */
+async function resolvePricingWhatsAppRef(userId, messageFrom, sanitizedNumber, client = null, waMsg = null) {
   const from = String(messageFrom || '').trim();
   if (!from) return from;
+
+  const apiFirst = await resolveBestCusJidWithClient(client, from, waMsg, null);
+  if (apiFirst.jid) return apiFirst.jid;
+
   if (/@c\.us$/i.test(from)) {
     const d = from.replace(/@c\.us/i, '').replace(/\D/g, '');
     if (d.length >= 10 && d.length <= 15) return from.replace(/@C\.US$/i, '@c.us');
@@ -5042,19 +5224,6 @@ async function resolvePricingWhatsAppRef(userId, messageFrom, sanitizedNumber, c
       }
     } catch (e) {
       console.warn('⚠️ resolvePricingWhatsAppRef CRM:', e.message);
-    }
-  }
-
-  if (client && typeof client.getContactById === 'function') {
-    try {
-      const ct = await client.getContactById(from);
-      const num = ct?.number || ct?.formattedNumber || ct?.id?._serialized || ct?.id?.user;
-      const digits = String(num || '').replace(/\D/g, '');
-      if (digits.length >= 10 && digits.length <= 15 && !String(num || '').toLowerCase().includes('@lid')) {
-        return `${digits}@c.us`;
-      }
-    } catch (e) {
-      console.warn('⚠️ resolvePricingWhatsAppRef getContactById:', e.message);
     }
   }
 

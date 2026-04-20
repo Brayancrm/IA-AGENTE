@@ -332,6 +332,9 @@ function clienteContactDigitCandidates(cliente) {
  */
 function formatClienteWhatsAppDisplay(cliente) {
   if (!cliente) return '';
+  if (cliente.contactPhoneStatus === 'unknown' || cliente.contactPhoneDisplay === 'desconhecido') {
+    return 'desconhecido';
+  }
   const m = crmDigitsOnly(cliente.mobilePhone);
   if (m.length > 0) return `+${m}`;
 
@@ -684,6 +687,9 @@ const CRMDashboard = ({
               mobilePhone: cliente.mobilePhone || '',
               originalPhone: cliente.originalPhone || '',
               whatsappJid: cliente.whatsappJid || '',
+              contactPhoneStatus: cliente.contactPhoneStatus || '',
+              contactPhoneDisplay: cliente.contactPhoneDisplay || '',
+              waLidChatJid: cliente.waLidChatJid || '',
               waJidStored: storedWa,
               name: cliente.name || 'Sem nome',
               email: cliente.email || '',
