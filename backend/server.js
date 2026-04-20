@@ -2276,8 +2276,11 @@ async function handleIncomingMessage(userId, message, client) {
               // Texto completo do card (legenda longa). Na 2ª vez, se só pediram foto: legenda mínima.
               let productCardText = `📦 *${item.name}*\n`;
               
-              // Adicionar preço se disponível (moeda do catálogo)
-              const priceLine = formatCatalogPriceForMessage(item.price, item.currency);
+              // Adicionar preço preferindo moeda do país do cliente, quando configurada no catálogo.
+              const customerPrice = selectCatalogPriceForCustomer(item, messageFrom);
+              const priceLine = customerPrice
+                ? formatCatalogPriceForMessage(customerPrice.price, customerPrice.currency)
+                : formatCatalogPriceForMessage(item.price, item.currency);
               if (priceLine) {
                 productCardText += `💰 ${priceLine}\n\n`;
               } else {
@@ -2291,7 +2294,7 @@ async function handleIncomingMessage(userId, message, client) {
               
               // Adicionar link se disponível
               if (item.link) {
-                if (item.price === null || item.price === undefined) {
+                if (!customerPrice && (item.price === null || item.price === undefined)) {
                   productCardText += `🔗 Acesse o link para ver o preço e mais informações:\n${item.link}`;
                 } else {
                   productCardText += `🔗 Link para adesão: ${item.link}`;
@@ -4947,6 +4950,64 @@ function hasValidCatalogPrice(p) {
   return Number.isFinite(n) && n >= 0;
 }
 
+const SUPPORTED_CATALOG_CURRENCIES = new Set(['BRL', 'USD', 'EUR', 'GBP', 'AUD']);
+
+function normalizeCatalogCurrency(code, fallback = 'BRL') {
+  const c = String(code || '').toUpperCase().trim();
+  if (SUPPORTED_CATALOG_CURRENCIES.has(c)) return c;
+  return String(fallback || 'BRL').toUpperCase().trim() || 'BRL';
+}
+
+function normalizeCatalogPricesByCurrency(mapLike) {
+  const out = {};
+  if (!mapLike || typeof mapLike !== 'object') return out;
+  Object.entries(mapLike).forEach(([rawCode, rawPrice]) => {
+    const code = normalizeCatalogCurrency(rawCode, '');
+    if (!code) return;
+    const n = Number(rawPrice);
+    if (Number.isFinite(n) && n >= 0) {
+      out[code] = n;
+    }
+  });
+  return out;
+}
+
+function currencyByPhoneCountry(phoneOrJid) {
+  const d = String(phoneOrJid || '').replace(/\D/g, '');
+  if (!d) return null;
+  if (d.startsWith('55')) return 'BRL'; // Brasil
+  if (d.startsWith('44')) return 'GBP'; // Reino Unido
+  if (d.startsWith('61')) return 'AUD'; // Austrália
+  if (d.startsWith('1')) return 'USD'; // EUA/Canadá
+  return null;
+}
+
+function selectCatalogPriceForCustomer(item, phoneOrJid) {
+  if (!item) return null;
+  const baseCurrency = normalizeCatalogCurrency(item.currency || 'BRL');
+  const basePrice = hasValidCatalogPrice(item.price) ? Number(item.price) : null;
+  const byCurrency = normalizeCatalogPricesByCurrency(item.pricesByCurrency);
+  if (basePrice !== null && byCurrency[baseCurrency] === undefined) {
+    byCurrency[baseCurrency] = basePrice;
+  }
+  const customerCurrency = currencyByPhoneCountry(phoneOrJid);
+  if (customerCurrency && hasValidCatalogPrice(byCurrency[customerCurrency])) {
+    return {
+      price: Number(byCurrency[customerCurrency]),
+      currency: customerCurrency,
+      source: 'country_currency'
+    };
+  }
+  if (basePrice !== null) {
+    return { price: basePrice, currency: baseCurrency, source: 'base_price' };
+  }
+  const first = Object.entries(byCurrency).find(([, v]) => hasValidCatalogPrice(v));
+  if (first) {
+    return { price: Number(first[1]), currency: first[0], source: 'fallback_map' };
+  }
+  return null;
+}
+
 function stripeCurrencyCode(currencyCode) {
   const c = String(currencyCode || 'BRL').toLowerCase().trim();
   return /^[a-z]{3}$/.test(c) ? c : 'brl';
@@ -4959,7 +5020,8 @@ async function mergeProductPriceFromCatalog(userId, product) {
     return {
       ...product,
       price: Number(product.price),
-      currency: String(product.currency || 'BRL').toUpperCase()
+      currency: String(product.currency || 'BRL').toUpperCase(),
+      pricesByCurrency: normalizeCatalogPricesByCurrency(product.pricesByCurrency)
     };
   }
 
@@ -4975,7 +5037,10 @@ async function mergeProductPriceFromCatalog(userId, product) {
           description: product.description || cat.description || '',
           tvLoginProduct: product.tvLoginProduct ?? !!cat.tvLoginProduct,
           tvPlanKey: product.tvPlanKey || cat.tvPlanKey || '',
-          currency: String(cat.currency || product.currency || 'BRL').toUpperCase()
+          currency: String(cat.currency || product.currency || 'BRL').toUpperCase(),
+          pricesByCurrency: normalizeCatalogPricesByCurrency(
+            cat.pricesByCurrency || product.pricesByCurrency
+          )
         };
       }
     }
@@ -5000,7 +5065,10 @@ async function mergeProductPriceFromCatalog(userId, product) {
       description: product.description || match.description || '',
       tvLoginProduct: product.tvLoginProduct ?? !!match.tvLoginProduct,
       tvPlanKey: product.tvPlanKey || match.tvPlanKey || '',
-      currency: String(match.currency || product.currency || 'BRL').toUpperCase()
+      currency: String(match.currency || product.currency || 'BRL').toUpperCase(),
+      pricesByCurrency: normalizeCatalogPricesByCurrency(
+        match.pricesByCurrency || product.pricesByCurrency
+      )
     };
   }
   return product;
@@ -5064,6 +5132,10 @@ async function resolveProductsForStripeMatching(userId) {
           name: prev.name || c.name,
           price: hasValidCatalogPrice(prev.price) ? prev.price : c.price,
           currency: prev.currency || c.currency,
+          pricesByCurrency:
+            prev.pricesByCurrency && Object.keys(prev.pricesByCurrency).length
+              ? prev.pricesByCurrency
+              : c.pricesByCurrency || {},
           description: prev.description || c.description || '',
           tvLoginProduct: prev.tvLoginProduct ?? !!c.tvLoginProduct,
           tvPlanKey: prev.tvPlanKey || c.tvPlanKey || ''
@@ -5110,8 +5182,11 @@ async function enrichOrderItemsWithCatalog(sellerUserId, items) {
       enriched.catalogItemId = cat.id;
       enriched.tvLoginProduct = !!cat.tvLoginProduct;
       enriched.tvPlanKey = normalizePlanKey(cat.tvPlanKey || cat.planName || '');
-      if (hasValidCatalogPrice(cat.price)) enriched.price = Number(cat.price);
-      if (cat.currency) enriched.currency = String(cat.currency).toUpperCase();
+      enriched.pricesByCurrency = normalizeCatalogPricesByCurrency(cat.pricesByCurrency);
+      if (!line.lockedPrice) {
+        if (hasValidCatalogPrice(cat.price)) enriched.price = Number(cat.price);
+        if (cat.currency) enriched.currency = String(cat.currency).toUpperCase();
+      }
     }
     return enriched;
   });
@@ -6014,7 +6089,8 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
 
     lastMentionedProduct = await mergeProductPriceFromCatalog(userId, lastMentionedProduct);
 
-    if (!hasValidCatalogPrice(lastMentionedProduct?.price)) {
+    const selectedCustomerPrice = selectCatalogPriceForCustomer(lastMentionedProduct, phone);
+    if (!selectedCustomerPrice || !hasValidCatalogPrice(selectedCustomerPrice.price)) {
       console.warn('⚠️ [Stripe] Produto sem preço em products/ e catalog_items:', lastMentionedProduct?.name);
       await client.sendText(phone, 'Para finalizar a compra, preciso de um item com preço definido.');
       return;
@@ -6022,11 +6098,13 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
 
     const orderItems = [{
       name: lastMentionedProduct.name,
-      price: lastMentionedProduct.price,
-      currency: lastMentionedProduct.currency || 'BRL',
+      price: selectedCustomerPrice.price,
+      currency: selectedCustomerPrice.currency || lastMentionedProduct.currency || 'BRL',
       quantity: 1,
       description: lastMentionedProduct.description,
       catalogItemId: lastMentionedProduct.id,
+      pricesByCurrency: normalizeCatalogPricesByCurrency(lastMentionedProduct.pricesByCurrency),
+      lockedPrice: true,
       tvLoginProduct: !!lastMentionedProduct.tvLoginProduct,
       tvPlanKey: normalizePlanKey(lastMentionedProduct.tvPlanKey || lastMentionedProduct.planName || '')
     }];

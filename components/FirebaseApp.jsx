@@ -300,7 +300,8 @@ const isTvWplayPlan = (planId, planData) => {
   );
 };
 
-const CATALOG_CURRENCY_CODES = ['BRL', 'USD', 'EUR', 'GBP', 'ARS', 'MXN', 'CLP', 'COP', 'UYU', 'PYG', 'PEN', 'BOB'];
+const CATALOG_CURRENCY_CODES = ['BRL', 'USD', 'EUR', 'GBP', 'AUD', 'ARS', 'MXN', 'CLP', 'COP', 'UYU', 'PYG', 'PEN', 'BOB'];
+const MAJOR_CATALOG_CURRENCIES = ['EUR', 'USD', 'BRL', 'GBP', 'AUD'];
 
 function normalizeCatalogCurrency(code) {
   const c = String(code || 'BRL').toUpperCase().trim();
@@ -315,6 +316,24 @@ function formatCatalogItemPrice(price, currencyCode) {
   } catch {
     return `${code} ${Number(price).toFixed(2)}`;
   }
+}
+
+function normalizeCatalogPricesByCurrency(mapLike) {
+  const out = {};
+  if (!mapLike || typeof mapLike !== 'object') return out;
+  Object.entries(mapLike).forEach(([codeRaw, valueRaw]) => {
+    const code = normalizeCatalogCurrency(codeRaw);
+    const n = Number(valueRaw);
+    if (Number.isFinite(n) && n >= 0) out[code] = n;
+  });
+  return out;
+}
+
+function formatCatalogMultiCurrencyLines(item) {
+  const map = normalizeCatalogPricesByCurrency(item?.pricesByCurrency || {});
+  return MAJOR_CATALOG_CURRENCIES
+    .filter((code) => Number.isFinite(map[code]))
+    .map((code) => ({ code, label: formatCatalogItemPrice(map[code], code) || `${code} ${map[code]}` }));
 }
 
 const FirebaseApp = () => {
@@ -1999,10 +2018,18 @@ const FirebaseApp = () => {
       const now = new Date().toISOString();
       
       const data = {
-        ...itemData,
         name: String(itemData.name || '').trim(),
         description: String(itemData.description || '').trim(),
         price: String(itemData.price ?? '').trim() !== '' ? Number(String(itemData.price).replace(',', '.')) : null,
+        type: itemData.type === 'service' ? 'service' : 'product',
+        featured: itemData.featured === true,
+        pricesByCurrency: normalizeCatalogPricesByCurrency({
+          EUR: String(itemData.priceEUR ?? '').trim() !== '' ? Number(String(itemData.priceEUR).replace(',', '.')) : undefined,
+          USD: String(itemData.priceUSD ?? '').trim() !== '' ? Number(String(itemData.priceUSD).replace(',', '.')) : undefined,
+          BRL: String(itemData.priceBRL ?? '').trim() !== '' ? Number(String(itemData.priceBRL).replace(',', '.')) : undefined,
+          GBP: String(itemData.priceGBP ?? '').trim() !== '' ? Number(String(itemData.priceGBP).replace(',', '.')) : undefined,
+          AUD: String(itemData.priceAUD ?? '').trim() !== '' ? Number(String(itemData.priceAUD).replace(',', '.')) : undefined
+        }),
         stockQuantity: Number.parseInt(itemData.stockQuantity, 10) || 0,
         minStock: Number.parseInt(itemData.minStock, 10) || 0,
         category: String(itemData.category || '').trim(),
@@ -2014,6 +2041,9 @@ const FirebaseApp = () => {
         currency: normalizeCatalogCurrency(itemData.currency),
         updatedAt: now
       };
+      if (data.price !== null && data.pricesByCurrency[data.currency] === undefined) {
+        data.pricesByCurrency[data.currency] = data.price;
+      }
       
       // Se estiver editando, preservar a data de criação original
       if (!isEditing) {
@@ -2045,10 +2075,12 @@ const FirebaseApp = () => {
           image: data.image || '',
           link: data.link || '',
           type: data.type || 'product',
+          featured: data.featured === true,
           active: true,
           tvLoginProduct: data.tvLoginProduct,
           tvPlanKey: data.tvPlanKey || '',
           currency: data.currency || 'BRL',
+          pricesByCurrency: data.pricesByCurrency || {},
           createdAt: originalCreatedAt,
           updatedAt: data.updatedAt
         };
@@ -2076,10 +2108,12 @@ const FirebaseApp = () => {
           image: data.image || '',
           link: data.link || '',
           type: data.type || 'product',
+          featured: data.featured === true,
           active: true,
           tvLoginProduct: data.tvLoginProduct,
           tvPlanKey: data.tvPlanKey || '',
           currency: data.currency || 'BRL',
+          pricesByCurrency: data.pricesByCurrency || {},
           createdAt: data.createdAt,
           updatedAt: data.updatedAt
         };
@@ -4180,6 +4214,11 @@ const DashboardWithFirebase = ({
     name: '',
     description: '',
     price: '',
+    priceEUR: '',
+    priceUSD: '',
+    priceBRL: '',
+    priceGBP: '',
+    priceAUD: '',
     stockQuantity: '',
     type: 'product',
     category: '',
@@ -4561,6 +4600,11 @@ const DashboardWithFirebase = ({
         name: item.name || '',
         description: item.description || '',
         price: item.price || '',
+        priceEUR: item.pricesByCurrency?.EUR ?? (item.currency === 'EUR' ? item.price : ''),
+        priceUSD: item.pricesByCurrency?.USD ?? (item.currency === 'USD' ? item.price : ''),
+        priceBRL: item.pricesByCurrency?.BRL ?? (item.currency === 'BRL' ? item.price : ''),
+        priceGBP: item.pricesByCurrency?.GBP ?? (item.currency === 'GBP' ? item.price : ''),
+        priceAUD: item.pricesByCurrency?.AUD ?? (item.currency === 'AUD' ? item.price : ''),
         stockQuantity: item.stockQuantity || '',
         type: item.type || 'product',
         category: item.category || '',
@@ -4579,6 +4623,11 @@ const DashboardWithFirebase = ({
         name: '',
         description: '',
         price: '',
+        priceEUR: '',
+        priceUSD: '',
+        priceBRL: '',
+        priceGBP: '',
+        priceAUD: '',
         stockQuantity: '',
         type: 'product',
         category: '',
@@ -4693,6 +4742,18 @@ const DashboardWithFirebase = ({
       const hasTooManyDecimals = !/^\d+([.,]\d{1,2})?$/.test(priceRaw);
       if (!Number.isFinite(priceValue) || priceValue < 0 || hasTooManyDecimals) {
         showToast(t('toast.invalidPriceFormat'), 'error');
+        return;
+      }
+    }
+
+    const majorPriceFields = ['priceEUR', 'priceUSD', 'priceBRL', 'priceGBP', 'priceAUD'];
+    for (const fieldName of majorPriceFields) {
+      const raw = String(catalogForm[fieldName] ?? '').trim();
+      if (!raw) continue;
+      const value = Number(raw.replace(',', '.'));
+      const hasInvalidDecimals = !/^\d+([.,]\d{1,2})?$/.test(raw);
+      if (!Number.isFinite(value) || value < 0 || hasInvalidDecimals) {
+        showToast(`Valor inválido em ${fieldName.replace('price', '')}. Use até 2 casas decimais.`, 'error');
         return;
       }
     }
@@ -5432,6 +5493,18 @@ const DashboardWithFirebase = ({
                           Preço no link
                         </p>
                       )}
+                      {formatCatalogMultiCurrencyLines(item).length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {formatCatalogMultiCurrencyLines(item).map((entry) => (
+                            <span
+                              key={entry.code}
+                              className="text-xs px-2 py-0.5 rounded-full border border-green-900 bg-green-950/40 text-green-300"
+                            >
+                              {entry.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-gray-500">Estoque</p>
@@ -5614,7 +5687,14 @@ const DashboardWithFirebase = ({
                       </td>
                       <td className="px-6 py-4">
                         {formatCatalogItemPrice(item.price, item.currency) ? (
-                          <span className="text-sm font-bold text-green-400">{formatCatalogItemPrice(item.price, item.currency)}</span>
+                          <div className="flex flex-col gap-1">
+                            <span className="text-sm font-bold text-green-400">{formatCatalogItemPrice(item.price, item.currency)}</span>
+                            {formatCatalogMultiCurrencyLines(item).length > 0 && (
+                              <span className="text-xs text-gray-400">
+                                {formatCatalogMultiCurrencyLines(item).map((entry) => entry.label).join(' • ')}
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-sm font-bold text-blue-400">Preço no link</span>
                         )}
@@ -12515,6 +12595,47 @@ const DashboardWithFirebase = ({
                     {t('catalogModal.currencyHint')}
                   </p>
                 </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
+                  Preços principais por moeda (opcional)
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(5, minmax(120px, 1fr))', gap: '10px' }}>
+                  {[
+                    ['EUR', 'priceEUR'],
+                    ['USD', 'priceUSD'],
+                    ['BRL', 'priceBRL'],
+                    ['GBP', 'priceGBP'],
+                    ['AUD', 'priceAUD']
+                  ].map(([label, field]) => (
+                    <div key={field}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', color: '#9ca3af', marginBottom: '6px' }}>
+                        {label}
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={catalogForm[field] ?? ''}
+                        onChange={(e) => setCatalogForm(prev => ({ ...prev, [field]: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #374151',
+                          fontSize: '0.9rem',
+                          backgroundColor: '#111827',
+                          color: '#ffffff'
+                        }}
+                        placeholder="Opcional"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '6px', marginBottom: 0 }}>
+                  Estes valores são usados para mostrar preço local e podem ser usados no checkout automático por país.
+                </p>
               </div>
 
               <div>
