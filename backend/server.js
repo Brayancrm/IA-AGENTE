@@ -124,7 +124,7 @@ const DEFAULT_PANEL_FOLLOWUP_MSG_PT =
   'Olá! Tudo bem com o teste? Conseguiu usar normalmente?\n\nSe quiser seguir com a adesão do plano, diga por aqui que eu te ajudo no próximo passo. 😊';
 
 const PANEL_TEST_LIMIT_CLIENT_PT =
-  'Para cada cliente disponibilizamos apenas um período de teste. Se precisar de mais tempo, fale com o suporte para avaliarmos o seu caso.';
+  'Disponibilizamos apenas um teste por cliente. Se precisar de ajuda adicional, fale com o suporte.';
 
 function panelTestQuotaUtcYyyyMmDd(d = new Date()) {
   return d.toISOString().slice(0, 10);
@@ -1674,6 +1674,8 @@ function wantsPanelIptvFreeTestMessage(messageText) {
     /\bconta\s+teste\b/,
     /\bteste\s+iptv\b/,
     /\biptv\s+teste\b/,
+    /\b(outro|novo)\s+teste\b/,
+    /\b(testar|teste)\b/,
     /\b(teste|trial)\s+(gratis|grátis)\b/,
     /\b(quero|preciso|da|dá)\s+(um\s+)?teste\b/,
     /\benvia\s+teste\b/,
@@ -1750,7 +1752,7 @@ async function trySendPanelTestAndroidApk(client, toJid, url) {
 }
 
 /**
- * Gera teste do painel e envia por WhatsApp (só conta master + opção ligada nas definições do assistente).
+ * Gera teste do painel e envia por WhatsApp (só conta master).
  */
 async function tryAutoPanelTestFromChat(
   userId,
@@ -1761,7 +1763,7 @@ async function tryAutoPanelTestFromChat(
   client,
   aiConfig
 ) {
-  if (!aiConfig || !aiConfig.autoPanelTestOnRequest) return { sent: false };
+  if (!aiConfig) return { sent: false };
   if (!wantsPanelIptvFreeTestMessage(messageText)) return { sent: false };
   if (!(await isRegisteredMasterUid(userId))) return { sent: false };
 
