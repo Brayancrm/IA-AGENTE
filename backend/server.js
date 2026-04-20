@@ -38,6 +38,47 @@ const APP_ID = 'whatsapp-sales-agent';
 /** Modelo predefinido para respostas do assistente no WhatsApp (janela grande vs gpt-3.5 8k). */
 const DEFAULT_OPENAI_ASSISTANT_MODEL = 'gpt-4o-mini';
 
+/** Pedido explícito de NF/comprovante: resposta fixa no WhatsApp (sem fluxo no chat). */
+const DOCUMENT_REQUEST_REPLY_EMAIL = 'wplay.tv.breu@gmail.com';
+const INVOICE_COMPROVANTE_REDIRECT_MESSAGE = `Comprovantes de Pagamentos e Notas Fiscais deverão ser solicitadas via e-mail: ${DOCUMENT_REQUEST_REPLY_EMAIL}`;
+
+function detectInvoiceComprovanteDocumentRequest(text) {
+  if (!text || typeof text !== 'string') return false;
+  const raw = text.trim();
+  if (!raw) return false;
+  const t = raw
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  if (t.includes('nota fiscal')) return true;
+  if (t.includes('nota fisc')) return true;
+  if (t.includes('comprovante')) return true;
+  if (/\b(nfe|nfc)\b/.test(t)) return true;
+  if (/\bnf[s]?\b/.test(t)) return true;
+  if (t.includes('segunda via')) return true;
+  if (/\b2\s*a\s*via\b/.test(t)) return true;
+  if (/\b2\s*via\b/.test(t)) return true;
+  if (t.includes('comprovativo')) return true;
+  if (
+    t.includes('recibo') &&
+    (t.includes('pag') || t.includes('compra') || t.includes('pedido') || t.includes('pix'))
+  ) {
+    return true;
+  }
+  if (
+    /\bfatura\b/.test(t) &&
+    (t.includes('nota') || t.includes('pag') || t.includes('compra') || t.includes('pedido'))
+  ) {
+    return true;
+  }
+  if (t.includes('invoice')) return true;
+  if (t.includes('danfe')) return true;
+  if (t.includes('xml da nota')) return true;
+  if (t.includes('emitir') && t.includes('fiscal')) return true;
+  return false;
+}
+
 console.log('🚀 Iniciando servidor WPPConnect + IA...');
 
 // Inicializar Firebase Admin
@@ -1948,6 +1989,36 @@ async function handleIncomingMessage(userId, message, client) {
     console.log('💾 Mensagem salva no banco de dados');
     
     // ============================================
+    // NF / COMPROVANTE: resposta fixa por e-mail (antes do CRM/IA)
+    // ============================================
+    const hasEmailInMessage = /\b[^\s@]+@[^\s@]+\.[^\s@]+\b/.test(String(messageText || ''));
+    if (
+      !message.isFromMe &&
+      messageText &&
+      detectInvoiceComprovanteDocumentRequest(messageText) &&
+      !hasEmailInMessage
+    ) {
+      try {
+        await client.sendText(message.from, INVOICE_COMPROVANTE_REDIRECT_MESSAGE);
+        const docRef = conversationMessagesRef(userId, sanitizedNumber).push();
+        await docRef.set({
+          from: message.to || '',
+          to: message.from || '',
+          body: INVOICE_COMPROVANTE_REDIRECT_MESSAGE,
+          timestamp: new Date().toISOString(),
+          type: 'invoice_comprovante_email_info',
+          isFromMe: true,
+          autoReply: true
+        });
+        await incrementMessageUsage(userId);
+        console.log('📄 Resposta automática (NF/comprovante → e-mail) enviada');
+      } catch (e) {
+        console.error('❌ Erro ao enviar resposta NF/comprovante:', e.message);
+      }
+      return;
+    }
+    
+    // ============================================
     // DETECÇÃO E SALVAMENTO AUTOMÁTICO DE DADOS DO CLIENTE
     // ============================================
     if (!message.isFromMe && messageText) {
@@ -2787,9 +2858,6 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig, 
       }
     }
     
-    // 📄 A pergunta sobre nota fiscal agora é feita automaticamente após o pagamento
-    // Esta verificação não é mais necessária
-    
     // Buscar dados da empresa para contexto
     const companySnapshot = await db.ref(`users/data/${userId}/company_profile`).once('value');
     const company = companySnapshot.val() || {};
@@ -3023,47 +3091,10 @@ ${stripeMarkerInstr}
 - Noutras fases (ex.: quantidade, confirmação de pedido), pode perguntar de forma curta (ex.: unidades), mantendo o nome completo do item.
 - Isso é ESSENCIAL para o sistema processar o pedido corretamente
 
-📄 **FLUXO DE NOTA FISCAL - PASSO A PASSO (MUITO IMPORTANTE):**
-
-1. **APÓS O SISTEMA PERGUNTAR SOBRE NOTA FISCAL**, se o cliente responder SIM:
-   - Informe: "Perfeito! Para emitir a nota fiscal, vou precisar coletar seu endereço completo."
-   
-2. **COLETE CADA DADO SEPARADAMENTE** (um por vez):
-   
-   a) Primeiro, pergunte: "Qual é a rua do seu endereço?"
-      - Aguarde resposta → sistema salva automaticamente
-   
-   b) Depois pergunte: "Qual é o número?"
-      - Aguarde resposta → sistema salva automaticamente
-   
-   c) Depois pergunte: "Qual é o complemento? (ex: apartamento, casa, bloco - se não tiver, digite 'sem')"
-      - Aguarde resposta → sistema salva automaticamente
-   
-   d) Depois pergunte: "Qual é o bairro?"
-      - Aguarde resposta → sistema salva automaticamente
-   
-   e) Depois pergunte: "Qual é a cidade?"
-      - Aguarde resposta → sistema salva automaticamente
-   
-   f) Depois pergunte: "Qual é o estado? (ex: SP, RJ, MG)"
-      - Aguarde resposta → sistema salva automaticamente
-   
-   g) Por último pergunte: "Qual é o CEP?"
-      - Aguarde resposta → sistema salva automaticamente
-   
-3. **QUANDO O CLIENTE FORNECER O CEP** (último dado):
-   - Agradeça: "Obrigado! Estou processando sua nota fiscal com os dados fornecidos."
-   - O sistema automaticamente emitirá a nota fiscal e enviará para o cliente
-   
-4. **SE O CLIENTE RESPONDER NÃO** quer nota fiscal:
-   - Responda: "Tudo bem! Qualquer dúvida, estou à disposição."
-
-⚠️ REGRAS IMPORTANTES:
-- Pergunte APENAS UM dado por vez
-- AGUARDE a resposta antes de perguntar o próximo
-- NÃO peça todos os dados de uma vez
-- Seja EDUCADO e PACIENTE
-- O sistema salva automaticamente cada resposta`;
+📄 **COMPROVANTES E NOTAS FISCAIS (OBRIGATÓRIO):**
+- **Nunca** pergunte se o cliente quer nota fiscal, nem peça endereço, CEP, CPF ou dados para emissão de NF neste chat.
+- Se o cliente pedir nota fiscal, fatura, recibo, comprovante de pagamento, segunda via, NF/NFe ou equivalente: o sistema envia **automaticamente** a resposta — **não** antecipes nem dupliques; se por algum motivo ainda tiveres de responder em texto, usa **apenas** esta frase exata (sem alterar o e-mail nem acrescentar passos):
+  "${INVOICE_COMPROVANTE_REDIRECT_MESSAGE}"`;
     } else if ((aiConfig?.paymentProvider || 'stripe').toLowerCase() === 'stripe') {
       systemPrompt += `\n\n💳 **PAGAMENTO STRIPE:** Quando tiveres os dados do cliente e for gerar o checkout, na **última linha** coloca **apenas** ${STRIPE_CHECKOUT_MARKER} (o sistema remove antes do cliente ver e garante o envio do link). Não uses se ainda estiveres a recolher dados.`;
     }
@@ -3086,6 +3117,8 @@ ${stripeMarkerInstr}
     if (aiConfig.enabledFeatures && aiConfig.enabledFeatures.length > 0) {
       systemPrompt += `\n\nFuncionalidades habilitadas: ${aiConfig.enabledFeatures.join(', ')}`;
     }
+
+    systemPrompt += `\n\n📄 **NF e comprovantes de pagamento:** não coletes endereço/CEP/CPF para NF neste chat. Se o cliente pedir nota fiscal, fatura, recibo ou comprovante, responde **apenas** com o texto exacto: ${INVOICE_COMPROVANTE_REDIRECT_MESSAGE}`;
 
     systemPrompt += `\n\n🎭 **IDENTIDADE EM CUMPRIMENTOS (OBRIGATÓRIO):**
 - Se a mensagem do cliente for ou começar por saudação/retomada (ex.: olá, oi, hey, bom dia, boa tarde, boa noite, e aí, tudo bem), a tua resposta deve dizer **explicitamente** o teu nome e a empresa/ função **tal como definido no início destas instruções** (ex.: "Sou [nome], assistente da [marca]…"). É proibido responder só com frases genéricas do tipo "ficarei feliz em ajudar" sem essa identificação.
@@ -3692,25 +3725,6 @@ async function detectAgentQuestion(userId, sanitizedNumber, messageText) {
       console.log(
         '⏭️ [detectAgentQuestion] Handoff de pagamento/link — ignorar palavras soltas (whatsapp, e-mail, etc.)'
       );
-      return;
-    }
-    
-    // Detectar se o agente está perguntando sobre NOTA FISCAL
-    const invoiceKeywords = [
-      'nota fiscal',
-      'deseja nota fiscal',
-      'quer nota fiscal',
-      'precisa de nota fiscal',
-      'gostaria de nota fiscal',
-      'nota fiscal?'
-    ];
-    
-    if (invoiceKeywords.some(keyword => lowerText.includes(keyword))) {
-      await contextRef.set({ 
-        waitingFor: 'invoice_request',
-        askedAt: new Date().toISOString()
-      });
-      console.log('🎯 Agente perguntou sobre NOTA FISCAL - aguardando resposta do cliente');
       return;
     }
     
@@ -8811,54 +8825,51 @@ app.post('/api/asaas/webhook', async (req, res) => {
             paymentConfirmedAt: new Date().toISOString()
           });
           
-          // 📄 PERGUNTAR SOBRE NOTA FISCAL IMEDIATAMENTE
-          console.log('📄 Enviando pergunta sobre nota fiscal automaticamente...');
-          
-          // Aguardar 2 segundos para não sobrecarregar
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          const invoiceQuestion = '📄 Você deseja nota fiscal?';
-          
-          console.log('📤 Tentando enviar pergunta de nota fiscal...');
-          console.log('   Para:', orderData.customer.phone);
-          
+          // 📄 Pergunta automática sobre NF só com assistant_settings.invoiceChatFlowEnabled === true
+          let paymentInvoiceChatEnabled = false;
           try {
-            const invoiceSendResult = await client.sendText(orderData.customer.phone, invoiceQuestion);
-            console.log('✅ Pergunta sobre nota fiscal enviada automaticamente');
-            console.log('   Resultado:', invoiceSendResult);
-            
-            // Salvar pergunta no histórico
-            const invoiceQuestionRef = conversationMessagesRef(userId, sanitizedNumber).push();
-            await invoiceQuestionRef.set({
-              from: 'system',
-              to: orderData.customer.phone,
-              body: invoiceQuestion,
-              timestamp: new Date().toISOString(),
-              type: 'invoice_question',
-              isFromMe: true,
-              orderId: orderId
-            });
-            
-            // Definir contexto para aguardar resposta sobre nota fiscal
-            const contextRef = db.ref(`collectionContext/${userId}/${sanitizedNumber}`);
-            await contextRef.set({
-              waitingFor: 'invoice_request',
-              askedAt: new Date().toISOString(),
-              orderId: orderId
-            });
-            console.log('📝 Contexto definido: aguardando resposta sobre nota fiscal');
-            
-            // Marcar no pedido que a pergunta foi feita
-            await db.ref(`orders/${userId}/${orderId}`).update({
-              invoiceQuestionAsked: true,
-              invoiceQuestionAskedAt: new Date().toISOString()
-            });
-            
-          } catch (invoiceError) {
-            console.error('❌ Erro ao enviar pergunta sobre nota fiscal:', invoiceError);
-            console.error('   Tipo:', invoiceError.constructor.name);
-            console.error('   Mensagem:', invoiceError.message);
-            console.error('   Stack:', invoiceError.stack);
+            const payAsSnap = await db.ref(`users/data/${userId}/assistant_settings`).once('value');
+            paymentInvoiceChatEnabled = payAsSnap.val()?.invoiceChatFlowEnabled === true;
+          } catch {
+            paymentInvoiceChatEnabled = false;
+          }
+
+          if (paymentInvoiceChatEnabled) {
+            console.log('📄 Enviando informação NF/comprovante (e-mail) após pagamento...');
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+
+            const invoiceInfoMsg = INVOICE_COMPROVANTE_REDIRECT_MESSAGE;
+            console.log('📤 Tentando enviar mensagem NF/comprovante...');
+            console.log('   Para:', orderData.customer.phone);
+
+            try {
+              const invoiceSendResult = await client.sendText(orderData.customer.phone, invoiceInfoMsg);
+              console.log('✅ Mensagem NF/comprovante enviada automaticamente');
+              console.log('   Resultado:', invoiceSendResult);
+
+              const invoiceQuestionRef = conversationMessagesRef(userId, sanitizedNumber).push();
+              await invoiceQuestionRef.set({
+                from: 'system',
+                to: orderData.customer.phone,
+                body: invoiceInfoMsg,
+                timestamp: new Date().toISOString(),
+                type: 'invoice_comprovante_email_info',
+                isFromMe: true,
+                orderId: orderId
+              });
+
+              await db.ref(`orders/${userId}/${orderId}`).update({
+                invoiceQuestionAsked: true,
+                invoiceQuestionAskedAt: new Date().toISOString()
+              });
+            } catch (invoiceError) {
+              console.error('❌ Erro ao enviar mensagem NF/comprovante:', invoiceError);
+              console.error('   Tipo:', invoiceError.constructor.name);
+              console.error('   Mensagem:', invoiceError.message);
+              console.error('   Stack:', invoiceError.stack);
+            }
+          } else {
+            console.log('📄 Pergunta automática sobre nota fiscal omitida (invoiceChatFlowEnabled != true)');
           }
           
         } catch (error) {
