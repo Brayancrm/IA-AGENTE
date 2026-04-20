@@ -1956,7 +1956,9 @@ async function handleIncomingMessage(userId, message, client) {
       let prefetchedWaContact = null;
       try {
         whatsappProfileName = message.pushName || message.notifyName || null;
-        prefetchedWaContact = await client.getContactById(message.from);
+        if (client && typeof client.getContactById === 'function') {
+          prefetchedWaContact = await client.getContactById(message.from);
+        }
         if (!whatsappProfileName) {
           whatsappProfileName = prefetchedWaContact?.pushname || prefetchedWaContact?.name || null;
         }
@@ -6261,6 +6263,48 @@ function isNonEmptyTrimmedString(v) {
  * Exige campos do passo collect_data (CRM auto-save) antes de criar sessão Stripe no WhatsApp.
  * Telefone não é validado (vem do próprio chat). Produto pode ser satisfeito por productOrService no CRM ou último card oferecido.
  */
+/**
+ * Junta `customerData` de todas as chaves possíveis (LID, @c.us, espelho por mobile)
+ * para o gate do Stripe não falhar quando nome/email ficaram noutro nó Firebase.
+ */
+async function fetchMergedCustomerDataForStripeGate(userId, phone, sanitizedNumber, pricingRef) {
+  const keys = new Set();
+  const addKeyFrom = (raw) => {
+    const k = customerDataKeyFromChatKey(String(raw || '').trim());
+    if (k && k !== 'unknown' && /^[0-9]{8,20}$/.test(String(k))) keys.add(k);
+  };
+  addKeyFrom(sanitizedNumber);
+  addKeyFrom(phone);
+  addKeyFrom(pricingRef);
+
+  const rows = [];
+  for (const k of keys) {
+    try {
+      const snap = await db.ref(`customerData/${userId}/${k}`).once('value');
+      if (snap.exists()) rows.push({ key: k, val: snap.val() || {} });
+    } catch (e) {
+      console.warn('⚠️ fetchMergedCustomerDataForStripeGate:', k, e.message);
+    }
+  }
+  rows.sort((a, b) => {
+    const aw = a.val.mirroredFromChatKey ? 1 : 0;
+    const bw = b.val.mirroredFromChatKey ? 1 : 0;
+    return aw - bw;
+  });
+  const merged = {};
+  for (const { val } of rows) {
+    if (!val || typeof val !== 'object') continue;
+    for (const [field, v] of Object.entries(val)) {
+      if (v == null || v === '') continue;
+      if (merged[field] == null || merged[field] === '') merged[field] = v;
+    }
+  }
+  if (rows.length > 1) {
+    console.log('📇 [Stripe] CRM merge para gate:', rows.map((r) => r.key).join(' + '));
+  }
+  return merged;
+}
+
 async function assertCrmDataReadyForStripeCheckout(userId, phone, sanitizedNumber, customerData) {
   const cfg = await getCollectDataCrmFieldsForCheckout(userId);
   if (!cfg) {
@@ -6316,9 +6360,12 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber, pricing
       return;
     }
 
-    const crmDigitsKey = customerDataKeyFromChatKey(sanitizedNumber || phone);
-    const customerSnapForGate = await db.ref(`customerData/${userId}/${crmDigitsKey}`).once('value');
-    const customerRowForGate = customerSnapForGate.val() || {};
+    const customerRowForGate = await fetchMergedCustomerDataForStripeGate(
+      userId,
+      phone,
+      sanitizedNumber,
+      pricingRef
+    );
     const crmGate = await assertCrmDataReadyForStripeCheckout(
       userId,
       phone,
@@ -6446,9 +6493,7 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber, pricing
       return;
     }
 
-    const customerDataRef = db.ref(`customerData/${userId}/${crmDigitsKey}`);
-    const customerSnapshot = await customerDataRef.once('value');
-    const savedCustomerData = customerSnapshot.val();
+    const savedCustomerData = customerRowForGate;
 
     const customerData = {
       name: savedCustomerData?.name || 'Cliente WhatsApp',
