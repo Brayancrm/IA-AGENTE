@@ -5087,6 +5087,7 @@ function stripEmojisForMatch(text) {
   return String(text || '')
     .replace(/\uFE0F/g, '')
     .replace(/\p{Extended_Pictographic}/gu, '')
+    .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, '') // flags (regional indicators)
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -5097,10 +5098,27 @@ function normalizeForProductNameMatch(text) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
+    .replace(/[*_`~]/g, ' ')
+    .replace(/[^\p{L}\p{N}/\s-]/gu, ' ')
     .replace(/\s+/g, ' ')
     .replace(/\s*\/\s*/g, '/')
     .trim();
   return stripEmojisForMatch(base);
+}
+
+function relaxedMessageMentionsProduct(bodyText, productName) {
+  const p = normalizeForProductNameMatch(productName);
+  const m = normalizeForProductNameMatch(bodyText);
+  if (!p || !m) return false;
+  const tokens = p
+    .replace(/\//g, ' ')
+    .split(/\s+/)
+    .map((x) => x.trim())
+    .filter((x) => x.length >= 3);
+  if (!tokens.length) return false;
+  const matched = tokens.filter((tk) => m.includes(tk)).length;
+  // Evita falso positivo: exige boa cobertura do nome
+  return matched >= Math.max(2, Math.ceil(tokens.length * 0.6));
 }
 
 function messageMentionsProduct(bodyText, productName) {
@@ -5112,7 +5130,7 @@ function messageMentionsProduct(bodyText, productName) {
   if (parts.length >= 2) {
     return parts.every((part) => m.includes(part));
   }
-  return false;
+  return relaxedMessageMentionsProduct(m, p);
 }
 
 /**
