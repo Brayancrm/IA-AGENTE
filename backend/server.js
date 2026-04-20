@@ -5956,7 +5956,10 @@ async function createStripeCheckoutSession(stripeApiKey, customerData, items, us
       };
     });
 
-    const session = await stripe.checkout.sessions.create({
+    const lineCurrencies = [...new Set(lineItems.map((li) => String(li.price_data.currency || '').toLowerCase()))];
+    const allLineItemsBrl = lineCurrencies.length === 1 && lineCurrencies[0] === 'brl';
+
+    const sessionParams = {
       mode: 'payment',
       line_items: lineItems,
       success_url: successUrl,
@@ -5968,7 +5971,13 @@ async function createStripeCheckoutSession(stripeApiKey, customerData, items, us
         phone: customerData?.originalPhone || customerData?.phone || '',
         ...metadata
       }
-    });
+    };
+    /** Pix só em BRL; lista explícita evita o Checkout omitir Pix com lista 100% dinâmica. */
+    if (allLineItemsBrl) {
+      sessionParams.payment_method_types = ['card', 'pix'];
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     const totalValue = items.reduce((sum, item) => {
       const price = item.price !== null && item.price !== undefined ? parseFloat(item.price) : 0;
