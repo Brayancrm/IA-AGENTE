@@ -843,10 +843,10 @@ async function hasRecentStripePaymentLink(userId, contactSanitized, maxAgeMs) {
   }
 }
 
-async function enqueueStripeCheckoutForChat(userId, phone, sanitizedNumber) {
+async function enqueueStripeCheckoutForChat(userId, phone, sanitizedNumber, pricingRef = null) {
   const key = `${userId}:${sanitizedNumber}`;
   const prev = stripeCheckoutQueues.get(key) || Promise.resolve();
-  const run = prev.then(() => tryAutoGenerateStripeLink(userId, phone, sanitizedNumber));
+  const run = prev.then(() => tryAutoGenerateStripeLink(userId, phone, sanitizedNumber, pricingRef));
   stripeCheckoutQueues.set(
     key,
     run.catch((err) => {
@@ -1317,7 +1317,10 @@ function sanitizePhoneNumber(phoneNumber) {
   return phoneNumber.replace(/[\.\#\$\[\]@]/g, '_');
 }
 
-/** Chave usada em customerData/{uid}/{key} — só dígitos do user (LID ou @c.us), alinhado a detectAndSaveCustomerData */
+/**
+ * Chave Firebase `customerData/{uid}/{key}` — mesma lógica da thread de conversa:
+ * use `customerDataKeyFromChatKey(sanitizedNumber)` (ex.: `…_lid` vira só dígitos) para alinhar leitura/escrita ao histórico.
+ */
 function customerDataKeyFromChatKey(sanitizedOrJid) {
   const d = String(sanitizedOrJid || '').replace(/\D/g, '');
   if (d.length >= 8 && d.length <= 20) return d;
@@ -2076,10 +2079,13 @@ async function handleIncomingMessage(userId, message, client) {
         if (panelAuto.sent) {
           return;
         }
+
+        /** @lid: inferir moeda/preço via CRM ou número real do contato */
+        const pricingWaRef = await resolvePricingWhatsAppRef(userId, message.from, sanitizedNumber, client);
         
         // Gerar resposta com IA usando o texto transcrito (ou texto original)
         console.log(`💬 Processando mensagem para IA: "${messageText}" (${isAudioMessage ? 'transcrita de áudio' : 'texto'})`);
-        const aiResult = await generateAIResponse(userId, sanitizedNumber, messageText, aiConfig);
+        const aiResult = await generateAIResponse(userId, sanitizedNumber, messageText, aiConfig, pricingWaRef);
         let aiResponse = aiResult.text;
         
         if (!aiResponse || aiResponse.trim() === '') {
@@ -2207,7 +2213,7 @@ async function handleIncomingMessage(userId, message, client) {
             `🎯 Checkout Stripe (${stripeTrigger.reason}) — gerando link de pagamento...`
           );
           await sleepMs(450);
-          await enqueueStripeCheckoutForChat(userId, message.from, sanitizedNumber);
+          await enqueueStripeCheckoutForChat(userId, message.from, sanitizedNumber, pricingWaRef);
         }
         
         // ============================================
@@ -2277,7 +2283,7 @@ async function handleIncomingMessage(userId, message, client) {
               let productCardText = `📦 *${item.name}*\n`;
               
               // Adicionar preço preferindo moeda do país do cliente, quando configurada no catálogo.
-              const customerPrice = selectCatalogPriceForCustomer(item, message.from);
+              const customerPrice = selectCatalogPriceForCustomer(item, pricingWaRef);
               const priceLine = customerPrice
                 ? formatCatalogPriceForMessage(customerPrice.price, customerPrice.currency)
                 : formatCatalogPriceForMessage(item.price, item.currency);
@@ -2469,7 +2475,7 @@ async function handleIncomingMessage(userId, message, client) {
           !aiTriggeredStripeCheckout
         ) {
           await sleepMs(450);
-          await enqueueStripeCheckoutForChat(userId, message.from, sanitizedNumber);
+          await enqueueStripeCheckoutForChat(userId, message.from, sanitizedNumber, pricingWaRef);
         } else if (paymentProviderForIntent === 'manual' && wantsPaymentLink) {
           const integrations = await getIntegrationsConfig(userId);
           const manualMessage = aiConfig?.paymentManualMessage || 'Pagamento manual selecionado. Aguarde o envio do link.';
@@ -2738,8 +2744,9 @@ function shrinkChatPromptToBudget(systemPrompt, historyMessages, lastUserContent
 const MAX_CATALOG_ITEMS_AI = 30;
 const MAX_CATALOG_DESC_CHARS_AI = 300;
 
-async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) {
+async function generateAIResponse(userId, contactNumber, userMessage, aiConfig, pricingRef = null) {
   try {
+    const catalogPricingRef = pricingRef || contactNumber;
     const HISTORY_FETCH = 12;
     const messagesSnapshot = await conversationMessagesRef(userId, contactNumber)
       .orderByChild('timestamp')
@@ -2908,7 +2915,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       systemPrompt += `\n\n📦 PRODUTOS DISPONÍVEIS:\n`;
       catalogProducts.forEach((product, index) => {
         systemPrompt += `${index + 1}. ${product.name}`;
-        const priceForCustomer = selectCatalogPriceForCustomer(product, contactNumber);
+        const priceForCustomer = selectCatalogPriceForCustomer(product, catalogPricingRef);
         const priceLbl = priceForCustomer
           ? formatCatalogPriceForMessage(priceForCustomer.price, priceForCustomer.currency)
           : formatCatalogPriceForMessage(product.price, product.currency);
@@ -2943,7 +2950,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       systemPrompt += `\n\n🛠️ SERVIÇOS DISPONÍVEIS:\n`;
       catalogServices.forEach((service, index) => {
         systemPrompt += `${index + 1}. ${service.name}`;
-        const priceForCustomer = selectCatalogPriceForCustomer(service, contactNumber);
+        const priceForCustomer = selectCatalogPriceForCustomer(service, catalogPricingRef);
         const priceLbl = priceForCustomer
           ? formatCatalogPriceForMessage(priceForCustomer.price, priceForCustomer.currency)
           : formatCatalogPriceForMessage(service.price, service.currency);
@@ -3536,7 +3543,7 @@ async function tryEmitInvoiceWithAddress(userId, phone, customerData) {
   try {
     console.log('📄 [INVOICE] Tentando emitir nota fiscal com endereço...');
     
-    const phoneNumber = phone.replace(/[^0-9]/g, '');
+    const phoneNumber = customerDataKeyFromChatKey(phone);
     
     // Buscar último pedido pago deste cliente
     const ordersSnapshot = await db.ref(`orders/${userId}`).once('value');
@@ -3547,7 +3554,7 @@ async function tryEmitInvoiceWithAddress(userId, phone, customerData) {
       const orders = [];
       ordersSnapshot.forEach((orderSnap) => {
         const order = orderSnap.val();
-        const orderPhone = order.customer?.phone?.replace(/[^0-9]/g, '');
+        const orderPhone = customerDataKeyFromChatKey(order.customer?.phone || '');
         
         if (orderPhone === phoneNumber && order.status === 'paid' && !order.invoiceId) {
           orders.push({ id: orderSnap.key, data: order });
@@ -4071,7 +4078,7 @@ async function detectAndSaveCustomerData(userId, phone, messageText, sanitizedNu
       return;
     }
     
-    const phoneNumber = phone.replace(/[^0-9]/g, '');
+    const phoneNumber = customerDataKeyFromChatKey(sanitizedNumber || phone);
     const customerRef = db.ref(`customerData/${userId}/${phoneNumber}`);
     const contextRef = db.ref(`collectionContext/${userId}/${sanitizedNumber}`);
     const lowerText = messageText.toLowerCase();
@@ -4679,8 +4686,8 @@ async function detectAndSaveAppointment(userId, phone, messageText, sanitizedNum
     console.log('   Horário:', timeMatch[0]);
     console.log('   Tipo:', detectedType);
     
-    // Buscar dados do cliente
-    const phoneNumber = phone.replace(/[^0-9]/g, '');
+    // Buscar dados do cliente (chave alinhada à thread: sanitizedNumber / LID)
+    const phoneNumber = customerDataKeyFromChatKey(sanitizedNumber || phone);
     const customerRef = db.ref(`customerData/${userId}/${phoneNumber}`);
     const customerSnapshot = await customerRef.once('value');
     const customerData = customerSnapshot.val() || {};
@@ -4759,7 +4766,7 @@ function detectQuantity(messageText, productName) {
 // Função para buscar quantidades salvas dos produtos
 async function getProductQuantities(userId, phone, products) {
   try {
-    const phoneNumber = phone.replace(/[^0-9]/g, '');
+    const phoneNumber = customerDataKeyFromChatKey(phone);
     const customerRef = db.ref(`customerData/${userId}/${phoneNumber}`);
     const snapshot = await customerRef.once('value');
     const customerData = snapshot.val();
@@ -4992,6 +4999,66 @@ function currencyByPhoneCountry(phoneOrJid) {
   if (d.startsWith('61')) return 'AUD'; // Austrália
   if (d.startsWith('1')) return 'USD'; // EUA/Canadá
   return null;
+}
+
+/**
+ * Chats @lid não trazem DDI no JID — usa CRM (mobilePhone / phone @c.us) ou o contato do WPP quando possível,
+ * para `selectCatalogPriceForCustomer` e Stripe escolherem a moeda certa.
+ */
+async function resolvePricingWhatsAppRef(userId, messageFrom, sanitizedNumber, client = null) {
+  const from = String(messageFrom || '').trim();
+  if (!from) return from;
+  if (/@c\.us$/i.test(from)) {
+    const d = from.replace(/@c\.us/i, '').replace(/\D/g, '');
+    if (d.length >= 10 && d.length <= 15) return from.replace(/@C\.US$/i, '@c.us');
+  }
+
+  const keysToTry = new Set();
+  const chatThreadKey = customerDataKeyFromChatKey(sanitizedNumber || from);
+  if (/^[0-9]{8,20}$/.test(String(chatThreadKey))) keysToTry.add(chatThreadKey);
+  const digitsFromJid = from.replace(/[^0-9]/g, '');
+  if (digitsFromJid && digitsFromJid.length >= 8 && digitsFromJid.length <= 20) keysToTry.add(digitsFromJid);
+  const alt = String(sanitizedNumber || '')
+    .replace(/_lid$/i, '')
+    .replace(/\D/g, '');
+  if (alt && alt.length >= 8 && alt.length <= 20 && alt !== digitsFromJid) keysToTry.add(alt);
+
+  for (const key of keysToTry) {
+    try {
+      const snap = await db.ref(`customerData/${userId}/${key}`).once('value');
+      const c = snap.val() || {};
+      const mob = c.mobilePhone ? String(c.mobilePhone).replace(/\D/g, '') : '';
+      if (mob.length >= 10 && mob.length <= 15) return `${mob}@c.us`;
+      for (const fld of ['originalPhone', 'phone', 'whatsappJid']) {
+        const raw = String(c[fld] || '').trim();
+        if (!raw) continue;
+        if (/@c\.us$/i.test(raw)) {
+          const d2 = raw.replace(/@c\.us/i, '').replace(/\D/g, '');
+          if (d2.length >= 10 && d2.length <= 15) return raw.replace(/@C\.US$/i, '@c.us');
+        }
+        if (/@lid$/i.test(raw)) continue;
+        const only = raw.replace(/\D/g, '');
+        if (only.length >= 10 && only.length <= 15) return `${only}@c.us`;
+      }
+    } catch (e) {
+      console.warn('⚠️ resolvePricingWhatsAppRef CRM:', e.message);
+    }
+  }
+
+  if (client && typeof client.getContactById === 'function') {
+    try {
+      const ct = await client.getContactById(from);
+      const num = ct?.number || ct?.formattedNumber || ct?.id?._serialized || ct?.id?.user;
+      const digits = String(num || '').replace(/\D/g, '');
+      if (digits.length >= 10 && digits.length <= 15 && !String(num || '').toLowerCase().includes('@lid')) {
+        return `${digits}@c.us`;
+      }
+    } catch (e) {
+      console.warn('⚠️ resolvePricingWhatsAppRef getContactById:', e.message);
+    }
+  }
+
+  return from;
 }
 
 function selectCatalogPriceForCustomer(item, phoneOrJid) {
@@ -6005,7 +6072,7 @@ async function assertCrmDataReadyForStripeCheckout(userId, phone, sanitizedNumbe
 }
 
 // 🎯 Função para tentar gerar link automático do Stripe quando houver intenção de compra
-async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
+async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber, pricingRef = null) {
   try {
     const client = activeClients.get(userId);
     if (!client) return;
@@ -6017,7 +6084,7 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
       return;
     }
 
-    const crmDigitsKey = phone.replace(/[^0-9]/g, '');
+    const crmDigitsKey = customerDataKeyFromChatKey(sanitizedNumber || phone);
     const customerSnapForGate = await db.ref(`customerData/${userId}/${crmDigitsKey}`).once('value');
     const customerRowForGate = customerSnapForGate.val() || {};
     const crmGate = await assertCrmDataReadyForStripeCheckout(
@@ -6119,7 +6186,7 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
 
     lastMentionedProduct = await mergeProductPriceFromCatalog(userId, lastMentionedProduct);
 
-    const selectedCustomerPrice = selectCatalogPriceForCustomer(lastMentionedProduct, phone);
+    const selectedCustomerPrice = selectCatalogPriceForCustomer(lastMentionedProduct, pricingRef || phone);
     if (!selectedCustomerPrice || !hasValidCatalogPrice(selectedCustomerPrice.price)) {
       console.warn('⚠️ [Stripe] Produto sem preço em products/ e catalog_items:', lastMentionedProduct?.name);
       await client.sendText(phone, 'Para finalizar a compra, preciso de um item com preço definido.');
@@ -6147,7 +6214,7 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber) {
       return;
     }
 
-    const customerDataRef = db.ref(`customerData/${userId}/${phone.replace(/[^0-9]/g, '')}`);
+    const customerDataRef = db.ref(`customerData/${userId}/${crmDigitsKey}`);
     const customerSnapshot = await customerDataRef.once('value');
     const savedCustomerData = customerSnapshot.val();
 
@@ -8552,7 +8619,7 @@ app.post('/api/customer-data/save', async (req, res) => {
 
     console.log(`💾 Salvando dados do cliente: ${phone}`);
 
-    const key = phone.replace(/[^0-9]/g, '');
+    const key = customerDataKeyFromChatKey(phone);
     const r = db.ref(`customerData/${userId}/${key}`);
     const prevSnap = await r.once('value');
     const prev = prevSnap.val() || {};
@@ -8583,7 +8650,7 @@ app.get('/api/customer-data/get/:userId/:phone', async (req, res) => {
     
     console.log(`🔍 Buscando dados do cliente: ${phone}`);
 
-    const key = phone.replace(/[^0-9]/g, '');
+    const key = customerDataKeyFromChatKey(phone);
     const snapshot = await db.ref(`customerData/${userId}/${key}`).once('value');
 
     if (snapshot.exists()) {
