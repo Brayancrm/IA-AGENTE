@@ -155,6 +155,7 @@ try {
 const db = admin.database();
 const firestore = admin.firestore();
 const panelService = require('./services/panelService');
+const masterPush = require('./masterPushNotifications');
 
 /** Cooldown entre testes automáticos por conversa (evita spam à API do painel). */
 const PANEL_TEST_AUTO_COOLDOWN_MS = 75_000;
@@ -5757,6 +5758,24 @@ async function markTvLoginAllocated(masterUserId, tvLoginId, patch) {
     soldOrderId: patch.soldOrderId || null,
     at: soldAt
   });
+  try {
+    let planLabel = (patch && (patch.soldItemName || patch.planName)) || '';
+    if (!planLabel) {
+      try {
+        const pn = await db.ref(`users/data/${masterUserId}/tv_logins/${tvLoginId}/planName`).once('value');
+        planLabel = pn.val() || '';
+      } catch {
+        planLabel = '';
+      }
+    }
+    await masterPush.notifyMastersTvLoginSold({
+      sellerUserId: masterUserId,
+      planName: planLabel || 'TV/Wplay',
+      planKey: (patch && patch.planKey) || ''
+    });
+  } catch (pushErr) {
+    console.warn('⚠️ [PUSH] TV vendido (pedido):', pushErr.message);
+  }
 }
 
 async function sendTvLoginWhatsApp(masterUserId, customerPhone, text) {
@@ -8125,6 +8144,14 @@ app.post('/api/panel/generate-test', async (req, res) => {
       source: src,
       channel: src === 'whatsapp_auto' ? 'whatsapp' : 'crm'
     });
+    try {
+      await masterPush.notifyMastersPanelTestCreated({
+        usuario: out.usuario,
+        recipientLabel: label
+      });
+    } catch (pushErr) {
+      console.warn('⚠️ [PUSH] teste painel:', pushErr.message);
+    }
     return res.json({
       success: true,
       usuario: out.usuario,
@@ -9593,6 +9620,33 @@ REQUISITOS:
     res.status(500).json({
       error: error.response?.data?.error?.message || error.message
     });
+  }
+});
+
+// ============================================
+// Notificações push (master) — relatório manual venda TV (CRM)
+// ============================================
+app.post('/api/notifications/report-tv-sold', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || '';
+    const m = authHeader.match(/^Bearer\s+(.+)$/i);
+    if (!m) {
+      return res.status(401).json({ ok: false, error: 'Token obrigatório' });
+    }
+    const decoded = await admin.auth().verifyIdToken(m[1].trim());
+    const sellerUserId = req.body?.sellerUserId;
+    if (!sellerUserId || decoded.uid !== sellerUserId) {
+      return res.status(403).json({ ok: false, error: 'Sem permissão' });
+    }
+    await masterPush.notifyMastersTvLoginSold({
+      sellerUserId,
+      planName: req.body?.planName || '',
+      planKey: req.body?.planKey || ''
+    });
+    return res.json({ ok: true });
+  } catch (e) {
+    console.warn('[PUSH] report-tv-sold:', e.message);
+    return res.status(401).json({ ok: false, error: e.message || 'Falha na autenticação' });
   }
 });
 

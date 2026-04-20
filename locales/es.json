@@ -33,7 +33,30 @@
     "mobileReportsShort": "Informes",
     "mobileStripeShort": "Stripe",
     "mobileUsersShort": "Usuarios",
-    "mobileEmailShort": "Email"
+    "mobileEmailShort": "Email",
+    "notifications": "Notificaciones",
+    "mobileNotificationsShort": "Alertas"
+  },
+  "notificationsPage": {
+    "title": "Notificaciones",
+    "subtitle": "Alertas en el móvil para eventos importantes (cuenta master).",
+    "deviceHint": "Permita notificaciones en este dispositivo. En iPhone, añada el sitio a la pantalla de inicio (PWA). Configure NEXT_PUBLIC_FIREBASE_VAPID_KEY (Firebase Console → Cloud Messaging).",
+    "enableButton": "Activar notificaciones en este dispositivo",
+    "enabledOk": "Notificaciones activadas.",
+    "enableError": "No se pudieron activar las notificaciones.",
+    "missingVapid": "Falta NEXT_PUBLIC_FIREBASE_VAPID_KEY en el entorno.",
+    "notSupported": "Este navegador no admite notificaciones push.",
+    "permissionDenied": "Permiso de notificaciones denegado.",
+    "messagingUnsupported": "Firebase Messaging no está soportado aquí.",
+    "noToken": "No se obtuvo token FCM.",
+    "waitFirebase": "Espere a que Firebase termine de cargar.",
+    "tokenRegistered": "Este dispositivo está registrado para alertas.",
+    "typesTitle": "Qué notificar",
+    "typePanelTest": "Prueba creada en el panel externo",
+    "typeTvSold": "Login TV / Wplay vendido (inventario)",
+    "prefSaved": "Preferencia guardada.",
+    "prefError": "Error al guardar la preferencia.",
+    "footerNote": "El servidor envía el push cuando ocurre el evento."
   },
   "mobileShell": {
     "accountTab": "Cuenta",

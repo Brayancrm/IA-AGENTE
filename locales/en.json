@@ -33,7 +33,30 @@
     "mobileReportsShort": "Reports",
     "mobileStripeShort": "Stripe",
     "mobileUsersShort": "Users",
-    "mobileEmailShort": "Email"
+    "mobileEmailShort": "Email",
+    "notifications": "Notifications",
+    "mobileNotificationsShort": "Alerts"
+  },
+  "notificationsPage": {
+    "title": "Notifications",
+    "subtitle": "Mobile alerts for important events (master account).",
+    "deviceHint": "Allow notifications on this device. On iPhone, add the site to the Home Screen (PWA). Set NEXT_PUBLIC_FIREBASE_VAPID_KEY (Firebase Console → Cloud Messaging → Web Push certificates).",
+    "enableButton": "Turn on notifications on this device",
+    "enabledOk": "Notifications enabled on this device.",
+    "enableError": "Could not enable notifications.",
+    "missingVapid": "NEXT_PUBLIC_FIREBASE_VAPID_KEY is missing in the environment.",
+    "notSupported": "This browser does not support web push.",
+    "permissionDenied": "Notification permission denied.",
+    "messagingUnsupported": "Firebase Messaging is not supported here.",
+    "noToken": "Could not obtain an FCM token.",
+    "waitFirebase": "Please wait for Firebase to finish loading.",
+    "tokenRegistered": "This device is registered for push alerts.",
+    "typesTitle": "What to notify",
+    "typePanelTest": "External panel test created",
+    "typeTvSold": "TV / Wplay login sold (inventory)",
+    "prefSaved": "Preference saved.",
+    "prefError": "Could not save preference.",
+    "footerNote": "The server sends a push when the event happens. Turning off an option only stops that type of alert."
   },
   "mobileShell": {
     "accountTab": "Account",

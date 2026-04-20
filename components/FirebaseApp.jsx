@@ -21,7 +21,15 @@ if (typeof window !== 'undefined') {
     originalError.apply(console, args);
   };
 }
-import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as firebaseSignOut, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
+import {
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  sendPasswordResetEmail,
+  updateProfile,
+  getIdToken
+} from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { ref, push, set, remove, onValue, off, get, update } from 'firebase/database';
 import SimpleLanding from './SimpleLanding';
@@ -73,8 +81,10 @@ import {
   Mail,
   BarChart3,
   Gem,
-  CircleUser
+  CircleUser,
+  Bell
 } from 'lucide-react';
+import MasterNotificationsPage from './MasterNotificationsPage';
 
 const MOBILE_SUPPORT_WA_URL =
   'https://wa.me/5561991442727?text=Ol%C3%A1%2C%20vim%20pela%20ferramenta%20DadosIA.';
@@ -4877,6 +4887,25 @@ const DashboardWithFirebase = ({
         updatedAt: new Date().toISOString()
       });
       showToast(t('tvLogins.toastMarkedSold'), 'success');
+      try {
+        const idTok = auth?.currentUser ? await getIdToken(auth.currentUser) : null;
+        if (idTok) {
+          fetch(`${BACKEND_URL}/api/notifications/report-tv-sold`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${idTok}`
+            },
+            body: JSON.stringify({
+              sellerUserId: user.uid,
+              planName: item.planName || '',
+              planKey: item.planKey || ''
+            })
+          }).catch(() => {});
+        }
+      } catch {
+        /* push opcional */
+      }
     } catch (error) {
       showToast(t('tvLogins.toastStatusError', { message: error.message }), 'error');
     }
@@ -7428,7 +7457,8 @@ const DashboardWithFirebase = ({
     
     // Verificar acesso à página atual
     const isAlwaysAvailable = currentPage === 'plans' || currentPage === 'users';
-    const isMasterOnly = currentPage === 'users' || currentPage === 'reports';
+    const isMasterOnly =
+      currentPage === 'users' || currentPage === 'reports' || currentPage === 'notifications';
     const isBasicAccess = currentPage === 'company';
     
     let hasAccess = false;
@@ -11119,6 +11149,15 @@ const DashboardWithFirebase = ({
           </div>
         );
 
+      case 'notifications':
+        return (
+          <MasterNotificationsPage
+            user={user}
+            isMobile={isMobile}
+            showToast={showToast}
+          />
+        );
+
       default:
         return (
           <div style={{ padding: '24px' }}>
@@ -11203,7 +11242,8 @@ const DashboardWithFirebase = ({
               badgeTone: 'warning'
             },
             { id: 'users', label: t('nav.users'), icon: '👤', badge: 0 },
-            { id: 'email', label: t('nav.email'), icon: '📧', badge: 0 }
+            { id: 'email', label: t('nav.email'), icon: '📧', badge: 0 },
+            { id: 'notifications', label: t('nav.notifications'), icon: '🔔', badge: 0 }
           ]
         : [])
     ],
@@ -11243,7 +11283,8 @@ const DashboardWithFirebase = ({
         reports: 'nav.mobileReportsShort',
         stripe: 'nav.mobileStripeShort',
         users: 'nav.mobileUsersShort',
-        email: 'nav.mobileEmailShort'
+        email: 'nav.mobileEmailShort',
+        notifications: 'nav.mobileNotificationsShort'
       }[id];
       return key ? t(key) : id;
     };
@@ -11284,6 +11325,8 @@ const DashboardWithFirebase = ({
           return { ...base, Icon: Users };
         case 'email':
           return { ...base, Icon: Mail };
+        case 'notifications':
+          return { ...base, Icon: Bell };
         default:
           return { ...base, Icon: Settings };
       }
@@ -11351,7 +11394,7 @@ const DashboardWithFirebase = ({
         return;
       }
       const isAlwaysAvailable = pageId === 'plans' || pageId === 'users';
-      const isMasterOnly = pageId === 'users';
+      const isMasterOnly = pageId === 'users' || pageId === 'notifications';
       const isBasicAccess = pageId === 'company';
       let userHasAccess = false;
       if (user?.isMaster) userHasAccess = true;
@@ -11373,7 +11416,19 @@ const DashboardWithFirebase = ({
 
   // Função helper para renderizar ícones de página (mesma lógica do sidebar)
   const renderPageIcon = (pageId, customSize = null) => {
-    const coloredIcons = ['dashboard', 'catalog', 'agendamentos', 'conversas', 'whatsapp', 'assistant', 'plans', 'tutorials', 'email', 'stripe'];
+    const coloredIcons = [
+      'dashboard',
+      'catalog',
+      'agendamentos',
+      'conversas',
+      'whatsapp',
+      'assistant',
+      'plans',
+      'tutorials',
+      'email',
+      'stripe',
+      'notifications'
+    ];
     const shouldBeColored = coloredIcons.includes(pageId);
     const menuItem = menuItems.find(item => item.id === pageId);
     
@@ -11643,7 +11698,7 @@ const DashboardWithFirebase = ({
                 {menuItems.map((item) => {
                   // Verificar se a funcionalidade está disponível para o usuário
                   const isAlwaysAvailable = item.id === 'plans' || item.id === 'users';
-                  const isMasterOnly = item.id === 'users';
+                  const isMasterOnly = item.id === 'users' || item.id === 'notifications';
                   const isBasicAccess = item.id === 'company';
                   
                   let userHasAccess = false;
