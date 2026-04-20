@@ -2802,6 +2802,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
             description: item.description || '',
             price: item.price !== null && item.price !== undefined && item.price !== '' ? item.price : null,
             currency: String(item.currency || 'BRL').toUpperCase() || 'BRL',
+            pricesByCurrency: normalizeCatalogPricesByCurrency(item.pricesByCurrency),
             stock: item.stockQuantity || 0,
             image: item.image || null,
             link: item.link || null,
@@ -2821,6 +2822,7 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
             description: item.description || '',
             price: item.price !== null && item.price !== undefined && item.price !== '' ? item.price : null,
             currency: String(item.currency || 'BRL').toUpperCase() || 'BRL',
+            pricesByCurrency: normalizeCatalogPricesByCurrency(item.pricesByCurrency),
             capacity: item.stockQuantity || 0,
             image: item.image || null,
             link: item.link || null,
@@ -2906,7 +2908,10 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       systemPrompt += `\n\n📦 PRODUTOS DISPONÍVEIS:\n`;
       catalogProducts.forEach((product, index) => {
         systemPrompt += `${index + 1}. ${product.name}`;
-        const priceLbl = formatCatalogPriceForMessage(product.price, product.currency);
+        const priceForCustomer = selectCatalogPriceForCustomer(product, contactNumber);
+        const priceLbl = priceForCustomer
+          ? formatCatalogPriceForMessage(priceForCustomer.price, priceForCustomer.currency)
+          : formatCatalogPriceForMessage(product.price, product.currency);
         if (priceLbl) {
           systemPrompt += ` - ${priceLbl}`;
         } else {
@@ -2938,7 +2943,10 @@ async function generateAIResponse(userId, contactNumber, userMessage, aiConfig) 
       systemPrompt += `\n\n🛠️ SERVIÇOS DISPONÍVEIS:\n`;
       catalogServices.forEach((service, index) => {
         systemPrompt += `${index + 1}. ${service.name}`;
-        const priceLbl = formatCatalogPriceForMessage(service.price, service.currency);
+        const priceForCustomer = selectCatalogPriceForCustomer(service, contactNumber);
+        const priceLbl = priceForCustomer
+          ? formatCatalogPriceForMessage(priceForCustomer.price, priceForCustomer.currency)
+          : formatCatalogPriceForMessage(service.price, service.currency);
         if (priceLbl) {
           systemPrompt += ` - ${priceLbl}`;
         } else {
