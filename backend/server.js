@@ -2277,7 +2277,7 @@ async function handleIncomingMessage(userId, message, client) {
               let productCardText = `📦 *${item.name}*\n`;
               
               // Adicionar preço preferindo moeda do país do cliente, quando configurada no catálogo.
-              const customerPrice = selectCatalogPriceForCustomer(item, messageFrom);
+              const customerPrice = selectCatalogPriceForCustomer(item, message.from);
               const priceLine = customerPrice
                 ? formatCatalogPriceForMessage(customerPrice.price, customerPrice.currency)
                 : formatCatalogPriceForMessage(item.price, item.currency);
