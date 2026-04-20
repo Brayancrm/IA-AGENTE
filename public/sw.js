@@ -10,7 +10,8 @@ const firebaseSwConfig = {
   projectId: 'ia-agente-b2f46',
   storageBucket: 'ia-agente-b2f46.firebasestorage.app',
   messagingSenderId: '915148785133',
-  appId: '1:915148785133:web:90e381fe612842769e53e4'
+  appId: '1:915148785133:web:90e381fe612842769e53e4',
+  measurementId: 'G-QTLFRJE275'
 };
 
 try {
@@ -42,20 +43,19 @@ try {
 }
 
 // v2: não interceptar pedidos cross-origin (Firebase Storage, Google APIs, etc.)
-const CACHE_NAME = 'whatsapp-sales-agent-v3';
+const CACHE_NAME = 'whatsapp-sales-agent-v4';
 const urlsToCache = ['/', '/globals.css', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Service Worker: Cache aberto');
-        return cache.addAll(urlsToCache);
-      })
-      .catch((error) => {
-        console.error('Service Worker: Erro ao fazer cache', error);
-      })
+    caches.open(CACHE_NAME).then(async (cache) => {
+      console.log('Service Worker: Cache aberto');
+      await Promise.allSettled(
+        urlsToCache.map((url) =>
+          cache.add(url).catch((err) => console.warn('Service Worker: skip cache', url, err.message))
+        )
+      );
+    })
   );
   self.skipWaiting();
 });
