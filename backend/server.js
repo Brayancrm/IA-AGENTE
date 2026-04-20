@@ -3185,8 +3185,12 @@ function detectMentionedProducts(responseText, catalogItemsMap) {
           image: itemData.image || null,
           price: itemData.price,
           currency: itemData.currency || 'BRL',
+          /** Obrigatório para preço por país no card — antes caía sempre no preço base (ex.: EUR). */
+          pricesByCurrency: normalizeCatalogPricesByCurrency(itemData.pricesByCurrency),
           description: itemData.description,
-          link: itemData.link || null
+          link: itemData.link || null,
+          tvLoginProduct: !!itemData.tvLoginProduct,
+          tvPlanKey: itemData.tvPlanKey || ''
         });
       }
     }
