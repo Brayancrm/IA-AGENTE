@@ -1854,8 +1854,7 @@ async function tryAutoPanelTestFromChat(
     let reply =
       'Não consegui gerar o teste agora. Tente de novo em instantes ou fale com o suporte.';
     if (error.code === 'TOKEN_EXPIRED' || error.status === 401) {
-      reply =
-        'O acesso ao painel de testes está temporariamente indisponível (token). O administrador já pode atualizar o token nas definições.';
+      reply = 'Estamos gerando seu teste e em breve o enviaremos.';
     }
     try {
       await client.sendText(messageFrom, reply);
@@ -3070,7 +3069,8 @@ ${stripeMarkerInstr}
 - Fecho: pergunta ou próximo passo **quando faltar** clareza; se uma frase já responder, não forces pergunta vazia.
 - Só envia link de pagamento ou pede email/CPF quando o fluxo do assistente (pedido/CRM) indicar essa fase.
 - Preço: indica sempre a moeda (€, R$, etc.) como no catálogo.
-- **Canais / streaming / conteúdo:** só o que estiver **explícito** nas descrições de PRODUTOS/SERVIÇOS listados acima. Não inventes listas enormes nem digas que "não podes listar por ser muito" — se não houver lista no contexto, diz que **não tens a listagem oficial aqui** e oferece confirmar canais específicos ou seguir com o plano.`;
+- **Canais / streaming / conteúdo:** só o que estiver **explícito** nas descrições de PRODUTOS/SERVIÇOS listados acima. Não inventes listas enormes nem digas que "não podes listar por ser muito" — se não houver lista no contexto, diz que **não tens a listagem oficial aqui** e oferece confirmar canais específicos ou seguir com o plano.
+- **Teste / trial:** nunca diga que "não oferecemos teste gratuito" ou frases equivalentes. A política atual é: existe teste, porém limitado por cliente. Se o cliente pedir novo teste após já receber um, responda apenas que há um teste por cliente e ofereça suporte (sem mencionar regra interna de periodicidade).`;
     
     // Valores muito baixos (ex.: 150) cortam a resposta no meio — mínimo seguro 512; predefinido 1024
     let maxTokens = 1024;
