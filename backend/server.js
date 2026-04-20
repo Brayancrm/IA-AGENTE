@@ -5040,6 +5040,61 @@ function digitsLookLikeInternationalMsisdn(d) {
   return typeof d === 'string' && /^\d{10,15}$/.test(d);
 }
 
+/**
+ * WA-JS: mapeia LID → PN (@c.us) quando o WhatsApp Web já tem o par na sessão.
+ * @see https://wppconnect.io/wa-js/functions/contact.getPnLidEntry.html
+ */
+async function tryGetPnFromLidViaWajs(client, lidJid) {
+  const lid = String(lidJid || '').trim();
+  if (!/@lid$/i.test(lid)) return null;
+  const page = client && (client.waPage || client.page);
+  if (!page || typeof page.evaluate !== 'function') return null;
+  try {
+    const evaluated = await page.evaluate(async (lidArg) => {
+      try {
+        const W = typeof window !== 'undefined' ? window.WPP : null;
+        if (!W || !W.contact || typeof W.contact.getPnLidEntry !== 'function') {
+          return { ok: false, reason: 'no_wpp' };
+        }
+        const deadline = Date.now() + 5000;
+        while (Date.now() < deadline) {
+          const ok =
+            W.isReady === true || (typeof W.isReady === 'function' && W.isReady());
+          if (ok) break;
+          await new Promise((r) => setTimeout(r, 80));
+        }
+        const r = await W.contact.getPnLidEntry(lidArg);
+        const pn = r && r.phoneNumber;
+        if (!pn) return { ok: false, reason: 'no_pn' };
+        const ser =
+          typeof pn._serialized === 'string'
+            ? pn._serialized
+            : pn.user && pn.server
+              ? `${pn.user}@${pn.server}`
+              : null;
+        return { ok: true, serialized: ser };
+      } catch (err) {
+        return { ok: false, reason: 'err', message: err && err.message ? String(err.message) : String(err) };
+      }
+    }, lid);
+    if (!evaluated || evaluated.ok !== true || !evaluated.serialized) {
+      if (evaluated && evaluated.reason && evaluated.reason !== 'no_pn') {
+        console.log('ℹ️ getPnLidEntry:', lid, evaluated.reason, evaluated.message || '');
+      }
+      return null;
+    }
+    const ser = String(evaluated.serialized).trim();
+    if (!/@c\.us$/i.test(ser)) return null;
+    const d = ser.replace(/@c\.us/i, '').replace(/\D/g, '');
+    if (!digitsLookLikeInternationalMsisdn(d)) return null;
+    console.log('✅ LID → número (getPnLidEntry):', lid, '→', `${d}@c.us`);
+    return { jid: `${d}@c.us`, mobileDigits: d, source: 'wa_js_getPnLidEntry' };
+  } catch (e) {
+    console.warn('⚠️ tryGetPnFromLidViaWajs:', e.message);
+    return null;
+  }
+}
+
 function pushWppStringCandidate(out, v) {
   if (v == null) return;
   if (typeof v === 'string') {
@@ -5127,17 +5182,25 @@ function extractBestCusJidFromWppContact(ct, chatJid, waMsg = null) {
 
 async function resolveBestCusJidWithClient(client, chatJid, waMsg = null, prefetchedCt = null) {
   const from = String(chatJid || '').trim();
-  const fromCt = extractBestCusJidFromWppContact(prefetchedCt, from, waMsg);
+  let fromCt = extractBestCusJidFromWppContact(prefetchedCt, from, waMsg);
   if (fromCt.jid) return fromCt;
-  if (prefetchedCt) return fromCt;
-  if (!client || typeof client.getContactById !== 'function') return fromCt;
-  try {
-    const ct = await client.getContactById(from);
-    return extractBestCusJidFromWppContact(ct, from, waMsg);
-  } catch (e) {
-    console.warn('⚠️ resolveBestCusJidWithClient:', e.message);
-    return { ...fromCt, source: 'fetch_error' };
+
+  if (!prefetchedCt && client && typeof client.getContactById === 'function') {
+    try {
+      const ct = await client.getContactById(from);
+      fromCt = extractBestCusJidFromWppContact(ct, from, waMsg);
+      if (fromCt.jid) return fromCt;
+    } catch (e) {
+      console.warn('⚠️ resolveBestCusJidWithClient getContactById:', e.message);
+    }
   }
+
+  if (client && /@lid$/i.test(from)) {
+    const lidRes = await tryGetPnFromLidViaWajs(client, from);
+    if (lidRes && lidRes.jid) return lidRes;
+  }
+
+  return fromCt;
 }
 
 /** Garante phone / whatsappJid / mobilePhone coerentes no CRM; @lid sem número → desconhecido. */
