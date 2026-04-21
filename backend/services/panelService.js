@@ -27,6 +27,155 @@ const PANEL_HEADERS_BASE = {
   Accept: 'application/json'
 };
 
+/** Três segmentos base64url — pode ser JWT (nem sempre tem `exp`). */
+function looksLikeJwt(token) {
+  const s = String(token || '').trim();
+  return /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(s);
+}
+
+function decodeJwtPayload(token) {
+  if (!looksLikeJwt(token)) return null;
+  const parts = String(token).split('.');
+  try {
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+    const json = Buffer.from(b64 + pad, 'base64').toString('utf8');
+    const o = JSON.parse(json);
+    return o && typeof o === 'object' ? o : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @returns {number|null} exp em ms UTC, ou null se não for JWT com `exp` numérico
+ */
+function jwtExpiryMs(token) {
+  const payload = decodeJwtPayload(token);
+  if (!payload || typeof payload.exp !== 'number' || !Number.isFinite(payload.exp)) return null;
+  return payload.exp * 1000;
+}
+
+/**
+ * Sonda HTTP sem corpo de teste completo: GET no endpoint (muitas APIs devolvem 405 com auth válida);
+ * se inconclusivo, POST `{}` — 401/403 = token inválido; 4xx de validação costuma indicar auth aceite.
+ * @returns {Promise<{ ok: boolean | null, method?: string, status?: number, note?: string }>}
+ */
+async function probePanelBearerHttp(token) {
+  const authHeaders = {
+    ...PANEL_HEADERS_BASE,
+    Authorization: `Bearer ${token}`
+  };
+  const tryGet = async () => {
+    try {
+      const response = await axios.get(PANEL_TEST_URL, {
+        headers: authHeaders,
+        timeout: 25000,
+        validateStatus: () => true
+      });
+      return { method: 'GET', status: response.status, data: response.data };
+    } catch (e) {
+      return { method: 'GET', status: null, error: e.message };
+    }
+  };
+  const tryPostEmpty = async () => {
+    try {
+      const response = await axios.post(PANEL_TEST_URL, {}, {
+        headers: authHeaders,
+        timeout: 25000,
+        validateStatus: () => true
+      });
+      return { method: 'POST', status: response.status, data: response.data };
+    } catch (e) {
+      return { method: 'POST', status: null, error: e.message };
+    }
+  };
+
+  const g = await tryGet();
+  if (g.status === 401 || g.status === 403) return { ok: false, method: 'GET', status: g.status };
+  if (g.status === 405 || g.status === 400 || g.status === 422 || g.status === 415)
+    return { ok: true, method: 'GET', status: g.status };
+  if (g.status != null && g.status >= 200 && g.status < 300) {
+    const { usuario } = extractCredentials(g.data);
+    if (usuario) {
+      return {
+        ok: null,
+        method: 'GET',
+        status: g.status,
+        note: 'GET retornou credenciais inesperadas; probe inconclusivo'
+      };
+    }
+    return { ok: true, method: 'GET', status: g.status };
+  }
+  if (g.status != null && g.status >= 500) return { ok: null, method: 'GET', status: g.status };
+
+  const p = await tryPostEmpty();
+  if (p.status === 401 || p.status === 403) return { ok: false, method: 'POST', status: p.status };
+  if (p.status != null && p.status >= 400 && p.status < 500) {
+    const { usuario } = extractCredentials(p.data);
+    if (usuario) {
+      console.warn(
+        '[panel-health] POST com corpo vazio criou conta de teste; desative sonda HTTP (PANEL_BEARER_HEALTHCHECK_MODE=jwt) ou use token JWT com exp.'
+      );
+    }
+    return { ok: true, method: 'POST', status: p.status };
+  }
+  if (p.status != null && p.status >= 200 && p.status < 300) {
+    const { usuario } = extractCredentials(p.data);
+    if (usuario) {
+      console.warn(
+        '[panel-health] POST vazio devolveu 2xx com credenciais — evite sonda ou use JWT; assumindo token válido.'
+      );
+    }
+    return { ok: true, method: 'POST', status: p.status };
+  }
+  if (p.status != null && p.status >= 500) return { ok: null, method: 'POST', status: p.status };
+  return { ok: null, method: `${g.method || '?'}+${p.method || '?'}`, note: g.error || p.error || 'network' };
+}
+
+/**
+ * @returns {Promise<{ status: 'valid' | 'invalid' | 'skipped'; source: string; detail?: string }>}
+ */
+async function probePanelBearerHealth() {
+  const mode = String(process.env.PANEL_BEARER_HEALTHCHECK_MODE || 'auto').toLowerCase();
+  if (mode === 'off' || mode === 'false') {
+    return { status: 'skipped', source: 'disabled', detail: mode };
+  }
+
+  let config;
+  try {
+    config = await getApiConfig();
+  } catch (e) {
+    const code = e && e.code ? String(e.code) : 'CONFIG';
+    return { status: 'skipped', source: 'config', detail: code };
+  }
+  const token = config.bearer_token;
+
+  const expMs = jwtExpiryMs(token);
+  if (expMs != null) {
+    if (Date.now() >= expMs) {
+      return { status: 'invalid', source: 'jwt', detail: 'jwt_expired' };
+    }
+    return { status: 'valid', source: 'jwt', detail: 'jwt_ok' };
+  }
+
+  if (mode === 'jwt') {
+    if (looksLikeJwt(token)) {
+      return { status: 'skipped', source: 'jwt', detail: 'jwt_sem_exp' };
+    }
+    return { status: 'skipped', source: 'jwt', detail: 'token_opaco' };
+  }
+
+  const http = await probePanelBearerHttp(token);
+  if (http.ok === false) {
+    return { status: 'invalid', source: 'http', detail: `http_${http.status || ''}` };
+  }
+  if (http.ok === true) {
+    return { status: 'valid', source: 'http', detail: `${http.method || ''}_${http.status || ''}` };
+  }
+  return { status: 'skipped', source: 'http', detail: http.note || 'inconclusive' };
+}
+
 let _tokenExpiredHandler = null;
 
 /**
@@ -256,6 +405,9 @@ module.exports = {
   extractExpiryIso, // mantido para testes / extensões; generateTestAccount usa +1h fixo
   notifyAdmin,
   setTokenExpiredNotifier,
+  probePanelBearerHealth,
+  jwtExpiryMs,
+  looksLikeJwt,
   DEFAULT_TEST_PAYLOAD: { ...DEFAULT_TEST_PAYLOAD },
   PANEL_TEST_URL
 };

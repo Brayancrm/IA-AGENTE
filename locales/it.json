@@ -53,6 +53,7 @@
     "tokenRegistered": "Dispositivo registrato per gli avvisi.",
     "typesTitle": "Cosa notificare",
     "typePanelTest": "Test creato nel pannello esterno",
+    "typePanelBearerInvalid": "Token del pannello test non valido o scaduto",
     "typeTvSold": "Login TV / Wplay venduto (magazzino)",
     "prefSaved": "Preferenza salvata.",
     "prefError": "Errore nel salvare la preferenza.",

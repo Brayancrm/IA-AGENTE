@@ -12,7 +12,11 @@ const TOKENS_PATH = 'fcm_tokens';
 export default function MasterNotificationsPage({ user, isMobile, showToast }) {
   const { app, database, isReady } = useFirebase();
   const { t } = useI18n();
-  const [prefs, setPrefs] = useState({ panelTestCreated: true, tvLoginSold: true });
+  const [prefs, setPrefs] = useState({
+    panelTestCreated: true,
+    panelBearerInvalid: true,
+    tvLoginSold: true
+  });
   const [tokenStatus, setTokenStatus] = useState('idle');
   const [hasToken, setHasToken] = useState(false);
   const vapidKey = String(process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || '').trim();
@@ -24,6 +28,7 @@ export default function MasterNotificationsPage({ user, isMobile, showToast }) {
       const v = snap.val();
       setPrefs({
         panelTestCreated: v?.panelTestCreated !== false,
+        panelBearerInvalid: v?.panelBearerInvalid !== false,
         tvLoginSold: v?.tvLoginSold !== false
       });
     };
@@ -210,6 +215,7 @@ export default function MasterNotificationsPage({ user, isMobile, showToast }) {
 
         {[
           { key: 'panelTestCreated', label: t('notificationsPage.typePanelTest') },
+          { key: 'panelBearerInvalid', label: t('notificationsPage.typePanelBearerInvalid') },
           { key: 'tvLoginSold', label: t('notificationsPage.typeTvSold') }
         ].map((row) => (
           <label

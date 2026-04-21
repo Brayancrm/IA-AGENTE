@@ -53,6 +53,7 @@
     "tokenRegistered": "This device is registered for push alerts.",
     "typesTitle": "What to notify",
     "typePanelTest": "External panel test created",
+    "typePanelBearerInvalid": "External panel test token invalid or expired",
     "typeTvSold": "TV / Wplay login sold (inventory)",
     "prefSaved": "Preference saved.",
     "prefError": "Could not save preference.",

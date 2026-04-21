@@ -6,7 +6,8 @@ const admin = require('firebase-admin');
 
 const PREFS_DEFAULTS = {
   panelTestCreated: true,
-  tvLoginSold: true
+  tvLoginSold: true,
+  panelBearerInvalid: true
 };
 
 async function listMasterUserIds() {
@@ -128,6 +129,18 @@ async function notifyMastersTvLoginSold({ sellerUserId, planName, planKey }) {
   });
 }
 
+async function notifyMastersPanelBearerInvalid({ reason = '' } = {}) {
+  const title = 'Token do painel inválido';
+  const body =
+    String(reason || '').includes('jwt') || String(reason || '').includes('JWT')
+      ? 'O Bearer (JWT) expirou. Atualize em CRM → token do painel ou Firestore configs/api_panel.'
+      : 'A API do painel recusou o token (401/403). Atualize bearer_token em configs → api_panel.';
+  await notifyAllMasters('panelBearerInvalid', title, body, {
+    type: 'panel_bearer_invalid',
+    reason: String(reason || '')
+  });
+}
+
 async function notifyMastersPanelTestCreated({ usuario, recipientLabel }) {
   const title = 'Teste do painel criado';
   const u = usuario && String(usuario).trim() ? String(usuario).trim() : '—';
@@ -143,6 +156,7 @@ async function notifyMastersPanelTestCreated({ usuario, recipientLabel }) {
 module.exports = {
   listMasterUserIds,
   notifyMastersTvLoginSold,
+  notifyMastersPanelBearerInvalid,
   notifyMastersPanelTestCreated,
   notifyAllMasters
 };

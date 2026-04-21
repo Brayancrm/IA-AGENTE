@@ -53,6 +53,7 @@
     "tokenRegistered": "Este dispositivo está registrado para alertas.",
     "typesTitle": "Qué notificar",
     "typePanelTest": "Prueba creada en el panel externo",
+    "typePanelBearerInvalid": "Token del panel de pruebas inválido o caducado",
     "typeTvSold": "Login TV / Wplay vendido (inventario)",
     "prefSaved": "Preferencia guardada.",
     "prefError": "Error al guardar la preferencia.",

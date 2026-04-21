@@ -157,6 +157,46 @@ const firestore = admin.firestore();
 const panelService = require('./services/panelService');
 const masterPush = require('./masterPushNotifications');
 
+/** Evita spam de push quando o token continua inválido (401 periódico + chamadas reais). */
+let lastPanelBearerInvalidPushAt = 0;
+
+function panelBearerInvalidNotifyCooldownMs() {
+  const v = parseInt(process.env.PANEL_BEARER_INVALID_NOTIFY_COOLDOWN_MS || '3600000', 10);
+  return Number.isFinite(v) && v >= 0 ? v : 3600000;
+}
+
+function panelBearerHealthIntervalMs() {
+  const v = parseInt(process.env.PANEL_BEARER_HEALTHCHECK_INTERVAL_MS || '300000', 10);
+  return Number.isFinite(v) && v >= 60000 ? v : 300000;
+}
+
+async function schedulePanelBearerInvalidNotify(reason) {
+  const now = Date.now();
+  const cd = panelBearerInvalidNotifyCooldownMs();
+  if (lastPanelBearerInvalidPushAt && now - lastPanelBearerInvalidPushAt < cd) return;
+  lastPanelBearerInvalidPushAt = now;
+  try {
+    await masterPush.notifyMastersPanelBearerInvalid({ reason: String(reason || '') });
+  } catch (e) {
+    console.warn('[PUSH] panel bearer invalid:', e.message);
+  }
+}
+
+async function tickPanelBearerHealthCheck() {
+  if (process.env.PANEL_BEARER_HEALTHCHECK === 'false') return;
+  try {
+    const r = await panelService.probePanelBearerHealth();
+    if (r.status === 'invalid') {
+      console.warn('[panel-health] token inválido', r.source, r.detail || '');
+      await schedulePanelBearerInvalidNotify(r.detail || r.source);
+    } else if (r.status === 'valid') {
+      lastPanelBearerInvalidPushAt = 0;
+    }
+  } catch (e) {
+    console.warn('[panel-health]', e.message);
+  }
+}
+
 /** Estado anterior de `status` por login TV (evita push duplicado). Chave: `${uid}/${loginId}`. */
 const tvLoginPrevStatus = new Map();
 const tvLoginWatchedUids = new Set();
@@ -613,6 +653,7 @@ panelService.setTokenExpiredNotifier(() => {
   console.error(
     '🔐 [PANEL API] TOKEN_EXPIRED — atualize no Firestore: coleção configs, documento api_panel, campo bearer_token'
   );
+  schedulePanelBearerInvalidNotify('api_401').catch(() => {});
 });
 
 // Armazenar clientes WPPConnect ativos
@@ -9863,6 +9904,21 @@ app.listen(PORT, '0.0.0.0', async () => {
       console.error('❌ [panel-followup] tick:', e.message)
     );
   }, 60_000);
+
+  if (process.env.PANEL_BEARER_HEALTHCHECK !== 'false') {
+    const phMs = panelBearerHealthIntervalMs();
+    setTimeout(() => {
+      tickPanelBearerHealthCheck().catch((e) => console.warn('[panel-health] primeira:', e.message));
+    }, 90_000);
+    setInterval(() => {
+      tickPanelBearerHealthCheck().catch((e) => console.warn('[panel-health]', e.message));
+    }, phMs);
+    console.log(
+      `📋 [panel-health] verificação do Bearer do painel a cada ${phMs / 60000} min (desligar: PANEL_BEARER_HEALTHCHECK=false)`
+    );
+  } else {
+    console.log('ℹ️  [panel-health] verificação periódica do token DESLIGADA (PANEL_BEARER_HEALTHCHECK=false)');
+  }
 
   console.log('');
 });
