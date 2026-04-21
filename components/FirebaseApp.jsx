@@ -4887,25 +4887,6 @@ const DashboardWithFirebase = ({
         updatedAt: new Date().toISOString()
       });
       showToast(t('tvLogins.toastMarkedSold'), 'success');
-      try {
-        const idTok = auth?.currentUser ? await getIdToken(auth.currentUser) : null;
-        if (idTok) {
-          fetch(`${BACKEND_URL}/api/notifications/report-tv-sold`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${idTok}`
-            },
-            body: JSON.stringify({
-              sellerUserId: user.uid,
-              planName: item.planName || '',
-              planKey: item.planKey || ''
-            })
-          }).catch(() => {});
-        }
-      } catch {
-        /* push opcional */
-      }
     } catch (error) {
       showToast(t('tvLogins.toastStatusError', { message: error.message }), 'error');
     }

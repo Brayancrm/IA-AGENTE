@@ -157,6 +157,116 @@ const firestore = admin.firestore();
 const panelService = require('./services/panelService');
 const masterPush = require('./masterPushNotifications');
 
+/** Estado anterior de `status` por login TV (evita push duplicado). Chave: `${uid}/${loginId}`. */
+const tvLoginPrevStatus = new Map();
+const tvLoginWatchedUids = new Set();
+
+async function attachTvLoginWatchersForUid(uid) {
+  if (!uid || tvLoginWatchedUids.has(uid)) return;
+  tvLoginWatchedUids.add(uid);
+  const baseRef = db.ref(`users/data/${uid}/tv_logins`);
+  try {
+    const seed = await baseRef.once('value');
+    if (seed.exists()) {
+      seed.forEach((ch) => {
+        tvLoginPrevStatus.set(`${uid}/${ch.key}`, (ch.val() && ch.val().status) || null);
+      });
+    }
+  } catch (e) {
+    console.warn('[PUSH] TV seed', uid, e.message);
+  }
+
+  baseRef.on('child_changed', (snap) => {
+    const data = snap.val() || {};
+    const key = `${uid}/${snap.key}`;
+    const prev = tvLoginPrevStatus.get(key);
+    const next = data.status;
+    tvLoginPrevStatus.set(key, next);
+    if (next === 'sold' && prev !== 'sold') {
+      const planName = data.soldItemName || data.planName || '';
+      const planKey = data.planKey || '';
+      masterPush
+        .notifyMastersTvLoginSold({
+          sellerUserId: uid,
+          planName: planName || 'TV/Wplay',
+          planKey
+        })
+        .catch((err) => console.warn('[PUSH] tv sold notify:', err.message));
+    }
+  });
+
+  baseRef.on('child_added', (snap) => {
+    const data = snap.val() || {};
+    const key = `${uid}/${snap.key}`;
+    const already = tvLoginPrevStatus.has(key);
+    tvLoginPrevStatus.set(key, data.status);
+    if (!already && data.status === 'sold') {
+      const planName = data.soldItemName || data.planName || '';
+      const planKey = data.planKey || '';
+      masterPush
+        .notifyMastersTvLoginSold({
+          sellerUserId: uid,
+          planName: planName || 'TV/Wplay',
+          planKey
+        })
+        .catch((err) => console.warn('[PUSH] tv sold notify (added):', err.message));
+    }
+  });
+
+  baseRef.on('child_removed', (snap) => {
+    tvLoginPrevStatus.delete(`${uid}/${snap.key}`);
+  });
+}
+
+/**
+ * Notifica masters quando qualquer `tv_logins/*` passa a `sold` (manual, agente ou Stripe),
+ * ouvindo o Realtime Database no servidor.
+ */
+async function initTvLoginSoldPushWatchers() {
+  let regSnap;
+  try {
+    regSnap = await db.ref('users/registered').once('value');
+  } catch (e) {
+    console.warn('[PUSH] TV watchers: users/registered', e.message);
+    return;
+  }
+  if (!regSnap.exists()) return;
+  const raw = regSnap.val() || {};
+  const uids = [];
+  Object.values(raw).forEach((u) => {
+    if (u && typeof u.uid === 'string' && u.uid) uids.push(u.uid);
+  });
+  const unique = [...new Set(uids)];
+  for (const uid of unique) {
+    await attachTvLoginWatchersForUid(uid);
+  }
+  try {
+    const dataSnap = await db.ref('users/data').once('value');
+    if (dataSnap.exists()) {
+      dataSnap.forEach((userSnap) => {
+        const uid = userSnap.key;
+        const v = userSnap.val();
+        if (v && v.tv_logins && typeof v.tv_logins === 'object' && !tvLoginWatchedUids.has(uid)) {
+          attachTvLoginWatchersForUid(uid).catch((e) =>
+            console.warn('[PUSH] TV watcher fallback users/data', uid, e.message)
+          );
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('[PUSH] TV watchers fallback users/data', e.message);
+  }
+  db.ref('users/registered').on('child_added', (snap) => {
+    const u = snap.val();
+    const uid = u && typeof u.uid === 'string' ? u.uid : '';
+    if (!uid) return;
+    attachTvLoginWatchersForUid(uid).catch((e) =>
+      console.warn('[PUSH] TV watcher novo vendedor', uid, e.message)
+    );
+  });
+  console.log(`📺 [PUSH] watchers tv_logins→sold: ${unique.length} vendedor(es) inicial(is)`);
+}
+
 /** Cooldown entre testes automáticos por conversa (evita spam à API do painel). */
 const PANEL_TEST_AUTO_COOLDOWN_MS = 75_000;
 const panelTestAutoLastByChat = new Map();
@@ -5758,24 +5868,6 @@ async function markTvLoginAllocated(masterUserId, tvLoginId, patch) {
     soldOrderId: patch.soldOrderId || null,
     at: soldAt
   });
-  try {
-    let planLabel = (patch && (patch.soldItemName || patch.planName)) || '';
-    if (!planLabel) {
-      try {
-        const pn = await db.ref(`users/data/${masterUserId}/tv_logins/${tvLoginId}/planName`).once('value');
-        planLabel = pn.val() || '';
-      } catch {
-        planLabel = '';
-      }
-    }
-    await masterPush.notifyMastersTvLoginSold({
-      sellerUserId: masterUserId,
-      planName: planLabel || 'TV/Wplay',
-      planKey: (patch && patch.planKey) || ''
-    });
-  } catch (pushErr) {
-    console.warn('⚠️ [PUSH] TV vendido (pedido):', pushErr.message);
-  }
 }
 
 async function sendTvLoginWhatsApp(masterUserId, customerPhone, text) {
@@ -9721,6 +9813,10 @@ app.listen(PORT, '0.0.0.0', async () => {
   }
 
   console.log(`📂 [WHATSAPP] Pasta de tokens: ${getWppTokensBase()}`);
+
+  initTvLoginSoldPushWatchers().catch((e) =>
+    console.warn('[PUSH] watchers tv_logins:', e.message)
+  );
 
   // Recriar clientes em memória para quem estava conectado (tokens em WPP_TOKENS_BASE no disco)
   if (process.env.WHATSAPP_AUTO_RESTORE_ON_STARTUP !== 'false') {
