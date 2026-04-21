@@ -7,13 +7,15 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, se
 import { getDatabase, ref, push, set, onValue, off } from 'firebase/database';
 import { useI18n } from '../contexts/I18nContext';
 
+const trimEnv = (v) => (typeof v === 'string' ? v.trim() : v);
+
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: trimEnv(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
+  authDomain: trimEnv(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
+  projectId: trimEnv(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
+  storageBucket: trimEnv(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
+  messagingSenderId: trimEnv(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
+  appId: trimEnv(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
   databaseURL: 'https://ia-agente-b2f46.firebaseio.com'
 };
 

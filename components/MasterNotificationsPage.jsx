@@ -15,7 +15,7 @@ export default function MasterNotificationsPage({ user, isMobile, showToast }) {
   const [prefs, setPrefs] = useState({ panelTestCreated: true, tvLoginSold: true });
   const [tokenStatus, setTokenStatus] = useState('idle');
   const [hasToken, setHasToken] = useState(false);
-  const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || '';
+  const vapidKey = String(process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || '').trim();
 
   useEffect(() => {
     if (!database || !user?.uid) return;
