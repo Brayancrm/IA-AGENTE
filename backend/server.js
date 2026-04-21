@@ -8339,6 +8339,11 @@ app.post('/api/panel/save-token', async (req, res) => {
         },
         { merge: true }
       );
+    setImmediate(() => {
+      tickPanelBearerHealthCheck().catch((e) =>
+        console.warn('[panel-health] após save-token:', e.message)
+      );
+    });
     return res.json({
       success: true,
       message: 'Token guardado no Firestore (configs → api_panel).'

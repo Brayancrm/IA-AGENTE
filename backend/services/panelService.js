@@ -57,6 +57,49 @@ function jwtExpiryMs(token) {
 }
 
 /**
+ * Muitas APIs devolvem 400/422 (ou até 200 com JSON de erro) em vez de 401 quando o Bearer está errado.
+ */
+function panelResponseIndicatesInvalidToken(status, data) {
+  if (status === 401 || status === 403) return true;
+  const raw =
+    typeof data === 'string'
+      ? data
+      : data && typeof data === 'object'
+        ? JSON.stringify(data)
+        : String(data ?? '');
+  const low = raw.toLowerCase();
+  if (!low || low === 'null') return false;
+
+  const authSignals =
+    /unauthorized|invalid[_\s-]*token|token[_\s-]*expired|token[_\s-]*invalid|token.{0,48}inv[aá]lido|inv[aá]lido.{0,24}token|jwt[_\s-]*expired|acesso\s*negado|n[aã]o\s*autorizado|authentication\s*required|bearer\s*invalid|invalid[_\s-]*credentials|invalid[_\s-]*grant|sess[aã]o\s*expir|forbidden|"code"\s*:\s*401|"statuscode"\s*:\s*401|statuscode["\s:]*401/i;
+  if (authSignals.test(low)) return true;
+
+  if (data && typeof data === 'object') {
+    const o = data;
+    if (o.success === false && authSignals.test(low)) return true;
+    const c = o.code;
+    if (typeof c === 'string') {
+      const cl = c.toLowerCase();
+      if (
+        cl.includes('unauth') ||
+        cl.includes('invalid_token') ||
+        cl.includes('token_expired') ||
+        cl.includes('expired_token') ||
+        cl.includes('forbidden') ||
+        cl.includes('invalid_grant') ||
+        cl === '401'
+      ) {
+        return true;
+      }
+    }
+    if (typeof c === 'number' && c === 401) return true;
+    const sc = o.statusCode ?? o.status_code;
+    if (typeof sc === 'number' && sc === 401) return true;
+  }
+  return false;
+}
+
+/**
  * Sonda HTTP sem corpo de teste completo: GET no endpoint (muitas APIs devolvem 405 com auth válida);
  * se inconclusivo, POST `{}` — 401/403 = token inválido; 4xx de validação costuma indicar auth aceite.
  * @returns {Promise<{ ok: boolean | null, method?: string, status?: number, note?: string }>}
@@ -93,9 +136,16 @@ async function probePanelBearerHttp(token) {
 
   const g = await tryGet();
   if (g.status === 401 || g.status === 403) return { ok: false, method: 'GET', status: g.status };
-  if (g.status === 405 || g.status === 400 || g.status === 422 || g.status === 415)
+  if (g.status === 405 || g.status === 400 || g.status === 422 || g.status === 415) {
+    if (panelResponseIndicatesInvalidToken(g.status, g.data)) {
+      return { ok: false, method: 'GET', status: g.status };
+    }
     return { ok: true, method: 'GET', status: g.status };
+  }
   if (g.status != null && g.status >= 200 && g.status < 300) {
+    if (panelResponseIndicatesInvalidToken(g.status, g.data)) {
+      return { ok: false, method: 'GET', status: g.status };
+    }
     const { usuario } = extractCredentials(g.data);
     if (usuario) {
       return {
@@ -112,6 +162,9 @@ async function probePanelBearerHttp(token) {
   const p = await tryPostEmpty();
   if (p.status === 401 || p.status === 403) return { ok: false, method: 'POST', status: p.status };
   if (p.status != null && p.status >= 400 && p.status < 500) {
+    if (panelResponseIndicatesInvalidToken(p.status, p.data)) {
+      return { ok: false, method: 'POST', status: p.status };
+    }
     const { usuario } = extractCredentials(p.data);
     if (usuario) {
       console.warn(
@@ -121,6 +174,9 @@ async function probePanelBearerHttp(token) {
     return { ok: true, method: 'POST', status: p.status };
   }
   if (p.status != null && p.status >= 200 && p.status < 300) {
+    if (panelResponseIndicatesInvalidToken(p.status, p.data)) {
+      return { ok: false, method: 'POST', status: p.status };
+    }
     const { usuario } = extractCredentials(p.data);
     if (usuario) {
       console.warn(
