@@ -545,8 +545,9 @@ const FirebaseApp = () => {
     };
   }, []);
   
-  // URL do backend
+  // URL do backend (servidor). No browser: mesmo domínio → proxy Next em /api/* (sem CORS).
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+  const API_BASE = typeof window !== 'undefined' ? '' : BACKEND_URL;
 
   // Função para mostrar toast
   const showToast = (message, type = 'success') => {
@@ -2283,7 +2284,7 @@ const FirebaseApp = () => {
     setIsConnecting(true);
     
     try {
-      const response = await fetch(`${BACKEND_URL}/api/sessions/create`, {
+      const response = await fetch(`${API_BASE}/api/sessions/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -2310,7 +2311,7 @@ const FirebaseApp = () => {
     if (!user) return;
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/sessions/disconnect`, {
+      const response = await fetch(`${API_BASE}/api/sessions/disconnect`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -2448,7 +2449,7 @@ const FirebaseApp = () => {
 
     try {
       // Primeiro desconecta
-      await fetch(`${BACKEND_URL}/api/sessions/disconnect`, {
+      await fetch(`${API_BASE}/api/sessions/disconnect`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -2461,7 +2462,7 @@ const FirebaseApp = () => {
 
       // Depois reconecta para gerar novo QR Code
       setIsConnecting(true);
-      const response = await fetch(`${BACKEND_URL}/api/sessions/create`, {
+      const response = await fetch(`${API_BASE}/api/sessions/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

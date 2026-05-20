@@ -360,6 +360,44 @@ async function enqueuePanelTestFollowUp(ownerUserId, targetJid, messageText) {
 }
 
 const app = express();
+
+function isCorsOriginAllowed(origin) {
+  if (!origin) return true;
+  const exact = new Set([
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://ia-agente.vercel.app',
+    'https://www.dadosia.com.br',
+    'https://dadosia.com.br'
+  ]);
+  if (exact.has(origin)) return true;
+  try {
+    const host = new URL(origin).hostname.toLowerCase();
+    if (host === 'dadosia.com.br' || host.endsWith('.dadosia.com.br')) return true;
+    if (host.endsWith('.vercel.app')) return true;
+  } catch (_) {
+    /* ignore */
+  }
+  const extra = String(process.env.CORS_EXTRA_ORIGINS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return extra.includes(origin);
+}
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (isCorsOriginAllowed(origin)) return callback(null, true);
+      console.warn('[CORS] origem bloqueada:', origin || '(sem Origin)');
+      return callback(null, false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  })
+);
+
 const ENABLE_ASAAS_LEGACY = process.env.ENABLE_ASAAS_LEGACY === 'true';
 
 /** URL pública do API (Railway, etc.) — usada no link curto de pagamento. */
@@ -630,23 +668,6 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
   }
 });
 
-// Middlewares
-app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'https://ia-agente.vercel.app',
-    'https://ia-agente.vercel.app/',
-    'https://www.dadosia.com.br',
-    'https://www.dadosia.com.br/',
-    'https://dadosia.com.br',
-    'https://dadosia.com.br/',
-    /\.vercel\.app$/  // Permite todos os subdomínios da Vercel
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
 app.use(express.json());
 
 panelService.setTokenExpiredNotifier(() => {
