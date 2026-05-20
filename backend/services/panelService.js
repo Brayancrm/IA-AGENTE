@@ -210,6 +210,13 @@ async function probePanelBearerHealth() {
   const expMs = jwtExpiryMs(token);
   if (expMs != null) {
     if (Date.now() >= expMs) {
+      const httpAfterJwt = await probePanelBearerHttp(token);
+      if (httpAfterJwt.ok === true) {
+        return { status: 'valid', source: 'http', detail: 'jwt_exp_claim_but_api_ok' };
+      }
+      if (httpAfterJwt.ok === false) {
+        return { status: 'invalid', source: 'jwt', detail: 'jwt_expired' };
+      }
       return { status: 'invalid', source: 'jwt', detail: 'jwt_expired' };
     }
     return { status: 'valid', source: 'jwt', detail: 'jwt_ok' };
