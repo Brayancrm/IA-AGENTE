@@ -1,6 +1,6 @@
 {
   "name": "whatsapp-ia-backend",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "Backend WPPConnect + IA para WhatsApp Sales Agent",
   "main": "server.js",
   "scripts": {

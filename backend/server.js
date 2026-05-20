@@ -7350,7 +7350,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online',
     service: 'WhatsApp IA Backend',
-    version: '1.0.14-clean-sessions', // 🧹 Limpa sessões antigas no deploy
+    version: '1.0.15-whatsapp-proxy-cors',
     activeSessions: activeClients.size,
     timestamp: new Date().toISOString()
   });
