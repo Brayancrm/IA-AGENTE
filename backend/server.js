@@ -513,6 +513,15 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
           });
         }
 
+        if (!subscriptionKey && session.metadata?.subscriptionKey) {
+          const sk = String(session.metadata.subscriptionKey);
+          const snap = await db.ref(`subscriptions/${userId}/${sk}`).once('value');
+          if (snap.exists()) {
+            subscriptionKey = sk;
+            subscriptionData = snap.val();
+          }
+        }
+
         if (subscriptionKey && subscriptionData) {
           await db.ref(`subscriptions/${userId}/${subscriptionKey}`).update({
             status: 'active',
@@ -5771,6 +5780,7 @@ async function enrichOrderItemsWithCatalog(sellerUserId, items) {
       enriched.catalogItemId = cat.id;
       enriched.tvLoginProduct = !!cat.tvLoginProduct;
       enriched.tvPlanKey = normalizePlanKey(cat.tvPlanKey || cat.planName || '');
+      enriched.billingCycle = line.billingCycle || cat.billingCycle || 'monthly';
       enriched.pricesByCurrency = normalizeCatalogPricesByCurrency(cat.pricesByCurrency);
       if (!line.lockedPrice) {
         if (hasValidCatalogPrice(cat.price)) enriched.price = Number(cat.price);
@@ -6103,18 +6113,34 @@ async function sendTvSubscriptionRenewalMessage(masterUserId, customerPhone, pla
 
 async function handleTvSubscriptionStripeInvoice({ buyerUserId, subscriptionKey, subData, invoice }) {
   try {
-    const planId = subData?.planId;
-    if (!planId || !invoice) return;
+    if (!invoice) return;
 
-    const planSnap = await db.ref(`plans/${planId}`).once('value');
-    const plan = planSnap.val();
-    if (!plan?.tvLoginProduct || !plan.tvPlanKey) return;
+    let sellerUid = null;
+    let planKeyNorm = null;
+    let planName = 'Wplay';
 
-    const sellerUid = plan.ownerUid;
-    if (!sellerUid) {
-      console.error('❌ [TV LOGIN] Plano sem ownerUid (vendedor). Configure o plano no painel.');
-      return;
+    if (subData?.sellerUserId && subData?.tvPlanKey && subData?.tvLoginProduct) {
+      sellerUid = subData.sellerUserId;
+      planKeyNorm = normalizePlanKey(subData.tvPlanKey);
+      planName = subData.planName || subData.catalogItemName || 'Wplay';
+    } else {
+      const planId = subData?.planId;
+      if (!planId) return;
+
+      const planSnap = await db.ref(`plans/${planId}`).once('value');
+      const plan = planSnap.val();
+      if (!plan?.tvLoginProduct || !plan.tvPlanKey) return;
+
+      sellerUid = plan.ownerUid;
+      if (!sellerUid) {
+        console.error('❌ [TV LOGIN] Plano sem ownerUid (vendedor). Configure o plano no painel.');
+        return;
+      }
+      planKeyNorm = normalizePlanKey(plan.tvPlanKey);
+      planName = plan.name || 'Wplay';
     }
+
+    if (!sellerUid || !planKeyNorm) return;
 
     const customerMerged = await enrichOrderCustomerWithCrmMobile(sellerUid, {
       ...subData.customer,
@@ -6132,10 +6158,9 @@ async function handleTvSubscriptionStripeInvoice({ buyerUserId, subscriptionKey,
     const soldToDisplay = formatSoldToDisplayFromCustomer(customerMerged);
 
     const billingReason = invoice.billing_reason || '';
-    const planKeyNorm = normalizePlanKey(plan.tvPlanKey);
 
     if (billingReason === 'subscription_cycle') {
-      await sendTvSubscriptionRenewalMessage(sellerUid, deliveryJid, plan.name);
+      await sendTvSubscriptionRenewalMessage(sellerUid, deliveryJid, planName);
       return;
     }
 
@@ -6153,7 +6178,7 @@ async function handleTvSubscriptionStripeInvoice({ buyerUserId, subscriptionKey,
       await sendTvLoginWhatsApp(
         sellerUid,
         deliveryJid,
-        `⚠️ Pagamento recebido, mas não há login disponível no estoque (${plan.name}). Entraremos em contato.`
+        `⚠️ Pagamento recebido, mas não há login disponível no estoque (${planName}). Entraremos em contato.`
       );
       return;
     }
@@ -6162,7 +6187,7 @@ async function handleTvSubscriptionStripeInvoice({ buyerUserId, subscriptionKey,
     await markTvLoginAllocated(sellerUid, login.id, {
       soldToPhone: soldToDisplay,
       soldToWhatsAppJid: deliveryJid,
-      soldItemName: plan.name || null,
+      soldItemName: planName || null,
       stripeSubscriptionId: stripeSubId,
       buyerUserId,
       deliveryChannel: 'subscription_first_invoice',
@@ -6179,7 +6204,7 @@ async function handleTvSubscriptionStripeInvoice({ buyerUserId, subscriptionKey,
 
     let msg =
       `✅ *Assinatura ativa!*\n\n` +
-      `📺 *Acesso Wplay — ${plan.name}*\n` +
+      `📺 *Acesso Wplay — ${planName}*\n` +
       `Login: ${login.login}\n` +
       `Senha: ${login.password}\n\n` +
       `_Cobrança recorrente mensal: a cada pagamento confirmado você recebe confirmação; os dados de acesso são os mesmos._`;
@@ -6265,6 +6290,7 @@ async function createStripeSubscriptionCheckoutSession(stripeApiKey, customerDat
     }
 
     const interval = planData.billingCycle === 'yearly' ? 'year' : 'month';
+    const currency = stripeCurrencyCode(planData.currency || 'eur');
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       success_url: successUrl,
@@ -6274,7 +6300,7 @@ async function createStripeSubscriptionCheckoutSession(stripeApiKey, customerDat
       line_items: [
         {
           price_data: {
-            currency: 'eur',
+            currency,
             recurring: { interval },
             product_data: {
               name: planData.name || 'Plano de Assinatura'
@@ -6298,6 +6324,7 @@ async function createStripeSubscriptionCheckoutSession(stripeApiKey, customerDat
       success: true,
       subscriptionId: session.subscription || null,
       stripeSessionId: session.id,
+      checkoutUrl: session.url,
       invoiceUrl: session.url,
       value: parseFloat(planData.price || 0),
       cycle: interval === 'year' ? 'YEARLY' : 'MONTHLY',
@@ -6307,6 +6334,98 @@ async function createStripeSubscriptionCheckoutSession(stripeApiKey, customerDat
     console.error('❌ Erro ao criar assinatura Stripe:', error.message);
     return { success: false, error: error.message };
   }
+}
+
+/** Checkout Stripe em modo assinatura para itens Wplay/TV do catálogo (agente WhatsApp ou API). */
+function checkoutItemsAreAllTvSubscription(enrichedItems) {
+  if (!Array.isArray(enrichedItems) || !enrichedItems.length) return false;
+  return enrichedItems.every((line) => {
+    const pk = normalizePlanKey(line.tvPlanKey || '');
+    return !!line.tvLoginProduct && !!pk;
+  });
+}
+
+async function createStripeCatalogTvSubscriptionCheckoutSession(
+  stripeApiKey,
+  customerData,
+  catalogLine,
+  sellerUserId,
+  successUrl,
+  cancelUrl,
+  metadata = {}
+) {
+  try {
+    const stripe = new Stripe(stripeApiKey, { apiVersion: '2023-10-16' });
+    const price = parseFloat(catalogLine.price);
+    const amount = Math.round(price * 100);
+    if (!amount || Number.isNaN(amount) || amount <= 0) {
+      throw new Error('Preço inválido para assinatura Wplay/TV');
+    }
+    const billingCycle = catalogLine.billingCycle === 'yearly' ? 'yearly' : 'monthly';
+    const interval = billingCycle === 'yearly' ? 'year' : 'month';
+    const currency = stripeCurrencyCode(catalogLine.currency || 'eur');
+    const tvPlanKey = normalizePlanKey(catalogLine.tvPlanKey || '');
+    const subMeta = {
+      userId: sellerUserId || '',
+      subscriptionKey: metadata.subscriptionKey || '',
+      catalogItemId: catalogLine.catalogItemId || '',
+      catalogItemName: catalogLine.name || '',
+      planName: catalogLine.name || 'Wplay TV',
+      billingCycle,
+      tvLoginProduct: '1',
+      tvPlanKey,
+      sellerUserId: sellerUserId || '',
+      checkoutSource: metadata.checkoutSource || 'whatsapp_catalog',
+      customerPhone: customerData?.originalPhone || customerData?.phone || ''
+    };
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      customer_email: customerData?.email || undefined,
+      locale: 'pt-BR',
+      line_items: [
+        {
+          price_data: {
+            currency,
+            recurring: { interval },
+            product_data: {
+              name: catalogLine.name || 'Wplay TV',
+              ...(catalogLine.description
+                ? { description: String(catalogLine.description).slice(0, 500) }
+                : {})
+            },
+            unit_amount: amount
+          },
+          quantity: Math.max(1, parseInt(catalogLine.quantity, 10) || 1)
+        }
+      ],
+      metadata: subMeta,
+      subscription_data: {
+        metadata: { ...subMeta }
+      }
+    });
+
+    return {
+      success: true,
+      subscriptionId: session.subscription || null,
+      sessionId: session.id,
+      stripeSessionId: session.id,
+      checkoutUrl: session.url,
+      value: price,
+      currency,
+      cycle: interval === 'year' ? 'YEARLY' : 'MONTHLY',
+      billingCycle
+    };
+  } catch (error) {
+    console.error('❌ Erro ao criar assinatura Stripe (catálogo TV):', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+function subscriptionCycleLabelPt(billingCycle) {
+  return billingCycle === 'yearly' ? 'ano' : 'mês';
 }
 
 /** Texto antes do link Stripe + URL do app (pós-pagamento TV), em assistant_settings */
@@ -6768,17 +6887,111 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber, pricing
       originalPhone: phone
     };
 
-    const orderRef = db.ref(`orders/${userId}`).push();
-    const orderId = orderRef.key;
-    const result = await createStripeCheckoutSession(
-      stripeApiKey,
-      customerData,
-      enrichedOrderItems,
-      userId,
-      successUrl,
-      cancelUrl,
-      { orderId }
-    );
+    const orderMobileDigits =
+      savedCustomerData?.mobilePhone &&
+      String(savedCustomerData.mobilePhone).replace(/\D/g, '').length >= 8
+        ? String(savedCustomerData.mobilePhone).replace(/\D/g, '')
+        : undefined;
+
+    const customerToSave = {
+      name: customerData.name || 'Cliente',
+      phone: phone,
+      whatsappJid: phone,
+      ...(orderMobileDigits && { mobilePhone: orderMobileDigits }),
+      ...(customerData.email && { email: customerData.email })
+    };
+
+    const useTvSubscription = checkoutItemsAreAllTvSubscription(enrichedOrderItems);
+    let result;
+    let payLinkForWhatsApp;
+    let checkoutRefKey;
+
+    if (useTvSubscription) {
+      const catalogLine = enrichedOrderItems[0];
+      const subscriptionRef = db.ref(`subscriptions/${userId}`).push();
+      checkoutRefKey = subscriptionRef.key;
+      console.log('🔄 [Stripe] Checkout assinatura Wplay/TV (recorrente) para:', catalogLine.name);
+      result = await createStripeCatalogTvSubscriptionCheckoutSession(
+        stripeApiKey,
+        customerData,
+        catalogLine,
+        userId,
+        successUrl,
+        cancelUrl,
+        { subscriptionKey: checkoutRefKey, checkoutSource: 'whatsapp_catalog' }
+      );
+      if (result.success) {
+        await subscriptionRef.set({
+          subscriptionId: checkoutRefKey,
+          catalogItemId: catalogLine.catalogItemId || null,
+          catalogItemName: catalogLine.name || null,
+          sellerUserId: userId,
+          planName: catalogLine.name || 'Wplay TV',
+          tvPlanKey: normalizePlanKey(catalogLine.tvPlanKey || ''),
+          tvLoginProduct: true,
+          checkoutSource: 'whatsapp_catalog',
+          customer: customerToSave,
+          items: enrichedOrderItems,
+          value: result.value,
+          cycle: result.cycle,
+          billingCycle: result.billingCycle || 'monthly',
+          status: 'pending_payment',
+          createdAt: new Date().toISOString(),
+          paymentUrl: result.checkoutUrl,
+          stripeSessionId: result.stripeSessionId,
+          paymentProvider: 'stripe'
+        });
+        payLinkForWhatsApp = await createShortPaymentUrl(result.checkoutUrl, {
+          userId,
+          orderId: checkoutRefKey
+        });
+        if (payLinkForWhatsApp !== result.checkoutUrl) {
+          await subscriptionRef.update({ paymentUrlShort: payLinkForWhatsApp });
+        }
+        try {
+          await reserveTvLoginsForCheckoutOrder(userId, checkoutRefKey, enrichedOrderItems);
+        } catch (e) {
+          console.error('❌ [TV] Reserva pós-checkout (assinatura):', e.message);
+        }
+      }
+    } else {
+      const orderRef = db.ref(`orders/${userId}`).push();
+      checkoutRefKey = orderRef.key;
+      result = await createStripeCheckoutSession(
+        stripeApiKey,
+        customerData,
+        enrichedOrderItems,
+        userId,
+        successUrl,
+        cancelUrl,
+        { orderId: checkoutRefKey }
+      );
+      if (result.success) {
+        await orderRef.set({
+          orderId: checkoutRefKey,
+          stripeSessionId: result.sessionId,
+          customer: customerToSave,
+          items: enrichedOrderItems,
+          totalValue: result.value,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          paymentUrl: result.checkoutUrl,
+          paymentProvider: 'stripe'
+        });
+        payLinkForWhatsApp = await createShortPaymentUrl(result.checkoutUrl, {
+          userId,
+          orderId: checkoutRefKey
+        });
+        if (payLinkForWhatsApp !== result.checkoutUrl) {
+          await orderRef.update({ paymentUrlShort: payLinkForWhatsApp });
+        }
+        try {
+          await reserveTvLoginsForCheckoutOrder(userId, checkoutRefKey, enrichedOrderItems);
+        } catch (e) {
+          console.error('❌ [TV] Reserva pós-checkout:', e.message);
+        }
+      }
+    }
 
     if (!result.success) {
       console.error('❌ Stripe checkout (auto):', result.error || 'erro desconhecido');
@@ -6787,41 +7000,6 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber, pricing
         'Não foi possível gerar o link de pagamento agora. Confirme se o Stripe está configurado no painel e se o servidor tem STRIPE_SUCCESS_URL e STRIPE_CANCEL_URL. Tente novamente em instantes.'
       );
       return;
-    }
-
-    const orderMobileDigits =
-      savedCustomerData?.mobilePhone &&
-      String(savedCustomerData.mobilePhone).replace(/\D/g, '').length >= 8
-        ? String(savedCustomerData.mobilePhone).replace(/\D/g, '')
-        : undefined;
-
-    await orderRef.set({
-      orderId: orderId,
-      stripeSessionId: result.sessionId,
-      customer: {
-        name: customerData.name || 'Cliente',
-        phone: phone,
-        whatsappJid: phone,
-        ...(orderMobileDigits && { mobilePhone: orderMobileDigits }),
-        ...(customerData.email && { email: customerData.email })
-      },
-      items: enrichedOrderItems,
-      totalValue: result.value,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      paymentUrl: result.checkoutUrl,
-      paymentProvider: 'stripe'
-    });
-
-    const payLinkForWhatsApp = await createShortPaymentUrl(result.checkoutUrl, { userId, orderId });
-    if (payLinkForWhatsApp !== result.checkoutUrl) {
-      await orderRef.update({ paymentUrlShort: payLinkForWhatsApp });
-    }
-
-    try {
-      await reserveTvLoginsForCheckoutOrder(userId, orderId, enrichedOrderItems);
-    } catch (e) {
-      console.error('❌ [TV] Reserva pós-checkout:', e.message);
     }
 
     const { messageBeforePaymentLink } = await getAssistantPaymentExtras(userId);
@@ -6838,16 +7016,27 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber, pricing
       });
     }
 
-    const totalCur = enrichedOrderItems[0]?.currency || 'BRL';
+    const totalCur = enrichedOrderItems[0]?.currency || 'EUR';
     const totalFmt = formatCatalogPriceForMessage(result.value, totalCur) || String(result.value);
-    const paymentMessage = `✅ *Pedido Criado!*\n\n` +
-      `📦 Itens:\n` +
-      enrichedOrderItems.map((item) => {
-        const line = formatCatalogPriceForMessage(item.price, item.currency);
-        return `• ${item.quantity}x ${item.name} - ${line || parseFloat(item.price).toFixed(2)}`;
-      }).join('\n') +
-      `\n\n💰 *Total: ${totalFmt}*\n\n` +
-      `🔗 *Pagamento:*\n${payLinkForWhatsApp}`;
+    const cycleLbl = useTvSubscription
+      ? subscriptionCycleLabelPt(result.billingCycle || enrichedOrderItems[0]?.billingCycle)
+      : null;
+    const paymentMessage = useTvSubscription
+      ? `✅ *Assinatura criada!*\n\n` +
+        `📦 *${enrichedOrderItems[0].name}*\n` +
+        `💰 *${totalFmt}/${cycleLbl}* (cobrança recorrente no cartão)\n\n` +
+        `_Após o pagamento você recebe login e senha por aqui. As renovações são automáticas._\n\n` +
+        `🔗 *Pagamento:*\n${payLinkForWhatsApp}`
+      : `✅ *Pedido Criado!*\n\n` +
+        `📦 Itens:\n` +
+        enrichedOrderItems
+          .map((item) => {
+            const line = formatCatalogPriceForMessage(item.price, item.currency);
+            return `• ${item.quantity}x ${item.name} - ${line || parseFloat(item.price).toFixed(2)}`;
+          })
+          .join('\n') +
+        `\n\n💰 *Total: ${totalFmt}*\n\n` +
+        `🔗 *Pagamento:*\n${payLinkForWhatsApp}`;
 
     await client.sendText(phone, paymentMessage);
 
@@ -7421,7 +7610,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online',
     service: 'WhatsApp IA Backend',
-    version: '1.0.16-wpp-stability',
+    version: '1.0.17-tv-subscription-checkout',
     activeSessions: activeClients.size,
     timestamp: new Date().toISOString()
   });
@@ -8086,57 +8275,115 @@ async function handleCreateStripeCheckout(req, res) {
       });
     }
 
-    const orderRef = db.ref(`orders/${userId}`).push();
-    const orderId = orderRef.key;
+    const customerToSave = {
+      name: customerData.name || 'Cliente',
+      phone: customerData.originalPhone || customerData.phone || customerData.mobilePhone,
+      ...(customerData.cpfCnpj && { cpfCnpj: customerData.cpfCnpj }),
+      ...(customerData.email && { email: customerData.email }),
+      ...(customerData.address && { address: customerData.address })
+    };
 
-    const result = await createStripeCheckoutSession(
-      stripeApiKey,
-      customerData,
-      enrichedItems,
-      userId,
-      successUrl,
-      cancelUrl,
-      { orderId }
-    );
-    
-    if (result.success) {
-      const customerToSave = {
-        name: customerData.name || 'Cliente',
-        phone: customerData.originalPhone || customerData.phone || customerData.mobilePhone,
-        ...(customerData.cpfCnpj && { cpfCnpj: customerData.cpfCnpj }),
-        ...(customerData.email && { email: customerData.email }),
-        ...(customerData.address && { address: customerData.address })
-      };
-      
-      await orderRef.set({
-        orderId: orderId,
-        stripeSessionId: result.sessionId,
-        customer: customerToSave,
-        items: enrichedItems,
-        totalValue: result.value,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        paymentUrl: result.checkoutUrl,
-        paymentProvider: 'stripe'
-      });
+    const useTvSubscription = checkoutItemsAreAllTvSubscription(enrichedItems);
+    let result;
+    let checkoutRefKey;
 
-      const shortCheckoutUrl = await createShortPaymentUrl(result.checkoutUrl, { userId, orderId });
-      if (shortCheckoutUrl !== result.checkoutUrl) {
-        await orderRef.update({ paymentUrlShort: shortCheckoutUrl });
+    if (useTvSubscription) {
+      const catalogLine = enrichedItems[0];
+      const subscriptionRef = db.ref(`subscriptions/${userId}`).push();
+      checkoutRefKey = subscriptionRef.key;
+      result = await createStripeCatalogTvSubscriptionCheckoutSession(
+        stripeApiKey,
+        customerData,
+        catalogLine,
+        userId,
+        successUrl,
+        cancelUrl,
+        { subscriptionKey: checkoutRefKey, checkoutSource: 'api_catalog' }
+      );
+      if (result.success) {
+        await subscriptionRef.set({
+          subscriptionId: checkoutRefKey,
+          catalogItemId: catalogLine.catalogItemId || null,
+          catalogItemName: catalogLine.name || null,
+          sellerUserId: userId,
+          planName: catalogLine.name || 'Wplay TV',
+          tvPlanKey: normalizePlanKey(catalogLine.tvPlanKey || ''),
+          tvLoginProduct: true,
+          checkoutSource: 'api_catalog',
+          customer: customerToSave,
+          items: enrichedItems,
+          value: result.value,
+          cycle: result.cycle,
+          billingCycle: result.billingCycle || 'monthly',
+          status: 'pending_payment',
+          createdAt: new Date().toISOString(),
+          paymentUrl: result.checkoutUrl,
+          stripeSessionId: result.stripeSessionId,
+          paymentProvider: 'stripe'
+        });
+        const shortCheckoutUrl = await createShortPaymentUrl(result.checkoutUrl, {
+          userId,
+          orderId: checkoutRefKey
+        });
+        if (shortCheckoutUrl !== result.checkoutUrl) {
+          await subscriptionRef.update({ paymentUrlShort: shortCheckoutUrl });
+        }
+        try {
+          await reserveTvLoginsForCheckoutOrder(userId, checkoutRefKey, enrichedItems);
+        } catch (e) {
+          console.error('❌ [TV] Reserva pós-checkout (API assinatura):', e.message);
+        }
+        return res.json({
+          success: true,
+          subscriptionId: checkoutRefKey,
+          recurring: true,
+          shortCheckoutUrl: shortCheckoutUrl !== result.checkoutUrl ? shortCheckoutUrl : undefined,
+          ...result
+        });
       }
-
-      try {
-        await reserveTvLoginsForCheckoutOrder(userId, orderId, enrichedItems);
-      } catch (e) {
-        console.error('❌ [TV] Reserva pós-checkout (API):', e.message);
+    } else {
+      const orderRef = db.ref(`orders/${userId}`).push();
+      checkoutRefKey = orderRef.key;
+      result = await createStripeCheckoutSession(
+        stripeApiKey,
+        customerData,
+        enrichedItems,
+        userId,
+        successUrl,
+        cancelUrl,
+        { orderId: checkoutRefKey }
+      );
+      if (result.success) {
+        await orderRef.set({
+          orderId: checkoutRefKey,
+          stripeSessionId: result.sessionId,
+          customer: customerToSave,
+          items: enrichedItems,
+          totalValue: result.value,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          paymentUrl: result.checkoutUrl,
+          paymentProvider: 'stripe'
+        });
+        const shortCheckoutUrl = await createShortPaymentUrl(result.checkoutUrl, {
+          userId,
+          orderId: checkoutRefKey
+        });
+        if (shortCheckoutUrl !== result.checkoutUrl) {
+          await orderRef.update({ paymentUrlShort: shortCheckoutUrl });
+        }
+        try {
+          await reserveTvLoginsForCheckoutOrder(userId, checkoutRefKey, enrichedItems);
+        } catch (e) {
+          console.error('❌ [TV] Reserva pós-checkout (API):', e.message);
+        }
+        return res.json({
+          success: true,
+          orderId: checkoutRefKey,
+          shortCheckoutUrl: shortCheckoutUrl !== result.checkoutUrl ? shortCheckoutUrl : undefined,
+          ...result
+        });
       }
-      
-      return res.json({
-        success: true,
-        orderId: orderId,
-        shortCheckoutUrl: shortCheckoutUrl !== result.checkoutUrl ? shortCheckoutUrl : undefined,
-        ...result
-      });
     }
 
     return res.status(400).json(result);
