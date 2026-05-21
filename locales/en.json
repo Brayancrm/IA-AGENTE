@@ -564,6 +564,7 @@
     "currency": "Currency",
     "currencyHint": "Prices and WhatsApp messages use this currency (ISO code).",
     "imageRequiredHint": "Required: upload a file or paste a valid image URL.",
+    "formIntro": "Right below Price and Currency, choose one-time payment or recurring subscription (Stripe).",
     "paymentMode": "Billing type (Stripe)",
     "paymentOneTime": "One-time payment",
     "paymentRecurring": "Recurring subscription",

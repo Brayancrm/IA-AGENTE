@@ -346,6 +346,18 @@ function formatCatalogMultiCurrencyLines(item) {
     .map((code) => ({ code, label: formatCatalogItemPrice(map[code], code) || `${code} ${map[code]}` }));
 }
 
+/** Modo de cobrança gravado ou legado (TV + tvPlanKey = recorrente). */
+function resolveCatalogItemPaymentMode(item) {
+  if (item?.paymentMode === 'recurring') {
+    return { mode: 'recurring', cycle: item?.billingCycle === 'yearly' ? 'yearly' : 'monthly' };
+  }
+  if (item?.paymentMode === 'one_time') return { mode: 'one_time', cycle: null };
+  if (item?.tvLoginProduct && String(item?.tvPlanKey || '').trim()) {
+    return { mode: 'recurring', cycle: item?.billingCycle === 'yearly' ? 'yearly' : 'monthly' };
+  }
+  return { mode: 'one_time', cycle: null };
+}
+
 const FirebaseApp = () => {
   const { db, auth, database, isReady, error } = useFirebase();
   const { t } = useI18n();
@@ -5514,6 +5526,26 @@ const DashboardWithFirebase = ({
                     </div>
                   )}
 
+                  {(() => {
+                    const pay = resolveCatalogItemPaymentMode(item);
+                    const recurring = pay.mode === 'recurring';
+                    return (
+                      <div className="mb-3">
+                        <span
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
+                            recurring
+                              ? 'bg-blue-950/50 text-blue-300 border-blue-800'
+                              : 'bg-gray-800 text-gray-300 border-gray-600'
+                          }`}
+                        >
+                          {recurring
+                            ? `🔄 ${t('catalogModal.paymentRecurring')}${pay.cycle === 'yearly' ? ` · ${t('catalogModal.billingYearly')}` : ` · ${t('catalogModal.billingMonthly')}`}`
+                            : `💳 ${t('catalogModal.paymentOneTime')}`}
+                        </span>
+                      </div>
+                    );
+                  })()}
+
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       {formatCatalogItemPrice(item.price, item.currency) ? (
@@ -5701,6 +5733,21 @@ const DashboardWithFirebase = ({
                               {item.featured && <Star className="w-4 h-4 text-green-500 fill-current" />}
                             </div>
                             <div className="text-sm text-gray-400 truncate max-w-xs">{item.description}</div>
+                            {(() => {
+                              const pay = resolveCatalogItemPaymentMode(item);
+                              const recurring = pay.mode === 'recurring';
+                              return (
+                                <span
+                                  className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                                    recurring
+                                      ? 'bg-blue-950/50 text-blue-300 border-blue-800'
+                                      : 'bg-gray-800 text-gray-400 border-gray-600'
+                                  }`}
+                                >
+                                  {recurring ? t('catalogModal.paymentRecurring') : t('catalogModal.paymentOneTime')}
+                                </span>
+                              );
+                            })()}
                           </div>
                         </div>
                       </td>
@@ -12521,9 +12568,12 @@ const DashboardWithFirebase = ({
             overflow: 'auto',
             border: '1px solid rgba(16, 185, 129, 0.3)'
           }}>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '24px', color: '#ffffff' }}>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '8px', color: '#ffffff' }}>
               {editingItem ? t('catalogModal.editTitle') : t('catalogModal.createTitle')}
             </h3>
+            <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '20px', lineHeight: 1.5 }}>
+              {t('catalogModal.formIntro')}
+            </p>
             
             <form onSubmit={handleCatalogSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
@@ -12653,6 +12703,69 @@ const DashboardWithFirebase = ({
                     {t('catalogModal.currencyHint')}
                   </p>
                 </div>
+              </div>
+
+              <div style={{
+                padding: '16px',
+                backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                borderRadius: '8px',
+                border: '2px solid rgba(59, 130, 246, 0.5)'
+              }}>
+                <label style={{ display: 'block', fontWeight: '700', marginBottom: '10px', color: '#ffffff', fontSize: '1.05rem' }}>
+                  💳 {t('catalogModal.paymentMode')}
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: catalogForm.paymentMode === 'recurring' ? '12px' : 0 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#e5e7eb' }}>
+                    <input
+                      type="radio"
+                      name="catalogPaymentMode"
+                      checked={catalogForm.paymentMode !== 'recurring'}
+                      onChange={() => setCatalogForm((prev) => ({ ...prev, paymentMode: 'one_time' }))}
+                    />
+                    {t('catalogModal.paymentOneTime')}
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#e5e7eb' }}>
+                    <input
+                      type="radio"
+                      name="catalogPaymentMode"
+                      checked={catalogForm.paymentMode === 'recurring'}
+                      onChange={() => setCatalogForm((prev) => ({ ...prev, paymentMode: 'recurring' }))}
+                    />
+                    {t('catalogModal.paymentRecurring')}
+                  </label>
+                </div>
+                <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '0 0 10px 0' }}>
+                  {t('catalogModal.paymentModeHint')}
+                </p>
+                {catalogForm.paymentMode === 'recurring' ? (
+                  <div>
+                    <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#d1d5db' }}>
+                      {t('catalogModal.billingCycle')}
+                    </label>
+                    <select
+                      value={catalogForm.billingCycle === 'yearly' ? 'yearly' : 'monthly'}
+                      onChange={(e) =>
+                        setCatalogForm((prev) => ({
+                          ...prev,
+                          billingCycle: e.target.value === 'yearly' ? 'yearly' : 'monthly'
+                        }))
+                      }
+                      style={{
+                        width: '100%',
+                        maxWidth: '320px',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        border: '1px solid #374151',
+                        fontSize: '1rem',
+                        backgroundColor: '#111827',
+                        color: '#ffffff'
+                      }}
+                    >
+                      <option value="monthly">{t('catalogModal.billingMonthly')}</option>
+                      <option value="yearly">{t('catalogModal.billingYearly')}</option>
+                    </select>
+                  </div>
+                ) : null}
               </div>
 
               <div>
@@ -12979,69 +13092,6 @@ const DashboardWithFirebase = ({
                 <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>
                   {t('catalogModal.joinLinkHint')}
                 </p>
-              </div>
-
-              <div style={{
-                padding: '16px',
-                backgroundColor: 'rgba(59, 130, 246, 0.08)',
-                borderRadius: '8px',
-                border: '1px solid rgba(59, 130, 246, 0.35)',
-                marginBottom: '16px'
-              }}>
-                <label style={{ display: 'block', fontWeight: '600', marginBottom: '10px', color: '#ffffff' }}>
-                  {t('catalogModal.paymentMode')}
-                </label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: catalogForm.paymentMode === 'recurring' ? '12px' : 0 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#e5e7eb' }}>
-                    <input
-                      type="radio"
-                      name="catalogPaymentMode"
-                      checked={catalogForm.paymentMode !== 'recurring'}
-                      onChange={() => setCatalogForm((prev) => ({ ...prev, paymentMode: 'one_time' }))}
-                    />
-                    {t('catalogModal.paymentOneTime')}
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#e5e7eb' }}>
-                    <input
-                      type="radio"
-                      name="catalogPaymentMode"
-                      checked={catalogForm.paymentMode === 'recurring'}
-                      onChange={() => setCatalogForm((prev) => ({ ...prev, paymentMode: 'recurring' }))}
-                    />
-                    {t('catalogModal.paymentRecurring')}
-                  </label>
-                </div>
-                <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '0 0 10px 0' }}>
-                  {t('catalogModal.paymentModeHint')}
-                </p>
-                {catalogForm.paymentMode === 'recurring' ? (
-                  <div>
-                    <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#d1d5db' }}>
-                      {t('catalogModal.billingCycle')}
-                    </label>
-                    <select
-                      value={catalogForm.billingCycle === 'yearly' ? 'yearly' : 'monthly'}
-                      onChange={(e) =>
-                        setCatalogForm((prev) => ({
-                          ...prev,
-                          billingCycle: e.target.value === 'yearly' ? 'yearly' : 'monthly'
-                        }))
-                      }
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        borderRadius: '8px',
-                        border: '1px solid #374151',
-                        fontSize: '1rem',
-                        backgroundColor: '#111827',
-                        color: '#ffffff'
-                      }}
-                    >
-                      <option value="monthly">{t('catalogModal.billingMonthly')}</option>
-                      <option value="yearly">{t('catalogModal.billingYearly')}</option>
-                    </select>
-                  </div>
-                ) : null}
               </div>
 
               <div style={{

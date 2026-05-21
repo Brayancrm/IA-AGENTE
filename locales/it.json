@@ -564,6 +564,7 @@
     "currency": "Valuta",
     "currencyHint": "Prezzi e messaggi usano questa valuta (codice ISO).",
     "imageRequiredHint": "Obbligatorio: carica un file o incolla un URL immagine valido.",
+    "formIntro": "Sotto Prezzo e Valuta scegli pagamento unico o abbonamento ricorrente (Stripe).",
     "paymentMode": "Modalità di pagamento (Stripe)",
     "paymentOneTime": "Pagamento unico",
     "paymentRecurring": "Abbonamento ricorrente",

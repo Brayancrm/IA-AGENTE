@@ -564,6 +564,7 @@
     "currency": "Moneda",
     "currencyHint": "Los precios y los mensajes usan esta moneda (ISO).",
     "imageRequiredHint": "Obligatorio: sube un archivo o pega una URL de imagen válida.",
+    "formIntro": "Debajo de Precio y Moneda elige pago único o suscripción recurrente (Stripe).",
     "paymentMode": "Forma de cobro (Stripe)",
     "paymentOneTime": "Pago único",
     "paymentRecurring": "Suscripción recurrente",

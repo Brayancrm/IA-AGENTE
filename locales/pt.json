@@ -564,6 +564,7 @@
     "currency": "Moeda",
     "currencyHint": "Preços e mensagens ao cliente usam esta moeda (ISO).",
     "imageRequiredHint": "Obrigatório para cadastrar: envie um arquivo ou cole uma URL válida.",
+    "formIntro": "Logo abaixo de Preço e Moeda escolha pagamento único ou assinatura recorrente (Stripe).",
     "paymentMode": "Forma de cobrança (Stripe)",
     "paymentOneTime": "Pagamento único",
     "paymentRecurring": "Assinatura recorrente",
