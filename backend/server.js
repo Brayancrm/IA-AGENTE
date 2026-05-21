@@ -5670,7 +5670,7 @@ async function mergeProductPriceFromCatalog(userId, product) {
           ...product,
           price: Number(cat.price),
           description: product.description || cat.description || '',
-          tvLoginProduct: product.tvLoginProduct ?? !!cat.tvLoginProduct,
+          tvLoginProduct: !!(product.tvLoginProduct || cat.tvLoginProduct),
           tvPlanKey: product.tvPlanKey || cat.tvPlanKey || '',
           paymentMode: cat.paymentMode || product.paymentMode,
           billingCycle: cat.billingCycle || product.billingCycle,
@@ -5700,7 +5700,7 @@ async function mergeProductPriceFromCatalog(userId, product) {
       id: match.id || product.id,
       price: Number(match.price),
       description: product.description || match.description || '',
-      tvLoginProduct: product.tvLoginProduct ?? !!match.tvLoginProduct,
+      tvLoginProduct: !!(product.tvLoginProduct || match.tvLoginProduct),
       tvPlanKey: product.tvPlanKey || match.tvPlanKey || '',
       paymentMode: match.paymentMode || product.paymentMode,
       billingCycle: match.billingCycle || product.billingCycle,
@@ -5794,8 +5794,10 @@ async function resolveProductsForStripeMatching(userId) {
               ? prev.pricesByCurrency
               : c.pricesByCurrency || {},
           description: prev.description || c.description || '',
-          tvLoginProduct: prev.tvLoginProduct ?? !!c.tvLoginProduct,
-          tvPlanKey: prev.tvPlanKey || c.tvPlanKey || ''
+          tvLoginProduct: !!(prev.tvLoginProduct || c.tvLoginProduct),
+          tvPlanKey: prev.tvPlanKey || c.tvPlanKey || '',
+          paymentMode: prev.paymentMode || c.paymentMode,
+          billingCycle: prev.billingCycle || c.billingCycle
         });
       } else {
         merged.set(child.key, { id: child.key, ...c });
@@ -6029,29 +6031,59 @@ async function releaseTvReservationsForOrder(userId, orderId) {
   await Promise.all(tasks);
 }
 
+function resolveTvLineFromEnrichedItem(line, catalog) {
+  const cat =
+    line.catalogItemId && catalog && catalog[line.catalogItemId]
+      ? catalog[line.catalogItemId]
+      : null;
+  const planKeyNorm = normalizePlanKey(
+    line.tvPlanKey || cat?.tvPlanKey || cat?.planName || ''
+  );
+  const isTv = !!(line.tvLoginProduct || cat?.tvLoginProduct) && !!planKeyNorm;
+  return { isTv, planKeyNorm, cat };
+}
+
 async function reserveTvLoginsForCheckoutOrder(userId, orderId, enrichedItems) {
   if (!userId || !orderId || !Array.isArray(enrichedItems)) return;
+  const catalogSnap = await db.ref(`users/data/${userId}/catalog_items`).once('value');
+  const catalog = catalogSnap.val() || {};
+  const minutes = getTvReservationMinutes();
+
   for (const line of enrichedItems) {
-    if (!line.tvLoginProduct || !line.tvPlanKey) continue;
-    const planKeyNorm = normalizePlanKey(line.tvPlanKey);
-    if (!planKeyNorm) continue;
+    const { isTv, planKeyNorm } = resolveTvLineFromEnrichedItem(line, catalog);
+    if (!isTv) {
+      console.log('ℹ️ [TV] Reserva ignorada (item sem TV/planKey):', line.name || line.catalogItemId);
+      continue;
+    }
     const snap = await db.ref(`users/data/${userId}/tv_logins`).once('value');
     const login = findAvailableTvLoginRecord(snap, planKeyNorm);
     if (!login) {
-      console.log('⚠️ [TV] Sem estoque para reservar:', planKeyNorm);
+      console.warn('⚠️ [TV] Sem estoque para reservar:', {
+        planKey: planKeyNorm,
+        orderId,
+        item: line.name
+      });
       continue;
     }
-    const until = new Date(Date.now() + getTvReservationMinutes() * 60 * 1000).toISOString();
+    const until = new Date(Date.now() + minutes * 60 * 1000).toISOString();
     await db.ref(`users/data/${userId}/tv_logins/${login.id}`).update({
       status: 'reserved',
       reservedOrderId: orderId,
       reservedUntil: until,
+      planKey: login.planKey || planKeyNorm,
       updatedAt: new Date().toISOString()
     });
     await appendTvLoginHistory(userId, login.id, {
       event: 'reserved',
       orderId,
       reservedUntil: until
+    });
+    console.log('✅ [TV] Login reservado:', {
+      loginId: login.id,
+      planKey: planKeyNorm,
+      orderId,
+      reservedUntil: until,
+      minutes
     });
   }
 }
@@ -7060,6 +7092,8 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber, pricing
         } catch (e) {
           console.error('❌ [TV] Reserva pós-checkout (assinatura):', e.message);
         }
+      } else {
+        console.error('❌ [Stripe] Falha ao criar assinatura:', result.error);
       }
     } else {
       const orderRef = db.ref(`orders/${userId}`).push();
