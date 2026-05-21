@@ -548,6 +548,33 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
             updatedAt: nowIso
           });
           console.log('✅ Assinatura Stripe ativada via webhook:', { userId, subscriptionKey });
+
+          const freshSubSnap = await db.ref(`subscriptions/${userId}/${subscriptionKey}`).once('value');
+          const freshSub = freshSubSnap.val() || subscriptionData;
+          const tvLine =
+            freshSub?.tvLoginProduct && normalizePlanKey(freshSub.tvPlanKey || '')
+              ? freshSub
+              : (Array.isArray(freshSub?.items)
+                  ? freshSub.items.find(
+                      (l) => l?.tvLoginProduct && normalizePlanKey(l.tvPlanKey || '')
+                    )
+                  : null);
+          if (tvLine && session.subscription) {
+            await handleTvSubscriptionStripeInvoice({
+              buyerUserId: userId,
+              subscriptionKey,
+              subData: {
+                ...freshSub,
+                tvLoginProduct: true,
+                tvPlanKey: freshSub.tvPlanKey || tvLine.tvPlanKey,
+                stripeSubscriptionId: session.subscription
+              },
+              invoice: {
+                billing_reason: 'subscription_create',
+                subscription: session.subscription
+              }
+            });
+          }
         } else {
           console.log('⚠️ Assinatura Stripe não encontrada para sessão:', session.id);
         }
@@ -572,6 +599,32 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
               }
             });
           });
+        }
+
+        if (!targetSubKey && stripeSubscriptionId) {
+          try {
+            const stripeKey = process.env.STRIPE_API_KEY;
+            if (stripeKey) {
+              const stripeClient = new Stripe(stripeKey, { apiVersion: '2023-10-16' });
+              const stripeSub = await stripeClient.subscriptions.retrieve(String(stripeSubscriptionId));
+              const metaKey = stripeSub.metadata?.subscriptionKey;
+              const metaUserId = stripeSub.metadata?.userId || stripeSub.metadata?.sellerUserId;
+              if (metaKey && metaUserId) {
+                const snap = await db.ref(`subscriptions/${metaUserId}/${metaKey}`).once('value');
+                if (snap.exists()) {
+                  targetUserId = metaUserId;
+                  targetSubKey = metaKey;
+                  targetSubData = snap.val();
+                  await db.ref(`subscriptions/${metaUserId}/${metaKey}`).update({
+                    stripeSubscriptionId: stripeSubscriptionId,
+                    updatedAt: new Date().toISOString()
+                  });
+                }
+              }
+            }
+          } catch (metaErr) {
+            console.warn('⚠️ [Stripe] Fallback metadata assinatura:', metaErr.message);
+          }
         }
 
         if (targetUserId && targetSubKey) {
@@ -6126,10 +6179,20 @@ async function handleTvSubscriptionStripeInvoice({ buyerUserId, subscriptionKey,
     let planKeyNorm = null;
     let planName = 'Wplay';
 
-    if (subData?.sellerUserId && subData?.tvPlanKey && subData?.tvLoginProduct) {
+    const catalogTvLine = Array.isArray(subData?.items)
+      ? subData.items.find((l) => l?.tvLoginProduct && normalizePlanKey(l.tvPlanKey || ''))
+      : null;
+
+    if (
+      (subData?.sellerUserId && subData?.tvPlanKey && subData?.tvLoginProduct) ||
+      (subData?.sellerUserId && catalogTvLine)
+    ) {
       sellerUid = subData.sellerUserId;
-      planKeyNorm = normalizePlanKey(subData.tvPlanKey);
-      planName = subData.planName || subData.catalogItemName || 'Wplay';
+      planKeyNorm = normalizePlanKey(
+        subData.tvPlanKey || catalogTvLine?.tvPlanKey || ''
+      );
+      planName =
+        subData.planName || subData.catalogItemName || catalogTvLine?.name || 'Wplay';
     } else {
       const planId = subData?.planId;
       if (!planId) return;
@@ -6179,9 +6242,11 @@ async function handleTvSubscriptionStripeInvoice({ buyerUserId, subscriptionKey,
 
     const { tvAppDownloadUrl } = await getAssistantPaymentExtras(sellerUid);
     const loginsSnap = await db.ref(`users/data/${sellerUid}/tv_logins`).once('value');
-    const login = findAvailableTvLoginRecord(loginsSnap, planKeyNorm);
+    const login =
+      findTvLoginReservedForOrder(loginsSnap, planKeyNorm, subscriptionKey) ||
+      findAvailableTvLoginRecord(loginsSnap, planKeyNorm);
     if (!login) {
-      console.error('❌ [TV LOGIN] Sem estoque TV para assinatura, plano:', planKeyNorm);
+      console.error('❌ [TV LOGIN] Sem estoque TV para assinatura, plano:', planKeyNorm, 'sub:', subscriptionKey);
       await sendTvLoginWhatsApp(
         sellerUid,
         deliveryJid,
@@ -6192,6 +6257,7 @@ async function handleTvSubscriptionStripeInvoice({ buyerUserId, subscriptionKey,
 
     const stripeSubId = subData.stripeSubscriptionId || invoice.subscription || null;
     await markTvLoginAllocated(sellerUid, login.id, {
+      soldOrderId: subscriptionKey,
       soldToPhone: soldToDisplay,
       soldToWhatsAppJid: deliveryJid,
       soldItemName: planName || null,
@@ -7091,8 +7157,9 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber, pricing
       timestamp: new Date().toISOString(),
       type: 'payment_link',
       isFromMe: true,
-      stripeSessionId: result.sessionId,
-      orderId: orderId
+      stripeSessionId: result.stripeSessionId || result.sessionId || null,
+      orderId: checkoutRefKey,
+      subscriptionKey: useRecurringCheckout ? checkoutRefKey : null
     });
   } catch (error) {
     console.error('❌ Erro ao gerar link Stripe:', error);
