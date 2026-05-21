@@ -5601,7 +5601,9 @@ async function mergeProductPriceFromCatalog(userId, product) {
       ...product,
       price: Number(product.price),
       currency: String(product.currency || 'BRL').toUpperCase(),
-      pricesByCurrency: normalizeCatalogPricesByCurrency(product.pricesByCurrency)
+      pricesByCurrency: normalizeCatalogPricesByCurrency(product.pricesByCurrency),
+      paymentMode: product.paymentMode,
+      billingCycle: product.billingCycle
     };
   }
 
@@ -5617,6 +5619,8 @@ async function mergeProductPriceFromCatalog(userId, product) {
           description: product.description || cat.description || '',
           tvLoginProduct: product.tvLoginProduct ?? !!cat.tvLoginProduct,
           tvPlanKey: product.tvPlanKey || cat.tvPlanKey || '',
+          paymentMode: cat.paymentMode || product.paymentMode,
+          billingCycle: cat.billingCycle || product.billingCycle,
           currency: String(cat.currency || product.currency || 'BRL').toUpperCase(),
           pricesByCurrency: normalizeCatalogPricesByCurrency(
             cat.pricesByCurrency || product.pricesByCurrency
@@ -5645,6 +5649,8 @@ async function mergeProductPriceFromCatalog(userId, product) {
       description: product.description || match.description || '',
       tvLoginProduct: product.tvLoginProduct ?? !!match.tvLoginProduct,
       tvPlanKey: product.tvPlanKey || match.tvPlanKey || '',
+      paymentMode: match.paymentMode || product.paymentMode,
+      billingCycle: match.billingCycle || product.billingCycle,
       currency: String(match.currency || product.currency || 'BRL').toUpperCase(),
       pricesByCurrency: normalizeCatalogPricesByCurrency(
         match.pricesByCurrency || product.pricesByCurrency
@@ -5780,6 +5786,7 @@ async function enrichOrderItemsWithCatalog(sellerUserId, items) {
       enriched.catalogItemId = cat.id;
       enriched.tvLoginProduct = !!cat.tvLoginProduct;
       enriched.tvPlanKey = normalizePlanKey(cat.tvPlanKey || cat.planName || '');
+      enriched.paymentMode = resolveCatalogPaymentMode({ ...enriched, ...cat });
       enriched.billingCycle = line.billingCycle || cat.billingCycle || 'monthly';
       enriched.pricesByCurrency = normalizeCatalogPricesByCurrency(cat.pricesByCurrency);
       if (!line.lockedPrice) {
@@ -6336,13 +6343,34 @@ async function createStripeSubscriptionCheckoutSession(stripeApiKey, customerDat
   }
 }
 
-/** Checkout Stripe em modo assinatura para itens Wplay/TV do catálogo (agente WhatsApp ou API). */
-function checkoutItemsAreAllTvSubscription(enrichedItems) {
+/** one_time | recurring — explícito no catálogo; TV com tvPlanKey mantém recorrente por defeito. */
+function resolveCatalogPaymentMode(line) {
+  const raw = String(line?.paymentMode || '').toLowerCase().trim();
+  if (raw === 'recurring' || raw === 'subscription') return 'recurring';
+  if (raw === 'one_time' || raw === 'onetime' || raw === 'one-time') return 'one_time';
+  const pk = normalizePlanKey(line?.tvPlanKey || '');
+  if (line?.tvLoginProduct && pk) return 'recurring';
+  return 'one_time';
+}
+
+function catalogLineIsRecurring(line) {
+  return resolveCatalogPaymentMode(line) === 'recurring';
+}
+
+function checkoutItemsAreAllRecurring(enrichedItems) {
   if (!Array.isArray(enrichedItems) || !enrichedItems.length) return false;
-  return enrichedItems.every((line) => {
-    const pk = normalizePlanKey(line.tvPlanKey || '');
-    return !!line.tvLoginProduct && !!pk;
-  });
+  return enrichedItems.every((line) => catalogLineIsRecurring(line));
+}
+
+function checkoutItemsHaveMixedPaymentModes(enrichedItems) {
+  if (!Array.isArray(enrichedItems) || enrichedItems.length < 2) return false;
+  const modes = enrichedItems.map((line) => resolveCatalogPaymentMode(line));
+  return modes.includes('one_time') && modes.includes('recurring');
+}
+
+/** @deprecated use checkoutItemsAreAllRecurring */
+function checkoutItemsAreAllTvSubscription(enrichedItems) {
+  return checkoutItemsAreAllRecurring(enrichedItems);
 }
 
 async function createStripeCatalogTvSubscriptionCheckoutSession(
@@ -6359,21 +6387,23 @@ async function createStripeCatalogTvSubscriptionCheckoutSession(
     const price = parseFloat(catalogLine.price);
     const amount = Math.round(price * 100);
     if (!amount || Number.isNaN(amount) || amount <= 0) {
-      throw new Error('Preço inválido para assinatura Wplay/TV');
+      throw new Error('Preço inválido para assinatura recorrente');
     }
     const billingCycle = catalogLine.billingCycle === 'yearly' ? 'yearly' : 'monthly';
     const interval = billingCycle === 'yearly' ? 'year' : 'month';
     const currency = stripeCurrencyCode(catalogLine.currency || 'eur');
     const tvPlanKey = normalizePlanKey(catalogLine.tvPlanKey || '');
+    const isTv = !!catalogLine.tvLoginProduct && !!tvPlanKey;
     const subMeta = {
       userId: sellerUserId || '',
       subscriptionKey: metadata.subscriptionKey || '',
       catalogItemId: catalogLine.catalogItemId || '',
       catalogItemName: catalogLine.name || '',
-      planName: catalogLine.name || 'Wplay TV',
+      planName: catalogLine.name || 'Assinatura',
       billingCycle,
-      tvLoginProduct: '1',
-      tvPlanKey,
+      paymentMode: 'recurring',
+      tvLoginProduct: isTv ? '1' : '0',
+      tvPlanKey: isTv ? tvPlanKey : '',
       sellerUserId: sellerUserId || '',
       checkoutSource: metadata.checkoutSource || 'whatsapp_catalog',
       customerPhone: customerData?.originalPhone || customerData?.phone || ''
@@ -6391,7 +6421,7 @@ async function createStripeCatalogTvSubscriptionCheckoutSession(
             currency,
             recurring: { interval },
             product_data: {
-              name: catalogLine.name || 'Wplay TV',
+              name: catalogLine.name || 'Assinatura',
               ...(catalogLine.description
                 ? { description: String(catalogLine.description).slice(0, 500) }
                 : {})
@@ -6868,10 +6898,20 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber, pricing
       pricesByCurrency: normalizeCatalogPricesByCurrency(lastMentionedProduct.pricesByCurrency),
       lockedPrice: true,
       tvLoginProduct: !!lastMentionedProduct.tvLoginProduct,
-      tvPlanKey: normalizePlanKey(lastMentionedProduct.tvPlanKey || lastMentionedProduct.planName || '')
+      tvPlanKey: normalizePlanKey(lastMentionedProduct.tvPlanKey || lastMentionedProduct.planName || ''),
+      paymentMode: resolveCatalogPaymentMode(lastMentionedProduct),
+      billingCycle: lastMentionedProduct.billingCycle || 'monthly'
     }];
 
     const enrichedOrderItems = await enrichOrderItemsWithCatalog(userId, orderItems);
+
+    if (checkoutItemsHaveMixedPaymentModes(enrichedOrderItems)) {
+      await client.sendText(
+        phone,
+        'Não consigo gerar um único link com itens de pagamento único e recorrente juntos. Separe o pedido ou ajuste o modo de cobrança no catálogo.'
+      );
+      return;
+    }
 
     const stockCheck = await assertCheckoutAvailability(userId, enrichedOrderItems);
     if (!stockCheck.ok) {
@@ -6901,16 +6941,16 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber, pricing
       ...(customerData.email && { email: customerData.email })
     };
 
-    const useTvSubscription = checkoutItemsAreAllTvSubscription(enrichedOrderItems);
+    const useRecurringCheckout = checkoutItemsAreAllRecurring(enrichedOrderItems);
     let result;
     let payLinkForWhatsApp;
     let checkoutRefKey;
 
-    if (useTvSubscription) {
+    if (useRecurringCheckout) {
       const catalogLine = enrichedOrderItems[0];
       const subscriptionRef = db.ref(`subscriptions/${userId}`).push();
       checkoutRefKey = subscriptionRef.key;
-      console.log('🔄 [Stripe] Checkout assinatura Wplay/TV (recorrente) para:', catalogLine.name);
+      console.log('🔄 [Stripe] Checkout assinatura (recorrente) para:', catalogLine.name);
       result = await createStripeCatalogTvSubscriptionCheckoutSession(
         stripeApiKey,
         customerData,
@@ -6926,15 +6966,16 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber, pricing
           catalogItemId: catalogLine.catalogItemId || null,
           catalogItemName: catalogLine.name || null,
           sellerUserId: userId,
-          planName: catalogLine.name || 'Wplay TV',
+          planName: catalogLine.name || 'Assinatura',
           tvPlanKey: normalizePlanKey(catalogLine.tvPlanKey || ''),
-          tvLoginProduct: true,
+          tvLoginProduct: !!catalogLine.tvLoginProduct,
+          paymentMode: 'recurring',
           checkoutSource: 'whatsapp_catalog',
           customer: customerToSave,
           items: enrichedOrderItems,
           value: result.value,
           cycle: result.cycle,
-          billingCycle: result.billingCycle || 'monthly',
+          billingCycle: result.billingCycle || catalogLine.billingCycle || 'monthly',
           status: 'pending_payment',
           createdAt: new Date().toISOString(),
           paymentUrl: result.checkoutUrl,
@@ -7018,14 +7059,16 @@ async function tryAutoGenerateStripeLink(userId, phone, sanitizedNumber, pricing
 
     const totalCur = enrichedOrderItems[0]?.currency || 'EUR';
     const totalFmt = formatCatalogPriceForMessage(result.value, totalCur) || String(result.value);
-    const cycleLbl = useTvSubscription
+    const cycleLbl = useRecurringCheckout
       ? subscriptionCycleLabelPt(result.billingCycle || enrichedOrderItems[0]?.billingCycle)
       : null;
-    const paymentMessage = useTvSubscription
+    const paymentMessage = useRecurringCheckout
       ? `✅ *Assinatura criada!*\n\n` +
         `📦 *${enrichedOrderItems[0].name}*\n` +
         `💰 *${totalFmt}/${cycleLbl}* (cobrança recorrente no cartão)\n\n` +
-        `_Após o pagamento você recebe login e senha por aqui. As renovações são automáticas._\n\n` +
+        (enrichedOrderItems[0]?.tvLoginProduct
+          ? `_Após o pagamento você recebe login e senha por aqui. As renovações são automáticas._\n\n`
+          : `_A cobrança renova automaticamente no cartão até cancelar._\n\n`) +
         `🔗 *Pagamento:*\n${payLinkForWhatsApp}`
       : `✅ *Pedido Criado!*\n\n` +
         `📦 Itens:\n` +
@@ -8266,6 +8309,14 @@ async function handleCreateStripeCheckout(req, res) {
     }
 
     const enrichedItems = await enrichOrderItemsWithCatalog(userId, items);
+    if (checkoutItemsHaveMixedPaymentModes(enrichedItems)) {
+      return res.status(400).json({
+        success: false,
+        error:
+          'Não é possível misturar itens de pagamento único e recorrente no mesmo checkout. Separe o pedido.',
+        code: 'mixed_payment_modes'
+      });
+    }
     const stockCheck = await assertCheckoutAvailability(userId, enrichedItems);
     if (!stockCheck.ok) {
       return res.status(409).json({
@@ -8283,11 +8334,11 @@ async function handleCreateStripeCheckout(req, res) {
       ...(customerData.address && { address: customerData.address })
     };
 
-    const useTvSubscription = checkoutItemsAreAllTvSubscription(enrichedItems);
+    const useRecurringCheckout = checkoutItemsAreAllRecurring(enrichedItems);
     let result;
     let checkoutRefKey;
 
-    if (useTvSubscription) {
+    if (useRecurringCheckout) {
       const catalogLine = enrichedItems[0];
       const subscriptionRef = db.ref(`subscriptions/${userId}`).push();
       checkoutRefKey = subscriptionRef.key;
@@ -8306,15 +8357,16 @@ async function handleCreateStripeCheckout(req, res) {
           catalogItemId: catalogLine.catalogItemId || null,
           catalogItemName: catalogLine.name || null,
           sellerUserId: userId,
-          planName: catalogLine.name || 'Wplay TV',
+          planName: catalogLine.name || 'Assinatura',
           tvPlanKey: normalizePlanKey(catalogLine.tvPlanKey || ''),
-          tvLoginProduct: true,
+          tvLoginProduct: !!catalogLine.tvLoginProduct,
+          paymentMode: 'recurring',
           checkoutSource: 'api_catalog',
           customer: customerToSave,
           items: enrichedItems,
           value: result.value,
           cycle: result.cycle,
-          billingCycle: result.billingCycle || 'monthly',
+          billingCycle: result.billingCycle || catalogLine.billingCycle || 'monthly',
           status: 'pending_payment',
           createdAt: new Date().toISOString(),
           paymentUrl: result.checkoutUrl,

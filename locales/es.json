@@ -563,7 +563,14 @@
     "importSuccess": "✓ ¡{{count}} ítems importados con éxito!",
     "currency": "Moneda",
     "currencyHint": "Los precios y los mensajes usan esta moneda (ISO).",
-    "imageRequiredHint": "Obligatorio: sube un archivo o pega una URL de imagen válida."
+    "imageRequiredHint": "Obligatorio: sube un archivo o pega una URL de imagen válida.",
+    "paymentMode": "Forma de cobro (Stripe)",
+    "paymentOneTime": "Pago único",
+    "paymentRecurring": "Suscripción recurrente",
+    "paymentModeHint": "Define si el enlace cobra una vez o se renueva automáticamente en la tarjeta.",
+    "billingCycle": "Periodicidad de la suscripción",
+    "billingMonthly": "Mensual",
+    "billingYearly": "Anual"
   },
   "assistantConfig": {
     "showCatalogImages": "Enviar foto automáticamente en WhatsApp al ofrecer producto/servicio",

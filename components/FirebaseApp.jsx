@@ -2049,6 +2049,13 @@ const FirebaseApp = () => {
         link: String(itemData.link || '').trim(),
         tvLoginProduct: !!itemData.tvLoginProduct,
         tvPlanKey: String(itemData.tvPlanKey || '').trim(),
+        paymentMode: itemData.paymentMode === 'recurring' ? 'recurring' : 'one_time',
+        billingCycle:
+          itemData.paymentMode === 'recurring'
+            ? itemData.billingCycle === 'yearly'
+              ? 'yearly'
+              : 'monthly'
+            : null,
         currency: normalizeCatalogCurrency(itemData.currency),
         updatedAt: now
       };
@@ -2090,6 +2097,8 @@ const FirebaseApp = () => {
           active: true,
           tvLoginProduct: data.tvLoginProduct,
           tvPlanKey: data.tvPlanKey || '',
+          paymentMode: data.paymentMode,
+          billingCycle: data.billingCycle || null,
           currency: data.currency || 'BRL',
           pricesByCurrency: data.pricesByCurrency || {},
           createdAt: originalCreatedAt,
@@ -2123,6 +2132,8 @@ const FirebaseApp = () => {
           active: true,
           tvLoginProduct: data.tvLoginProduct,
           tvPlanKey: data.tvPlanKey || '',
+          paymentMode: data.paymentMode,
+          billingCycle: data.billingCycle || null,
           currency: data.currency || 'BRL',
           pricesByCurrency: data.pricesByCurrency || {},
           createdAt: data.createdAt,
@@ -4240,6 +4251,8 @@ const DashboardWithFirebase = ({
     minStock: 5,
     tvLoginProduct: false,
     tvPlanKey: '',
+    paymentMode: 'one_time',
+    billingCycle: 'monthly',
     currency: 'BRL'
   });
 
@@ -4626,6 +4639,12 @@ const DashboardWithFirebase = ({
         minStock: item.minStock || 5,
         tvLoginProduct: !!item.tvLoginProduct,
         tvPlanKey: item.tvPlanKey || '',
+        paymentMode:
+          item.paymentMode === 'recurring' ||
+          (item.tvLoginProduct && String(item.tvPlanKey || '').trim())
+            ? 'recurring'
+            : 'one_time',
+        billingCycle: item.billingCycle === 'yearly' ? 'yearly' : 'monthly',
         currency: normalizeCatalogCurrency(item.currency)
       });
       setEditingItem(item);
@@ -4649,6 +4668,8 @@ const DashboardWithFirebase = ({
         minStock: 5,
         tvLoginProduct: false,
         tvPlanKey: '',
+        paymentMode: 'one_time',
+        billingCycle: 'monthly',
         currency: 'BRL'
       });
       setEditingItem(null);
@@ -12962,6 +12983,69 @@ const DashboardWithFirebase = ({
 
               <div style={{
                 padding: '16px',
+                backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                borderRadius: '8px',
+                border: '1px solid rgba(59, 130, 246, 0.35)',
+                marginBottom: '16px'
+              }}>
+                <label style={{ display: 'block', fontWeight: '600', marginBottom: '10px', color: '#ffffff' }}>
+                  {t('catalogModal.paymentMode')}
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: catalogForm.paymentMode === 'recurring' ? '12px' : 0 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#e5e7eb' }}>
+                    <input
+                      type="radio"
+                      name="catalogPaymentMode"
+                      checked={catalogForm.paymentMode !== 'recurring'}
+                      onChange={() => setCatalogForm((prev) => ({ ...prev, paymentMode: 'one_time' }))}
+                    />
+                    {t('catalogModal.paymentOneTime')}
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#e5e7eb' }}>
+                    <input
+                      type="radio"
+                      name="catalogPaymentMode"
+                      checked={catalogForm.paymentMode === 'recurring'}
+                      onChange={() => setCatalogForm((prev) => ({ ...prev, paymentMode: 'recurring' }))}
+                    />
+                    {t('catalogModal.paymentRecurring')}
+                  </label>
+                </div>
+                <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '0 0 10px 0' }}>
+                  {t('catalogModal.paymentModeHint')}
+                </p>
+                {catalogForm.paymentMode === 'recurring' ? (
+                  <div>
+                    <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#d1d5db' }}>
+                      {t('catalogModal.billingCycle')}
+                    </label>
+                    <select
+                      value={catalogForm.billingCycle === 'yearly' ? 'yearly' : 'monthly'}
+                      onChange={(e) =>
+                        setCatalogForm((prev) => ({
+                          ...prev,
+                          billingCycle: e.target.value === 'yearly' ? 'yearly' : 'monthly'
+                        }))
+                      }
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        border: '1px solid #374151',
+                        fontSize: '1rem',
+                        backgroundColor: '#111827',
+                        color: '#ffffff'
+                      }}
+                    >
+                      <option value="monthly">{t('catalogModal.billingMonthly')}</option>
+                      <option value="yearly">{t('catalogModal.billingYearly')}</option>
+                    </select>
+                  </div>
+                ) : null}
+              </div>
+
+              <div style={{
+                padding: '16px',
                 backgroundColor: 'rgba(16, 185, 129, 0.08)',
                 borderRadius: '8px',
                 border: '1px solid rgba(16, 185, 129, 0.35)'
@@ -12970,7 +13054,13 @@ const DashboardWithFirebase = ({
                   <input
                     type="checkbox"
                     checked={!!catalogForm.tvLoginProduct}
-                    onChange={(e) => setCatalogForm((prev) => ({ ...prev, tvLoginProduct: e.target.checked }))}
+                    onChange={(e) =>
+                      setCatalogForm((prev) => ({
+                        ...prev,
+                        tvLoginProduct: e.target.checked,
+                        ...(e.target.checked ? { paymentMode: 'recurring' } : {})
+                      }))
+                    }
                     style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                   />
                   <span style={{ fontWeight: 'bold', color: '#ffffff' }}>📺 Produto TV / Wplay (credenciais após pagamento)</span>
