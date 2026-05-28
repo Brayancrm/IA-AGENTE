@@ -185,8 +185,18 @@ async function schedulePanelBearerInvalidNotify(reason) {
 async function tickPanelBearerHealthCheck() {
   if (process.env.PANEL_BEARER_HEALTHCHECK === 'false') return;
   try {
+    await panelService.tryProactivePanelTokenRefresh();
     const r = await panelService.probePanelBearerHealth();
     if (r.status === 'invalid') {
+      const refreshed = await panelService.tryAutoRefreshPanelToken('healthcheck');
+      if (refreshed) {
+        const r2 = await panelService.probePanelBearerHealth();
+        if (r2.status === 'valid') {
+          lastPanelBearerInvalidPushAt = 0;
+          console.log('✅ [panel-health] Token renovado automaticamente');
+          return;
+        }
+      }
       console.warn('[panel-health] token inválido', r.source, r.detail || '');
       await schedulePanelBearerInvalidNotify(r.detail || r.source);
     } else if (r.status === 'valid') {
@@ -5839,8 +5849,10 @@ async function enrichOrderItemsWithCatalog(sellerUserId, items) {
     }
     if (cat) {
       enriched.catalogItemId = cat.id;
-      enriched.tvLoginProduct = !!cat.tvLoginProduct;
-      enriched.tvPlanKey = normalizePlanKey(cat.tvPlanKey || cat.planName || '');
+      enriched.tvLoginProduct = !!(cat.tvLoginProduct || line.tvLoginProduct);
+      enriched.tvPlanKey = normalizePlanKey(
+        cat.tvPlanKey || cat.planName || line.tvPlanKey || ''
+      );
       enriched.paymentMode = resolveCatalogPaymentMode({ ...enriched, ...cat });
       enriched.billingCycle = line.billingCycle || cat.billingCycle || 'monthly';
       enriched.pricesByCurrency = normalizeCatalogPricesByCurrency(cat.pricesByCurrency);
@@ -8803,48 +8815,152 @@ app.post('/api/panel/generate-test', async (req, res) => {
   }
 });
 
-/** Grava bearer_token em Firestore (configs/api_panel). Só utilizador master. */
+/** Grava configs/api_panel (token manual e/ou credenciais para renovação automática). Só master. */
 app.post('/api/panel/save-token', async (req, res) => {
   try {
-    const { userId, bearer_token } = req.body || {};
+    const { userId, bearer_token, panel_username, panel_password, refresh_now } = req.body || {};
     if (!(await isRegisteredMasterUid(userId))) {
       return res.status(403).json({
         success: false,
         error: 'Apenas o utilizador master pode alterar o token do painel.'
       });
     }
-    const token = String(bearer_token || '').trim();
-    if (!token) {
+
+    const patch = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    if (bearer_token !== undefined && bearer_token !== null) {
+      const token = String(bearer_token || '').trim();
+      if (!token) {
+        return res.status(400).json({
+          success: false,
+          error: 'Indique o token ou omita bearer_token para só guardar credenciais.',
+          code: 'TOKEN_EMPTY'
+        });
+      }
+      patch.bearer_token = token;
+      patch.token_source = 'manual';
+    }
+
+    if (panel_username !== undefined && panel_username !== null) {
+      patch.panel_username = String(panel_username || '').trim();
+    }
+    if (panel_password !== undefined && panel_password !== null && String(panel_password).trim()) {
+      patch.panel_password = String(panel_password).trim();
+    }
+
+    const hasPatchFields = Object.keys(patch).length > 1;
+    if (!hasPatchFields) {
       return res.status(400).json({
         success: false,
-        error: 'Indique o token (campo bearer_token vazio).',
-        code: 'TOKEN_EMPTY'
+        error: 'Envie bearer_token e/ou panel_username + panel_password.',
+        code: 'EMPTY_PAYLOAD'
       });
     }
-    await firestore
-      .collection('configs')
-      .doc('api_panel')
-      .set(
-        {
-          bearer_token: token,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        },
-        { merge: true }
-      );
+
+    if (patch.panel_username && patch.panel_password) {
+      patch.auth_auto_refresh_enabled = true;
+    }
+
+    await firestore.collection('configs').doc('api_panel').set(patch, { merge: true });
+
+    let refreshed = false;
+    let tokenStatus = null;
+    if (refresh_now === true || refresh_now === 'true') {
+      try {
+        const newToken = await panelService.refreshPanelBearerToken({ reason: 'save_config', force: true });
+        refreshed = true;
+        const expMs = panelService.jwtExpiryMs(newToken);
+        tokenStatus = {
+          tokenRefreshedAt: new Date().toISOString(),
+          tokenExpiresAt: expMs ? new Date(expMs).toISOString() : null
+        };
+      } catch (refreshErr) {
+        return res.status(refreshErr.status && refreshErr.status >= 400 ? refreshErr.status : 502).json({
+          success: false,
+          error: refreshErr.message || 'Credenciais guardadas, mas falha ao renovar token.',
+          code: refreshErr.code || 'REFRESH_FAILED',
+          credentialsSaved: true
+        });
+      }
+    }
+
     setImmediate(() => {
       tickPanelBearerHealthCheck().catch((e) =>
         console.warn('[panel-health] após save-token:', e.message)
       );
     });
+
     return res.json({
       success: true,
-      message: 'Token guardado no Firestore (configs → api_panel).'
+      message: refreshed
+        ? 'Credenciais guardadas e token renovado automaticamente.'
+        : 'Configuração do painel guardada.',
+      refreshed,
+      ...(tokenStatus || {})
     });
   } catch (error) {
     console.error('❌ [PANEL API] save-token:', error.message);
     return res.status(500).json({
       success: false,
       error: error.message || 'Erro ao guardar token'
+    });
+  }
+});
+
+/** Renova bearer_token via POST /auth/static-token (credenciais em Firestore ou env). Só master. */
+app.post('/api/panel/refresh-token', async (req, res) => {
+  try {
+    const { userId } = req.body || {};
+    if (!(await isRegisteredMasterUid(userId))) {
+      return res.status(403).json({
+        success: false,
+        error: 'Apenas o utilizador master pode renovar o token do painel.'
+      });
+    }
+    const token = await panelService.refreshPanelBearerToken({ reason: 'api_refresh', force: true });
+    const expMs = panelService.jwtExpiryMs(token);
+    lastPanelBearerInvalidPushAt = 0;
+    return res.json({
+      success: true,
+      message: 'Token renovado com sucesso.',
+      tokenRefreshedAt: new Date().toISOString(),
+      tokenExpiresAt: expMs ? new Date(expMs).toISOString() : null
+    });
+  } catch (error) {
+    console.error('❌ [PANEL API] refresh-token:', error.message);
+    const status =
+      error.code === 'PANEL_CREDENTIALS_MISSING'
+        ? 400
+        : error.status && error.status >= 400 && error.status < 600
+          ? error.status
+          : 500;
+    return res.status(status).json({
+      success: false,
+      error: error.message || 'Erro ao renovar token',
+      code: error.code || 'REFRESH_FAILED'
+    });
+  }
+});
+
+/** Estado da config do painel (sem expor senha). Só master. */
+app.get('/api/panel/config-status', async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    if (!(await isRegisteredMasterUid(userId))) {
+      return res.status(403).json({
+        success: false,
+        error: 'Apenas o utilizador master pode consultar a config do painel.'
+      });
+    }
+    const status = await panelService.getPanelConfigStatus();
+    return res.json({ success: true, ...status });
+  } catch (error) {
+    console.error('❌ [PANEL API] config-status:', error.message);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao ler config do painel'
     });
   }
 });
@@ -10415,6 +10531,18 @@ app.listen(PORT, '0.0.0.0', async () => {
     );
   } else {
     console.log('ℹ️  [panel-health] verificação periódica do token DESLIGADA (PANEL_BEARER_HEALTHCHECK=false)');
+  }
+
+  if (process.env.PANEL_TOKEN_AUTO_REFRESH !== 'false') {
+    const proactiveMs = parseInt(process.env.PANEL_TOKEN_PROACTIVE_INTERVAL_MS, 10) || 30 * 60 * 1000;
+    setInterval(() => {
+      panelService.tryProactivePanelTokenRefresh().catch((e) =>
+        console.warn('[panel-api] refresh proativo:', e.message)
+      );
+    }, proactiveMs);
+    console.log(
+      `🔄 [panel-api] renovação proativa do token a cada ${proactiveMs / 60000} min (desligar: PANEL_TOKEN_AUTO_REFRESH=false)`
+    );
   }
 
   console.log('');

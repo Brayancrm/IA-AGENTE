@@ -1,19 +1,26 @@
 'use strict';
 
 /**
- * Integração com API externa do painel (Bearer em Firestore).
- * Token: documento Firestore `configs` / `api_panel` → campo `bearer_token`.
+ * Integração com API do painel Wplay/KnewCMS.
+ * - Token manual: Firestore `configs/api_panel` → `bearer_token`
+ * - Renovação automática: `POST /auth/static-token` com `panel_username` + `panel_password`
+ *   (Firestore ou env PANEL_API_USERNAME / PANEL_API_PASSWORD)
  */
 
 const admin = require('firebase-admin');
 const axios = require('axios');
 
-const PANEL_TEST_URL = 'https://mcapi.knewcms.com:2087/lines/test';
+const PANEL_API_BASE = String(process.env.PANEL_API_BASE_URL || 'https://mcapi.knewcms.com:2087').replace(
+  /\/$/,
+  ''
+);
+const PANEL_TEST_URL = `${PANEL_API_BASE}/lines/test`;
+const PANEL_STATIC_TOKEN_URL = `${PANEL_API_BASE}/auth/static-token`;
 
 const DEFAULT_TEST_PAYLOAD = {
   notes: 'Gerado via Bot WhatsApp',
   package_p2p: '64399dca5ea59e8a1de2b083',
-  package_iptv: '30',
+  package_iptv: 30,
   testDuration: 1,
   krator_package: '1'
 };
@@ -27,7 +34,17 @@ const PANEL_HEADERS_BASE = {
   Accept: 'application/json'
 };
 
-/** Três segmentos base64url — pode ser JWT (nem sempre tem `exp`). */
+/** Renovar JWT estes ms antes do `exp` (padrão 10 min). */
+function panelTokenRefreshMarginMs() {
+  const n = parseInt(process.env.PANEL_TOKEN_REFRESH_MARGIN_MS, 10);
+  if (Number.isFinite(n) && n >= 60_000) return n;
+  return 10 * 60 * 1000;
+}
+
+let _refreshPromise = null;
+/** Cache em memória após refresh (evita leitura Firestore imediata). */
+let _cachedBearerToken = null;
+
 function looksLikeJwt(token) {
   const s = String(token || '').trim();
   return /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(s);
@@ -47,18 +64,18 @@ function decodeJwtPayload(token) {
   }
 }
 
-/**
- * @returns {number|null} exp em ms UTC, ou null se não for JWT com `exp` numérico
- */
 function jwtExpiryMs(token) {
   const payload = decodeJwtPayload(token);
   if (!payload || typeof payload.exp !== 'number' || !Number.isFinite(payload.exp)) return null;
   return payload.exp * 1000;
 }
 
-/**
- * Muitas APIs devolvem 400/422 (ou até 200 com JSON de erro) em vez de 401 quando o Bearer está errado.
- */
+function tokenShouldRefreshProactively(token) {
+  const expMs = jwtExpiryMs(token);
+  if (expMs == null) return false;
+  return Date.now() >= expMs - panelTokenRefreshMarginMs();
+}
+
 function panelResponseIndicatesInvalidToken(status, data) {
   if (status === 401 || status === 403) return true;
   const raw =
@@ -99,11 +116,6 @@ function panelResponseIndicatesInvalidToken(status, data) {
   return false;
 }
 
-/**
- * Sonda HTTP sem corpo de teste completo: GET no endpoint (muitas APIs devolvem 405 com auth válida);
- * se inconclusivo, POST `{}` — 401/403 = token inválido; 4xx de validação costuma indicar auth aceite.
- * @returns {Promise<{ ok: boolean | null, method?: string, status?: number, note?: string }>}
- */
 async function probePanelBearerHttp(token) {
   const authHeaders = {
     ...PANEL_HEADERS_BASE,
@@ -165,23 +177,11 @@ async function probePanelBearerHttp(token) {
     if (panelResponseIndicatesInvalidToken(p.status, p.data)) {
       return { ok: false, method: 'POST', status: p.status };
     }
-    const { usuario } = extractCredentials(p.data);
-    if (usuario) {
-      console.warn(
-        '[panel-health] POST com corpo vazio criou conta de teste; desative sonda HTTP (PANEL_BEARER_HEALTHCHECK_MODE=jwt) ou use token JWT com exp.'
-      );
-    }
     return { ok: true, method: 'POST', status: p.status };
   }
   if (p.status != null && p.status >= 200 && p.status < 300) {
     if (panelResponseIndicatesInvalidToken(p.status, p.data)) {
       return { ok: false, method: 'POST', status: p.status };
-    }
-    const { usuario } = extractCredentials(p.data);
-    if (usuario) {
-      console.warn(
-        '[panel-health] POST vazio devolveu 2xx com credenciais — evite sonda ou use JWT; assumindo token válido.'
-      );
     }
     return { ok: true, method: 'POST', status: p.status };
   }
@@ -189,9 +189,6 @@ async function probePanelBearerHttp(token) {
   return { ok: null, method: `${g.method || '?'}+${p.method || '?'}`, note: g.error || p.error || 'network' };
 }
 
-/**
- * @returns {Promise<{ status: 'valid' | 'invalid' | 'skipped'; source: string; detail?: string }>}
- */
 async function probePanelBearerHealth() {
   const mode = String(process.env.PANEL_BEARER_HEALTHCHECK_MODE || 'auto').toLowerCase();
   if (mode === 'off' || mode === 'false') {
@@ -241,10 +238,6 @@ async function probePanelBearerHealth() {
 
 let _tokenExpiredHandler = null;
 
-/**
- * Regista callback opcional quando o token devolver 401 (ex.: notificar admin).
- * @param {(detail: object) => void | Promise<void>} handler
- */
 function setTokenExpiredNotifier(handler) {
   _tokenExpiredHandler = typeof handler === 'function' ? handler : null;
 }
@@ -265,24 +258,240 @@ function getFirestore() {
   return admin.firestore();
 }
 
-/**
- * Lê configuração do painel no Firestore (configs/api_panel).
- * @returns {Promise<{ bearer_token: string } & Record<string, unknown>>}
- */
-async function getApiConfig() {
+async function readApiPanelDoc() {
   const snap = await getFirestore().collection('configs').doc('api_panel').get();
   if (!snap.exists) {
     const err = new Error('Documento Firestore configs/api_panel não encontrado');
     err.code = 'CONFIG_NOT_FOUND';
     throw err;
   }
-  const data = snap.data() || {};
-  const token = String(data.bearer_token || '').trim();
+  return snap.data() || {};
+}
+
+function resolvePanelCredentials(data) {
+  const username = String(data?.panel_username || process.env.PANEL_API_USERNAME || '').trim();
+  const password = String(data?.panel_password || process.env.PANEL_API_PASSWORD || '').trim();
+  if (!username || !password) return null;
+  return { username, password };
+}
+
+function hasPanelRefreshCredentials(data) {
+  return !!resolvePanelCredentials(data);
+}
+
+function extractTokenFromStaticAuthResponse(data) {
+  if (!data || typeof data !== 'object') return null;
+  const direct = data.token || data.access_token || data.accessToken;
+  if (direct) return String(direct).trim();
+  if (data.data && typeof data.data === 'object') {
+    const nested = data.data.token || data.data.access_token;
+    if (nested) return String(nested).trim();
+  }
+  return null;
+}
+
+async function requestStaticToken(username, password) {
+  const response = await axios.post(
+    PANEL_STATIC_TOKEN_URL,
+    { username, password },
+    {
+      headers: PANEL_HEADERS_BASE,
+      timeout: 45000,
+      validateStatus: () => true
+    }
+  );
+  const { status, data } = response;
+  if (status === 401) {
+    const e = new Error('Utilizador ou senha do painel incorretos (401).');
+    e.code = 'PANEL_AUTH_FAILED';
+    e.status = 401;
+    throw e;
+  }
+  if (status === 429) {
+    const e = new Error('Muitas tentativas no painel (429). Aguarde e tente de novo.');
+    e.code = 'PANEL_RATE_LIMIT';
+    e.status = 429;
+    throw e;
+  }
+  if (status < 200 || status >= 300) {
+    const msg =
+      data && typeof data === 'object'
+        ? String(data.message || data.error || data.msg || '')
+        : String(data || '');
+    const e = new Error(msg.trim() || `Erro ao obter token (HTTP ${status})`);
+    e.code = 'PANEL_STATIC_TOKEN_ERROR';
+    e.status = status;
+    e.responseData = data;
+    throw e;
+  }
+  const token = extractTokenFromStaticAuthResponse(data);
   if (!token) {
-    const err = new Error('Campo bearer_token vazio em configs/api_panel');
+    const e = new Error('Resposta de /auth/static-token sem campo token.');
+    e.code = 'PANEL_STATIC_TOKEN_SHAPE';
+    e.status = 502;
+    e.responseData = data;
+    throw e;
+  }
+  return token;
+}
+
+async function persistBearerToken(token, meta = {}) {
+  const nowIso = new Date().toISOString();
+  const expMs = jwtExpiryMs(token);
+  const patch = {
+    bearer_token: token,
+    token_refreshed_at: nowIso,
+    token_source: 'static-token',
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    ...meta
+  };
+  if (expMs != null) {
+    patch.token_expires_at = new Date(expMs).toISOString();
+  }
+  await getFirestore().collection('configs').doc('api_panel').set(patch, { merge: true });
+  _cachedBearerToken = token;
+  return token;
+}
+
+/**
+ * Obtém novo JWT via POST /auth/static-token e grava no Firestore.
+ * @param {{ reason?: string, force?: boolean }} [opts]
+ */
+async function refreshPanelBearerToken(opts = {}) {
+  if (_refreshPromise && !opts.force) {
+    return _refreshPromise;
+  }
+
+  const run = async () => {
+    const doc = await readApiPanelDoc();
+    const creds = resolvePanelCredentials(doc);
+    if (!creds) {
+      const e = new Error(
+        'Credenciais do painel não configuradas. Defina panel_username e panel_password em configs/api_panel ou variáveis PANEL_API_USERNAME / PANEL_API_PASSWORD.'
+      );
+      e.code = 'PANEL_CREDENTIALS_MISSING';
+      throw e;
+    }
+
+    console.log('🔄 [panel-api] Renovando token via /auth/static-token…', {
+      reason: opts.reason || 'manual',
+      user: creds.username
+    });
+
+    const token = await requestStaticToken(creds.username, creds.password);
+    await persistBearerToken(token, {
+      last_refresh_reason: String(opts.reason || 'manual')
+    });
+
+    const expMs = jwtExpiryMs(token);
+    console.log('✅ [panel-api] Token renovado', {
+      reason: opts.reason || 'manual',
+      expiresAt: expMs ? new Date(expMs).toISOString() : 'sem_exp_jwt'
+    });
+
+    return token;
+  };
+
+  _refreshPromise = run().finally(() => {
+    _refreshPromise = null;
+  });
+  return _refreshPromise;
+}
+
+/**
+ * Tenta renovar se houver credenciais (healthcheck / 401).
+ * @returns {Promise<boolean>} true se renovou com sucesso
+ */
+async function tryAutoRefreshPanelToken(reason = 'auto') {
+  if (process.env.PANEL_TOKEN_AUTO_REFRESH === 'false') return false;
+  try {
+    const doc = await readApiPanelDoc();
+    if (!hasPanelRefreshCredentials(doc)) return false;
+    await refreshPanelBearerToken({ reason, force: true });
+    return true;
+  } catch (e) {
+    console.warn('[panel-api] tryAutoRefreshPanelToken:', e.message);
+    return false;
+  }
+}
+
+/** Renovação proativa antes do JWT expirar (cron). */
+async function tryProactivePanelTokenRefresh() {
+  if (process.env.PANEL_TOKEN_AUTO_REFRESH === 'false') return false;
+  try {
+    const doc = await readApiPanelDoc();
+    if (!hasPanelRefreshCredentials(doc)) return false;
+    const token = String(_cachedBearerToken || doc.bearer_token || '').trim();
+    if (!token) {
+      await refreshPanelBearerToken({ reason: 'proactive_missing' });
+      return true;
+    }
+    if (!tokenShouldRefreshProactively(token)) return false;
+    await refreshPanelBearerToken({ reason: 'proactive_exp' });
+    return true;
+  } catch (e) {
+    console.warn('[panel-api] tryProactivePanelTokenRefresh:', e.message);
+    return false;
+  }
+}
+
+async function getPanelConfigStatus() {
+  let doc = {};
+  try {
+    doc = await readApiPanelDoc();
+  } catch (e) {
+    return {
+      configFound: false,
+      hasToken: false,
+      hasCredentials: false,
+      error: e.code || e.message
+    };
+  }
+  const token = String(_cachedBearerToken || doc.bearer_token || '').trim();
+  const expMs = token ? jwtExpiryMs(token) : null;
+  return {
+    configFound: true,
+    hasToken: !!token,
+    hasCredentials: hasPanelRefreshCredentials(doc),
+    autoRefreshEnabled: process.env.PANEL_TOKEN_AUTO_REFRESH !== 'false',
+    tokenSource: doc.token_source || (token ? 'manual' : null),
+    tokenRefreshedAt: doc.token_refreshed_at || null,
+    tokenExpiresAt: doc.token_expires_at || (expMs ? new Date(expMs).toISOString() : null),
+    panelUsername: doc.panel_username ? String(doc.panel_username) : null,
+    jwtExpiresSoon: token ? tokenShouldRefreshProactively(token) : false
+  };
+}
+
+/**
+ * @returns {Promise<{ bearer_token: string } & Record<string, unknown>>}
+ */
+async function getApiConfig() {
+  const data = await readApiPanelDoc();
+  let token = String(_cachedBearerToken || data.bearer_token || '').trim();
+  const creds = resolvePanelCredentials(data);
+  const autoOn = process.env.PANEL_TOKEN_AUTO_REFRESH !== 'false';
+
+  if (!token && creds && autoOn) {
+    token = await refreshPanelBearerToken({ reason: 'missing_token' });
+    return { ...data, bearer_token: token };
+  }
+
+  if (token && creds && autoOn && tokenShouldRefreshProactively(token)) {
+    try {
+      token = await refreshPanelBearerToken({ reason: 'proactive' });
+    } catch (e) {
+      console.warn('[panel-api] Refresh proativo falhou; usando token atual:', e.message);
+    }
+  }
+
+  if (!token) {
+    const err = new Error(
+      'Campo bearer_token vazio em configs/api_panel. Cole o token manualmente ou configure utilizador/senha para renovação automática.'
+    );
     err.code = 'TOKEN_MISSING';
     throw err;
   }
+
   return { ...data, bearer_token: token };
 }
 
@@ -329,12 +538,6 @@ function extractCredentials(data) {
   };
 }
 
-/**
- * Tenta obter data/hora de expiração da resposta do painel; senão estima por testDuration (dias) do body enviado.
- * @param {unknown} data — JSON da API
- * @param {Record<string, unknown>} mergedBody — body efetivo (inclui testDuration)
- * @returns {string} ISO 8601
- */
 function extractExpiryIso(data, mergedBody) {
   const tryCoerceIso = (v) => {
     if (v == null || v === '') return null;
@@ -390,87 +593,93 @@ function extractExpiryIso(data, mergedBody) {
   return new Date(Date.now() + days * 86400000).toISOString();
 }
 
-/**
- * Gera conta de teste via API do painel.
- * @param {Record<string, unknown>} [payloadOverrides] — campos opcionais a fundir no body (ex.: notes, package_iptv).
- * @returns {Promise<{ usuario: string, senha: string, expiresAt: string }>}
- */
+async function postLinesTest(body, token) {
+  return axios.post(PANEL_TEST_URL, body, {
+    headers: {
+      ...PANEL_HEADERS_BASE,
+      Authorization: `Bearer ${token}`
+    },
+    timeout: 60000,
+    validateStatus: () => true
+  });
+}
+
 async function generateTestAccount(payloadOverrides = {}) {
-  const config = await getApiConfig();
-  const token = config.bearer_token;
-  const body = { ...DEFAULT_TEST_PAYLOAD, ...(payloadOverrides && typeof payloadOverrides === 'object' ? payloadOverrides : {}) };
+  const mergedBody = {
+    ...DEFAULT_TEST_PAYLOAD,
+    ...(payloadOverrides && typeof payloadOverrides === 'object' ? payloadOverrides : {})
+  };
 
-  try {
-    const response = await axios.post(PANEL_TEST_URL, body, {
-      headers: {
-        ...PANEL_HEADERS_BASE,
-        Authorization: `Bearer ${token}`
-      },
-      timeout: 60000,
-      validateStatus: () => true
-    });
+  let config = await getApiConfig();
+  let response = await postLinesTest(mergedBody, config.bearer_token);
 
-    const { status, data } = response;
-
-    if (status === 401) {
-      notifyAdmin('TOKEN_EXPIRED', { status, at: new Date().toISOString() });
-      const e = new Error(
-        'Token do painel expirado ou inválido (401). Atualize o campo bearer_token no Firestore: configs → api_panel.'
-      );
-      e.code = 'TOKEN_EXPIRED';
-      e.status = 401;
-      throw e;
+  if (panelResponseIndicatesInvalidToken(response.status, response.data)) {
+    const refreshed = await tryAutoRefreshPanelToken('lines_test_401');
+    if (refreshed) {
+      config = await getApiConfig();
+      response = await postLinesTest(mergedBody, config.bearer_token);
     }
-
-    if (status < 200 || status >= 300) {
-      const msg =
-        data && typeof data === 'object'
-          ? String(data.message || data.error || data.msg || '')
-          : String(data || '');
-      const e = new Error(msg ? msg.trim() : `Erro API painel (HTTP ${status})`);
-      e.code = 'PANEL_API_ERROR';
-      e.status = status;
-      e.responseData = data;
-      throw e;
-    }
-
-    const { usuario, senha } = extractCredentials(data);
-    if (!usuario || !senha) {
-      const e = new Error(
-        'Resposta do painel sem username/password reconhecíveis. Confira o JSON devolvido pela API e ajuste extractCredentials se necessário.'
-      );
-      e.code = 'PANEL_RESPONSE_SHAPE';
-      e.status = 502;
-      e.responseData = data;
-      throw e;
-    }
-
-    /** Regra de negócio: expiração apresentada ao cliente = 1 hora após a geração (independente do painel). */
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-    return { usuario, senha, expiresAt };
-  } catch (err) {
-    if (err && err.response && err.response.status === 401) {
-      notifyAdmin('TOKEN_EXPIRED', { at: new Date().toISOString() });
-      const e = new Error(
-        'Token do painel expirado ou inválido (401). Atualize o campo bearer_token no Firestore: configs → api_panel.'
-      );
-      e.code = 'TOKEN_EXPIRED';
-      e.status = 401;
-      throw e;
-    }
-    throw err;
   }
+
+  const { status, data } = response;
+
+  if (panelResponseIndicatesInvalidToken(status, data)) {
+    notifyAdmin('TOKEN_EXPIRED', { status, at: new Date().toISOString() });
+    const e = new Error(
+      'Token do painel inválido ou expirado. Configure utilizador/senha para renovação automática ou atualize bearer_token no Firestore.'
+    );
+    e.code = 'TOKEN_EXPIRED';
+    e.status = status === 401 || status === 403 ? status : 401;
+    throw e;
+  }
+
+  if (status < 200 || status >= 300) {
+    const msg =
+      data && typeof data === 'object'
+        ? String(data.message || data.error || data.msg || '')
+        : String(data || '');
+    const e = new Error(msg ? msg.trim() : `Erro API painel (HTTP ${status})`);
+    e.code = 'PANEL_API_ERROR';
+    e.status = status;
+    e.responseData = data;
+    throw e;
+  }
+
+  const { usuario, senha } = extractCredentials(data);
+  if (!usuario || !senha) {
+    const e = new Error(
+      'Resposta do painel sem username/password reconhecíveis. Confira o JSON devolvido pela API.'
+    );
+    e.code = 'PANEL_RESPONSE_SHAPE';
+    e.status = 502;
+    e.responseData = data;
+    throw e;
+  }
+
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  return { usuario, senha, expiresAt };
 }
 
 module.exports = {
   getApiConfig,
+  readApiPanelDoc,
   generateTestAccount,
-  extractExpiryIso, // mantido para testes / extensões; generateTestAccount usa +1h fixo
+  extractExpiryIso,
   notifyAdmin,
   setTokenExpiredNotifier,
   probePanelBearerHealth,
+  refreshPanelBearerToken,
+  tryAutoRefreshPanelToken,
+  tryProactivePanelTokenRefresh,
+  getPanelConfigStatus,
+  hasPanelRefreshCredentials,
+  resolvePanelCredentials,
+  persistBearerToken,
   jwtExpiryMs,
   looksLikeJwt,
+  tokenShouldRefreshProactively,
   DEFAULT_TEST_PAYLOAD: { ...DEFAULT_TEST_PAYLOAD },
-  PANEL_TEST_URL
+  PANEL_TEST_URL,
+  PANEL_STATIC_TOKEN_URL,
+  PANEL_API_BASE
 };

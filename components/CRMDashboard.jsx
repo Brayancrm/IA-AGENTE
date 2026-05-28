@@ -486,6 +486,11 @@ const CRMDashboard = ({
   const [panelBearerSaving, setPanelBearerSaving] = useState(false);
   const [panelBearerSaveError, setPanelBearerSaveError] = useState(null);
   const [panelBearerSaveOk, setPanelBearerSaveOk] = useState(null);
+  const [panelAuthUsername, setPanelAuthUsername] = useState('');
+  const [panelAuthPassword, setPanelAuthPassword] = useState('');
+  const [panelAuthSaving, setPanelAuthSaving] = useState(false);
+  const [panelAuthRefreshLoading, setPanelAuthRefreshLoading] = useState(false);
+  const [panelConfigStatus, setPanelConfigStatus] = useState(null);
   const [panelTestLogs, setPanelTestLogs] = useState([]);
   const [panelTestCustomerPhone, setPanelTestCustomerPhone] = useState('');
   const [panelTestLogDeletingId, setPanelTestLogDeletingId] = useState(null);
@@ -496,8 +501,37 @@ const CRMDashboard = ({
       setPanelBearerDraft('');
       setPanelBearerSaveError(null);
       setPanelBearerSaveOk(null);
+      setPanelAuthPassword('');
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 'panel-testes' || !user?.uid || !user?.isMaster) return;
+    const base = String(
+      backendUrl || (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BACKEND_URL) || ''
+    ).replace(/\/$/, '');
+    if (!base) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `${base}/api/panel/config-status?userId=${encodeURIComponent(user.uid)}`
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled && res.ok && data.success) {
+          setPanelConfigStatus(data);
+          if (data.panelUsername) {
+            setPanelAuthUsername((prev) => prev || data.panelUsername);
+          }
+        }
+      } catch (_) {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, user?.uid, user?.isMaster, backendUrl]);
 
   useEffect(() => {
     if (panelTestLogsUnsubRef.current) {
@@ -2346,6 +2380,229 @@ const CRMDashboard = ({
                 {panelBearerSaveOk}
               </div>
             )}
+          </div>
+
+          <div
+            style={{
+              marginBottom: '28px',
+              padding: '20px',
+              borderRadius: '16px',
+              backgroundColor: '#0f1419',
+              border: '1px solid rgba(59, 130, 246, 0.35)'
+            }}
+          >
+            <div style={{ fontWeight: '700', color: '#e5e7eb', marginBottom: '8px', fontSize: '0.95rem' }}>
+              Renovação automática do token (recomendado)
+            </div>
+            <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginBottom: '14px', lineHeight: 1.5 }}>
+              Utilizador e senha da conta no painel (<code style={{ color: '#d1d5db' }}>wwpanel.link</code>).
+              O servidor renova o JWT via <code style={{ color: '#d1d5db' }}>POST /auth/static-token</code> quando
+              expira ou ao receber 401 — deixa de ser preciso colar o token manualmente.
+            </p>
+            {panelConfigStatus && (
+              <div
+                style={{
+                  marginBottom: '14px',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  color: '#bfdbfe',
+                  fontSize: '0.8125rem',
+                  lineHeight: 1.5
+                }}
+              >
+                {panelConfigStatus.hasCredentials ? '✓ Credenciais configuradas' : '○ Sem credenciais'}{' '}
+                · {panelConfigStatus.hasToken ? '✓ Token presente' : '○ Sem token'}
+                {panelConfigStatus.tokenExpiresAt ? (
+                  <>
+                    <br />
+                    Expira: {new Date(panelConfigStatus.tokenExpiresAt).toLocaleString('pt-PT')}
+                    {panelConfigStatus.jwtExpiresSoon ? ' (renova em breve)' : ''}
+                  </>
+                ) : null}
+                {panelConfigStatus.tokenRefreshedAt ? (
+                  <>
+                    <br />
+                    Última renovação: {new Date(panelConfigStatus.tokenRefreshedAt).toLocaleString('pt-PT')}
+                  </>
+                ) : null}
+              </div>
+            )}
+            <div style={{ display: 'grid', gap: '12px', marginBottom: '14px' }}>
+              <input
+                type="text"
+                autoComplete="username"
+                placeholder="Utilizador do painel"
+                value={panelAuthUsername}
+                onChange={(e) => {
+                  setPanelAuthUsername(e.target.value);
+                  setPanelBearerSaveError(null);
+                  setPanelBearerSaveOk(null);
+                }}
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  background: 'rgba(0,0,0,0.35)',
+                  color: '#f9fafb',
+                  fontSize: '0.875rem'
+                }}
+              />
+              <input
+                type="password"
+                autoComplete="new-password"
+                placeholder="Senha do painel"
+                value={panelAuthPassword}
+                onChange={(e) => {
+                  setPanelAuthPassword(e.target.value);
+                  setPanelBearerSaveError(null);
+                  setPanelBearerSaveOk(null);
+                }}
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  background: 'rgba(0,0,0,0.35)',
+                  color: '#f9fafb',
+                  fontSize: '0.875rem'
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+              <button
+                type="button"
+                disabled={
+                  panelAuthSaving ||
+                  !String(panelAuthUsername).trim() ||
+                  !String(panelAuthPassword).trim()
+                }
+                onClick={async () => {
+                  setPanelAuthSaving(true);
+                  setPanelBearerSaveError(null);
+                  setPanelBearerSaveOk(null);
+                  try {
+                    const base = String(
+                      backendUrl ||
+                        (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BACKEND_URL) ||
+                        ''
+                    ).replace(/\/$/, '');
+                    if (!base) throw new Error('Configure NEXT_PUBLIC_BACKEND_URL.');
+                    const res = await fetch(`${base}/api/panel/save-token`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        userId: user.uid,
+                        panel_username: String(panelAuthUsername).trim(),
+                        panel_password: String(panelAuthPassword).trim(),
+                        refresh_now: true
+                      })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                      const msg = data.error || `Erro HTTP ${res.status}`;
+                      setPanelBearerSaveError(msg);
+                      showToast?.(msg, 'error');
+                      return;
+                    }
+                    setPanelAuthPassword('');
+                    setPanelBearerSaveOk(data.message || 'Credenciais guardadas e token renovado.');
+                    showToast?.('Token renovado automaticamente.', 'success');
+                    setPanelConfigStatus((prev) => ({
+                      ...(prev || {}),
+                      hasCredentials: true,
+                      hasToken: true,
+                      tokenRefreshedAt: data.tokenRefreshedAt || new Date().toISOString(),
+                      tokenExpiresAt: data.tokenExpiresAt || null
+                    }));
+                  } catch (e) {
+                    const msg = e?.message || 'Falha ao guardar credenciais.';
+                    setPanelBearerSaveError(msg);
+                    showToast?.(msg, 'error');
+                  } finally {
+                    setPanelAuthSaving(false);
+                  }
+                }}
+                style={{
+                  padding: '12px 18px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  cursor:
+                    panelAuthSaving ||
+                    !String(panelAuthUsername).trim() ||
+                    !String(panelAuthPassword).trim()
+                      ? 'not-allowed'
+                      : 'pointer',
+                  fontWeight: '700',
+                  fontSize: '0.875rem',
+                  color: '#fff',
+                  background:
+                    panelAuthSaving ||
+                    !String(panelAuthUsername).trim() ||
+                    !String(panelAuthPassword).trim()
+                      ? 'rgba(107, 114, 128, 0.45)'
+                      : 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                }}
+              >
+                {panelAuthSaving ? 'A guardar…' : 'Guardar e renovar token'}
+              </button>
+              <button
+                type="button"
+                disabled={panelAuthRefreshLoading}
+                onClick={async () => {
+                  setPanelAuthRefreshLoading(true);
+                  setPanelBearerSaveError(null);
+                  try {
+                    const base = String(
+                      backendUrl ||
+                        (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BACKEND_URL) ||
+                        ''
+                    ).replace(/\/$/, '');
+                    if (!base) throw new Error('Configure NEXT_PUBLIC_BACKEND_URL.');
+                    const res = await fetch(`${base}/api/panel/refresh-token`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ userId: user.uid })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                      const msg = data.error || `Erro HTTP ${res.status}`;
+                      setPanelBearerSaveError(msg);
+                      showToast?.(msg, 'error');
+                      return;
+                    }
+                    setPanelBearerSaveOk(data.message || 'Token renovado.');
+                    showToast?.('Token renovado.', 'success');
+                    setPanelConfigStatus((prev) => ({
+                      ...(prev || {}),
+                      hasToken: true,
+                      tokenRefreshedAt: data.tokenRefreshedAt,
+                      tokenExpiresAt: data.tokenExpiresAt
+                    }));
+                  } catch (e) {
+                    setPanelBearerSaveError(e?.message || 'Falha ao renovar.');
+                  } finally {
+                    setPanelAuthRefreshLoading(false);
+                  }
+                }}
+                style={{
+                  padding: '12px 18px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(59, 130, 246, 0.5)',
+                  cursor: panelAuthRefreshLoading ? 'not-allowed' : 'pointer',
+                  fontWeight: '600',
+                  fontSize: '0.875rem',
+                  color: '#93c5fd',
+                  background: 'rgba(59, 130, 246, 0.12)'
+                }}
+              >
+                {panelAuthRefreshLoading ? 'A renovar…' : 'Renovar token agora'}
+              </button>
+            </div>
           </div>
 
           <p style={{ color: '#9ca3af', fontSize: '0.9375rem', marginBottom: '16px', lineHeight: 1.5 }}>

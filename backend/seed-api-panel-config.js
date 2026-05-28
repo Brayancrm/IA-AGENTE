@@ -11,6 +11,9 @@
  *
  * PowerShell:
  *   $env:PANEL_BEARER_TOKEN="seu_token"; node seed-api-panel-config.js
+ *
+ * Renovação automática (Railway): PANEL_API_USERNAME + PANEL_API_PASSWORD
+ * ou CRM → Testes painel → "Guardar e renovar token" (grava panel_username/panel_password).
  */
 
 const admin = require('firebase-admin');
