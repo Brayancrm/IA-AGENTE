@@ -2061,30 +2061,35 @@ function panelTestAndroidUrlLooksLikeApk(url) {
 
 /** Lista fixa Android → iOS → TV: envia tudo o que estiver preenchido, sem perguntar aparelho. */
 function buildPanelTestAppsLinksSection(aiConfig) {
-  const android = String(aiConfig?.panelTestAndroidLink || '').trim();
+  const uploadedApk = String(aiConfig?.panelTestAndroidApkUrl || '').trim();
+  const androidLink = String(aiConfig?.panelTestAndroidLink || '').trim();
   const ios = String(aiConfig?.panelTestIosLink || '').trim();
   const tv = String(aiConfig?.panelTestTvOrOtherLink || '').trim();
-  if (!android && !ios && !tv) return { textSuffix: '', androidApkUrl: null };
+  const hasAndroid = !!(uploadedApk || androidLink);
+  if (!hasAndroid && !ios && !tv) return { textSuffix: '', androidApkUrl: null, androidApkForce: false };
 
-  const apk = panelTestAndroidUrlLooksLikeApk(android);
+  const apk = !!uploadedApk || panelTestAndroidUrlLooksLikeApk(androidLink);
   const part = (emoji, title, url) => (url ? `${emoji} *${title}:*\n${url}` : '');
   const lines = [
     apk
       ? `📱 *Android (celular):*\n_Enviamos o ficheiro APK na mensagem seguinte. Se não receber, peça o link ao suporte._`
-      : part('📱', 'Android (celular)', android),
+      : part('📱', 'Android (celular)', androidLink),
     part('🍎', 'iPhone / iOS', ios),
     part('📺', 'TV e outros aparelhos', tv)
   ].filter(Boolean);
-  if (!lines.length) return { textSuffix: '', androidApkUrl: null };
+  if (!lines.length) return { textSuffix: '', androidApkUrl: null, androidApkForce: false };
+  const androidApkUrl = apk ? uploadedApk || androidLink : null;
   return {
     textSuffix: `\n\n📲 *Apps e leitores*\n\n${lines.join('\n\n')}`,
-    androidApkUrl: apk ? android : null
+    androidApkUrl,
+    androidApkForce: !!uploadedApk
   };
 }
 
-async function trySendPanelTestAndroidApk(client, toJid, url) {
+async function trySendPanelTestAndroidApk(client, toJid, url, opts = {}) {
   const u = String(url || '').trim();
-  if (!panelTestAndroidUrlLooksLikeApk(u)) return false;
+  if (!u) return false;
+  if (!opts.forceApk && !panelTestAndroidUrlLooksLikeApk(u)) return false;
   const tmp = path.join(
     os.tmpdir(),
     `panel-apk-${Date.now()}-${Math.random().toString(16).slice(2)}.apk`
@@ -2177,10 +2182,12 @@ async function tryAutoPanelTestFromChat(
       `🔑 *Senha:* ${out.senha}\n` +
       `⏱️ *Expira em cerca de 1 hora* após o envio desta mensagem.\n\n` +
       `_Em caso de dúvida, fale com o suporte._`;
-    const { textSuffix, androidApkUrl } = buildPanelTestAppsLinksSection(aiConfig);
+    const { textSuffix, androidApkUrl, androidApkForce } = buildPanelTestAppsLinksSection(aiConfig);
     await client.sendText(messageFrom, bodyMsg + textSuffix);
     if (androidApkUrl) {
-      const ok = await trySendPanelTestAndroidApk(client, messageFrom, androidApkUrl);
+      const ok = await trySendPanelTestAndroidApk(client, messageFrom, androidApkUrl, {
+        forceApk: !!androidApkForce
+      });
       if (!ok) {
         try {
           await client.sendText(

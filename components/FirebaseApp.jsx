@@ -32,6 +32,7 @@ import {
 } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { ref, push, set, remove, onValue, off, get, update } from 'firebase/database';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import SimpleLanding from './SimpleLanding';
 import dynamic from 'next/dynamic';
 import { convertStepsToPrompt } from '../hooks/useFlowBuilder';
@@ -89,6 +90,9 @@ import MasterNotificationsPage from './MasterNotificationsPage';
 const MOBILE_SUPPORT_WA_URL =
   'https://wa.me/5561991442727?text=Ol%C3%A1%2C%20vim%20pela%20ferramenta%20DadosIA.';
 const MOBILE_BOTTOM_PRIMARY_IDS = ['dashboard', 'conversas', 'crm', 'catalog'];
+
+/** Limite alinhado ao backend (trySendPanelTestAndroidApk maxContentLength). */
+const PANEL_TEST_APK_MAX_BYTES = 45 * 1024 * 1024;
 
 const TV_IMPORT_MAX_ROWS = 500;
 
@@ -3445,6 +3449,7 @@ const DashboardWithFirebase = ({
   // Garantir que usedTrials sempre seja um objeto
   const safeUsedTrials = usedTrials || {};
   const { t, locale, setLocale } = useI18n();
+  const { storage } = useFirebase();
   const [mobileBottomBank, setMobileBottomBank] = useState(0);
   const [mobileAccountSheetOpen, setMobileAccountSheetOpen] = useState(false);
   const [mobileBottomNavDark, setMobileBottomNavDark] = useState(false);
@@ -4380,9 +4385,13 @@ const DashboardWithFirebase = ({
     panelTestFollowUpMessage: '',
     /** Links/apps enviados junto ao teste automático (WhatsApp). */
     panelTestAndroidLink: '',
+    panelTestAndroidApkUrl: '',
+    panelTestAndroidApkFileName: '',
     panelTestIosLink: '',
     panelTestTvOrOtherLink: ''
   });
+  const [panelTestApkUploading, setPanelTestApkUploading] = useState(false);
+  const panelTestApkFileInputRef = useRef(null);
   const [wizardResetKey, setWizardResetKey] = useState(0);
   const [userForm, setUserForm] = useState({
     name: '',
@@ -4573,10 +4582,64 @@ const DashboardWithFirebase = ({
       panelTestFollowUpAfterOneHour: assistantSettings.panelTestFollowUpAfterOneHour === true,
       panelTestFollowUpMessage: assistantSettings.panelTestFollowUpMessage || '',
       panelTestAndroidLink: assistantSettings.panelTestAndroidLink || '',
+      panelTestAndroidApkUrl: assistantSettings.panelTestAndroidApkUrl || '',
+      panelTestAndroidApkFileName: assistantSettings.panelTestAndroidApkFileName || '',
       panelTestIosLink: assistantSettings.panelTestIosLink || '',
       panelTestTvOrOtherLink: assistantSettings.panelTestTvOrOtherLink || ''
     });
   }, [assistantSettings]);
+
+  const handlePanelTestApkUpload = async (file) => {
+    if (!file || !storage || !user?.uid || !saveAssistantSettings) return;
+    const name = String(file.name || '').toLowerCase();
+    if (!name.endsWith('.apk')) {
+      showToast?.(t('assistantConfig.panelTestAndroidUploadInvalidType'), 'error');
+      return;
+    }
+    if (file.size > PANEL_TEST_APK_MAX_BYTES) {
+      showToast?.(t('assistantConfig.panelTestAndroidUploadTooLarge'), 'error');
+      return;
+    }
+    setPanelTestApkUploading(true);
+    try {
+      const path = `panel-apps/${user.uid}/app-android.apk`;
+      const fileRef = storageRef(storage, path);
+      await uploadBytes(fileRef, file, {
+        contentType: 'application/vnd.android.package-archive',
+        cacheControl: 'public, max-age=31536000'
+      });
+      const url = await getDownloadURL(fileRef);
+      const nextForm = {
+        ...assistantForm,
+        panelTestAndroidApkUrl: url,
+        panelTestAndroidApkFileName: file.name || 'app-android.apk'
+      };
+      setAssistantForm(nextForm);
+      await saveAssistantSettings(nextForm);
+      showToast?.(t('assistantConfig.panelTestAndroidUploadSuccess'), 'success');
+    } catch (err) {
+      console.error('❌ [panel-test] upload APK:', err);
+      showToast?.(err?.message || t('assistantConfig.panelTestAndroidUploadError'), 'error');
+    } finally {
+      setPanelTestApkUploading(false);
+    }
+  };
+
+  const handlePanelTestApkRemove = async () => {
+    if (!saveAssistantSettings) return;
+    const nextForm = {
+      ...assistantForm,
+      panelTestAndroidApkUrl: '',
+      panelTestAndroidApkFileName: ''
+    };
+    setAssistantForm(nextForm);
+    try {
+      await saveAssistantSettings(nextForm);
+      showToast?.(t('assistantConfig.panelTestAndroidRemoveSuccess'), 'success');
+    } catch (err) {
+      showToast?.(err?.message || t('toast.settingsSaveError'), 'error');
+    }
+  };
 
   // Preencher planForm quando editingPlan mudar
   useEffect(() => {
@@ -9884,6 +9947,95 @@ const DashboardWithFirebase = ({
                           <p style={{ margin: '6px 0 0 0', fontSize: '0.72rem', color: '#6b7280' }}>
                             {t('assistantConfig.panelTestAndroidLinkHint')}
                           </p>
+                          <div
+                            style={{
+                              marginTop: '14px',
+                              paddingTop: '14px',
+                              borderTop: '1px dashed rgba(255,255,255,0.12)'
+                            }}
+                          >
+                            <label
+                              style={{
+                                display: 'block',
+                                fontWeight: 600,
+                                color: '#e5e7eb',
+                                marginBottom: '8px',
+                                fontSize: '0.8125rem'
+                              }}
+                            >
+                              {t('assistantConfig.panelTestAndroidUploadLabel')}
+                            </label>
+                            <p style={{ margin: '0 0 10px 0', fontSize: '0.72rem', color: '#6b7280', lineHeight: 1.45 }}>
+                              {t('assistantConfig.panelTestAndroidUploadHint')}
+                            </p>
+                            <input
+                              ref={panelTestApkFileInputRef}
+                              type="file"
+                              accept=".apk,application/vnd.android.package-archive"
+                              disabled={!assistantForm.autoPanelTestOnRequest || panelTestApkUploading}
+                              style={{ display: 'none' }}
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                e.target.value = '';
+                                if (f) handlePanelTestApkUpload(f);
+                              }}
+                            />
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
+                              <button
+                                type="button"
+                                disabled={!assistantForm.autoPanelTestOnRequest || panelTestApkUploading}
+                                onClick={() => panelTestApkFileInputRef.current?.click()}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  padding: '10px 16px',
+                                  borderRadius: '10px',
+                                  border: '1px solid rgba(16, 185, 129, 0.45)',
+                                  background: 'rgba(16, 185, 129, 0.12)',
+                                  color: '#a7f3d0',
+                                  fontWeight: 600,
+                                  fontSize: '0.8125rem',
+                                  cursor:
+                                    !assistantForm.autoPanelTestOnRequest || panelTestApkUploading
+                                      ? 'not-allowed'
+                                      : 'pointer',
+                                  opacity: assistantForm.autoPanelTestOnRequest ? 1 : 0.6
+                                }}
+                              >
+                                <Upload size={16} />
+                                {panelTestApkUploading
+                                  ? t('assistantConfig.panelTestAndroidUploading')
+                                  : t('assistantConfig.panelTestAndroidUploadBtn')}
+                              </button>
+                              {assistantForm.panelTestAndroidApkUrl ? (
+                                <>
+                                  <span style={{ fontSize: '0.8125rem', color: '#9ca3af' }}>
+                                    {t('assistantConfig.panelTestAndroidUploaded')}:{' '}
+                                    <strong style={{ color: '#e5e7eb' }}>
+                                      {assistantForm.panelTestAndroidApkFileName || 'app-android.apk'}
+                                    </strong>
+                                  </span>
+                                  <button
+                                    type="button"
+                                    disabled={panelTestApkUploading}
+                                    onClick={handlePanelTestApkRemove}
+                                    style={{
+                                      padding: '8px 12px',
+                                      borderRadius: '8px',
+                                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                                      background: 'transparent',
+                                      color: '#fca5a5',
+                                      fontSize: '0.75rem',
+                                      cursor: panelTestApkUploading ? 'not-allowed' : 'pointer'
+                                    }}
+                                  >
+                                    {t('assistantConfig.panelTestAndroidRemoveApk')}
+                                  </button>
+                                </>
+                              ) : null}
+                            </div>
+                          </div>
                         </div>
                         <div>
                           <label

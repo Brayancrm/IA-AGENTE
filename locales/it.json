@@ -593,6 +593,17 @@
     "panelTestAppsSectionHint": "Tutti i link compilati vanno nello stesso messaggio dopo le credenziali (ordine: Android, iPhone, TV/altri). Non si chiede il dispositivo. Gli URL https che finiscono in .apk si provano a inviare come file.",
     "panelTestAndroidLinkLabel": "Android — link (https)",
     "panelTestAndroidLinkHint": "Incolla un link https (es. dove è ospitato l’APK). Se l’URL contiene .apk, il server prova a inviare il file su WhatsApp; in caso di errore invia il link in testo.",
+    "panelTestAndroidUploadLabel": "Opzione 2 — carica file APK",
+    "panelTestAndroidUploadHint": "Carica il .apk su Firebase (max 45 MB). Ha priorità sul link sopra; WhatsApp lo invia come app-android.apk.",
+    "panelTestAndroidUploadBtn": "Scegli APK dal PC",
+    "panelTestAndroidUploading": "Caricamento…",
+    "panelTestAndroidUploadSuccess": "APK salvato. Verrà inviato come file nella prova automatica.",
+    "panelTestAndroidUploadError": "Errore nel caricamento dell’APK.",
+    "panelTestAndroidUploadInvalidType": "Seleziona un file .apk valido.",
+    "panelTestAndroidUploadTooLarge": "APK troppo grande (max 45 MB).",
+    "panelTestAndroidUploaded": "APK caricato",
+    "panelTestAndroidRemoveApk": "Rimuovi APK",
+    "panelTestAndroidRemoveSuccess": "APK rimosso dalla configurazione.",
     "panelTestIosLinkLabel": "iPhone / iOS — link (App Store, TestFlight, ecc.)",
     "panelTestTvLinkLabel": "TV e altri dispositivi — link"
   }

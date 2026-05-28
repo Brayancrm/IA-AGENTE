@@ -593,6 +593,17 @@
     "panelTestAppsSectionHint": "Os links são enviados na mesma mensagem após as credenciais (ordem: Android, iPhone, TV/outros). URL com .apk tenta enviar-se como ficheiro no WhatsApp.",
     "panelTestAndroidLinkLabel": "Android — link (https)",
     "panelTestAndroidLinkHint": "Cole um link https (por exemplo alojamento do APK). Se o URL contiver .apk, o servidor tenta enviar o ficheiro pelo WhatsApp; se falhar, envia o link em texto.",
+    "panelTestAndroidUploadLabel": "Opção 2 — enviar ficheiro APK",
+    "panelTestAndroidUploadHint": "Carrega o .apk para o Firebase (máx. 45 MB). Tem prioridade sobre o link acima e o WhatsApp envia como ficheiro app-android.apk.",
+    "panelTestAndroidUploadBtn": "Escolher APK do PC",
+    "panelTestAndroidUploading": "A enviar…",
+    "panelTestAndroidUploadSuccess": "APK guardado. Será enviado como ficheiro no teste automático.",
+    "panelTestAndroidUploadError": "Erro ao enviar o APK.",
+    "panelTestAndroidUploadInvalidType": "Selecione um ficheiro .apk válido.",
+    "panelTestAndroidUploadTooLarge": "APK muito grande (máximo 45 MB).",
+    "panelTestAndroidUploaded": "APK carregado",
+    "panelTestAndroidRemoveApk": "Remover APK",
+    "panelTestAndroidRemoveSuccess": "APK removido da configuração.",
     "panelTestIosLinkLabel": "iPhone / iOS — link (App Store, TestFlight, etc.)",
     "panelTestTvLinkLabel": "TV e outros aparelhos — link (instruções, APK genérico, etc.)"
   }
