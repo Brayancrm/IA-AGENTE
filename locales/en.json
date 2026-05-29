@@ -594,7 +594,7 @@
     "panelTestAndroidLinkLabel": "Android — link (https)",
     "panelTestAndroidLinkHint": "Paste an https link (e.g. where the APK is hosted). If the URL contains .apk, the server tries to send it as a file on WhatsApp; on failure it sends the link as text.",
     "panelTestAndroidUploadLabel": "Option 2 — upload APK file",
-    "panelTestAndroidUploadHint": "Upload the .apk to Firebase (max 45 MB). Takes priority over the link above; WhatsApp sends it as app-android.apk.",
+    "panelTestAndroidUploadHint": "Upload the .apk to Firebase (max 45 MB). Takes priority over the link above; WhatsApp sends it as Wplay TV.apk.",
     "panelTestAndroidUploadBtn": "Choose APK from PC",
     "panelTestAndroidUploading": "Uploading…",
     "panelTestAndroidUploadSuccess": "APK saved. It will be sent as a file on automatic trial.",

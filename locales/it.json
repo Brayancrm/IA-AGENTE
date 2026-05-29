@@ -594,7 +594,7 @@
     "panelTestAndroidLinkLabel": "Android — link (https)",
     "panelTestAndroidLinkHint": "Incolla un link https (es. dove è ospitato l’APK). Se l’URL contiene .apk, il server prova a inviare il file su WhatsApp; in caso di errore invia il link in testo.",
     "panelTestAndroidUploadLabel": "Opzione 2 — carica file APK",
-    "panelTestAndroidUploadHint": "Carica il .apk su Firebase (max 45 MB). Ha priorità sul link sopra; WhatsApp lo invia come app-android.apk.",
+    "panelTestAndroidUploadHint": "Carica il .apk su Firebase (max 45 MB). Ha priorità sul link sopra; WhatsApp lo invia come Wplay TV.apk.",
     "panelTestAndroidUploadBtn": "Scegli APK dal PC",
     "panelTestAndroidUploading": "Caricamento…",
     "panelTestAndroidUploadSuccess": "APK salvato. Verrà inviato come file nella prova automatica.",

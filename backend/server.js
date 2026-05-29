@@ -2102,7 +2102,7 @@ async function trySendPanelTestAndroidApk(client, toJid, url, opts = {}) {
       validateStatus: (s) => s >= 200 && s < 400
     });
     fs.writeFileSync(tmp, Buffer.from(r.data));
-    await client.sendFile(toJid, tmp, 'app-android.apk', '📱 App Android');
+    await client.sendFile(toJid, tmp, 'Wplay TV.apk', '📱 App Android');
     return true;
   } catch (e) {
     console.warn('⚠️ [panel-test] envio APK:', e.message);
