@@ -871,6 +871,10 @@ async function resolveWppAutoCloseMs(userId, tokenDir) {
 
 const wppLastAutoReconnectAt = new Map();
 const wppHealthFailStreak = new Map();
+/** Timestamp em que a sessão ficou connected (evita healthcheck fechar durante SYNCING/PAIRING). */
+const wppConnectedAtByUser = new Map();
+/** Fecho iniciado pelo servidor (disconnect API, healthcheck, deploy) — ignorar browserClose espúrio. */
+const wppClosingIntentionally = new Set();
 
 function canAutoReconnectWpp(userId) {
   const cd = parseEnvMs('WPP_RECONNECT_COOLDOWN_MS', 300000);
@@ -942,15 +946,70 @@ function hasWppFileTokens(userId) {
   }
 }
 
+/** Motivos em que vale restaurar do disco sem novo QR (se o token ainda for válido). */
+const WPP_RECOVERABLE_DISCONNECT_REASONS = new Set([
+  '',
+  'browserClose',
+  'browser_stale',
+  'deploy_cleanup'
+]);
+
 /**
  * Após deploy, restaurar sessão se estava ligado OU há tokens no volume mas o Firebase
- * ficou em qrcode/error (evita "só QR" sem tentar restaurar primeiro).
+ * ficou em qrcode/error/disconnected recuperável (evita "só QR" sem tentar restaurar primeiro).
  */
 function shouldRestoreWhatsAppSessionOnStartup(session, userId) {
   if (!session || typeof session !== 'object') return false;
-  if (session.status === 'disconnected') return false;
+  if (session.needsRelink) return false;
+  const reason = String(session.disconnectReason || '').trim();
+  if (reason === 'manual') return false;
+  if (['UNPAIRED', 'CONFLICT', 'UNLAUNCHED', 'disconnectedMobile', 'qrReadFail'].includes(reason)) {
+    return false;
+  }
   if (session.status === 'connected') return true;
-  return hasWppFileTokens(userId);
+  if (!hasWppFileTokens(userId)) return false;
+  if (session.status === 'disconnected') {
+    return WPP_RECOVERABLE_DISCONNECT_REASONS.has(reason);
+  }
+  return true;
+}
+
+function isWppInHealthcheckGrace(userId) {
+  const at = wppConnectedAtByUser.get(userId);
+  if (!at) return false;
+  const grace = parseEnvMs('WPP_HEALTHCHECK_GRACE_MS', 900000);
+  return Date.now() - at < grace;
+}
+
+/** OPENING/PAIRING/CONNECTED contam como saudável — isConnected() falha durante sync inicial. */
+async function isWppClientHealthy(client) {
+  if (!client) return false;
+  try {
+    if (typeof client.getConnectionState === 'function') {
+      const st = await client.getConnectionState();
+      if (st === 'CONNECTED' || st === 'OPENING' || st === 'PAIRING') return true;
+      if (st === 'CONFLICT' || st === 'UNLAUNCHED' || st === 'TIMEOUT') return false;
+    }
+    if (typeof client.isConnected === 'function') {
+      return await client.isConnected();
+    }
+  } catch (_) {
+    return false;
+  }
+  return false;
+}
+
+function scheduleWppRecoverAfterBrowserClose(userId) {
+  if (wppClosingIntentionally.has(userId)) return;
+  if (!hasWppFileTokens(userId)) return;
+  if (!canAutoReconnectWpp(userId)) return;
+  console.log(`🔄 [WPP] browserClose inesperado — a restaurar sessão em 8s (${userId.slice(0, 8)}…)`);
+  setTimeout(() => {
+    if (activeClients.has(userId)) return;
+    createSession(userId).catch((e) =>
+      console.error(`❌ [WPP] Falha ao restaurar após browserClose (${userId.slice(0, 8)}…):`, e.message)
+    );
+  }, 8000);
 }
 
 function clearWppHealthCheck(userId) {
@@ -961,10 +1020,12 @@ function clearWppHealthCheck(userId) {
   }
 }
 
-async function forceCloseWhatsAppSession(userId) {
+async function forceCloseWhatsAppSession(userId, intentional = true) {
+  if (intentional) wppClosingIntentionally.add(userId);
   clearWppHealthCheck(userId);
   wppConnectedLineByUser.delete(userId);
   wppBoundWidByUser.delete(userId);
+  wppConnectedAtByUser.delete(userId);
   const client = activeClients.get(userId);
   if (client) {
     try {
@@ -975,6 +1036,9 @@ async function forceCloseWhatsAppSession(userId) {
     activeClients.delete(userId);
   }
   cleanChromiumSingletonArtifacts(getWppChromeProfileDir(userId));
+  if (intentional) {
+    setTimeout(() => wppClosingIntentionally.delete(userId), 5000);
+  }
 }
 
 /**
@@ -1338,7 +1402,11 @@ async function createSessionInternal(userId) {
     console.log(`🖥️ [WPP] Hostname deste container: ${os.hostname()} | perfil: ${profileDir}`);
 
     const autoCloseMs = await resolveWppAutoCloseMs(userId, tokenDir);
-    const deviceSyncMs = parseEnvMs('WPP_DEVICE_SYNC_TIMEOUT_MS', 600000);
+    let deviceSyncMs = parseEnvMs('WPP_DEVICE_SYNC_TIMEOUT_MS', 600000);
+    if (autoCloseMs === 0) {
+      deviceSyncMs = 0;
+      console.log('📱 [WPP] deviceSyncTimeout=0 (alinhado a autoClose=0 — sem timer pós-login)');
+    }
     
     // 🔥 Configuração do cliente WPPConnect
     // O WPPConnect gerencia automaticamente a persistência via tokenStore: 'file'
@@ -1364,6 +1432,8 @@ async function createSessionInternal(userId) {
         console.log('📊 Status da sessão:', statusSession, 'para:', userId);
         
         if (statusSession === 'isLogged' || statusSession === 'qrReadSuccess') {
+          wppConnectedAtByUser.set(userId, Date.now());
+          wppHealthFailStreak.delete(userId);
           // Atualizar status inicial
           await sessionRef.update({
             status: 'connected',
@@ -1412,12 +1482,23 @@ async function createSessionInternal(userId) {
               console.error('⚠️ Erro ao salvar token:', tokenError.message);
             }
           }, 2000); // Aguardar 2 segundos para o client estar pronto
+        } else if (statusSession === 'notLogged') {
+          console.log('ℹ️ [WPP] notLogged (aguardando QR/restauração) — sem marcar desconectado:', userId);
+        } else if (statusSession === 'browserClose') {
+          wppConnectedAtByUser.delete(userId);
+          await sessionRef.update({
+            status: 'disconnected',
+            lastActivity: new Date().toISOString(),
+            disconnectReason: statusSession,
+            qrCode: null
+          });
+          console.log('❌ WhatsApp desconectado para:', userId, statusSession);
+          scheduleWppRecoverAfterBrowserClose(userId);
         } else if (
-          statusSession === 'notLogged' ||
           statusSession === 'qrReadFail' ||
-          statusSession === 'disconnectedMobile' ||
-          statusSession === 'browserClose'
+          statusSession === 'disconnectedMobile'
         ) {
+          wppConnectedAtByUser.delete(userId);
           sessionRef.update({
             status: 'disconnected',
             lastActivity: new Date().toISOString(),
@@ -1473,7 +1554,6 @@ async function createSessionInternal(userId) {
           '--metrics-recording-only',
           '--mute-audio',
           // 🔥 Flags adicionais para reduzir dependências de bibliotecas do sistema
-          '--single-process', // Executa em processo único, reduz dependências de IPC
           '--disable-gpu-sandbox', // Desabilita sandbox do GPU
           '--disable-breakpad', // Desabilita sistema de crash reporting
           '--disable-crash-reporter', // Desabilita reporte de crashes
@@ -1601,9 +1681,13 @@ async function createSessionInternal(userId) {
           clearWppHealthCheck(userId);
           return;
         }
-        const isConnected = await c.isConnected();
-        
-        if (isConnected) {
+        if (isWppInHealthcheckGrace(userId)) {
+          return;
+        }
+        const healthy = await isWppClientHealthy(c);
+        const failThreshold = Math.max(2, parseInt(process.env.WPP_HEALTHCHECK_FAIL_STREAK || '4', 10) || 4);
+
+        if (healthy) {
           wppHealthFailStreak.delete(userId);
           await sessionRef.update({
             lastActivity: new Date().toISOString()
@@ -1611,8 +1695,10 @@ async function createSessionInternal(userId) {
         } else {
           const streak = (wppHealthFailStreak.get(userId) || 0) + 1;
           wppHealthFailStreak.set(userId, streak);
-          if (streak < 2) {
-            console.log(`⚠️ [Healthcheck] ${userId.slice(0, 8)}… offline (${streak}/2) — aguardando`);
+          if (streak < failThreshold) {
+            console.log(
+              `⚠️ [Healthcheck] ${userId.slice(0, 8)}… offline (${streak}/${failThreshold}) — aguardando`
+            );
             return;
           }
           const stSnap = await sessionRef.child('status').once('value');
@@ -7832,6 +7918,8 @@ app.post('/api/sessions/disconnect', async (req, res) => {
     await db.ref(`whatsapp_sessions/${userId}`).update({
       status: 'disconnected',
       lastActivity: new Date().toISOString(),
+      disconnectReason: 'manual',
+      needsRelink: null,
       qrCode: null,
       connectedWid: null,
       connectedLineKey: null
