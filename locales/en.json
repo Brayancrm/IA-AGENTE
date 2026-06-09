@@ -606,5 +606,37 @@
     "panelTestAndroidRemoveSuccess": "APK removed from settings.",
     "panelTestIosLinkLabel": "iPhone / iOS — link (App Store, TestFlight, …)",
     "panelTestTvLinkLabel": "TV & other devices — link"
+  },
+  "whatsappDisconnect": {
+    "title": "Disconnect reason",
+    "whatToDo": "What to do:",
+    "lastActivity": "Last recorded activity: {{when}}",
+    "technicalCode": "Technical code: {{code}}",
+    "needsRelink": "Scan the QR Code again on this page (Connect WhatsApp). The session was unlinked on the phone.",
+    "reason": {
+      "generic": "The WhatsApp session on the server is no longer active.",
+      "unknown": "Disconnect recorded ({{code}}).",
+      "disconnectedMobile": "The phone lost connection or the session was closed in the WhatsApp app.",
+      "browserClose": "The server's internal browser closed the session.",
+      "notLogged": "The server session is no longer authenticated with WhatsApp.",
+      "qrReadFail": "Failed to read the QR Code (invalid or expired scan).",
+      "UNPAIRED": "WhatsApp unlinked this connection (session removed on the phone).",
+      "CONFLICT": "Another device or session conflicted with this connection.",
+      "UNLAUNCHED": "The server session did not start correctly.",
+      "browser_stale": "The server browser crashed or was restarted (common after Railway deploy).",
+      "deploy_cleanup": "The server restarted and cleared sessions on startup (WHATSAPP_CLEANUP_SESSIONS_ON_DEPLOY)."
+    },
+    "hint": {
+      "default": "Click Connect WhatsApp and scan the new QR if prompted.",
+      "disconnectedMobile": "Open WhatsApp on the phone → Linked devices and check if this session still appears.",
+      "browserClose": "Click Connect and wait for the QR; if it persists, check Railway logs.",
+      "notLogged": "Connect again and scan the QR Code.",
+      "qrReadFail": "Generate a new QR and scan it immediately.",
+      "UNPAIRED": "On the phone, remove the old session if present and link again with the QR.",
+      "CONFLICT": "Close other WhatsApp Web sessions and connect only this one.",
+      "UNLAUNCHED": "Try Connect again; if it fails, use Clear session on server.",
+      "browser_stale": "Normal after deploy. Connect again; confirm WPP_TOKENS_BASE volume and 1 replica on Railway.",
+      "deploy_cleanup": "Avoid WHATSAPP_CLEANUP_SESSIONS_ON_DEPLOY=true in production; connect again."
+    }
   }
 }

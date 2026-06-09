@@ -606,5 +606,37 @@
     "panelTestAndroidRemoveSuccess": "APK removido da configuração.",
     "panelTestIosLinkLabel": "iPhone / iOS — link (App Store, TestFlight, etc.)",
     "panelTestTvLinkLabel": "TV e outros aparelhos — link (instruções, APK genérico, etc.)"
+  },
+  "whatsappDisconnect": {
+    "title": "Motivo da desconexão",
+    "whatToDo": "O que fazer:",
+    "lastActivity": "Última atividade registada: {{when}}",
+    "technicalCode": "Código técnico: {{code}}",
+    "needsRelink": "Volte a escanear o QR Code nesta página (Conectar WhatsApp). A sessão foi desvinculada no telemóvel.",
+    "reason": {
+      "generic": "A sessão WhatsApp no servidor deixou de estar ativa.",
+      "unknown": "Desconexão registada ({{code}}).",
+      "disconnectedMobile": "O telemóvel perdeu ligação ou a sessão foi fechada na app WhatsApp.",
+      "browserClose": "O navegador interno do servidor fechou a sessão.",
+      "notLogged": "A sessão no servidor já não está autenticada no WhatsApp.",
+      "qrReadFail": "Falha ao ler o QR Code (scan inválido ou expirado).",
+      "UNPAIRED": "O WhatsApp desvinculou esta ligação (sessão removida no telemóvel).",
+      "CONFLICT": "Outro dispositivo ou sessão entrou em conflito com esta ligação.",
+      "UNLAUNCHED": "A sessão no servidor não arrancou corretamente.",
+      "browser_stale": "O navegador do servidor travou ou foi reiniciado (comum após deploy no Railway).",
+      "deploy_cleanup": "O servidor reiniciou e limpou as sessões no arranque (variável WHATSAPP_CLEANUP_SESSIONS_ON_DEPLOY)."
+    },
+    "hint": {
+      "default": "Clique em Conectar WhatsApp e escaneie o novo QR se for pedido.",
+      "disconnectedMobile": "Abra o WhatsApp no telemóvel → Aparelhos ligados e confirme se esta sessão ainda aparece.",
+      "browserClose": "Clique em Conectar e aguarde o QR; se persistir, verifique os logs do Railway.",
+      "notLogged": "Conecte de novo e escaneie o QR Code.",
+      "qrReadFail": "Gere um novo QR e escaneie de imediato.",
+      "UNPAIRED": "No telemóvel, remova a sessão antiga se existir e ligue de novo com o QR.",
+      "CONFLICT": "Feche outras sessões WhatsApp Web e conecte apenas esta.",
+      "UNLAUNCHED": "Tente Conectar de novo; se falhar, use Limpar sessão no servidor.",
+      "browser_stale": "Normal após deploy. Conecte de novo; confirme volume WPP_TOKENS_BASE e 1 réplica no Railway.",
+      "deploy_cleanup": "Evite WHATSAPP_CLEANUP_SESSIONS_ON_DEPLOY=true em produção; conecte de novo."
+    }
   }
 }

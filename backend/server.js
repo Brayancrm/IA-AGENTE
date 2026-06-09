@@ -1369,7 +1369,9 @@ async function createSessionInternal(userId) {
             status: 'connected',
             connectedAt: new Date().toISOString(),
             lastActivity: new Date().toISOString(),
-            qrCode: null
+            qrCode: null,
+            disconnectReason: null,
+            needsRelink: null
           });
           
           console.log('✅ WhatsApp conectado para:', userId);

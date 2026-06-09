@@ -94,6 +94,26 @@ const MOBILE_BOTTOM_PRIMARY_IDS = ['dashboard', 'conversas', 'crm', 'catalog'];
 /** Limite alinhado ao backend (trySendPanelTestAndroidApk maxContentLength). */
 const PANEL_TEST_APK_MAX_BYTES = 45 * 1024 * 1024;
 
+/** Mensagem amigável para whatsapp_sessions.disconnectReason (backend/server.js). */
+function resolveWhatsAppDisconnectDisplay(reason, needsRelink, t) {
+  if (!reason && !needsRelink) return null;
+  const code = String(reason || '').trim();
+  const reasonKey = code ? `whatsappDisconnect.reason.${code}` : null;
+  const hintKey = code ? `whatsappDisconnect.hint.${code}` : null;
+  const message =
+    reasonKey && t(reasonKey) !== reasonKey
+      ? t(reasonKey)
+      : code
+        ? t('whatsappDisconnect.reason.unknown', { code })
+        : t('whatsappDisconnect.reason.generic');
+  const hint = needsRelink
+    ? t('whatsappDisconnect.needsRelink')
+    : hintKey && t(hintKey) !== hintKey
+      ? t(hintKey)
+      : t('whatsappDisconnect.hint.default');
+  return { message, hint, code: code || null };
+}
+
 const TV_IMPORT_MAX_ROWS = 500;
 
 function normalizeTvImportHeader(s) {
@@ -394,6 +414,9 @@ const FirebaseApp = () => {
   const [whatsappStatus, setWhatsappStatus] = useState('disconnected');
   const [whatsappQRCode, setWhatsappQRCode] = useState(null);
   const [whatsappSessionError, setWhatsappSessionError] = useState(null);
+  const [whatsappDisconnectReason, setWhatsappDisconnectReason] = useState(null);
+  const [whatsappNeedsRelink, setWhatsappNeedsRelink] = useState(false);
+  const [whatsappSessionLastActivity, setWhatsappSessionLastActivity] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   
   // Estados da seção Conversas
@@ -1148,6 +1171,18 @@ const FirebaseApp = () => {
             ? String(session.error).trim()
             : null
         );
+        if (newStatus === 'connected') {
+          setWhatsappDisconnectReason(null);
+          setWhatsappNeedsRelink(false);
+          setWhatsappSessionLastActivity(null);
+        } else {
+          const reason =
+            session.disconnectReason != null ? String(session.disconnectReason).trim() : '';
+          setWhatsappDisconnectReason(reason || null);
+          setWhatsappNeedsRelink(!!session.needsRelink);
+          const ts = session.disconnectedAt || session.lastActivity;
+          setWhatsappSessionLastActivity(ts != null ? String(ts) : null);
+        }
 
         if (newStatus === 'connected') {
           console.log('🟢 WhatsApp CONECTADO!');
@@ -1168,12 +1203,18 @@ const FirebaseApp = () => {
         setWhatsappStatus('disconnected');
         setWhatsappQRCode(null);
         setWhatsappSessionError(null);
+        setWhatsappDisconnectReason(null);
+        setWhatsappNeedsRelink(false);
+        setWhatsappSessionLastActivity(null);
       }
     }, (error) => {
       console.error('❌ [WhatsApp Listener] Erro ao monitorar status:', error);
       console.error('   Código:', error.code);
       console.error('   Mensagem:', error.message);
       setWhatsappSessionError(null);
+      setWhatsappDisconnectReason(null);
+      setWhatsappNeedsRelink(false);
+      setWhatsappSessionLastActivity(null);
     });
 
     console.log('✅ [WhatsApp Listener] Listener configurado com sucesso!');
@@ -3321,6 +3362,9 @@ const FirebaseApp = () => {
         whatsappStatus={whatsappStatus}
         whatsappQRCode={whatsappQRCode}
         whatsappSessionError={whatsappSessionError}
+        whatsappDisconnectReason={whatsappDisconnectReason}
+        whatsappNeedsRelink={whatsappNeedsRelink}
+        whatsappSessionLastActivity={whatsappSessionLastActivity}
         isConnecting={isConnecting}
         connectWhatsApp={connectWhatsApp}
         disconnectWhatsApp={disconnectWhatsApp}
@@ -3402,6 +3446,9 @@ const DashboardWithFirebase = ({
   whatsappStatus = 'disconnected',
   whatsappQRCode = null,
   whatsappSessionError = null,
+  whatsappDisconnectReason = null,
+  whatsappNeedsRelink = false,
+  whatsappSessionLastActivity = null,
   isConnecting = false,
   connectWhatsApp,
   disconnectWhatsApp,
@@ -9196,6 +9243,20 @@ const DashboardWithFirebase = ({
         const currentWhatsappStatus = whatsappStatus || 'disconnected';
         const currentQRCode = whatsappQRCode || null;
         const currentIsConnecting = isConnecting || false;
+        const disconnectInfo = resolveWhatsAppDisconnectDisplay(
+          whatsappDisconnectReason,
+          whatsappNeedsRelink,
+          t
+        );
+        const lastActivityLabel = whatsappSessionLastActivity
+          ? (() => {
+              try {
+                return new Date(whatsappSessionLastActivity).toLocaleString(locale || 'pt-BR');
+              } catch {
+                return whatsappSessionLastActivity;
+              }
+            })()
+          : null;
         
         return (
           <div style={{ padding: getResponsivePadding(), width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
@@ -9256,6 +9317,52 @@ const DashboardWithFirebase = ({
                   }
                 </div>
               </div>
+
+              {disconnectInfo &&
+                (currentWhatsappStatus === 'disconnected' ||
+                  currentWhatsappStatus === 'error' ||
+                  currentWhatsappStatus === 'qrcode') && (
+                <div
+                  style={{
+                    padding: '20px',
+                    background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                    borderRadius: '12px',
+                    marginBottom: '20px',
+                    border: '2px solid #3b82f6'
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: '0.875rem',
+                      color: '#1e40af',
+                      margin: '0 0 8px',
+                      fontWeight: '700',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <span style={{ fontSize: '1.25rem' }}>🔍</span>
+                    {t('whatsappDisconnect.title')}
+                  </p>
+                  <p style={{ fontSize: '0.9375rem', color: '#1e3a8a', margin: '0 0 10px', lineHeight: 1.55 }}>
+                    {disconnectInfo.message}
+                  </p>
+                  <p style={{ fontSize: '0.875rem', color: '#1d4ed8', margin: 0, lineHeight: 1.5 }}>
+                    <strong>{t('whatsappDisconnect.whatToDo')}</strong> {disconnectInfo.hint}
+                  </p>
+                  {lastActivityLabel && (
+                    <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '12px 0 0' }}>
+                      {t('whatsappDisconnect.lastActivity', { when: lastActivityLabel })}
+                    </p>
+                  )}
+                  {disconnectInfo.code && (
+                    <p style={{ fontSize: '0.6875rem', color: '#94a3b8', margin: '8px 0 0', fontFamily: 'monospace' }}>
+                      {t('whatsappDisconnect.technicalCode', { code: disconnectInfo.code })}
+                    </p>
+                  )}
+                </div>
+              )}
               
               {/* QR Code Display */}
               {currentQRCode && currentWhatsappStatus === 'qrcode' && (
