@@ -3,7 +3,9 @@
 FROM node:22-bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
-    NODE_ENV=production
+    NODE_ENV=production \
+    PUPPETEER_SKIP_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Retries: espelhos APT às vezes devolvem índice incompleto (erro "unexpected size" no build da Railway).
 RUN set -eux; \
@@ -18,6 +20,7 @@ RUN set -eux; \
   done; \
   test "$APT_OK" = "1" || (echo "apt-get update falhou após 6 tentativas" >&2; exit 1); \
   apt-get install -y -qq --no-install-recommends \
+    chromium \
     libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libdbus-1-3 \
     libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libatspi2.0-0 \
     libxshmfence1 libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libgtk-3-0 \

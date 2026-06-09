@@ -804,6 +804,91 @@ const wppBoundWidByUser = new Map();
 // FUNÇÕES AUXILIARES
 // ============================================
 
+/** Só um launch de browser em todo o processo (Railway: evita EAGAIN por excesso de processos). */
+let wppGlobalLaunchMutex = Promise.resolve();
+
+function withWppGlobalLaunchLock(fn) {
+  const run = wppGlobalLaunchMutex.then(() => fn());
+  wppGlobalLaunchMutex = run.catch(() => {}).then(() => undefined);
+  return run;
+}
+
+const WPP_CHROMIUM_CANDIDATE_PATHS = [
+  process.env.PUPPETEER_EXECUTABLE_PATH,
+  process.env.CHROME_BIN,
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/google-chrome'
+].filter(Boolean);
+
+/** Chromium do sistema (Docker/Railway) em vez do cache Puppeteer — mais estável e menos processos. */
+function resolveChromiumExecutablePath() {
+  for (const p of WPP_CHROMIUM_CANDIDATE_PATHS) {
+    const resolved = path.resolve(String(p).trim());
+    try {
+      if (fs.existsSync(resolved)) {
+        console.log(`🌐 [WPP] Chromium: ${resolved}`);
+        return resolved;
+      }
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  console.warn(
+    '⚠️ [WPP] Chromium do sistema não encontrado — Puppeteer usará cache (~/.cache/puppeteer). ' +
+      'No Railway, use a imagem Docker com pacote chromium.'
+  );
+  return undefined;
+}
+
+function isPuppeteerSpawnEagain(err) {
+  const m = String(err?.message || err || '');
+  return m.includes('EAGAIN') || m.includes('Resource temporarily unavailable');
+}
+
+function isPuppeteerTargetCrashed(err) {
+  const m = String(err?.message || err || '').toLowerCase();
+  return m.includes('target crashed') || m.includes('target closed') || m.includes('session closed');
+}
+
+function getWppPuppeteerChromeArgs() {
+  const args = [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-accelerated-2d-canvas',
+    '--no-first-run',
+    '--no-zygote',
+    '--disable-gpu',
+    '--disable-software-rasterizer',
+    '--disable-dev-profile',
+    '--disable-features=IsolateOrigins,site-per-process',
+    '--disable-site-isolation-trials',
+    '--disable-web-security',
+    '--disable-extensions',
+    '--disable-background-networking',
+    '--disable-sync',
+    '--metrics-recording-only',
+    '--mute-audio',
+    '--disable-gpu-sandbox',
+    '--disable-breakpad',
+    '--disable-crash-reporter',
+    '--disable-crashpad',
+    '--disable-background-timer-throttling',
+    '--disable-backgrounding-occluded-windows',
+    '--disable-renderer-backgrounding',
+    '--disable-features=TranslateUI',
+    '--disable-ipc-flooding-protection',
+    '--renderer-process-limit=1',
+    '--in-process-gpu'
+  ];
+  if (process.env.WPP_CHROME_SINGLE_PROCESS !== 'false') {
+    args.push('--single-process');
+  }
+  return args;
+}
+
 /** Pasta base dos tokens WPPConnect (volume persistente no Railway: ex. /data/wpp-tokens) */
 function getWppTokensBase() {
   const raw = (process.env.WPP_TOKENS_BASE || process.env.WPP_FOLDER_TOKEN || '/tokens').trim();
@@ -1001,6 +1086,7 @@ async function isWppClientHealthy(client) {
 
 function scheduleWppRecoverAfterBrowserClose(userId) {
   if (wppClosingIntentionally.has(userId)) return;
+  if (wppSessionCreationInFlight.has(userId) || activeClients.has(userId)) return;
   if (!hasWppFileTokens(userId)) return;
   if (!canAutoReconnectWpp(userId)) return;
   console.log(`🔄 [WPP] browserClose inesperado — a restaurar sessão em 8s (${userId.slice(0, 8)}…)`);
@@ -1330,6 +1416,21 @@ function formatWhatsAppLaunchError(err) {
       + `Detalhe técnico: ${raw.slice(0, 400)}`
     );
   }
+  if (isPuppeteerSpawnEagain(err)) {
+    return (
+      'O servidor não conseguiu abrir o Chrome (limite de processos ou memória no Railway — erro EAGAIN). ' +
+      'Aguarde 1–2 minutos sem clicar várias vezes em Conectar, depois tente de novo. ' +
+      'Confirme: 1 réplica no serviço, volume em WPP_TOKENS_BASE, e aguarde o deploy Docker com Chromium do sistema. '
+      + `Técnico: ${raw.slice(0, 220)}`
+    );
+  }
+  if (isPuppeteerTargetCrashed(err)) {
+    return (
+      'O Chrome do servidor abriu mas crashou ao iniciar (comum quando há pouca RAM ou várias tentativas seguidas). ' +
+      'Aguarde 1 minuto, use «Limpar sessão no servidor» uma vez e clique em Conectar. '
+      + `Técnico: ${raw.slice(0, 220)}`
+    );
+  }
   return raw.slice(0, 800);
 }
 
@@ -1533,37 +1634,9 @@ async function createSessionInternal(userId) {
       deviceSyncTimeout: deviceSyncMs,
       puppeteerOptions: {
         headless: true,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || undefined,
+        executablePath: resolveChromiumExecutablePath(),
         userDataDir: profileDir,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu',
-          '--disable-software-rasterizer',
-          '--disable-dev-profile',
-          '--disable-features=IsolateOrigins,site-per-process',
-          '--disable-site-isolation-trials',
-          '--disable-web-security',
-          '--disable-extensions',
-          '--disable-background-networking',
-          '--disable-sync',
-          '--metrics-recording-only',
-          '--mute-audio',
-          // 🔥 Flags adicionais para reduzir dependências de bibliotecas do sistema
-          '--disable-gpu-sandbox', // Desabilita sandbox do GPU
-          '--disable-breakpad', // Desabilita sistema de crash reporting
-          '--disable-crash-reporter', // Desabilita reporte de crashes
-          '--disable-crashpad', // Desabilita sistema Crashpad
-          '--disable-background-timer-throttling', // Reduz uso de recursos de background
-          '--disable-backgrounding-occluded-windows', // Desabilita otimizações de janelas
-          '--disable-renderer-backgrounding', // Desabilita backgrounding do renderer
-          '--disable-features=TranslateUI', // Desabilita UI de tradução
-          '--disable-ipc-flooding-protection' // Desabilita proteção contra flooding de IPC
-        ]
+        args: getWppPuppeteerChromeArgs()
       }
     };
 
@@ -1578,29 +1651,40 @@ async function createSessionInternal(userId) {
     console.log('🚀 Iniciando WPPConnect...');
     let client = null;
     let lastCreateErr = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    const maxAttempts = 5;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       if (attempt > 0) {
-        console.warn(`🔄 [WPP] Nova tentativa de launch (${attempt + 1}/3) após limpeza de locks`);
+        console.warn(`🔄 [WPP] Nova tentativa de launch (${attempt + 1}/${maxAttempts}) após limpeza de locks`);
       }
       try {
-        client = await wppconnect.create(clientOptions);
+        client = await withWppGlobalLaunchLock(() => wppconnect.create(clientOptions));
         lastCreateErr = null;
         break;
       } catch (e) {
         lastCreateErr = e;
         const remoteLock = isChromiumProfileRemoteLock(e);
         const localConflict = isPuppeteerUserDataDirConflict(e);
-        if (attempt < 2 && (remoteLock || localConflict)) {
-          if (remoteLock) {
+        const spawnEagain = isPuppeteerSpawnEagain(e);
+        const targetCrashed = isPuppeteerTargetCrashed(e);
+        if (
+          attempt < maxAttempts - 1 &&
+          (remoteLock || localConflict || spawnEagain || targetCrashed)
+        ) {
+          if (spawnEagain || targetCrashed) {
+            console.warn(
+              `⚠️ [WPP] Chrome EAGAIN/crash (tentativa ${attempt + 1}) — limpando locks e aguardando...`
+            );
+          } else if (remoteLock) {
             console.warn(
               '⚠️ [WPP] Lock de perfil (hostname antigo no volume?). Limpeza recursiva Singleton* e retry...'
             );
           } else {
             console.warn('⚠️ [WPP] Conflito de browser/perfil — fechando, limpando locks e aguardando...');
           }
-          await forceCloseWhatsAppSession(userId);
+          await forceCloseWhatsAppSession(userId, false);
           cleanChromiumSingletonArtifacts(getWppChromeProfileDir(userId));
-          await sleepMs(remoteLock ? 2000 : 2500);
+          const waitMs = spawnEagain || targetCrashed ? 4000 + attempt * 3000 : remoteLock ? 2000 : 2500;
+          await sleepMs(waitMs);
           continue;
         }
         break;
