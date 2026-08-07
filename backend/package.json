@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.934.0",
-    "@wppconnect-team/wppconnect": "^1.30.0",
+    "@wppconnect-team/wppconnect": "1.41.3",
     "axios": "^1.6.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -44,6 +44,6 @@
     "nodemon": "^3.0.0"
   },
   "overrides": {
-    "@wppconnect/wa-version": "1.5.3592"
+    "@wppconnect/wa-version": "1.5.4532"
   }
 }

@@ -1360,13 +1360,13 @@ function attachWhatsAppMessageHandlers(userId, client) {
             found += 1;
           }
         }
-        if (pollTicks === 1 || pollTicks % 5 === 0 || found > 0) {
+        if (pollTicks <= 10 || pollTicks % 5 === 0 || found > 0) {
           console.log(
             `📬 [WPP] Poll recent: ${scanned} chats, ${found} nova(s) · tick ${pollTicks} · ${userId.slice(0, 8)}…`
           );
         }
       } catch (e2) {
-        if (pollTicks <= 3) console.warn('⚠️ [WPP] Poll recent:', e2.message);
+        console.warn('⚠️ [WPP] Poll recent:', e2.message);
       }
     } catch (e) {
       const m = String(e.message || e);
@@ -8322,6 +8322,95 @@ app.get('/api/sessions/status/:userId', async (req, res) => {
   } catch (error) {
     console.error('❌ Erro ao buscar status:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+/** Diagnóstico: a sessão “vê” chats/mensagens? (onMessage pode estar surdo). */
+app.get('/api/sessions/debug-inbox/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const client = activeClients.get(userId);
+    if (!client) {
+      return res.status(404).json({ ok: false, error: 'Sessão não ativa em memória' });
+    }
+    let waVersion = null;
+    try {
+      if (typeof client.getWAVersion === 'function') waVersion = await client.getWAVersion();
+    } catch (_) {
+      /* ignore */
+    }
+    let state = null;
+    try {
+      if (typeof client.getConnectionState === 'function') state = await client.getConnectionState();
+    } catch (_) {
+      /* ignore */
+    }
+    let chats = [];
+    let chatError = null;
+    try {
+      if (typeof client.listChats === 'function') {
+        chats = await client.listChats({ count: 10, onlyUsers: true });
+      } else if (typeof client.getAllChats === 'function') {
+        chats = await client.getAllChats();
+      }
+    } catch (e) {
+      chatError = e.message;
+    }
+    const sample = [];
+    for (const chat of (chats || []).slice(0, 5)) {
+      const chatId =
+        (chat.id && chat.id._serialized) ||
+        (typeof chat.id === 'string' ? chat.id : null);
+      if (!chatId) continue;
+      let lastBody = null;
+      let lastT = null;
+      try {
+        if (typeof client.getMessages === 'function') {
+          const msgs = await client.getMessages(chatId, { count: 3 });
+          const last = Array.isArray(msgs) && msgs.length ? msgs[msgs.length - 1] : null;
+          if (last) {
+            lastBody = String(last.body || last.content || '').slice(0, 80);
+            lastT = last.t || null;
+          }
+        }
+      } catch (_) {
+        /* ignore */
+      }
+      sample.push({
+        chatId,
+        unreadCount: chat.unreadCount ?? chat.unread ?? null,
+        lastBody,
+        lastT
+      });
+    }
+    let unreadCount = null;
+    let unreadError = null;
+    try {
+      if (typeof client.getAllUnreadMessages === 'function') {
+        const u = await client.getAllUnreadMessages();
+        unreadCount = Array.isArray(u) ? u.length : null;
+      }
+    } catch (e) {
+      unreadError = e.message;
+    }
+    return res.json({
+      ok: true,
+      waVersion,
+      connectionState: state,
+      chatsListed: Array.isArray(chats) ? chats.length : 0,
+      chatError,
+      unreadCount,
+      unreadError,
+      sample,
+      pollIntervalMs: parseEnvMs('WPP_UNREAD_POLL_MS', 12000),
+      hint:
+        sample.length === 0
+          ? 'listChats vazio ou falhou — o Chrome pode estar “ligado” sem acesso real às conversas'
+          : 'Se sample tem lastBody mas o bot não responde, o listener está surdo e o poll deve apanhar'
+    });
+  } catch (error) {
+    console.error('❌ debug-inbox:', error);
+    return res.status(500).json({ ok: false, error: error.message });
   }
 });
 
