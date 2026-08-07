@@ -8712,6 +8712,74 @@ app.get('/api/sessions/debug-inbox/:userId', async (req, res) => {
   }
 });
 
+/**
+ * TESTE controlado (sem adivinhar): força processar 1 mensagem unread via o mesmo handleIncomingMessage.
+ * Se isto responder no WhatsApp, a leitura+IA+Firebase OK e o buraco é só o listener/poll automático.
+ */
+app.post('/api/sessions/debug-process-unread/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const client = activeClients.get(userId);
+  if (!client) {
+    return res.status(404).json({ ok: false, error: 'Sessão não ativa em memória' });
+  }
+  try {
+    let chats = [];
+    if (typeof client.listChats === 'function') {
+      chats = await client.listChats({ count: 25, onlyUsers: true });
+    }
+    const target = (chats || []).find((c) => Number(c.unreadCount ?? c.unread ?? 0) > 0);
+    if (!target) {
+      return res.json({ ok: false, error: 'Nenhum chat com unreadCount > 0' });
+    }
+    const chatId =
+      (target.id && target.id._serialized) ||
+      (typeof target.id === 'string' ? target.id : null);
+    if (!chatId) {
+      return res.json({ ok: false, error: 'chatId inválido' });
+    }
+    const deep = await fetchChatMessagesViaWppJs(client, chatId, 8);
+    const msgs = (deep.messages || []).filter((m) => !m.fromMe && String(m.body || '').trim());
+    if (!msgs.length) {
+      return res.json({
+        ok: false,
+        error: 'Chat unread mas sem body legível',
+        chatId,
+        unreadCount: target.unreadCount,
+        debug: deep.debug
+      });
+    }
+    const raw = msgs[msgs.length - 1];
+    const message = normalizeWppIncomingMessage({
+      ...raw,
+      from: raw.from || chatId,
+      isFromMe: false,
+      fromMe: false
+    });
+    // Permite reprocessar no teste (limpa dedup desta key)
+    const key = getWppMessageDedupeKey(message);
+    const set = wppHandledMessageIds.get(userId);
+    if (set && key) set.delete(key);
+
+    console.log(`🧪 [debug-process-unread] a processar ${chatId}:`, String(message.body).slice(0, 80));
+    await handleIncomingMessage(userId, message, client);
+    try {
+      if (typeof client.sendSeen === 'function') await client.sendSeen(chatId);
+    } catch (_) {
+      /* ignore */
+    }
+    return res.json({
+      ok: true,
+      chatId,
+      unreadCount: target.unreadCount,
+      bodyPreview: String(message.body).slice(0, 120),
+      hint: 'Se o cliente recebeu resposta agora, o pipeline IA funciona; o problema é só o disparo automático (onMessage/poll).'
+    });
+  } catch (e) {
+    console.error('❌ debug-process-unread:', e);
+    return res.status(500).json({ ok: false, error: e.message, stack: String(e.stack || '').slice(0, 400) });
+  }
+});
+
 // Enviar mensagem manualmente
 app.post('/api/messages/send', async (req, res) => {
   try {
