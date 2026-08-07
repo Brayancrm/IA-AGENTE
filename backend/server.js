@@ -8718,6 +8718,7 @@ app.get('/api/sessions/debug-inbox/:userId', async (req, res) => {
  */
 app.post('/api/sessions/debug-process-unread/:userId', async (req, res) => {
   const { userId } = req.params;
+  const force = String(req.query.force || '') === '1';
   const client = activeClients.get(userId);
   if (!client) {
     return res.status(404).json({ ok: false, error: 'Sessão não ativa em memória' });
@@ -8727,9 +8728,16 @@ app.post('/api/sessions/debug-process-unread/:userId', async (req, res) => {
     if (typeof client.listChats === 'function') {
       chats = await client.listChats({ count: 25, onlyUsers: true });
     }
-    const target = (chats || []).find((c) => Number(c.unreadCount ?? c.unread ?? 0) > 0);
+    let target = (chats || []).find((c) => Number(c.unreadCount ?? c.unread ?? 0) > 0);
+    if (!target && force) {
+      target = (chats || [])[0] || null;
+    }
     if (!target) {
-      return res.json({ ok: false, error: 'Nenhum chat com unreadCount > 0' });
+      return res.json({
+        ok: false,
+        error: 'Nenhum chat com unreadCount > 0',
+        hint: 'Envia uma mensagem nova e chama de novo, ou usa ?force=1 para processar o último texto do 1º chat'
+      });
     }
     const chatId =
       (target.id && target.id._serialized) ||
@@ -8742,7 +8750,7 @@ app.post('/api/sessions/debug-process-unread/:userId', async (req, res) => {
     if (!msgs.length) {
       return res.json({
         ok: false,
-        error: 'Chat unread mas sem body legível',
+        error: 'Chat sem body legível',
         chatId,
         unreadCount: target.unreadCount,
         debug: deep.debug
@@ -8769,8 +8777,9 @@ app.post('/api/sessions/debug-process-unread/:userId', async (req, res) => {
     }
     return res.json({
       ok: true,
+      forced: force,
       chatId,
-      unreadCount: target.unreadCount,
+      unreadCount: target.unreadCount ?? 0,
       bodyPreview: String(message.body).slice(0, 120),
       hint: 'Se o cliente recebeu resposta agora, o pipeline IA funciona; o problema é só o disparo automático (onMessage/poll).'
     });
