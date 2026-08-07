@@ -887,7 +887,7 @@ function getWppPuppeteerChromeArgs() {
     '--renderer-process-limit=1',
     '--in-process-gpu'
   ];
-  if (process.env.WPP_CHROME_SINGLE_PROCESS !== 'false') {
+  if (process.env.WPP_CHROME_SINGLE_PROCESS === 'true') {
     args.push('--single-process');
   }
   return args;
@@ -1225,6 +1225,18 @@ async function fetchChatMessagesViaWppJs(client, chatId, count = 12) {
         };
 
         try {
+          // Diagnóstico: o que existe no browser
+          try {
+            out.debug.wppKeys = window.WPP ? Object.keys(window.WPP).slice(0, 30) : [];
+            out.debug.hasWhatsapp = !!(window.WPP && window.WPP.whatsapp);
+            out.debug.hasStore = !!window.Store;
+            if (window.WPP && window.WPP.whatsapp) {
+              out.debug.whatsappKeys = Object.keys(window.WPP.whatsapp).slice(0, 40);
+            }
+          } catch (_) {
+            /* ignore */
+          }
+
           // Abrir chat ajuda a carregar msgs @lid na memória
           if (window.WPP && WPP.chat) {
             try {
@@ -1237,11 +1249,82 @@ async function fetchChatMessagesViaWppJs(client, chatId, count = 12) {
               if (typeof WPP.chat.openChatBottom === 'function') {
                 await WPP.chat.openChatBottom(cid);
                 pushMethod('openChatBottom', { ok: true });
-                await new Promise((r) => setTimeout(r, 400));
+                await new Promise((r) => setTimeout(r, 600));
               }
             } catch (e) {
               pushMethod('openChatBottom', { ok: false, err: String(e.message || e) });
             }
+          }
+
+          // Store primeiro (WPP.chat.getMessages falha com undefined.get nesta WA Web)
+          try {
+            const ChatStore =
+              (window.WPP && WPP.whatsapp && (WPP.whatsapp.ChatStore || WPP.whatsapp.Chat)) ||
+              (window.Store && (window.Store.Chat || window.Store.ChatStore)) ||
+              null;
+            if (ChatStore && typeof ChatStore.get === 'function') {
+              let chat = ChatStore.get(cid);
+              if (!chat && typeof ChatStore.find === 'function') {
+                try {
+                  chat = await ChatStore.find(cid);
+                } catch (_) {
+                  /* ignore */
+                }
+              }
+              pushMethod('ChatStore.get', { ok: !!chat });
+              if (chat) {
+                if (chat.msgs && typeof chat.msgs.getModelsArray === 'function') {
+                  const models = chat.msgs.getModelsArray() || [];
+                  const arr = models.slice(-cnt).map((m) => serializeMsg(m, cid)).filter(Boolean);
+                  pushMethod('chat.msgs.getModelsArray', { ok: true, n: arr.length });
+                  if (arr.length) {
+                    out.messages = arr;
+                    return out;
+                  }
+                }
+                if (chat.lastMessage) {
+                  const one = serializeMsg(chat.lastMessage, cid);
+                  pushMethod('chat.lastMessage', {
+                    ok: !!one,
+                    body: one && one.body ? one.body.slice(0, 40) : null
+                  });
+                  if (one && one.body) {
+                    out.messages = [one];
+                    return out;
+                  }
+                }
+              }
+            } else {
+              pushMethod('ChatStore.get', { ok: false, err: 'no ChatStore' });
+            }
+          } catch (e) {
+            pushMethod('ChatStore', { ok: false, err: String(e.message || e) });
+          }
+
+          // MsgStore: últimas mensagens do chat
+          try {
+            const MsgStore =
+              (window.WPP && WPP.whatsapp && (WPP.whatsapp.MsgStore || WPP.whatsapp.Msg)) ||
+              (window.Store && (window.Store.Msg || window.Store.MsgStore)) ||
+              null;
+            if (MsgStore && typeof MsgStore.getModelsArray === 'function') {
+              const all = MsgStore.getModelsArray() || [];
+              const filtered = all.filter((m) => {
+                const remote =
+                  (m.id && m.id.remote && (m.id.remote._serialized || m.id.remote)) || m.from;
+                return String(remote) === String(cid);
+              });
+              const arr = filtered.slice(-cnt).map((m) => serializeMsg(m, cid)).filter(Boolean);
+              pushMethod('MsgStore.filter', { ok: true, n: arr.length });
+              if (arr.length) {
+                out.messages = arr;
+                return out;
+              }
+            } else {
+              pushMethod('MsgStore', { ok: false, err: 'no MsgStore' });
+            }
+          } catch (e) {
+            pushMethod('MsgStore', { ok: false, err: String(e.message || e) });
           }
 
           if (window.WPP && WPP.chat && typeof WPP.chat.getMessages === 'function') {
@@ -1258,77 +1341,51 @@ async function fetchChatMessagesViaWppJs(client, chatId, count = 12) {
             }
           }
 
-          // Store clássico
-          try {
-            const ChatStore =
-              (window.WPP && WPP.whatsapp && WPP.whatsapp.ChatStore) ||
-              (window.Store && window.Store.Chat) ||
-              null;
-            if (ChatStore && typeof ChatStore.get === 'function') {
-              const chat = ChatStore.get(cid);
-              pushMethod('ChatStore.get', { ok: !!chat });
-              if (chat) {
-                if (chat.msgs && typeof chat.msgs.getModelsArray === 'function') {
-                  const models = chat.msgs.getModelsArray() || [];
-                  const arr = models.slice(-cnt).map((m) => serializeMsg(m, cid)).filter(Boolean);
-                  pushMethod('chat.msgs.getModelsArray', { ok: true, n: arr.length });
-                  if (arr.length) {
-                    out.messages = arr;
-                    return out;
-                  }
-                }
-                if (chat.lastReceivedKey || chat.lastMessage) {
-                  const last = chat.lastMessage || null;
-                  if (last) {
-                    const one = serializeMsg(last, cid);
-                    pushMethod('chat.lastMessage', { ok: !!one, body: one && one.body ? one.body.slice(0, 40) : null });
-                    if (one) {
-                      out.messages = [one];
-                      return out;
-                    }
-                  }
-                }
-              }
-            } else {
-              pushMethod('ChatStore.get', { ok: false, err: 'no ChatStore' });
-            }
-          } catch (e) {
-            pushMethod('ChatStore', { ok: false, err: String(e.message || e) });
-          }
-
-          // MsgStore: últimas mensagens do chat
-          try {
-            const MsgStore =
-              (window.WPP && WPP.whatsapp && WPP.whatsapp.MsgStore) ||
-              (window.Store && window.Store.Msg) ||
-              null;
-            if (MsgStore && typeof MsgStore.getModelsArray === 'function') {
-              const all = MsgStore.getModelsArray() || [];
-              const filtered = all.filter((m) => {
-                const remote =
-                  (m.id && m.id.remote && (m.id.remote._serialized || m.id.remote)) || m.from;
-                return String(remote) === String(cid);
-              });
-              const arr = filtered.slice(-cnt).map((m) => serializeMsg(m, cid)).filter(Boolean);
-              pushMethod('MsgStore.filter', { ok: true, n: arr.length });
-              if (arr.length) {
-                out.messages = arr;
-                return out;
-              }
-            }
-          } catch (e) {
-            pushMethod('MsgStore', { ok: false, err: String(e.message || e) });
-          }
-
           if (window.WAPI && typeof WAPI.loadAndGetAllMessagesInChat === 'function') {
             try {
               const msgs = await WAPI.loadAndGetAllMessagesInChat(cid, true, false);
               const arr = (msgs || []).slice(-cnt).map((m) => serializeMsg(m, cid)).filter(Boolean);
               pushMethod('WAPI.loadAndGetAllMessagesInChat', { ok: true, n: arr.length });
-              if (arr.length) out.messages = arr;
+              if (arr.length) {
+                out.messages = arr;
+                return out;
+              }
             } catch (e) {
               pushMethod('WAPI.loadAndGetAllMessagesInChat', { ok: false, err: String(e.message || e) });
             }
+          }
+
+          // Último recurso: texto visível no DOM do chat aberto
+          try {
+            const nodes = Array.from(
+              document.querySelectorAll(
+                'div.message-in span.selectable-text, div.message-in span.copyable-text, div.message-in [data-testid="msg-text"]'
+              )
+            );
+            const texts = nodes
+              .map((n) => (n.innerText || n.textContent || '').trim())
+              .filter((t) => t.length > 0);
+            const uniq = [...new Set(texts)].slice(-cnt);
+            if (uniq.length) {
+              const now = Math.floor(Date.now() / 1000);
+              out.messages = uniq.map((body, i) => ({
+                id: `dom_${cid}_${now}_${i}`,
+                idObj: { fromMe: false, remote: cid, id: `dom_${i}`, _serialized: null },
+                body,
+                type: 'chat',
+                from: cid,
+                to: '',
+                t: now - (uniq.length - i),
+                fromMe: false,
+                notifyName: null,
+                isNewMsg: true
+              }));
+              pushMethod('DOM.selectable-text', { ok: true, n: out.messages.length });
+              return out;
+            }
+            pushMethod('DOM.selectable-text', { ok: false, n: 0 });
+          } catch (e) {
+            pushMethod('DOM.selectable-text', { ok: false, err: String(e.message || e) });
           }
 
           return out;
