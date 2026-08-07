@@ -1167,10 +1167,98 @@ function normalizeWppIncomingMessage(raw) {
     body: raw.body != null ? String(raw.body) : raw.content != null ? String(raw.content) : '',
     type: raw.type || 'chat',
     isFromMe: !!isFromMe,
-    isGroupMsg: !!raw.isGroupMsg,
+    isGroupMsg: !!raw.isGroupMsg || String(from).includes('@g.us'),
     id: raw.id?._serialized || raw.id || raw.messageId || '',
     pushName: raw.pushName || raw.notifyName || null,
     notifyName: raw.notifyName || null
+  };
+}
+
+/**
+ * getMessages/WAPI falha em chats @lid na WA Web atual.
+ * Lê via WPP.chat.getMessages (WA-JS) no browser.
+ */
+async function fetchChatMessagesViaWppJs(client, chatId, count = 12) {
+  const page = client?.page || client?.pupPage;
+  if (!page || typeof page.evaluate !== 'function' || !chatId) return [];
+  try {
+    const result = await page.evaluate(
+      async (cid, cnt) => {
+        try {
+          if (window.WPP && WPP.chat && typeof WPP.chat.getMessages === 'function') {
+            const msgs = await WPP.chat.getMessages(cid, { count: cnt });
+            return (msgs || []).map((m) => {
+              const idObj = m.id || {};
+              const remote =
+                (idObj.remote && (idObj.remote._serialized || idObj.remote)) ||
+                m.from ||
+                m.author ||
+                cid;
+              return {
+                id: idObj._serialized || idObj.id || null,
+                idObj: {
+                  fromMe: !!idObj.fromMe,
+                  remote: typeof remote === 'string' ? remote : String(remote),
+                  id: idObj.id || null,
+                  _serialized: idObj._serialized || null
+                },
+                body: m.body || m.caption || m.content || m.conversation || '',
+                type: m.type || 'chat',
+                from: typeof remote === 'string' ? remote : String(remote),
+                to: m.to || '',
+                t: m.t || 0,
+                fromMe: !!idObj.fromMe || !!m.fromMe || !!m.isSentByMe,
+                notifyName: m.notifyName || m.pushname || m.pushName || null,
+                isNewMsg: !!m.isNewMsg
+              };
+            });
+          }
+          if (window.WAPI && typeof WAPI.getAllMessagesInChat === 'function') {
+            const msgs = await WAPI.getAllMessagesInChat(cid, true, false);
+            return (msgs || []).slice(-cnt);
+          }
+          return { __error: 'WPP.chat.getMessages unavailable' };
+        } catch (e) {
+          return { __error: String(e && e.message ? e.message : e) };
+        }
+      },
+      String(chatId),
+      count
+    );
+    if (result && result.__error) {
+      console.warn(`⚠️ [WPP] getMessages via WA-JS (${chatId}):`, result.__error);
+      return [];
+    }
+    return Array.isArray(result) ? result : [];
+  } catch (e) {
+    console.warn(`⚠️ [WPP] evaluate getMessages (${chatId}):`, e.message);
+    return [];
+  }
+}
+
+function extractLastMessageFromChat(chat, chatIdStr) {
+  const lm =
+    chat?.lastMessage ||
+    chat?.last_message ||
+    chat?.lastMsg ||
+    chat?.msgs?.last?.() ||
+    null;
+  if (!lm || typeof lm !== 'object') return null;
+  const fromMe = !!(lm.id && lm.id.fromMe) || !!lm.fromMe || lm.self === 'out';
+  const remote =
+    (lm.id && (lm.id.remote?._serialized || lm.id.remote)) ||
+    lm.from ||
+    chatIdStr;
+  return {
+    id: lm.id?._serialized || lm.id || null,
+    body: lm.body || lm.caption || lm.content || '',
+    type: lm.type || 'chat',
+    from: String(remote),
+    to: lm.to || '',
+    t: lm.t || 0,
+    fromMe,
+    isFromMe: fromMe,
+    notifyName: lm.notifyName || null
   };
 }
 
@@ -1306,11 +1394,11 @@ function attachWhatsAppMessageHandlers(userId, client) {
         if (pollTicks <= 2) console.warn('⚠️ [WPP] Poll unread:', e1.message);
       }
 
-      // 2) Chats recentes — necessário porque o WA Web / telemóvel marca ✓✓ azul e esvazia unread
+      // 2) Chats recentes — listChats funciona; getMessages/WAPI falha em @lid
       try {
         let chats = [];
         if (typeof c.listChats === 'function') {
-          chats = await c.listChats({ count: 20, onlyUsers: true });
+          chats = await c.listChats({ count: 25, onlyUsers: true });
         } else if (typeof c.getAllChats === 'function') {
           chats = await c.getAllChats(true);
         }
@@ -1318,7 +1406,8 @@ function attachWhatsAppMessageHandlers(userId, client) {
 
         const sinceSec = Math.floor((Date.now() - lookbackMs) / 1000);
         let scanned = 0;
-        for (const chat of chats.slice(0, 20)) {
+        let withUnread = 0;
+        for (const chat of chats.slice(0, 25)) {
           const chatId =
             (chat.id && chat.id._serialized) ||
             (typeof chat.id === 'string' ? chat.id : null) ||
@@ -1327,42 +1416,54 @@ function attachWhatsAppMessageHandlers(userId, client) {
           if (!chatId) continue;
           const chatIdStr = String(chatId);
           if (chatIdStr.includes('@g.us') || chatIdStr.includes('status@')) continue;
-          if (typeof c.getMessages !== 'function') break;
           scanned += 1;
-          let msgs = [];
-          try {
-            msgs = await c.getMessages(chatIdStr, { count: 10 });
-          } catch (_) {
-            continue;
+          const unreadN = Number(chat.unreadCount ?? chat.unread ?? 0) || 0;
+          if (unreadN > 0) withUnread += 1;
+
+          let msgs = await fetchChatMessagesViaWppJs(c, chatIdStr, 12);
+          if (!msgs.length) {
+            const last = extractLastMessageFromChat(chat, chatIdStr);
+            if (last) msgs = [last];
           }
-          if (!Array.isArray(msgs)) continue;
+          if (!msgs.length) continue;
+
           for (const msg of msgs) {
             const tRaw = Number(msg.t || msg.timestamp || 0);
             const tSec = tRaw > 1e12 ? Math.floor(tRaw / 1000) : tRaw;
-            if (tSec && tSec < sinceSec) continue;
+            // Se há unread neste chat, aceita mesmo fora do lookback curto
+            if (tSec && tSec < sinceSec && unreadN <= 0) continue;
             const isFromMe =
               msg.isFromMe === true ||
               msg.fromMe === true ||
+              (msg.idObj && msg.idObj.fromMe === true) ||
               (msg.id && msg.id.fromMe === true);
             if (isFromMe) continue;
             const normalized = {
               ...msg,
+              id: msg.id || msg.idObj?._serialized || null,
               from: msg.from || chatIdStr,
               body: msg.body || msg.content || msg.caption || '',
               type: msg.type || 'chat',
               isFromMe: false,
-              isGroupMsg: chatIdStr.includes('@g.us')
+              isGroupMsg: chatIdStr.includes('@g.us'),
+              notifyName: msg.notifyName || null
             };
-            const before = getWppMessageDedupeKey(normalized);
-            const set = wppHandledMessageIds.get(userId);
-            if (before && set && set.has(before)) continue;
-            await onIncoming(normalized, 'recent-poll');
+            if (!String(normalized.body || '').trim() && normalized.type === 'chat') continue;
+            await onIncoming(normalized, unreadN > 0 ? 'lid-unread-poll' : 'lid-recent-poll');
             found += 1;
           }
+
+          if (unreadN > 0 && typeof c.sendSeen === 'function') {
+            try {
+              await c.sendSeen(chatIdStr);
+            } catch (_) {
+              /* ignore */
+            }
+          }
         }
-        if (pollTicks <= 10 || pollTicks % 5 === 0 || found > 0) {
+        if (pollTicks <= 10 || pollTicks % 5 === 0 || found > 0 || withUnread > 0) {
           console.log(
-            `📬 [WPP] Poll recent: ${scanned} chats, ${found} nova(s) · tick ${pollTicks} · ${userId.slice(0, 8)}…`
+            `📬 [WPP] Poll LID/recent: ${scanned} chats, unreadChats=${withUnread}, novas=${found} · tick ${pollTicks} · ${userId.slice(0, 8)}…`
           );
         }
       } catch (e2) {
@@ -8364,23 +8465,31 @@ app.get('/api/sessions/debug-inbox/:userId', async (req, res) => {
       if (!chatId) continue;
       let lastBody = null;
       let lastT = null;
+      let via = null;
       try {
-        if (typeof client.getMessages === 'function') {
-          const msgs = await client.getMessages(chatId, { count: 3 });
-          const last = Array.isArray(msgs) && msgs.length ? msgs[msgs.length - 1] : null;
-          if (last) {
-            lastBody = String(last.body || last.content || '').slice(0, 80);
-            lastT = last.t || null;
+        const msgs = await fetchChatMessagesViaWppJs(client, chatId, 5);
+        const last = Array.isArray(msgs) && msgs.length ? msgs[msgs.length - 1] : null;
+        if (last) {
+          lastBody = String(last.body || last.content || '').slice(0, 120);
+          lastT = last.t || null;
+          via = 'wpp-js';
+        } else {
+          const lm = extractLastMessageFromChat(chat, chatId);
+          if (lm) {
+            lastBody = String(lm.body || '').slice(0, 120);
+            lastT = lm.t || null;
+            via = 'chat.lastMessage';
           }
         }
-      } catch (_) {
-        /* ignore */
+      } catch (e) {
+        via = e.message;
       }
       sample.push({
         chatId,
         unreadCount: chat.unreadCount ?? chat.unread ?? null,
         lastBody,
-        lastT
+        lastT,
+        via
       });
     }
     let unreadCount = null;
