@@ -791,6 +791,10 @@ const stripeCheckoutQueues = new Map();
 /** Evita dois wppconnect.create em paralelo para o mesmo user (mesmo userDataDir → "browser already running") */
 const wppSessionCreationInFlight = new Map();
 const wppHealthCheckIntervals = new Map();
+/** Fallback: poll de não-lidas quando onMessage falha após reload do WhatsApp Web. */
+const wppUnreadPollIntervals = new Map();
+/** Dedup de messageId entre onMessage / onAnyMessage / poll. */
+const wppHandledMessageIds = new Map();
 /** Evita duas réplicas a criar a mesma sessão em paralelo (log por arranque). */
 if (process.env.RAILWAY_REPLICA_ID) {
   console.log(`🚂 [WPP] Railway replica: ${process.env.RAILWAY_REPLICA_ID} — use 1 réplica no serviço WhatsApp`);
@@ -1104,6 +1108,152 @@ function clearWppHealthCheck(userId) {
     clearInterval(id);
     wppHealthCheckIntervals.delete(userId);
   }
+  const pollId = wppUnreadPollIntervals.get(userId);
+  if (pollId) {
+    clearInterval(pollId);
+    wppUnreadPollIntervals.delete(userId);
+  }
+}
+
+function getWppMessageDedupeKey(message) {
+  if (!message) return '';
+  const id = message.id;
+  if (typeof id === 'string' && id.trim()) return id.trim();
+  if (id && typeof id === 'object') {
+    if (id._serialized) return String(id._serialized);
+    if (id.id != null) {
+      return `${id.fromMe ? 1 : 0}:${id.remote || message.from || ''}:${id.id}`;
+    }
+  }
+  const body = String(message.body || message.content || '').slice(0, 80);
+  const t = message.t || message.timestamp || '';
+  return `${message.from || ''}|${t}|${body}`;
+}
+
+function claimWppMessageForProcessing(userId, message) {
+  const key = getWppMessageDedupeKey(message);
+  if (!key) return true;
+  let set = wppHandledMessageIds.get(userId);
+  if (!set) {
+    set = new Set();
+    wppHandledMessageIds.set(userId, set);
+  }
+  if (set.has(key)) return false;
+  set.add(key);
+  if (set.size > 800) {
+    const drop = [...set].slice(0, set.size - 500);
+    drop.forEach((k) => set.delete(k));
+  }
+  return true;
+}
+
+function normalizeWppIncomingMessage(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const from =
+    raw.from ||
+    raw.chatId ||
+    (raw.id && typeof raw.id === 'object' ? raw.id.remote : null) ||
+    '';
+  if (!from) return null;
+  const isFromMe =
+    raw.isFromMe === true ||
+    raw.fromMe === true ||
+    (raw.id && typeof raw.id === 'object' && raw.id.fromMe === true) ||
+    raw.self === 'out';
+  return {
+    ...raw,
+    from: String(from),
+    to: raw.to || '',
+    body: raw.body != null ? String(raw.body) : raw.content != null ? String(raw.content) : '',
+    type: raw.type || 'chat',
+    isFromMe: !!isFromMe,
+    isGroupMsg: !!raw.isGroupMsg,
+    id: raw.id?._serialized || raw.id || raw.messageId || '',
+    pushName: raw.pushName || raw.notifyName || null,
+    notifyName: raw.notifyName || null
+  };
+}
+
+/**
+ * onMessage por vezes deixa de disparar após reload do WhatsApp Web (MAIN).
+ * Regista onMessage + onAnyMessage e um poll de não-lidas como rede de segurança.
+ */
+function attachWhatsAppMessageHandlers(userId, client) {
+  const onIncoming = async (raw, source) => {
+    try {
+      const message = normalizeWppIncomingMessage(raw);
+      if (!message) return;
+      if (message.isFromMe) return;
+      if (message.isGroupMsg || message.from === 'status@broadcast') return;
+      if (!claimWppMessageForProcessing(userId, message)) return;
+      console.log(`📨 [${source}] Mensagem de ${message.from}:`, message.body || `[${message.type}]`);
+      await handleIncomingMessage(userId, message, client);
+    } catch (e) {
+      console.error(`❌ [WPP] handler ${source}:`, e.message);
+    }
+  };
+
+  try {
+    client.onMessage((msg) => onIncoming(msg, 'onMessage'));
+  } catch (e) {
+    console.warn('⚠️ [WPP] onMessage falhou ao registar:', e.message);
+  }
+
+  try {
+    if (typeof client.onAnyMessage === 'function') {
+      client.onAnyMessage((msg) => onIncoming(msg, 'onAnyMessage'));
+    }
+  } catch (e) {
+    console.warn('⚠️ [WPP] onAnyMessage falhou ao registar:', e.message);
+  }
+
+  try {
+    if (typeof client.onInterfaceChange === 'function') {
+      client.onInterfaceChange((state) => {
+        console.log('🖥️ [WPP] Interface:', state?.displayInfo || state?.mode || state, 'para:', userId);
+      });
+    }
+  } catch (_) {
+    /* ignore */
+  }
+
+  const pollMs = Math.max(8000, parseEnvMs('WPP_UNREAD_POLL_MS', 15000));
+  if (wppUnreadPollIntervals.has(userId)) {
+    clearInterval(wppUnreadPollIntervals.get(userId));
+  }
+  const pollId = setInterval(async () => {
+    try {
+      const c = activeClients.get(userId);
+      if (!c || typeof c.getAllUnreadMessages !== 'function') return;
+      const unread = await c.getAllUnreadMessages();
+      if (!Array.isArray(unread) || unread.length === 0) return;
+      console.log(`📬 [WPP] Poll: ${unread.length} mensagem(ns) não lida(s) para ${userId.slice(0, 8)}…`);
+      for (const raw of unread) {
+        await onIncoming(raw, 'unread-poll');
+        try {
+          const chatId =
+            raw.from ||
+            (raw.id && typeof raw.id === 'object' ? raw.id.remote : null);
+          if (chatId && typeof c.sendSeen === 'function') {
+            await c.sendSeen(chatId);
+          }
+        } catch (_) {
+          /* ignore */
+        }
+      }
+    } catch (e) {
+      const m = String(e.message || e);
+      if (
+        m.includes('Target closed') ||
+        m.includes('Session closed') ||
+        m.includes('Protocol error')
+      ) {
+        console.warn('⚠️ [WPP] Poll interrompido (browser):', m.slice(0, 120));
+      }
+    }
+  }, pollMs);
+  wppUnreadPollIntervals.set(userId, pollId);
+  console.log(`📬 [WPP] Poll de não-lidas ativo a cada ${Math.round(pollMs / 1000)}s`);
 }
 
 async function forceCloseWhatsAppSession(userId, intentional = true) {
@@ -1112,6 +1262,7 @@ async function forceCloseWhatsAppSession(userId, intentional = true) {
   wppConnectedLineByUser.delete(userId);
   wppBoundWidByUser.delete(userId);
   wppConnectedAtByUser.delete(userId);
+  wppHandledMessageIds.delete(userId);
   const client = activeClients.get(userId);
   if (client) {
     try {
@@ -1722,10 +1873,8 @@ async function createSessionInternal(userId) {
 
     if (!client) throw lastCreateErr || new Error('Falha ao iniciar WPPConnect');
 
-    // Configurar listeners de mensagens
-    client.onMessage(async (message) => {
-      await handleIncomingMessage(userId, message, client);
-    });
+    // Listeners + poll de não-lidas (onMessage sozinho falha após alguns reloads do WA Web)
+    attachWhatsAppMessageHandlers(userId, client);
 
     // 🔥 NOVO: Monitorar desconexão e reconectar automaticamente
     client.onStateChange((state) => {
