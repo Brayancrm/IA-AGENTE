@@ -2949,7 +2949,9 @@ function wantsPanelIptvFreeTestMessage(messageText) {
     .replace(/[\u0300-\u036f]/g, '')
     .trim();
   if (t.length < 4) return false;
-  // Mensagem só com "teste" (muito comum no WhatsApp) — evita exigir sempre "quero teste"
+  // "teste 7", "teste2" = diagnóstico do bot, NÃO pedido de conta IPTV
+  if (/^teste\s*\d{1,4}$/.test(t)) return false;
+  // Mensagem só com "teste" (muito comum no WhatsApp)
   if (/^teste[!?.…]{0,4}$/.test(t)) return true;
   const patterns = [
     /\bconta\s+de\s+teste\b/,
@@ -2957,16 +2959,16 @@ function wantsPanelIptvFreeTestMessage(messageText) {
     /\bteste\s+iptv\b/,
     /\biptv\s+teste\b/,
     /\b(outro|novo)\s+teste\b/,
-    /\b(testar|teste)\b/,
-    /\b(teste|trial)\s+(gratis|grátis)\b/,
-    /\b(quero|preciso|da|dá)\s+(um\s+)?teste\b/,
+    /\b(teste|trial)\s+(gratis|gratis)\b/,
+    /\b(quero|preciso|da|da)\s+(um\s+)?teste\b/,
     /\benvia\s+teste\b/,
     /\bmanda\s+teste\b/,
     /\bcria(r)?\s+uma?\s+conta\s+teste\b/,
     /\blogin\s+de\s+teste\b/,
     /\bsenha\s+de\s+teste\b/,
     /\bpreciso\s+de\s+um\s+teste\b/,
-    /\bme\s+manda\s+um\s+teste\b/
+    /\bme\s+manda\s+um\s+teste\b/,
+    /\btestar\s+(o\s+)?(iptv|painel|app|servico|serviço)\b/
   ];
   return patterns.some((re) => re.test(t));
 }
@@ -3060,10 +3062,12 @@ async function tryAutoPanelTestFromChat(
     if (quotaErr.code === 'PANEL_TEST_DAILY_LIMIT') {
       try {
         await client.sendText(messageFrom, quotaErr.publicMessage || quotaErr.message);
+        return { sent: true };
       } catch (e) {
         console.warn('⚠️ panel test quota msg:', e.message);
+        // Envio falhou — NÃO marcar sent, para a IA normal ainda poder responder
+        return { sent: false, error: e.message };
       }
-      return { sent: true };
     }
     throw quotaErr;
   }
@@ -6371,54 +6375,93 @@ function patchClientSafeSendText(client) {
     return page.evaluate(
       async (cid, body) => {
         const out = { ok: false, chatId: cid, steps: [], errors: [] };
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
         const pickId = (r) =>
           (r && r.id && (r.id._serialized || r.id)) ||
           (r && r.sendMsgResult && r.sendMsgResult.messageSendResult) ||
           (typeof r === 'string' ? r : null);
 
+        const readLastMineAck = async () => {
+          try {
+            if (typeof WPP.chat.getMessages !== 'function') return null;
+            const recent = await WPP.chat.getMessages(cid, { count: 8 });
+            const mine = (recent || []).filter(
+              (m) => m && (m.id?.fromMe || m.fromMe) && String(m.body || '') === String(body)
+            );
+            const last = mine[mine.length - 1] || null;
+            if (!last) {
+              const anyMine = (recent || []).filter((m) => m && (m.id?.fromMe || m.fromMe));
+              const l2 = anyMine[anyMine.length - 1];
+              if (l2 && typeof l2.ack === 'number') return { ack: l2.ack, id: l2.id?._serialized || null };
+              return null;
+            }
+            return {
+              ack: typeof last.ack === 'number' ? last.ack : null,
+              id: last.id?._serialized || null
+            };
+          } catch (_) {
+            return null;
+          }
+        };
+
+        /** ack 0 = relógio; esperar subir para >=1 (enviado ao servidor) */
+        const waitAckOk = async (initialAck, initialId) => {
+          let ack = typeof initialAck === 'number' ? initialAck : null;
+          let id = initialId || null;
+          if (ack !== null && ack >= 1) return { ack, id };
+          if (ack !== null && ack < 0) return { ack, id };
+          const deadline = Date.now() + 15000;
+          while (Date.now() < deadline) {
+            await sleep(600);
+            const cur = await readLastMineAck();
+            if (cur && typeof cur.ack === 'number') {
+              ack = cur.ack;
+              id = cur.id || id;
+              if (ack >= 1) return { ack, id };
+              if (ack < 0) return { ack, id };
+            }
+          }
+          return { ack, id };
+        };
+
         const trySend = async (label, fn) => {
           try {
             const r = await fn();
-            const ack =
+            let ack =
               typeof r?.ack === 'number'
                 ? r.ack
                 : typeof r?.sendMsgResult?.messageSendResult === 'number'
                   ? r.sendMsgResult.messageSendResult
                   : null;
-            const id = pickId(r);
-            // ack: -1 erro, 0 relógio (ainda não saiu), 1+ enviado ao servidor
+            let id = pickId(r);
+            out.steps.push(label + '_sent_ack0=' + String(ack));
+
+            const waited = await waitAckOk(ack, id);
+            ack = waited.ack;
+            id = waited.id || id;
+            out.steps.push(label + '_final_ack=' + String(ack));
+
             if (ack !== null && ack < 1) {
-              out.steps.push(label + '_ack_low:' + ack);
               out.errors.push(label + ':ack=' + ack);
               return false;
             }
-            // Sem ack numérico: esperar e ler a última msg fromMe deste chat
-            if (ack === null && id) {
-              await new Promise((res) => setTimeout(res, 1200));
-              try {
-                let lastAck = null;
-                if (typeof WPP.chat.getMessages === 'function') {
-                  const recent = await WPP.chat.getMessages(cid, { count: 3 });
-                  const mine = (recent || []).filter((m) => m && (m.id?.fromMe || m.fromMe));
-                  const last = mine[mine.length - 1];
-                  if (last && typeof last.ack === 'number') lastAck = last.ack;
-                }
-                out.steps.push(label + '_ack_check:' + String(lastAck));
-                if (lastAck !== null && lastAck < 1) {
-                  out.errors.push(label + ':acked_low=' + lastAck);
-                  return false;
-                }
-                out.ack = lastAck;
-              } catch (_) {
-                out.steps.push(label + '_ack_check_fail');
-              }
-            } else {
-              out.ack = ack;
+            // Sem ack legível mas há id: aceitar só após wait (já esperámos 15s)
+            if (ack === null && !id) {
+              out.errors.push(label + ':no_ack_no_id');
+              return false;
             }
-            out.steps.push(label + '_ok');
+            if (ack === null) {
+              // Ainda sem ack após wait — não mentir sucesso
+              out.errors.push(label + ':ack_unknown');
+              return false;
+            }
+
             out.ok = true;
             out.id = id;
+            out.ack = ack;
             out.via = label;
+            out.steps.push(label + '_ok');
             return true;
           } catch (e) {
             const msg = String(e && e.message ? e.message : e);
@@ -6434,7 +6477,6 @@ function patchClientSafeSendText(client) {
             return out;
           }
 
-          // Não abrir o chat primeiro: openChat marca como lida (vistos azuis) sem enviar.
           try {
             if (typeof WPP.chat.find === 'function') {
               await WPP.chat.find(cid);
@@ -6444,13 +6486,25 @@ function patchClientSafeSendText(client) {
             out.steps.push('find_fail:' + String(e.message || e).slice(0, 80));
           }
 
-          // 1) API principal
           if (typeof WPP.chat.sendTextMessage === 'function') {
             if (
               await trySend('sendTextMessage', () =>
                 WPP.chat.sendTextMessage(cid, body, {
                   createChat: true,
-                  waitForAck: true
+                  waitForAck: true,
+                  markIsRead: false
+                })
+              )
+            ) {
+              return out;
+            }
+            // Segunda tentativa sem waitForAck (alguns builds resolvem cedo demais)
+            if (
+              await trySend('sendTextMessage_nowait', () =>
+                WPP.chat.sendTextMessage(cid, body, {
+                  createChat: true,
+                  waitForAck: false,
+                  markIsRead: false
                 })
               )
             ) {
@@ -6460,7 +6514,6 @@ function patchClientSafeSendText(client) {
             out.steps.push('no_sendTextMessage');
           }
 
-          // 2) sendMessage genérico
           if (typeof WPP.chat.sendMessage === 'function') {
             if (
               await trySend('sendMessage', () =>
@@ -6471,12 +6524,12 @@ function patchClientSafeSendText(client) {
             }
           }
 
-          // 3) Abrir chat e tentar de novo (último recurso — marca unread)
+          // Abrir chat + DOM composer (último recurso)
           try {
             if (typeof WPP.chat.openChatBottom === 'function') {
               await WPP.chat.openChatBottom(cid);
               out.steps.push('open');
-              await new Promise((r) => setTimeout(r, 400));
+              await sleep(500);
             }
           } catch (e) {
             out.steps.push('open_fail:' + String(e.message || e).slice(0, 80));
@@ -6485,14 +6538,13 @@ function patchClientSafeSendText(client) {
           if (typeof WPP.chat.sendTextMessage === 'function') {
             if (
               await trySend('sendTextMessage_after_open', () =>
-                WPP.chat.sendTextMessage(cid, body, { waitForAck: true })
+                WPP.chat.sendTextMessage(cid, body, { waitForAck: true, markIsRead: false })
               )
             ) {
               return out;
             }
           }
 
-          // 4) Digitar no composer (DOM) — funciona mesmo com Store parcial
           try {
             const editable =
               document.querySelector('div[contenteditable="true"][data-tab="10"]') ||
@@ -6500,24 +6552,38 @@ function patchClientSafeSendText(client) {
               document.querySelector('div[contenteditable="true"][role="textbox"]');
             if (editable) {
               editable.focus();
-              const dt = new DataTransfer();
-              dt.setData('text/plain', body);
-              editable.dispatchEvent(
-                new ClipboardEvent('paste', { clipboardData: dt, bubbles: true })
-              );
-              await new Promise((r) => setTimeout(r, 200));
+              try {
+                document.execCommand('selectAll', false, null);
+                document.execCommand('insertText', false, body);
+              } catch (_) {
+                const dt = new DataTransfer();
+                dt.setData('text/plain', body);
+                editable.dispatchEvent(
+                  new ClipboardEvent('paste', { clipboardData: dt, bubbles: true })
+                );
+              }
+              await sleep(300);
               const sendBtn =
                 document.querySelector('button[aria-label="Enviar"]') ||
                 document.querySelector('button[aria-label="Send"]') ||
-                document.querySelector('span[data-icon="send"]')?.closest('button');
+                document.querySelector('span[data-icon="send"]')?.closest('button') ||
+                document.querySelector('button[data-tab="11"]');
               if (sendBtn) {
                 sendBtn.click();
-                out.ok = true;
-                out.via = 'dom_composer';
-                out.steps.push('dom_sent');
-                return out;
+                out.steps.push('dom_clicked');
+                const waited = await waitAckOk(null, null);
+                out.steps.push('dom_final_ack=' + String(waited.ack));
+                if (waited.ack !== null && waited.ack >= 1) {
+                  out.ok = true;
+                  out.ack = waited.ack;
+                  out.id = waited.id;
+                  out.via = 'dom_composer';
+                  return out;
+                }
+                out.errors.push('dom:ack=' + String(waited.ack));
+              } else {
+                out.steps.push('dom_no_send_btn');
               }
-              out.steps.push('dom_no_send_btn');
             } else {
               out.steps.push('dom_no_composer');
             }
@@ -6588,7 +6654,39 @@ function patchClientSafeSendText(client) {
         } catch (e) {
           const m = String(e && e.message ? e.message : e);
           console.warn(`⚠️ [WPP] sendText nativo → ${jid}:`, m.slice(0, 180));
-          // NÃO assumir sucesso: o utilizador confirmou que softOk não entregava mensagem
+          // getMessageById parte DEPOIS do envio — verificar se a msg ficou com ack>=1
+          if (/reading 'get'|getMessageById|MsgStore/i.test(m)) {
+            try {
+              const check = await page.evaluate(
+                async (cid, body) => {
+                  try {
+                    if (!window.WPP?.chat?.getMessages) return { ack: null };
+                    await new Promise((r) => setTimeout(r, 1500));
+                    const recent = await WPP.chat.getMessages(cid, { count: 6 });
+                    const mine = (recent || []).filter(
+                      (x) => x && (x.id?.fromMe || x.fromMe) && String(x.body || '') === String(body)
+                    );
+                    const last = mine[mine.length - 1];
+                    return {
+                      ack: last && typeof last.ack === 'number' ? last.ack : null,
+                      id: last?.id?._serialized || null
+                    };
+                  } catch (err) {
+                    return { ack: null, error: String(err.message || err) };
+                  }
+                },
+                jid,
+                text
+              );
+              if (check && typeof check.ack === 'number' && check.ack >= 1) {
+                console.log(`✅ [WPP] nativo enviou apesar do getMessageById (ack=${check.ack}) → ${jid}`);
+                return { ok: true, id: check.id, ack: check.ack, via: 'native_ack_after_get_error' };
+              }
+              console.warn(`⚠️ [WPP] nativo pós-erro ack=${check && check.ack}`);
+            } catch (_) {
+              /* ignore */
+            }
+          }
         }
       }
     }
