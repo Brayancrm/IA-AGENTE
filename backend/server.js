@@ -1185,15 +1185,17 @@ function normalizeWppIncomingMessage(raw) {
  * getMessages/WAPI falha em chats @lid na WA Web atual.
  * Lê via várias APIs do WA-JS / Store no browser.
  */
-async function fetchChatMessagesViaWppJs(client, chatId, count = 12) {
+async function fetchChatMessagesViaWppJs(client, chatId, count = 12, opts = {}) {
+  // allowOpen=false no poll/debug: openChat marca vistos azuis sem responder
+  const allowOpen = opts.allowOpen === true;
   const page = client?.page || client?.pupPage;
   if (!page || typeof page.evaluate !== 'function' || !chatId) {
     return { messages: [], debug: { error: 'no-page' } };
   }
   try {
     const result = await page.evaluate(
-      async (cid, cnt) => {
-        const out = { messages: [], debug: { methods: [] } };
+      async (cid, cnt, canOpen) => {
+        const out = { messages: [], debug: { methods: [], allowOpen: !!canOpen } };
         const pushMethod = (name, extra) => out.debug.methods.push({ name, ...(extra || {}) });
 
         const serializeMsg = (m, fallbackChat) => {
@@ -1303,63 +1305,7 @@ async function fetchChatMessagesViaWppJs(client, chatId, count = 12) {
             return out;
           }
 
-          // Só agora abrir o chat (pode marcar unread)
-          if (window.WPP && WPP.chat) {
-            try {
-              if (typeof WPP.chat.openChatBottom === 'function') {
-                await WPP.chat.openChatBottom(cid);
-                pushMethod('openChatBottom', { ok: true });
-                await new Promise((r) => setTimeout(r, 600));
-              }
-            } catch (e) {
-              pushMethod('openChatBottom', { ok: false, err: String(e.message || e) });
-            }
-          }
-
-          // Store de novo após abrir
-          try {
-            const ChatStore =
-              (window.WPP && WPP.whatsapp && (WPP.whatsapp.ChatStore || WPP.whatsapp.Chat)) ||
-              (window.Store && (window.Store.Chat || window.Store.ChatStore)) ||
-              null;
-            if (ChatStore && typeof ChatStore.get === 'function') {
-              let chat = ChatStore.get(cid);
-              if (!chat && typeof ChatStore.find === 'function') {
-                try {
-                  chat = await ChatStore.find(cid);
-                } catch (_) {
-                  /* ignore */
-                }
-              }
-              pushMethod('ChatStore.get', { ok: !!chat });
-              if (chat) {
-                if (chat.msgs && typeof chat.msgs.getModelsArray === 'function') {
-                  const models = chat.msgs.getModelsArray() || [];
-                  const arr = models.slice(-cnt).map((m) => serializeMsg(m, cid)).filter(Boolean);
-                  pushMethod('chat.msgs.getModelsArray', { ok: true, n: arr.length });
-                  if (arr.length) {
-                    out.messages = arr;
-                    return out;
-                  }
-                }
-                if (chat.lastMessage) {
-                  const one = serializeMsg(chat.lastMessage, cid);
-                  pushMethod('chat.lastMessage', {
-                    ok: !!one,
-                    body: one && one.body ? one.body.slice(0, 40) : null
-                  });
-                  if (one && one.body) {
-                    out.messages = [one];
-                    return out;
-                  }
-                }
-              }
-            }
-          } catch (e) {
-            pushMethod('ChatStore.afterOpen', { ok: false, err: String(e.message || e) });
-          }
-
-          // MsgStore: últimas mensagens do chat
+          // Tentativas sem abrir o chat (não marca como lida)
           try {
             const MsgStore =
               (window.WPP && WPP.whatsapp && (WPP.whatsapp.MsgStore || WPP.whatsapp.Msg)) ||
@@ -1397,6 +1343,28 @@ async function fetchChatMessagesViaWppJs(client, chatId, count = 12) {
             } catch (e) {
               pushMethod('WPP.chat.getMessages', { ok: false, err: String(e.message || e) });
             }
+          }
+
+          // Só abrir o chat quando explicitamente permitido (marca unread → vistos azuis)
+          if (!canOpen) {
+            pushMethod('skip_openChat', { reason: 'allowOpen=false' });
+            return out;
+          }
+
+          if (window.WPP && WPP.chat) {
+            try {
+              if (typeof WPP.chat.openChatBottom === 'function') {
+                await WPP.chat.openChatBottom(cid);
+                pushMethod('openChatBottom', { ok: true });
+                await new Promise((r) => setTimeout(r, 600));
+              }
+            } catch (e) {
+              pushMethod('openChatBottom', { ok: false, err: String(e.message || e) });
+            }
+          }
+
+          if (await tryLoadFromStore()) {
+            return out;
           }
 
           if (window.WAPI && typeof WAPI.loadAndGetAllMessagesInChat === 'function') {
@@ -1453,7 +1421,8 @@ async function fetchChatMessagesViaWppJs(client, chatId, count = 12) {
         }
       },
       String(chatId),
-      count
+      count,
+      allowOpen
     );
 
     if (!result || typeof result !== 'object') {
@@ -1468,9 +1437,12 @@ async function fetchChatMessagesViaWppJs(client, chatId, count = 12) {
   }
 }
 
-/** Compat: devolve só o array de mensagens. */
-async function fetchChatMessagesViaWppJsList(client, chatId, count = 12) {
-  const r = await fetchChatMessagesViaWppJs(client, chatId, count);
+/** Compat: devolve só o array de mensagens. Por defeito NÃO abre o chat. */
+async function fetchChatMessagesViaWppJsList(client, chatId, count = 12, opts = {}) {
+  const r = await fetchChatMessagesViaWppJs(client, chatId, count, {
+    allowOpen: false,
+    ...opts
+  });
   return r.messages || [];
 }
 
@@ -1513,7 +1485,7 @@ function attachWhatsAppMessageHandlers(userId, client) {
       if (!message) return false;
       if (message.isFromMe) return true;
       if (message.isGroupMsg || message.from === 'status@broadcast') return true;
-      if (!claimWppMessageForProcessing(userId, message)) return true;
+      if (!claimWppMessageForProcessing(userId, message)) return 'dup';
       console.log(`📨 [${source}] Mensagem de ${message.from}:`, message.body || `[${message.type}]`);
       const ok = await handleIncomingMessage(userId, message, client);
       if (ok === false) {
@@ -1553,42 +1525,64 @@ function attachWhatsAppMessageHandlers(userId, client) {
     /* ignore */
   }
 
-  // Re-injeta listener nativo (após reload do WA Web o onMessage Node pode ficar surdo)
+  // Ponte Node←browser: window.onAnyMessage some após reload do WA Web
   const reinjectNativeHook = async () => {
     try {
       const page = client.page || client?.pupPage;
       if (!page || typeof page.evaluate !== 'function') return;
-      await page.evaluate(() => {
+
+      if (!client.__iaAgenteBridgeExposed) {
         try {
-          if (!window.WPP || !window.WAPI) return 'no-wpp';
-          if (window.__iaAgenteChatHook) return 'already';
-          window.__iaAgenteChatHook = true;
+          await page.exposeFunction('__iaAgenteOnIncoming', (payload) => {
+            Promise.resolve(onIncoming(payload, 'native-bridge')).catch((e) => {
+              console.error('❌ [WPP] native-bridge:', e.message);
+            });
+          });
+          client.__iaAgenteBridgeExposed = true;
+          console.log('🔌 [WPP] Ponte __iaAgenteOnIncoming exposta');
+        } catch (e) {
+          const m = String(e.message || e);
+          if (/already|been registered/i.test(m)) {
+            client.__iaAgenteBridgeExposed = true;
+          } else {
+            console.warn('⚠️ [WPP] exposeFunction:', m.slice(0, 160));
+          }
+        }
+      }
+
+      const r = await page.evaluate(() => {
+        try {
+          if (!window.WPP || typeof window.WPP.on !== 'function') return 'no-wpp';
+          if (window.__iaAgenteChatHookV2) return 'already';
+          window.__iaAgenteChatHookV2 = true;
           window.WPP.on('chat.new_message', (msg) => {
             try {
               if (!msg || msg.isStatusV3) return;
-              const serialized = window.WAPI.processMessageObj(msg, true, false);
-              if (serialized) {
-                if (typeof window.onAnyMessage === 'function') window.onAnyMessage(serialized);
-                else if (typeof window.onMessage === 'function' && !serialized.fromMe && !serialized.isFromMe) {
-                  window.onMessage(serialized);
-                }
+              if (msg.id && msg.id.fromMe) return;
+              const from =
+                (msg.id && msg.id.remote && (msg.id.remote._serialized || msg.id.remote)) ||
+                (msg.chatId && (msg.chatId._serialized || msg.chatId)) ||
+                msg.from ||
+                '';
+              if (!from || String(from).includes('@g.us')) return;
+              const body = msg.body || msg.caption || msg.content || '';
+              if (!String(body).trim() && (msg.type === 'chat' || !msg.type)) return;
+              const payload = {
+                id: (msg.id && msg.id._serialized) || msg.id || null,
+                body: String(body),
+                type: msg.type || 'chat',
+                from: typeof from === 'string' ? from : String(from),
+                to: '',
+                isFromMe: false,
+                fromMe: false,
+                isGroupMsg: false,
+                notifyName: msg.notifyName || msg.pushName || null,
+                t: msg.t || Math.floor(Date.now() / 1000)
+              };
+              if (typeof window.__iaAgenteOnIncoming === 'function') {
+                window.__iaAgenteOnIncoming(payload);
               } else if (typeof window.onAnyMessage === 'function') {
-                // Fallback bruto quando processMessageObj falha (ex.: @lid)
-                const from =
-                  (msg.id && msg.id.remote) ||
-                  (msg.chatId && (msg.chatId._serialized || msg.chatId)) ||
-                  '';
-                window.onAnyMessage({
-                  id: msg.id && msg.id._serialized ? msg.id._serialized : msg.id,
-                  body: msg.body || msg.caption || msg.content || '',
-                  type: msg.type || 'chat',
-                  from: typeof from === 'string' ? from : String(from),
-                  to: '',
-                  isFromMe: !!(msg.id && msg.id.fromMe) || !!msg.isSentByMe,
-                  isGroupMsg: !!(from && String(from).includes('@g.us')),
-                  notifyName: msg.notifyName || msg.pushName || null,
-                  t: msg.t || Math.floor(Date.now() / 1000)
-                });
+                window.onAnyMessage(payload);
               }
             } catch (_) {
               /* ignore */
@@ -1598,9 +1592,8 @@ function attachWhatsAppMessageHandlers(userId, client) {
         } catch (e) {
           return String(e && e.message ? e.message : e);
         }
-      }).then((r) => {
-        if (r && r !== 'already') console.log(`🔌 [WPP] Hook nativo chat.new_message: ${r}`);
-      }).catch(() => {});
+      });
+      if (r && r !== 'already') console.log(`🔌 [WPP] Hook nativo chat.new_message: ${r}`);
     } catch (_) {
       /* ignore */
     }
@@ -1668,16 +1661,21 @@ function attachWhatsAppMessageHandlers(userId, client) {
           const unreadN = Number(chat.unreadCount ?? chat.unread ?? 0) || 0;
           if (unreadN > 0) withUnread += 1;
 
-          let msgs = await fetchChatMessagesViaWppJsList(c, chatIdStr, 12);
-          if (!msgs.length) {
-            const last = extractLastMessageFromChat(chat, chatIdStr);
-            if (last) msgs = [last];
+          // Preferir lastMessage do listChats (não abre chat = sem vistos azuis)
+          let msgs = [];
+          const lastListed = extractLastMessageFromChat(chat, chatIdStr);
+          if (lastListed && String(lastListed.body || '').trim()) {
+            msgs = [lastListed];
           }
-          if (!msgs.length && unreadN > 0 && pollTicks <= 5) {
-            const deep = await fetchChatMessagesViaWppJs(c, chatIdStr, 12);
+          if (!msgs.length || (unreadN > 0 && lastListed && lastListed.fromMe)) {
+            const deepMsgs = await fetchChatMessagesViaWppJsList(c, chatIdStr, 8, {
+              allowOpen: false
+            });
+            if (deepMsgs.length) msgs = deepMsgs;
+          }
+          if (!msgs.length && unreadN > 0 && pollTicks <= 8) {
             console.warn(
-              `⚠️ [WPP] Chat ${chatIdStr} unread=${unreadN} sem body. debug=`,
-              JSON.stringify(deep.debug || {}).slice(0, 500)
+              `⚠️ [WPP] Chat ${chatIdStr} unread=${unreadN} sem body legível (sem openChat)`
             );
           }
 
@@ -1703,18 +1701,13 @@ function attachWhatsAppMessageHandlers(userId, client) {
               notifyName: msg.notifyName || null
             };
             if (!String(normalized.body || '').trim() && normalized.type === 'chat') continue;
-            const handled = await onIncoming(normalized, unreadN > 0 ? 'lid-unread-poll' : 'lid-recent-poll');
-            if (handled) found += 1;
+            const handled = await onIncoming(
+              normalized,
+              unreadN > 0 ? 'lid-unread-poll' : 'lid-recent-poll'
+            );
+            if (handled === true) found += 1;
           }
-
-          // Só marcar como lida se processámos com sucesso — senão o cliente vê vistos azuis sem resposta
-          if (unreadN > 0 && found > 0 && typeof c.sendSeen === 'function') {
-            try {
-              await c.sendSeen(chatIdStr);
-            } catch (_) {
-              /* ignore */
-            }
-          }
+          // NÃO sendSeen aqui — abrir/marcar lida sem resposta = só vistos azuis
         }
         if (pollTicks <= 10 || pollTicks % 5 === 0 || found > 0 || withUnread > 0) {
           console.log(
@@ -8932,33 +8925,38 @@ app.get('/api/sessions/debug-inbox/:userId', async (req, res) => {
       if (!chatId) continue;
       let lastBody = null;
       let lastT = null;
+      let lastFromMe = null;
       let via = null;
-      try {
-        const deep = await fetchChatMessagesViaWppJs(client, chatId, 5);
-        const msgs = deep.messages || [];
-        const last = Array.isArray(msgs) && msgs.length ? msgs[msgs.length - 1] : null;
-        if (last) {
-          lastBody = String(last.body || last.content || '').slice(0, 120);
-          lastT = last.t || null;
-          via = 'wpp-js';
-        } else {
-          const lm = extractLastMessageFromChat(chat, chatId);
-          if (lm) {
-            lastBody = String(lm.body || '').slice(0, 120);
-            lastT = lm.t || null;
-            via = 'chat.lastMessage';
+      // NÃO abrir chats aqui — isso causava vistos azuis sem resposta
+      const lm = extractLastMessageFromChat(chat, chatId);
+      if (lm && String(lm.body || '').trim()) {
+        lastBody = String(lm.body || '').slice(0, 120);
+        lastT = lm.t || null;
+        lastFromMe = !!lm.fromMe;
+        via = 'chat.lastMessage';
+      } else {
+        try {
+          const deep = await fetchChatMessagesViaWppJs(client, chatId, 3, { allowOpen: false });
+          const msgs = deep.messages || [];
+          const last = Array.isArray(msgs) && msgs.length ? msgs[msgs.length - 1] : null;
+          if (last) {
+            lastBody = String(last.body || last.content || '').slice(0, 120);
+            lastT = last.t || null;
+            lastFromMe = !!last.fromMe;
+            via = 'wpp-js-no-open';
           } else {
-            via = deep.debug || 'empty';
+            via = 'empty';
           }
+        } catch (e) {
+          via = e.message;
         }
-      } catch (e) {
-        via = e.message;
       }
       sample.push({
         chatId,
         unreadCount: chat.unreadCount ?? chat.unread ?? null,
         lastBody,
         lastT,
+        lastFromMe,
         via
       });
     }
@@ -9074,8 +9072,21 @@ app.post('/api/sessions/debug-process-unread/:userId', async (req, res) => {
     if (!chatId) {
       return res.json({ ok: false, error: 'chatId inválido' });
     }
-    const deep = await fetchChatMessagesViaWppJs(client, chatId, 8);
-    const msgs = (deep.messages || []).filter((m) => !m.fromMe && String(m.body || '').trim());
+    let msgs = [];
+    const listed = extractLastMessageFromChat(target, chatId);
+    if (listed && !listed.fromMe && String(listed.body || '').trim()) {
+      msgs = [listed];
+    }
+    let deep = { messages: [], debug: {} };
+    if (!msgs.length) {
+      deep = await fetchChatMessagesViaWppJs(client, chatId, 8, { allowOpen: false });
+      msgs = (deep.messages || []).filter((m) => !m.fromMe && String(m.body || '').trim());
+    }
+    if (!msgs.length) {
+      // Último recurso: abrir chat (pode marcar vistos) — só no endpoint de teste
+      deep = await fetchChatMessagesViaWppJs(client, chatId, 8, { allowOpen: true });
+      msgs = (deep.messages || []).filter((m) => !m.fromMe && String(m.body || '').trim());
+    }
     if (!msgs.length) {
       return res.json({
         ok: false,
