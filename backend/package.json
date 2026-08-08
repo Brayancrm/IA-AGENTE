@@ -1,6 +1,6 @@
 {
   "name": "whatsapp-ia-backend",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "description": "Backend WPPConnect + IA para WhatsApp Sales Agent",
   "main": "server.js",
   "scripts": {
@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.934.0",
-    "@wppconnect-team/wppconnect": "1.41.3",
+    "@wppconnect-team/wppconnect": "2.2.6",
     "axios": "^1.6.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -44,6 +44,6 @@
     "nodemon": "^3.0.0"
   },
   "overrides": {
-    "@wppconnect/wa-version": "1.5.4532"
+    "@wppconnect/wa-js": "4.4.3"
   }
 }

@@ -6610,13 +6610,32 @@ function patchClientSafeSendText(client) {
     if (!text.trim()) throw new Error('sendText: texto vazio');
 
     const candidates = [originalJid];
+    // Contatos migrados para @lid: enviar só para o @lid.
+    // Tentar @c.us depois causa ack:0 (mensagem fantasma no Web, não chega ao telemóvel).
     if (/@lid$/i.test(originalJid)) {
+      console.log(`📤 [WPP] Envio só via LID (sem mapear para @c.us): ${originalJid}`);
+    } else if (/@c\.us$/i.test(originalJid)) {
+      // Opcional: se tivermos LID do PN, preferir LID
       try {
-        const mapped = await tryGetPnFromLidViaWajs(client, originalJid);
-        // Preferir @lid primeiro (PN mapeado por vezes não entrega no telemóvel certo)
-        if (mapped && mapped.jid && mapped.jid !== originalJid) {
-          candidates.push(mapped.jid);
-          console.log(`📤 [WPP] Candidatos envio: ${originalJid} depois ${mapped.jid}`);
+        const page0 = client.page || client.waPage || client.pupPage;
+        if (page0 && typeof page0.evaluate === 'function') {
+          const lid = await page0.evaluate(async (pn) => {
+            try {
+              if (!window.WPP?.contact?.queryExists) return null;
+              const r = await WPP.contact.queryExists(pn);
+              const wid = r && (r.wid || r.id || r);
+              const ser =
+                (wid && wid._serialized) ||
+                (typeof wid === 'string' ? wid : null);
+              return ser && String(ser).includes('@lid') ? String(ser) : null;
+            } catch (_) {
+              return null;
+            }
+          }, originalJid);
+          if (lid && lid !== originalJid) {
+            candidates.unshift(lid);
+            console.log(`📤 [WPP] PN→LID para envio: ${originalJid} → ${lid}`);
+          }
         }
       } catch (_) {
         /* ignore */
