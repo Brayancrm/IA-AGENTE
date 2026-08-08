@@ -1147,6 +1147,13 @@ function claimWppMessageForProcessing(userId, message) {
   return true;
 }
 
+function releaseWppMessageClaim(userId, message) {
+  const key = getWppMessageDedupeKey(message);
+  if (!key) return;
+  const set = wppHandledMessageIds.get(userId);
+  if (set) set.delete(key);
+}
+
 function normalizeWppIncomingMessage(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const from =
@@ -1449,15 +1456,21 @@ function extractLastMessageFromChat(chat, chatIdStr) {
 function attachWhatsAppMessageHandlers(userId, client) {
   patchClientSafeSendText(client);
   const onIncoming = async (raw, source) => {
+    let message = null;
     try {
-      const message = normalizeWppIncomingMessage(raw);
+      message = normalizeWppIncomingMessage(raw);
       if (!message) return;
       if (message.isFromMe) return;
       if (message.isGroupMsg || message.from === 'status@broadcast') return;
       if (!claimWppMessageForProcessing(userId, message)) return;
       console.log(`📨 [${source}] Mensagem de ${message.from}:`, message.body || `[${message.type}]`);
-      await handleIncomingMessage(userId, message, client);
+      const ok = await handleIncomingMessage(userId, message, client);
+      if (ok === false) {
+        releaseWppMessageClaim(userId, message);
+        console.warn(`⚠️ [WPP] Processamento falhou — claim libertado para retry (${source})`);
+      }
     } catch (e) {
+      if (message) releaseWppMessageClaim(userId, message);
       console.error(`❌ [WPP] handler ${source}:`, e.message);
     }
   };
@@ -2977,7 +2990,7 @@ async function handleIncomingMessage(userId, message, client) {
     
     // Ignorar mensagens de status e grupos
     if (message.isGroupMsg || message.from === 'status@broadcast') {
-      return;
+      return true;
     }
     
     // Sanitizar número do WhatsApp para usar como chave no Firebase
@@ -3641,7 +3654,9 @@ async function handleIncomingMessage(userId, message, client) {
     }
   } catch (error) {
     console.error('❌ Erro ao processar mensagem:', error);
+    return false;
   }
+  return true;
 }
 
 // Função para substituir variáveis de template pelos dados do cliente do CRM
