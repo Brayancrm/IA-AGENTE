@@ -1451,24 +1451,54 @@ function extractLastMessageFromChat(chat, chatIdStr) {
     chat?.lastMessage ||
     chat?.last_message ||
     chat?.lastMsg ||
-    chat?.msgs?.last?.() ||
+    chat?.previewMessage ||
+    chat?.__x_lastMessage ||
+    (typeof chat?.msgs?.last === 'function' ? chat.msgs.last() : null) ||
     null;
-  if (!lm || typeof lm !== 'object') return null;
+  if (!lm || typeof lm !== 'object') {
+    // Alguns listChats só trazem texto de preview
+    const preview =
+      chat?.lastReceivedKey ||
+      null;
+    const bodyOnly =
+      chat?.body ||
+      chat?.lastBody ||
+      chat?.formattedTitle ||
+      null;
+    // Sem objeto de mensagem — não inventar fromMe
+    if (typeof chat?.unreadCount === 'number' && chat.unreadCount > 0 && chat?.lastMessageText) {
+      return {
+        id: `preview_${chatIdStr}_${chat.t || Date.now()}`,
+        body: String(chat.lastMessageText),
+        type: 'chat',
+        from: chatIdStr,
+        to: '',
+        t: chat.t || Math.floor(Date.now() / 1000),
+        fromMe: false,
+        isFromMe: false,
+        notifyName: chat.name || chat.contact?.name || null
+      };
+    }
+    void preview;
+    void bodyOnly;
+    return null;
+  }
   const fromMe = !!(lm.id && lm.id.fromMe) || !!lm.fromMe || lm.self === 'out';
   const remote =
     (lm.id && (lm.id.remote?._serialized || lm.id.remote)) ||
     lm.from ||
     chatIdStr;
+  const body = lm.body || lm.caption || lm.content || lm.conversation || lm.preview || '';
   return {
     id: lm.id?._serialized || lm.id || null,
-    body: lm.body || lm.caption || lm.content || '',
+    body: typeof body === 'string' ? body : String(body || ''),
     type: lm.type || 'chat',
     from: String(remote),
     to: lm.to || '',
-    t: lm.t || 0,
+    t: lm.t || lm.timestamp || 0,
     fromMe,
     isFromMe: fromMe,
-    notifyName: lm.notifyName || null
+    notifyName: lm.notifyName || chat?.name || null
   };
 }
 
@@ -1602,13 +1632,19 @@ function attachWhatsAppMessageHandlers(userId, client) {
   setTimeout(reinjectNativeHook, 8000);
   setTimeout(reinjectNativeHook, 30000);
 
-  const pollMs = Math.max(8000, parseEnvMs('WPP_UNREAD_POLL_MS', 12000));
-  const lookbackMs = Math.max(60000, parseEnvMs('WPP_RECENT_MSG_LOOKBACK_MS', 20 * 60 * 1000));
+  const pollMs = Math.max(5000, parseEnvMs('WPP_UNREAD_POLL_MS', 8000));
+  const lookbackMs = Math.max(60000, parseEnvMs('WPP_RECENT_MSG_LOOKBACK_MS', 30 * 60 * 1000));
   if (wppUnreadPollIntervals.has(userId)) {
     clearInterval(wppUnreadPollIntervals.get(userId));
   }
   let pollTicks = 0;
+  let pollBusy = false;
   const pollId = setInterval(async () => {
+    if (pollBusy) {
+      console.warn(`⏳ [WPP] Poll ainda a correr — skip tick · ${userId.slice(0, 8)}…`);
+      return;
+    }
+    pollBusy = true;
     try {
       const c = activeClients.get(userId);
       if (!c) return;
@@ -1618,104 +1654,128 @@ function attachWhatsAppMessageHandlers(userId, client) {
       }
 
       let found = 0;
+      let withUnread = 0;
+      let scanned = 0;
 
-      // 1) Não-lidas (só funciona se o telemóvel NÃO tiver marcado como lidas)
+      // NÃO usar getAllUnreadMessages — quebra com undefined.get e pode bloquear o poll
+      let chats = [];
       try {
-        if (typeof c.getAllUnreadMessages === 'function') {
-          const unread = await c.getAllUnreadMessages();
-          if (Array.isArray(unread) && unread.length) {
-            console.log(`📬 [WPP] Poll unread: ${unread.length} para ${userId.slice(0, 8)}…`);
-            for (const raw of unread) {
-              await onIncoming(raw, 'unread-poll');
-              found += 1;
-            }
-          }
-        }
-      } catch (e1) {
-        if (pollTicks <= 2) console.warn('⚠️ [WPP] Poll unread:', e1.message);
-      }
-
-      // 2) Chats recentes — listChats funciona; getMessages/WAPI falha em @lid
-      try {
-        let chats = [];
         if (typeof c.listChats === 'function') {
-          chats = await c.listChats({ count: 25, onlyUsers: true });
+          chats = await c.listChats({ count: 20, onlyUsers: true });
         } else if (typeof c.getAllChats === 'function') {
           chats = await c.getAllChats(true);
         }
-        if (!Array.isArray(chats)) chats = [];
+      } catch (eList) {
+        console.warn('⚠️ [WPP] Poll listChats:', eList.message);
+        return;
+      }
+      if (!Array.isArray(chats)) chats = [];
 
-        const sinceSec = Math.floor((Date.now() - lookbackMs) / 1000);
-        let scanned = 0;
-        let withUnread = 0;
-        for (const chat of chats.slice(0, 25)) {
-          const chatId =
-            (chat.id && chat.id._serialized) ||
-            (typeof chat.id === 'string' ? chat.id : null) ||
-            chat.user ||
-            null;
-          if (!chatId) continue;
-          const chatIdStr = String(chatId);
-          if (chatIdStr.includes('@g.us') || chatIdStr.includes('status@')) continue;
-          scanned += 1;
-          const unreadN = Number(chat.unreadCount ?? chat.unread ?? 0) || 0;
-          if (unreadN > 0) withUnread += 1;
+      const sinceSec = Math.floor((Date.now() - lookbackMs) / 1000);
+      // Prioridade: chats com unread; no máximo 5 evaluates/tick
+      const unreadChats = [];
+      const recentCandidates = [];
+      for (const chat of chats.slice(0, 20)) {
+        const chatId =
+          (chat.id && chat.id._serialized) ||
+          (typeof chat.id === 'string' ? chat.id : null) ||
+          chat.user ||
+          null;
+        if (!chatId) continue;
+        const chatIdStr = String(chatId);
+        if (chatIdStr.includes('@g.us') || chatIdStr.includes('status@')) continue;
+        scanned += 1;
+        const unreadN = Number(chat.unreadCount ?? chat.unread ?? 0) || 0;
+        const chatT = Number(chat.t || 0);
+        const chatTSec = chatT > 1e12 ? Math.floor(chatT / 1000) : chatT;
+        if (unreadN > 0) {
+          withUnread += 1;
+          unreadChats.push({ chat, chatIdStr, unreadN });
+        } else if (chatTSec && chatTSec >= sinceSec) {
+          recentCandidates.push({ chat, chatIdStr, unreadN: 0 });
+        }
+      }
 
-          // Preferir lastMessage do listChats (não abre chat = sem vistos azuis)
-          let msgs = [];
-          const lastListed = extractLastMessageFromChat(chat, chatIdStr);
-          if (lastListed && String(lastListed.body || '').trim()) {
-            msgs = [lastListed];
-          }
-          if (!msgs.length || (unreadN > 0 && lastListed && lastListed.fromMe)) {
-            const deepMsgs = await fetchChatMessagesViaWppJsList(c, chatIdStr, 8, {
+      const toProcess = [...unreadChats, ...recentCandidates.slice(0, 3)].slice(0, 8);
+      if (withUnread > 0 || pollTicks <= 3 || pollTicks % 3 === 0) {
+        console.log(
+          `📬 [WPP] Poll tick ${pollTicks}: scanned=${scanned} unreadChats=${withUnread} queue=${toProcess.length} · ${userId.slice(0, 8)}…`
+        );
+      }
+
+      for (const item of toProcess) {
+        const { chat, chatIdStr, unreadN } = item;
+        let msgs = [];
+        const lastListed = extractLastMessageFromChat(chat, chatIdStr);
+        if (lastListed && String(lastListed.body || '').trim() && !lastListed.fromMe) {
+          msgs = [lastListed];
+        }
+        // Só evaluate em chats unread (ou se não há body e é unread)
+        if (unreadN > 0 && (!msgs.length || (lastListed && lastListed.fromMe))) {
+          try {
+            const deepMsgs = await fetchChatMessagesViaWppJsList(c, chatIdStr, 6, {
               allowOpen: false
             });
-            if (deepMsgs.length) msgs = deepMsgs;
-          }
-          if (!msgs.length && unreadN > 0 && pollTicks <= 8) {
-            console.warn(
-              `⚠️ [WPP] Chat ${chatIdStr} unread=${unreadN} sem body legível (sem openChat)`
+            const inbound = (deepMsgs || []).filter(
+              (m) => !m.fromMe && !m.isFromMe && String(m.body || m.content || '').trim()
             );
+            if (inbound.length) msgs = inbound.slice(-3);
+          } catch (eFetch) {
+            console.warn(`⚠️ [WPP] Poll fetch ${chatIdStr}:`, eFetch.message);
           }
-
-          for (const msg of msgs) {
-            const tRaw = Number(msg.t || msg.timestamp || 0);
-            const tSec = tRaw > 1e12 ? Math.floor(tRaw / 1000) : tRaw;
-            // Se há unread neste chat, aceita mesmo fora do lookback curto
-            if (tSec && tSec < sinceSec && unreadN <= 0) continue;
-            const isFromMe =
-              msg.isFromMe === true ||
-              msg.fromMe === true ||
-              (msg.idObj && msg.idObj.fromMe === true) ||
-              (msg.id && msg.id.fromMe === true);
-            if (isFromMe) continue;
-            const normalized = {
-              ...msg,
-              id: msg.id || msg.idObj?._serialized || null,
-              from: msg.from || chatIdStr,
-              body: msg.body || msg.content || msg.caption || '',
-              type: msg.type || 'chat',
-              isFromMe: false,
-              isGroupMsg: chatIdStr.includes('@g.us'),
-              notifyName: msg.notifyName || null
-            };
-            if (!String(normalized.body || '').trim() && normalized.type === 'chat') continue;
-            const handled = await onIncoming(
-              normalized,
-              unreadN > 0 ? 'lid-unread-poll' : 'lid-recent-poll'
-            );
-            if (handled === true) found += 1;
-          }
-          // NÃO sendSeen aqui — abrir/marcar lida sem resposta = só vistos azuis
         }
-        if (pollTicks <= 10 || pollTicks % 5 === 0 || found > 0 || withUnread > 0) {
-          console.log(
-            `📬 [WPP] Poll LID/recent: ${scanned} chats, unreadChats=${withUnread}, novas=${found} · tick ${pollTicks} · ${userId.slice(0, 8)}…`
+        // Fallback unread sem body: sintetizar a partir do preview do debug path
+        if (!msgs.length && unreadN > 0) {
+          const deep = await fetchChatMessagesViaWppJs(c, chatIdStr, 6, { allowOpen: false });
+          const inbound = (deep.messages || []).filter(
+            (m) => !m.fromMe && String(m.body || '').trim()
           );
+          if (inbound.length) {
+            msgs = inbound.slice(-2);
+          } else if (pollTicks <= 10) {
+            console.warn(
+              `⚠️ [WPP] unread=${unreadN} ${chatIdStr} sem body (methods=${JSON.stringify((deep.debug && deep.debug.methods) || []).slice(0, 220)})`
+            );
+          }
         }
-      } catch (e2) {
-        console.warn('⚠️ [WPP] Poll recent:', e2.message);
+
+        for (const msg of msgs) {
+          const tRaw = Number(msg.t || msg.timestamp || 0);
+          const tSec = tRaw > 1e12 ? Math.floor(tRaw / 1000) : tRaw;
+          if (tSec && tSec < sinceSec && unreadN <= 0) continue;
+          const isFromMe =
+            msg.isFromMe === true ||
+            msg.fromMe === true ||
+            (msg.idObj && msg.idObj.fromMe === true) ||
+            (msg.id && msg.id.fromMe === true);
+          if (isFromMe) continue;
+          const normalized = {
+            ...msg,
+            id: msg.id || msg.idObj?._serialized || null,
+            from: msg.from || chatIdStr,
+            body: msg.body || msg.content || msg.caption || '',
+            type: msg.type || 'chat',
+            isFromMe: false,
+            isGroupMsg: chatIdStr.includes('@g.us'),
+            notifyName: msg.notifyName || null
+          };
+          if (!String(normalized.body || '').trim() && normalized.type === 'chat') continue;
+          console.log(
+            `📥 [WPP] Poll a processar unread=${unreadN} ${chatIdStr}:`,
+            String(normalized.body).slice(0, 60)
+          );
+          const handled = await onIncoming(
+            normalized,
+            unreadN > 0 ? 'lid-unread-poll' : 'lid-recent-poll'
+          );
+          if (handled === true) found += 1;
+        }
+      }
+
+      if (found > 0 || withUnread > 0) {
+        console.log(
+          `📬 [WPP] Poll resultado: processadas=${found} unreadChats=${withUnread} · tick ${pollTicks}`
+        );
       }
     } catch (e) {
       const m = String(e.message || e);
@@ -1725,12 +1785,16 @@ function attachWhatsAppMessageHandlers(userId, client) {
         m.includes('Protocol error')
       ) {
         console.warn('⚠️ [WPP] Poll interrompido (browser):', m.slice(0, 120));
+      } else {
+        console.warn('⚠️ [WPP] Poll erro:', m.slice(0, 200));
       }
+    } finally {
+      pollBusy = false;
     }
   }, pollMs);
   wppUnreadPollIntervals.set(userId, pollId);
   console.log(
-    `📬 [WPP] Poll ativo a cada ${Math.round(pollMs / 1000)}s (unread + chats recentes, lookback ${Math.round(lookbackMs / 60000)}min)`
+    `📬 [WPP] Poll LEVE a cada ${Math.round(pollMs / 1000)}s (só unread + recentes, sem getAllUnreadMessages, lookback ${Math.round(lookbackMs / 60000)}min)`
   );
 }
 
@@ -6256,9 +6320,45 @@ function patchClientSafeSendText(client) {
         const trySend = async (label, fn) => {
           try {
             const r = await fn();
+            const ack =
+              typeof r?.ack === 'number'
+                ? r.ack
+                : typeof r?.sendMsgResult?.messageSendResult === 'number'
+                  ? r.sendMsgResult.messageSendResult
+                  : null;
+            const id = pickId(r);
+            // ack: -1 erro, 0 relógio (ainda não saiu), 1+ enviado ao servidor
+            if (ack !== null && ack < 1) {
+              out.steps.push(label + '_ack_low:' + ack);
+              out.errors.push(label + ':ack=' + ack);
+              return false;
+            }
+            // Sem ack numérico: esperar e ler a última msg fromMe deste chat
+            if (ack === null && id) {
+              await new Promise((res) => setTimeout(res, 1200));
+              try {
+                let lastAck = null;
+                if (typeof WPP.chat.getMessages === 'function') {
+                  const recent = await WPP.chat.getMessages(cid, { count: 3 });
+                  const mine = (recent || []).filter((m) => m && (m.id?.fromMe || m.fromMe));
+                  const last = mine[mine.length - 1];
+                  if (last && typeof last.ack === 'number') lastAck = last.ack;
+                }
+                out.steps.push(label + '_ack_check:' + String(lastAck));
+                if (lastAck !== null && lastAck < 1) {
+                  out.errors.push(label + ':acked_low=' + lastAck);
+                  return false;
+                }
+                out.ack = lastAck;
+              } catch (_) {
+                out.steps.push(label + '_ack_check_fail');
+              }
+            } else {
+              out.ack = ack;
+            }
             out.steps.push(label + '_ok');
             out.ok = true;
-            out.id = pickId(r);
+            out.id = id;
             out.via = label;
             return true;
           } catch (e) {
@@ -8883,6 +8983,96 @@ app.get('/api/sessions/status/:userId', async (req, res) => {
   } catch (error) {
     console.error('❌ Erro ao buscar status:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Saúde real da sessão WA (conn/stream + ack da última msg enviada).
+ * Se isOnline=false ou lastOutboundAck<1, o bot “vê” chats mas NÃO entrega — precisa QR novo.
+ */
+app.get('/api/sessions/debug-conn-health/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const client = activeClients.get(userId);
+  if (!client) {
+    return res.status(404).json({ ok: false, error: 'Sessão não ativa' });
+  }
+  try {
+    const page = client.page || client.waPage || client.pupPage;
+    if (!page) {
+      return res.json({ ok: false, error: 'sem page' });
+    }
+    const health = await page.evaluate(async () => {
+      const out = {
+        hasWpp: !!window.WPP,
+        conn: {},
+        stream: null,
+        lastOutbound: null
+      };
+      try {
+        if (window.WPP && WPP.conn) {
+          out.conn = {
+            state: typeof WPP.conn.getState === 'function' ? WPP.conn.getState() : null,
+            isMainReady:
+              typeof WPP.conn.isMainReady === 'function' ? WPP.conn.isMainReady() : null,
+            isOnline: typeof WPP.conn.isOnline === 'function' ? WPP.conn.isOnline() : null,
+            isAuthenticated:
+              typeof WPP.conn.isAuthenticated === 'function' ? WPP.conn.isAuthenticated() : null,
+            isMainLoaded:
+              typeof WPP.conn.isMainLoaded === 'function' ? WPP.conn.isMainLoaded() : null
+          };
+        }
+      } catch (e) {
+        out.connError = String(e.message || e);
+      }
+      try {
+        const Stream =
+          (window.WPP && WPP.whatsapp && WPP.whatsapp.Stream) ||
+          (window.Store && window.Store.Stream) ||
+          null;
+        if (Stream) {
+          out.stream = {
+            displayInfo: Stream.displayInfo || null,
+            mode: Stream.mode || null,
+            state: Stream.state || null
+          };
+        }
+      } catch (_) {
+        /* ignore */
+      }
+      try {
+        if (window.WPP && WPP.chat && typeof WPP.chat.list === 'function') {
+          const chats = await WPP.chat.list({ count: 3, onlyUsers: true });
+          const first = (chats || [])[0];
+          const cid = first && first.id && (first.id._serialized || first.id);
+          if (cid && typeof WPP.chat.getMessages === 'function') {
+            const msgs = await WPP.chat.getMessages(cid, { count: 8 });
+            const mine = (msgs || []).filter((m) => m && (m.id?.fromMe || m.fromMe));
+            const last = mine[mine.length - 1];
+            if (last) {
+              out.lastOutbound = {
+                chatId: String(cid),
+                body: String(last.body || last.caption || '').slice(0, 80),
+                ack: typeof last.ack === 'number' ? last.ack : null,
+                t: last.t || null,
+                id: last.id?._serialized || null
+              };
+            }
+          }
+        }
+      } catch (e) {
+        out.lastOutboundError = String(e.message || e);
+      }
+      return out;
+    });
+    const ack = health?.lastOutbound?.ack;
+    const online = health?.conn?.isOnline;
+    const hint =
+      online === false || (typeof ack === 'number' && ack < 1)
+        ? 'Sessão fantasma ou envio sem ack — no CRM: Desconectar WhatsApp e escanear QR de novo no telemóvel da linha.'
+        : 'Conn parece OK; se o cliente não recebe, ainda assim tente relink QR (comum após updates WA desde ~31/07).';
+    return res.json({ ok: true, health, hint });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message });
   }
 });
 
