@@ -1447,6 +1447,7 @@ function extractLastMessageFromChat(chat, chatIdStr) {
  * Regista onMessage + onAnyMessage e um poll de não-lidas como rede de segurança.
  */
 function attachWhatsAppMessageHandlers(userId, client) {
+  patchClientSafeSendText(client);
   const onIncoming = async (raw, source) => {
     try {
       const message = normalizeWppIncomingMessage(raw);
@@ -6169,6 +6170,105 @@ async function tryGetPnFromLidViaWajs(client, lidJid) {
     console.warn('⚠️ tryGetPnFromLidViaWajs:', e.message);
     return null;
   }
+}
+
+/**
+ * sendText do WPPConnect chama WAPI.getMessageById após enviar — na WA Web atual
+ * MsgStore.get está undefined e rebenta DEPOIS de gerar a IA (visto no Railway).
+ * Este patch envia via WPP.chat.sendTextMessage (sem getMessageById).
+ */
+function patchClientSafeSendText(client) {
+  if (!client || client.__iaSafeSendTextPatched) return;
+  const originalSendText =
+    typeof client.sendText === 'function' ? client.sendText.bind(client) : null;
+
+  client.sendText = async (to, content, options) => {
+    const text = content == null ? '' : String(content);
+    let jid = String(to || '').trim();
+    if (!jid) throw new Error('sendText: destinatário vazio');
+
+    if (/@lid$/i.test(jid)) {
+      try {
+        const mapped = await tryGetPnFromLidViaWajs(client, jid);
+        if (mapped && mapped.jid) {
+          console.log(`📤 [WPP] Envio LID→PN: ${jid} → ${mapped.jid}`);
+          jid = mapped.jid;
+        }
+      } catch (_) {
+        /* keep @lid */
+      }
+    }
+
+    const page = client.page || client.waPage || client.pupPage;
+    if (page && typeof page.evaluate === 'function') {
+      try {
+        const result = await page.evaluate(
+          async (chatId, body, opts) => {
+            if (!window.WPP || !WPP.chat || typeof WPP.chat.sendTextMessage !== 'function') {
+              return { ok: false, error: 'no_WPP.chat.sendTextMessage' };
+            }
+            const r = await WPP.chat.sendTextMessage(chatId, body, {
+              waitForAck: true,
+              ...(opts && typeof opts === 'object' ? opts : {})
+            });
+            const id =
+              (r && r.id && (r.id._serialized || r.id)) ||
+              (typeof r === 'string' ? r : null);
+            return { ok: true, id };
+          },
+          jid,
+          text,
+          options || null
+        );
+        if (result && result.ok) {
+          console.log(`✅ [WPP] sendText OK (WPP.chat) → ${jid}`);
+          return result;
+        }
+        console.warn('⚠️ [WPP] sendText WPP.chat falhou:', result && result.error);
+      } catch (e) {
+        console.warn('⚠️ [WPP] sendText evaluate:', e.message);
+      }
+      // Se o PN falhou, tenta o JID original (@lid)
+      if (jid !== String(to).trim()) {
+        try {
+          const result2 = await page.evaluate(
+            async (chatId, body) => {
+              const r = await WPP.chat.sendTextMessage(chatId, body, { waitForAck: true });
+              return {
+                ok: true,
+                id: (r && r.id && (r.id._serialized || r.id)) || null
+              };
+            },
+            String(to).trim(),
+            text
+          );
+          if (result2 && result2.ok) {
+            console.log(`✅ [WPP] sendText OK via @lid original → ${to}`);
+            return result2;
+          }
+        } catch (e2) {
+          console.warn('⚠️ [WPP] sendText @lid fallback:', e2.message);
+        }
+      }
+    }
+
+    if (!originalSendText) throw new Error('sendText indisponível');
+    try {
+      return await originalSendText(jid, text, options);
+    } catch (e) {
+      const m = String(e && e.message ? e.message : e);
+      if (m.includes("reading 'get'") || m.includes('getMessageById')) {
+        console.warn(
+          '⚠️ [WPP] sendText nativo: getMessageById falhou — a assumir envio (evitar crash da IA)'
+        );
+        return { id: null, softOk: true };
+      }
+      throw e;
+    }
+  };
+
+  client.__iaSafeSendTextPatched = true;
+  console.log('🩹 [WPP] sendText patch ativo (evita getMessageById / undefined.get)');
 }
 
 function pushWppStringCandidate(out, v) {
