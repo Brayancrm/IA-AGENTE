@@ -1104,17 +1104,22 @@ function scheduleWppRecoverAfterBrowserClose(userId) {
   }, 8000);
 }
 
+function clearWppUnreadPoll(userId) {
+  const pollId = wppUnreadPollIntervals.get(userId);
+  if (pollId) {
+    clearInterval(pollId);
+    wppUnreadPollIntervals.delete(userId);
+  }
+}
+
 function clearWppHealthCheck(userId) {
   const id = wppHealthCheckIntervals.get(userId);
   if (id) {
     clearInterval(id);
     wppHealthCheckIntervals.delete(userId);
   }
-  const pollId = wppUnreadPollIntervals.get(userId);
-  if (pollId) {
-    clearInterval(pollId);
-    wppUnreadPollIntervals.delete(userId);
-  }
+  // NÃO limpar o poll de mensagens aqui — era isso que matava o auto-reply
+  // (attach inicia o poll, depois clearWppHealthCheck no create apagava o interval)
 }
 
 function getWppMessageDedupeKey(message) {
@@ -1853,10 +1858,12 @@ function attachWhatsAppMessageHandlers(userId, client) {
 async function forceCloseWhatsAppSession(userId, intentional = true) {
   if (intentional) wppClosingIntentionally.add(userId);
   clearWppHealthCheck(userId);
+  clearWppUnreadPoll(userId);
   wppConnectedLineByUser.delete(userId);
   wppBoundWidByUser.delete(userId);
   wppConnectedAtByUser.delete(userId);
   wppHandledMessageIds.delete(userId);
+  wppLastSeenChatT.delete(userId);
   const client = activeClients.get(userId);
   if (client) {
     try {
