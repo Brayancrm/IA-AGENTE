@@ -1244,7 +1244,52 @@ async function fetchChatMessagesViaWppJs(client, chatId, count = 12) {
             /* ignore */
           }
 
-          // Abrir chat ajuda a carregar msgs @lid na memória
+          // Abrir chat só se Store/WPP não devolver msgs (openChat marca como lida → vistos azuis)
+          const tryLoadFromStore = async () => {
+            try {
+              const ChatStore =
+                (window.WPP && WPP.whatsapp && (WPP.whatsapp.ChatStore || WPP.whatsapp.Chat)) ||
+                (window.Store && (window.Store.Chat || window.Store.ChatStore)) ||
+                null;
+              if (ChatStore && typeof ChatStore.get === 'function') {
+                let chat = ChatStore.get(cid);
+                if (!chat && typeof ChatStore.find === 'function') {
+                  try {
+                    chat = await ChatStore.find(cid);
+                  } catch (_) {
+                    /* ignore */
+                  }
+                }
+                pushMethod('ChatStore.get', { ok: !!chat });
+                if (chat) {
+                  if (chat.msgs && typeof chat.msgs.getModelsArray === 'function') {
+                    const models = chat.msgs.getModelsArray() || [];
+                    const arr = models.slice(-cnt).map((m) => serializeMsg(m, cid)).filter(Boolean);
+                    pushMethod('chat.msgs.getModelsArray', { ok: true, n: arr.length });
+                    if (arr.length) {
+                      out.messages = arr;
+                      return true;
+                    }
+                  }
+                  if (chat.lastMessage) {
+                    const one = serializeMsg(chat.lastMessage, cid);
+                    pushMethod('chat.lastMessage', {
+                      ok: !!one,
+                      body: one && one.body ? one.body.slice(0, 40) : null
+                    });
+                    if (one && one.body) {
+                      out.messages = [one];
+                      return true;
+                    }
+                  }
+                }
+              }
+            } catch (e) {
+              pushMethod('ChatStore', { ok: false, err: String(e.message || e) });
+            }
+            return false;
+          };
+
           if (window.WPP && WPP.chat) {
             try {
               if (typeof WPP.chat.find === 'function') await WPP.chat.find(cid);
@@ -1252,6 +1297,14 @@ async function fetchChatMessagesViaWppJs(client, chatId, count = 12) {
             } catch (e) {
               pushMethod('find', { ok: false, err: String(e.message || e) });
             }
+          }
+
+          if (await tryLoadFromStore()) {
+            return out;
+          }
+
+          // Só agora abrir o chat (pode marcar unread)
+          if (window.WPP && WPP.chat) {
             try {
               if (typeof WPP.chat.openChatBottom === 'function') {
                 await WPP.chat.openChatBottom(cid);
@@ -1263,7 +1316,7 @@ async function fetchChatMessagesViaWppJs(client, chatId, count = 12) {
             }
           }
 
-          // Store primeiro (WPP.chat.getMessages falha com undefined.get nesta WA Web)
+          // Store de novo após abrir
           try {
             const ChatStore =
               (window.WPP && WPP.whatsapp && (WPP.whatsapp.ChatStore || WPP.whatsapp.Chat)) ||
@@ -1301,11 +1354,9 @@ async function fetchChatMessagesViaWppJs(client, chatId, count = 12) {
                   }
                 }
               }
-            } else {
-              pushMethod('ChatStore.get', { ok: false, err: 'no ChatStore' });
             }
           } catch (e) {
-            pushMethod('ChatStore', { ok: false, err: String(e.message || e) });
+            pushMethod('ChatStore.afterOpen', { ok: false, err: String(e.message || e) });
           }
 
           // MsgStore: últimas mensagens do chat
@@ -1459,19 +1510,22 @@ function attachWhatsAppMessageHandlers(userId, client) {
     let message = null;
     try {
       message = normalizeWppIncomingMessage(raw);
-      if (!message) return;
-      if (message.isFromMe) return;
-      if (message.isGroupMsg || message.from === 'status@broadcast') return;
-      if (!claimWppMessageForProcessing(userId, message)) return;
+      if (!message) return false;
+      if (message.isFromMe) return true;
+      if (message.isGroupMsg || message.from === 'status@broadcast') return true;
+      if (!claimWppMessageForProcessing(userId, message)) return true;
       console.log(`📨 [${source}] Mensagem de ${message.from}:`, message.body || `[${message.type}]`);
       const ok = await handleIncomingMessage(userId, message, client);
       if (ok === false) {
         releaseWppMessageClaim(userId, message);
         console.warn(`⚠️ [WPP] Processamento falhou — claim libertado para retry (${source})`);
+        return false;
       }
+      return true;
     } catch (e) {
       if (message) releaseWppMessageClaim(userId, message);
       console.error(`❌ [WPP] handler ${source}:`, e.message);
+      return false;
     }
   };
 
@@ -1649,11 +1703,12 @@ function attachWhatsAppMessageHandlers(userId, client) {
               notifyName: msg.notifyName || null
             };
             if (!String(normalized.body || '').trim() && normalized.type === 'chat') continue;
-            await onIncoming(normalized, unreadN > 0 ? 'lid-unread-poll' : 'lid-recent-poll');
-            found += 1;
+            const handled = await onIncoming(normalized, unreadN > 0 ? 'lid-unread-poll' : 'lid-recent-poll');
+            if (handled) found += 1;
           }
 
-          if (unreadN > 0 && typeof c.sendSeen === 'function') {
+          // Só marcar como lida se processámos com sucesso — senão o cliente vê vistos azuis sem resposta
+          if (unreadN > 0 && found > 0 && typeof c.sendSeen === 'function') {
             try {
               await c.sendSeen(chatIdStr);
             } catch (_) {
@@ -6189,101 +6244,212 @@ async function tryGetPnFromLidViaWajs(client, lidJid) {
 
 /**
  * sendText do WPPConnect chama WAPI.getMessageById após enviar — na WA Web atual
- * MsgStore.get está undefined e rebenta DEPOIS de gerar a IA (visto no Railway).
- * Este patch envia via WPP.chat.sendTextMessage (sem getMessageById).
+ * MsgStore.get está undefined. Enviamos só via WPP.chat (sem softOk falso).
  */
 function patchClientSafeSendText(client) {
   if (!client || client.__iaSafeSendTextPatched) return;
   const originalSendText =
     typeof client.sendText === 'function' ? client.sendText.bind(client) : null;
 
-  client.sendText = async (to, content, options) => {
-    const text = content == null ? '' : String(content);
-    let jid = String(to || '').trim();
-    if (!jid) throw new Error('sendText: destinatário vazio');
+  async function sendViaWppChat(page, chatId, text) {
+    return page.evaluate(
+      async (cid, body) => {
+        const out = { ok: false, chatId: cid, steps: [], errors: [] };
+        const pickId = (r) =>
+          (r && r.id && (r.id._serialized || r.id)) ||
+          (r && r.sendMsgResult && r.sendMsgResult.messageSendResult) ||
+          (typeof r === 'string' ? r : null);
 
-    if (/@lid$/i.test(jid)) {
+        const trySend = async (label, fn) => {
+          try {
+            const r = await fn();
+            out.steps.push(label + '_ok');
+            out.ok = true;
+            out.id = pickId(r);
+            out.via = label;
+            return true;
+          } catch (e) {
+            const msg = String(e && e.message ? e.message : e);
+            out.steps.push(label + '_fail');
+            out.errors.push(label + ':' + msg.slice(0, 160));
+            return false;
+          }
+        };
+
+        try {
+          if (!window.WPP || !WPP.chat) {
+            out.error = 'no_WPP.chat';
+            return out;
+          }
+
+          // Não abrir o chat primeiro: openChat marca como lida (vistos azuis) sem enviar.
+          try {
+            if (typeof WPP.chat.find === 'function') {
+              await WPP.chat.find(cid);
+              out.steps.push('find');
+            }
+          } catch (e) {
+            out.steps.push('find_fail:' + String(e.message || e).slice(0, 80));
+          }
+
+          // 1) API principal
+          if (typeof WPP.chat.sendTextMessage === 'function') {
+            if (
+              await trySend('sendTextMessage', () =>
+                WPP.chat.sendTextMessage(cid, body, {
+                  createChat: true,
+                  waitForAck: true
+                })
+              )
+            ) {
+              return out;
+            }
+          } else {
+            out.steps.push('no_sendTextMessage');
+          }
+
+          // 2) sendMessage genérico
+          if (typeof WPP.chat.sendMessage === 'function') {
+            if (
+              await trySend('sendMessage', () =>
+                WPP.chat.sendMessage(cid, body, { waitForAck: true })
+              )
+            ) {
+              return out;
+            }
+          }
+
+          // 3) Abrir chat e tentar de novo (último recurso — marca unread)
+          try {
+            if (typeof WPP.chat.openChatBottom === 'function') {
+              await WPP.chat.openChatBottom(cid);
+              out.steps.push('open');
+              await new Promise((r) => setTimeout(r, 400));
+            }
+          } catch (e) {
+            out.steps.push('open_fail:' + String(e.message || e).slice(0, 80));
+          }
+
+          if (typeof WPP.chat.sendTextMessage === 'function') {
+            if (
+              await trySend('sendTextMessage_after_open', () =>
+                WPP.chat.sendTextMessage(cid, body, { waitForAck: true })
+              )
+            ) {
+              return out;
+            }
+          }
+
+          // 4) Digitar no composer (DOM) — funciona mesmo com Store parcial
+          try {
+            const editable =
+              document.querySelector('div[contenteditable="true"][data-tab="10"]') ||
+              document.querySelector('footer div[contenteditable="true"]') ||
+              document.querySelector('div[contenteditable="true"][role="textbox"]');
+            if (editable) {
+              editable.focus();
+              const dt = new DataTransfer();
+              dt.setData('text/plain', body);
+              editable.dispatchEvent(
+                new ClipboardEvent('paste', { clipboardData: dt, bubbles: true })
+              );
+              await new Promise((r) => setTimeout(r, 200));
+              const sendBtn =
+                document.querySelector('button[aria-label="Enviar"]') ||
+                document.querySelector('button[aria-label="Send"]') ||
+                document.querySelector('span[data-icon="send"]')?.closest('button');
+              if (sendBtn) {
+                sendBtn.click();
+                out.ok = true;
+                out.via = 'dom_composer';
+                out.steps.push('dom_sent');
+                return out;
+              }
+              out.steps.push('dom_no_send_btn');
+            } else {
+              out.steps.push('dom_no_composer');
+            }
+          } catch (e) {
+            out.errors.push('dom:' + String(e.message || e).slice(0, 120));
+          }
+
+          out.error = out.errors.join(' | ') || 'all_send_paths_failed';
+          return out;
+        } catch (e) {
+          out.error = String(e && e.message ? e.message : e);
+          return out;
+        }
+      },
+      String(chatId),
+      String(text)
+    );
+  }
+
+  client.sendText = async (to, content) => {
+    const text = content == null ? '' : String(content);
+    const originalJid = String(to || '').trim();
+    if (!originalJid) throw new Error('sendText: destinatário vazio');
+    if (!text.trim()) throw new Error('sendText: texto vazio');
+
+    const candidates = [originalJid];
+    if (/@lid$/i.test(originalJid)) {
       try {
-        const mapped = await tryGetPnFromLidViaWajs(client, jid);
-        if (mapped && mapped.jid) {
-          console.log(`📤 [WPP] Envio LID→PN: ${jid} → ${mapped.jid}`);
-          jid = mapped.jid;
+        const mapped = await tryGetPnFromLidViaWajs(client, originalJid);
+        if (mapped && mapped.jid && mapped.jid !== originalJid) {
+          candidates.unshift(mapped.jid);
+          console.log(`📤 [WPP] Candidatos envio: ${mapped.jid} e ${originalJid}`);
         }
       } catch (_) {
-        /* keep @lid */
+        /* ignore */
       }
     }
 
     const page = client.page || client.waPage || client.pupPage;
-    if (page && typeof page.evaluate === 'function') {
+    if (!page || typeof page.evaluate !== 'function') {
+      throw new Error('sendText: page Puppeteer indisponível');
+    }
+
+    const attempts = [];
+    for (const jid of candidates) {
       try {
-        const result = await page.evaluate(
-          async (chatId, body, opts) => {
-            if (!window.WPP || !WPP.chat || typeof WPP.chat.sendTextMessage !== 'function') {
-              return { ok: false, error: 'no_WPP.chat.sendTextMessage' };
-            }
-            const r = await WPP.chat.sendTextMessage(chatId, body, {
-              waitForAck: true,
-              ...(opts && typeof opts === 'object' ? opts : {})
-            });
-            const id =
-              (r && r.id && (r.id._serialized || r.id)) ||
-              (typeof r === 'string' ? r : null);
-            return { ok: true, id };
-          },
-          jid,
-          text,
-          options || null
-        );
+        const result = await sendViaWppChat(page, jid, text);
+        attempts.push(result);
         if (result && result.ok) {
-          console.log(`✅ [WPP] sendText OK (WPP.chat) → ${jid}`);
+          console.log(`✅ [WPP] sendText OK → ${jid} id=${result.id || '?'}`);
           return result;
         }
-        console.warn('⚠️ [WPP] sendText WPP.chat falhou:', result && result.error);
+        console.warn(`⚠️ [WPP] sendText falhou → ${jid}:`, result && (result.error || result.steps));
       } catch (e) {
-        console.warn('⚠️ [WPP] sendText evaluate:', e.message);
+        attempts.push({ ok: false, chatId: jid, error: e.message });
+        console.warn(`⚠️ [WPP] sendText exception → ${jid}:`, e.message);
       }
-      // Se o PN falhou, tenta o JID original (@lid)
-      if (jid !== String(to).trim()) {
+    }
+
+    // Último recurso: sendText nativo (pode crashar no getMessageById DEPOIS de enviar)
+    if (originalSendText) {
+      for (const jid of candidates) {
         try {
-          const result2 = await page.evaluate(
-            async (chatId, body) => {
-              const r = await WPP.chat.sendTextMessage(chatId, body, { waitForAck: true });
-              return {
-                ok: true,
-                id: (r && r.id && (r.id._serialized || r.id)) || null
-              };
-            },
-            String(to).trim(),
-            text
-          );
-          if (result2 && result2.ok) {
-            console.log(`✅ [WPP] sendText OK via @lid original → ${to}`);
-            return result2;
-          }
-        } catch (e2) {
-          console.warn('⚠️ [WPP] sendText @lid fallback:', e2.message);
+          const r = await originalSendText(jid, text);
+          console.log(`✅ [WPP] sendText nativo OK → ${jid}`);
+          return r;
+        } catch (e) {
+          const m = String(e && e.message ? e.message : e);
+          console.warn(`⚠️ [WPP] sendText nativo → ${jid}:`, m.slice(0, 180));
+          // NÃO assumir sucesso: o utilizador confirmou que softOk não entregava mensagem
         }
       }
     }
 
-    if (!originalSendText) throw new Error('sendText indisponível');
-    try {
-      return await originalSendText(jid, text, options);
-    } catch (e) {
-      const m = String(e && e.message ? e.message : e);
-      if (m.includes("reading 'get'") || m.includes('getMessageById')) {
-        console.warn(
-          '⚠️ [WPP] sendText nativo: getMessageById falhou — a assumir envio (evitar crash da IA)'
-        );
-        return { id: null, softOk: true };
-      }
-      throw e;
-    }
+    const err = new Error(
+      'Falha ao enviar WhatsApp: ' +
+        attempts.map((a) => `${a.chatId}:${a.error || (a.steps || []).join(',')}`).join(' | ')
+    );
+    err.attempts = attempts;
+    throw err;
   };
 
   client.__iaSafeSendTextPatched = true;
-  console.log('🩹 [WPP] sendText patch ativo (evita getMessageById / undefined.get)');
+  console.log('🩹 [WPP] sendText patch ativo (WPP.chat only, sem softOk falso)');
 }
 
 function pushWppStringCandidate(out, v) {
@@ -8828,6 +8994,54 @@ app.get('/api/sessions/debug-inbox/:userId', async (req, res) => {
 });
 
 /**
+ * TESTE: envia uma mensagem curta fixa para o 1º chat (ou ?chatId=).
+ * Isola se o problema é só o envio WhatsApp (sem passar pela IA).
+ */
+app.post('/api/sessions/debug-send-test/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const client = activeClients.get(userId);
+  if (!client) {
+    return res.status(404).json({ ok: false, error: 'Sessão não ativa' });
+  }
+  try {
+    patchClientSafeSendText(client);
+    let chatId = String(req.query.chatId || req.body?.chatId || '').trim();
+    if (!chatId) {
+      const chats = typeof client.listChats === 'function'
+        ? await client.listChats({ count: 5, onlyUsers: true })
+        : [];
+      const first = (chats || [])[0];
+      chatId =
+        (first && first.id && first.id._serialized) ||
+        (first && typeof first.id === 'string' ? first.id : null);
+    }
+    if (!chatId) {
+      return res.json({ ok: false, error: 'Sem chatId' });
+    }
+    const text =
+      String(req.body?.text || '').trim() ||
+      `🧪 Teste automático dadosIA ${new Date().toISOString()}`;
+    console.log(`🧪 [debug-send-test] → ${chatId}: ${text.slice(0, 80)}`);
+    const result = await client.sendText(chatId, text);
+    return res.json({
+      ok: true,
+      chatId,
+      textPreview: text.slice(0, 120),
+      result,
+      hint: 'Se esta mensagem aparecer no WhatsApp do cliente, o envio funciona.'
+    });
+  } catch (e) {
+    console.error('❌ debug-send-test:', e);
+    return res.status(500).json({
+      ok: false,
+      error: e.message,
+      attempts: e.attempts || null,
+      stack: String(e.stack || '').slice(0, 500)
+    });
+  }
+});
+
+/**
  * TESTE controlado (sem adivinhar): força processar 1 mensagem unread via o mesmo handleIncomingMessage.
  * Se isto responder no WhatsApp, a leitura+IA+Firebase OK e o buraco é só o listener/poll automático.
  */
@@ -8884,11 +9098,16 @@ app.post('/api/sessions/debug-process-unread/:userId', async (req, res) => {
     if (set && key) set.delete(key);
 
     console.log(`🧪 [debug-process-unread] a processar ${chatId}:`, String(message.body).slice(0, 80));
-    await handleIncomingMessage(userId, message, client);
-    try {
-      if (typeof client.sendSeen === 'function') await client.sendSeen(chatId);
-    } catch (_) {
-      /* ignore */
+    const processed = await handleIncomingMessage(userId, message, client);
+    if (processed === false) {
+      return res.status(500).json({
+        ok: false,
+        forced: force,
+        chatId,
+        bodyPreview: String(message.body).slice(0, 120),
+        error: 'handleIncomingMessage falhou (provável falha no envio WhatsApp — ver Deploy Logs)',
+        hint: 'Vistos azuis sem resposta = chat aberto/lido sem sendText OK'
+      });
     }
     return res.json({
       ok: true,
@@ -8924,8 +9143,9 @@ app.post('/api/messages/send', async (req, res) => {
     if (!client) {
       return res.status(404).json({ error: 'Sessão não encontrada ou inativa' });
     }
-    
-    await client.sendText(to, message);
+
+    patchClientSafeSendText(client);
+    const sendResult = await client.sendText(to, message);
     
     // Incrementar contador de uso
     await incrementMessageUsage(userId);
@@ -8946,12 +9166,16 @@ app.post('/api/messages/send', async (req, res) => {
     
     res.json({ 
       status: 'success',
-      message: 'Mensagem enviada' 
+      message: 'Mensagem enviada',
+      sendResult: sendResult || null
     });
     
   } catch (error) {
     console.error('❌ Erro ao enviar mensagem:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      error: error.message,
+      attempts: error.attempts || null
+    });
   }
 });
 
