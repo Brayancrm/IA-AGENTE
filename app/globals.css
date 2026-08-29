@@ -2,6 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Windows 2000 Design Tokens ───────────────────────────────────────── */
+:root {
+  /* Color palette – Win2K silver/teal/navy */
+  --color-desktop:      #008080;
+  --color-window:       #d4d0c8;
+  --color-taskbar:      #c0c0c0;
+  --color-title:        #0a246a;
+  --color-title-light:  #a6caf0;
+  --color-button:       #d4d0c8;
+  --color-input:        #ffffff;
+  --color-text:         #000000;
+  --color-muted:        #666666;
+  --color-link:         #0000ee;
+  --color-success:      #008000;
+  --color-error:        #cc0000;
+
+  /* Design tokens mapped to semantic names */
+  --background:         var(--color-desktop);
+  --foreground:         var(--color-text);
+  --border:             #808080;
+  --radius:             0rem; /* Win2K uses no rounding */
+}
+
+/* Win2K system font stack */
+body {
+  font-family: "MS Sans Serif", "Microsoft Sans Serif", Tahoma, sans-serif;
+  background-color: var(--color-desktop);
+}
+
+/* ─── Scrollbar – Win2K style ─────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 16px; height: 16px; }
+::-webkit-scrollbar-track { background: #c0c0c0; }
+::-webkit-scrollbar-thumb {
+  background: #d4d0c8;
+  border-top: 2px solid #ffffff;
+  border-left: 2px solid #ffffff;
+  border-right: 2px solid #404040;
+  border-bottom: 2px solid #404040;
+}
+::-webkit-scrollbar-button {
+  background: #d4d0c8;
+  border-top: 2px solid #ffffff;
+  border-left: 2px solid #ffffff;
+  border-right: 2px solid #404040;
+  border-bottom: 2px solid #404040;
+  height: 16px;
+  width: 16px;
+}
+::-webkit-scrollbar-corner { background: #c0c0c0; }
+
 /* Prevenir zoom e ajuste de escala */
 html {
   -ms-touch-action: manipulation;

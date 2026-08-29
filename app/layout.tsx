@@ -6,8 +6,8 @@ import { PWARegister } from '../components/PWARegister'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'dadosIA',
-  description: 'Painel de controle para configurar um assistente de vendas e suporte virtual para WhatsApp',
+  title: 'dadosIA — Assistente de Vendas WhatsApp',
+  description: 'Plataforma de automação de vendas e suporte via WhatsApp com inteligência artificial. Configure seu assistente virtual em minutos.',
   manifest: '/manifest.json',
   icons: {
     icon: [

@@ -1,6 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import Win2kLanding from './Win2kLanding';
+export default function SimpleLanding({ onLoginSuccess }) {
+  return <Win2kLanding onLoginSuccess={onLoginSuccess} />;
+}
+
+// ─── Legacy code kept below (unused) ────────────────────────────────────────
+
+import React_legacy, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
