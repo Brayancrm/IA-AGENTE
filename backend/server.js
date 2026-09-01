@@ -1822,6 +1822,20 @@ function attachWhatsAppMessageHandlers(userId, client) {
     try {
       const c = activeClients.get(userId);
       if (!c) return;
+      // Não fazer drain enquanto aguarda QR ou sessão morta (evita protocolTimeout e bloqueia QR)
+      if (typeof c.getConnectionState === 'function') {
+        try {
+          const st = await c.getConnectionState();
+          if (st !== 'CONNECTED') {
+            if (pollTicks <= 5 || pollTicks % 12 === 0) {
+              console.log(`⏸️ [WPP] drain skip — state=${st || '?'} (${reason})`);
+            }
+            return;
+          }
+        } catch (_) {
+          return;
+        }
+      }
       pollTicks += 1;
       if (pollTicks === 1 || pollTicks % 6 === 0) {
         reinjectNativeHook();
@@ -2211,33 +2225,71 @@ async function createSession(userId) {
   return task;
 }
 
+async function wipeWppTokenDir(userId) {
+  const tokenDir = path.join(getWppTokensBase(), `user_${userId}`);
+  try {
+    if (fs.existsSync(tokenDir)) {
+      fs.rmSync(tokenDir, { recursive: true, force: true });
+      console.log('🧹 [WPP] Tokens apagados (forçar novo QR):', tokenDir);
+    }
+  } catch (e) {
+    console.warn('⚠️ [WPP] Erro ao apagar tokens:', e.message);
+  }
+}
+
 async function createSessionInternal(userId) {
   console.log(`📱 Verificando sessão WhatsApp para usuário: ${userId}`);
   
   const sessionRef = db.ref(`whatsapp_sessions/${userId}`);
+  const sessionSnap = await sessionRef.once('value');
+  const sessionMeta = sessionSnap.val() || {};
+  const disconnectReason = String(sessionMeta.disconnectReason || '').trim();
+  const needsFreshQr =
+    !!sessionMeta.needsRelink ||
+    ['disconnectedMobile', 'UNPAIRED', 'CONFLICT', 'UNLAUNCHED', 'qrReadFail', 'manual'].includes(
+      disconnectReason
+    ) ||
+    sessionMeta.status === 'disconnected';
+
   const tokensBase = getWppTokensBase();
   ensureDirSync(tokensBase);
 
   try {
-    // 🔥 NOVO: Verificar se já existe client ATIVO em memória
+    // Cliente em memória mas Firebase diz desligado → fechar e gerar QR de novo
     const existingClient = activeClients.get(userId);
     if (existingClient) {
-      console.log('✅ Sessão JÁ EXISTE e está ativa em memória');
-      console.log('🔄 Reutilizando sessão existente (SEM criar nova)');
-      
-      // Apenas atualizar status no Firebase
-      await sessionRef.update({
-        status: 'connected',
-        lastActivity: new Date().toISOString()
-      });
-      
-      return existingClient; // ✅ RETORNA A SESSÃO EXISTENTE
+      if (needsFreshQr || sessionMeta.status !== 'connected') {
+        console.log('🔄 [WPP] Sessão em memória inválida — a fechar para novo QR');
+        await forceCloseWhatsAppSession(userId);
+        await sleepMs(2000);
+      } else {
+        const healthy = await isWppClientHealthy(existingClient);
+        if (healthy) {
+          console.log('✅ Sessão JÁ EXISTE e está ativa em memória');
+          await sessionRef.update({
+            status: 'connected',
+            lastActivity: new Date().toISOString()
+          });
+          return existingClient;
+        }
+        console.log('⚠️ [WPP] Cliente em memória não saudável — a recriar');
+        await forceCloseWhatsAppSession(userId);
+        await sleepMs(2000);
+      }
     }
+
+    await sessionRef.update({
+      status: 'connecting',
+      lastActivity: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
     
     console.log(`📂 WPP tokens base: ${tokensBase}`);
     const tokenDir = path.join(tokensBase, `user_${userId}`);
     
-    if (fs.existsSync(tokenDir)) {
+    if (needsFreshQr) {
+      await wipeWppTokenDir(userId);
+    } else if (fs.existsSync(tokenDir)) {
       const files = fs.readdirSync(tokenDir);
       if (files.length > 0) {
         console.log(`✅ Sessão encontrada nos arquivos (${files.length} arquivos)`);
@@ -2352,13 +2404,18 @@ async function createSessionInternal(userId) {
           statusSession === 'disconnectedMobile'
         ) {
           wppConnectedAtByUser.delete(userId);
-          sessionRef.update({
+          await sessionRef.update({
             status: 'disconnected',
             lastActivity: new Date().toISOString(),
             disconnectReason: statusSession,
-            qrCode: null
+            qrCode: null,
+            needsRelink: true
           });
           console.log('❌ WhatsApp desconectado para:', userId, statusSession);
+          clearWppHealthCheck(userId);
+          forceCloseWhatsAppSession(userId).catch((e) =>
+            console.warn('[WPP] fecho após disconnectedMobile:', e.message)
+          );
         } else if (
           statusSession === 'autocloseCalled' ||
           statusSession === 'qrReadError' ||
@@ -2388,6 +2445,7 @@ async function createSessionInternal(userId) {
         headless: true,
         executablePath: resolveChromiumExecutablePath(),
         userDataDir: profileDir,
+        protocolTimeout: parseEnvMs('WPP_PROTOCOL_TIMEOUT_MS', 180000),
         args: getWppPuppeteerChromeArgs()
       }
     };
@@ -9075,17 +9133,34 @@ app.post('/api/sessions/create', async (req, res) => {
     if (!userId) {
       return res.status(400).json({ error: 'userId é obrigatório' });
     }
-    
+
+    const sessionSnap = await db.ref(`whatsapp_sessions/${userId}`).once('value');
+    const session = sessionSnap.val() || {};
+    const reason = String(session.disconnectReason || '').trim();
+    const mustReset =
+      forceReconnect === true ||
+      !!session.needsRelink ||
+      session.status === 'disconnected' ||
+      session.status === 'error' ||
+      ['disconnectedMobile', 'UNPAIRED', 'CONFLICT', 'UNLAUNCHED', 'qrReadFail'].includes(reason);
+
     if (activeClients.has(userId)) {
-      if (forceReconnect) {
-        console.log(`🔄 [WPP] forceReconnect: fechando sessão existente de ${userId}`);
+      if (mustReset) {
+        console.log(`🔄 [WPP] Reconexão: fechando sessão existente de ${userId}`);
         await forceCloseWhatsAppSession(userId);
-        await sleepMs(2000);
+        await sleepMs(2500);
       } else {
-        return res.json({ 
-          status: 'already_active',
-          message: 'Sessão já está ativa' 
-        });
+        const client = activeClients.get(userId);
+        const healthy = client ? await isWppClientHealthy(client) : false;
+        if (healthy) {
+          return res.json({
+            status: 'already_active',
+            message: 'Sessão já está ativa'
+          });
+        }
+        console.log(`🔄 [WPP] Sessão zombie — a recriar (${userId})`);
+        await forceCloseWhatsAppSession(userId);
+        await sleepMs(2500);
       }
     }
     

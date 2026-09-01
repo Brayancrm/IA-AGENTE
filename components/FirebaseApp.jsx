@@ -2352,12 +2352,27 @@ const FirebaseApp = () => {
     setIsConnecting(true);
     
     try {
+      const needsReset =
+        whatsappStatus === 'disconnected' ||
+        whatsappStatus === 'error' ||
+        whatsappNeedsRelink ||
+        !!whatsappDisconnectReason;
+
+      if (needsReset) {
+        await fetch(`${API_BASE}/api/sessions/disconnect`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.uid })
+        });
+        await new Promise((resolve) => setTimeout(resolve, 2800));
+      }
+
       const response = await fetch(`${API_BASE}/api/sessions/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ userId: user.uid })
+        body: JSON.stringify({ userId: user.uid, forceReconnect: true })
       });
 
       const data = await response.json();
