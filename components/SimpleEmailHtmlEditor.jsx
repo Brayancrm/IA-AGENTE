@@ -243,7 +243,9 @@ export default function SimpleEmailHtmlEditor({
   const [previewHtml, setPreviewHtml] = useState(() => value || wrapEmailHtml(plain));
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
+  const [importStatus, setImportStatus] = useState('');
   const [importingPack, setImportingPack] = useState(false);
+  const pickingFileRef = useRef(false);
   const fileRef = useRef(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -265,32 +267,32 @@ export default function SimpleEmailHtmlEditor({
     const html = normalizeImportedEmailHtml(String(raw || '').trim());
     if (!html) return false;
     if (!looksLikeHtml(html)) return false;
-    // Rejeitar templates só com base64 (Gmail corta / não mostra)
-    const dataUriCount = (html.match(/data:image\//gi) || []).length;
-    if (dataUriCount > 2) {
-      alert(
-        'Este HTML tem imagens embutidas (base64). Reimporta o .zip do BeeFree para alojar as imagens em URL — assim o Gmail mostra tudo sem cortar.'
-      );
-    }
     setHtmlDraft(html);
     setPreviewHtml(html);
     setAdvanced(true);
     onChangeRef.current?.(html);
     setShowImport(false);
     setImportText('');
+    setImportStatus('');
     return true;
   };
 
   const onPickImportFile = async (file) => {
-    if (!file) return;
+    pickingFileRef.current = false;
+    if (!file) {
+      setImportStatus('Nenhum ficheiro selecionado.');
+      return;
+    }
     const lower = file.name.toLowerCase();
+    console.log('[email-import] ficheiro:', file.name, file.size, file.type);
     try {
       if (lower.endsWith('.zip')) {
         if (!userId) {
-          alert('Sessão inválida. Recarrega a página e tenta outra vez.');
+          setImportStatus('Erro: sessão sem userId. Recarrega a página.');
           return;
         }
         setImportingPack(true);
+        setImportStatus('A enviar ZIP e a subir imagens… (pode demorar)');
         const fd = new FormData();
         fd.append('file', file);
         fd.append('userId', userId);
@@ -299,31 +301,37 @@ export default function SimpleEmailHtmlEditor({
           body: fd
         });
         const data = await r.json().catch(() => ({}));
+        console.log('[email-import] resposta:', r.status, data);
         if (!r.ok || !data.success) {
           throw new Error(data.error || `Erro HTTP ${r.status}`);
         }
         if (!applyImportedHtml(data.html)) {
-          alert('HTML do ZIP inválido.');
+          setImportStatus('HTML do ZIP inválido.');
           return;
         }
+        setImportStatus('');
         alert(
-          `Importado com ${data.imageCount || 0} imagem(ns) em URL pública.\nGuarda o template e lança a campanha outra vez.`
+          `Importado com ${data.imageCount || 0} imagem(ns).\nGuarda o template e lança a campanha.`
         );
         return;
       }
       if (lower.endsWith('.html') || lower.endsWith('.htm') || (file.type && file.type.includes('html'))) {
+        setImportStatus('A ler HTML…');
         const text = await file.text();
         if (!applyImportedHtml(text)) {
-          alert('O ficheiro não parece HTML válido.');
+          setImportStatus('O ficheiro não parece HTML válido.');
+          return;
         }
+        setImportStatus('');
         return;
       }
-      alert('Usa .zip (HTML and images do BeeFree) ou .html');
+      setImportStatus('Usa .zip (HTML and images do BeeFree) ou .html');
     } catch (e) {
-      console.error(e);
-      alert(e.message || 'Erro ao importar ficheiro');
+      console.error('[email-import]', e);
+      setImportStatus(e.message || 'Erro ao importar ficheiro');
     } finally {
       setImportingPack(false);
+      pickingFileRef.current = false;
     }
   };
 
@@ -452,7 +460,11 @@ export default function SimpleEmailHtmlEditor({
             padding: 16,
             zIndex: 5
           }}
-          onClick={() => setShowImport(false)}
+          onMouseDown={(e) => {
+            // Não fechar ao escolher ficheiro (o click do diálogo caía no overlay)
+            if (pickingFileRef.current || importingPack) return;
+            if (e.target === e.currentTarget) setShowImport(false);
+          }}
         >
           <div
             style={{
@@ -466,88 +478,109 @@ export default function SimpleEmailHtmlEditor({
               padding: 16,
               boxShadow: '0 12px 40px rgba(0,0,0,0.25)'
             }}
-            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
           >
             <h4 style={{ margin: '0 0 8px', color: '#111827', fontSize: '1.05rem' }}>
               Importar HTML + imagens (BeeFree)
             </h4>
             <p style={{ margin: '0 0 12px', color: '#6b7280', fontSize: '0.85rem', lineHeight: 1.45 }}>
-              No BeeFree escolhe <strong>HTML and images</strong> (.zip). Aqui envia esse ZIP —
-              as imagens vão para o Storage em URL https (o Gmail mostra bem e não corta o email).
-              Não uses HTML colado com imagens embutidas em base64.
-              Mantém {'{{clientName}}'} no design se quiseres personalizar.
+              No BeeFree escolhe <strong>HTML and images</strong> (.zip). Aqui clica em{' '}
+              <strong>Escolher ficheiro</strong> e seleciona esse ZIP.
+              As imagens sobem para URL https (Gmail mostra sem cortar).
             </p>
 
-            <textarea
-              value={importText}
-              onChange={(e) => setImportText(e.target.value)}
-              placeholder="Cola o HTML completo aqui (opcional se fores enviar .zip)…"
-              spellCheck={false}
-              style={{
-                ...textareaStyle,
-                minHeight: 140,
-                border: '1px solid #e5e7eb',
-                borderRadius: 8,
-                marginBottom: 12
-              }}
-            />
+            {importStatus ? (
+              <div
+                style={{
+                  marginBottom: 12,
+                  padding: '10px 12px',
+                  borderRadius: 8,
+                  background: importingPack ? '#eff6ff' : '#fef2f2',
+                  color: importingPack ? '#1d4ed8' : '#b91c1c',
+                  fontSize: '0.85rem'
+                }}
+              >
+                {importStatus}
+              </div>
+            ) : null}
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 12 }}>
               <button
                 type="button"
                 disabled={importingPack}
                 onClick={() => {
-                  if (!applyImportedHtml(importText)) {
-                    alert('Cola um HTML válido ou envia o .zip do BeeFree.');
-                  }
+                  pickingFileRef.current = true;
+                  setImportStatus('');
+                  // Liberta o overlay do click fantasma do file dialog
+                  setTimeout(() => fileRef.current?.click(), 50);
                 }}
                 style={{
                   ...btnStyle,
-                  background: '#2563eb',
-                  borderColor: '#2563eb',
-                  color: '#fff',
-                  fontWeight: 600,
-                  opacity: importingPack ? 0.6 : 1
-                }}
-              >
-                Usar HTML colado
-              </button>
-              <label
-                style={{
-                  ...btnStyle,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  cursor: importingPack ? 'wait' : 'pointer',
                   background: '#059669',
                   borderColor: '#059669',
                   color: '#fff',
                   fontWeight: 600,
-                  opacity: importingPack ? 0.7 : 1
+                  opacity: importingPack ? 0.7 : 1,
+                  cursor: importingPack ? 'wait' : 'pointer',
+                  padding: '10px 16px'
                 }}
               >
-                {importingPack ? 'A importar…' : 'Enviar .zip / .html'}
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept=".zip,.html,.htm,text/html,application/zip"
-                  style={{ display: 'none' }}
-                  disabled={importingPack}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    e.target.value = '';
-                    if (f) onPickImportFile(f);
-                  }}
-                />
-              </label>
+                {importingPack ? 'A importar…' : 'Escolher ficheiro .zip / .html'}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".zip,.html,.htm,application/zip,text/html"
+                style={{ display: 'none' }}
+                disabled={importingPack}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = '';
+                  onPickImportFile(f);
+                }}
+                onCancel={() => {
+                  pickingFileRef.current = false;
+                }}
+              />
               <button
                 type="button"
                 disabled={importingPack}
                 onClick={() => setShowImport(false)}
                 style={btnStyle}
               >
-                Cancelar
+                Fechar
               </button>
             </div>
+
+            <details style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+              <summary style={{ cursor: 'pointer' }}>Ou colar só HTML (sem imagens do ZIP)</summary>
+              <textarea
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                placeholder="Cola o HTML aqui…"
+                spellCheck={false}
+                style={{
+                  ...textareaStyle,
+                  minHeight: 100,
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 8,
+                  marginTop: 8,
+                  marginBottom: 8
+                }}
+              />
+              <button
+                type="button"
+                disabled={importingPack}
+                onClick={() => {
+                  if (!applyImportedHtml(importText)) {
+                    setImportStatus('Cola um HTML válido ou envia o .zip.');
+                  }
+                }}
+                style={{ ...btnStyle, background: '#2563eb', borderColor: '#2563eb', color: '#fff' }}
+              >
+                Usar HTML colado
+              </button>
+            </details>
           </div>
         </div>
       )}
