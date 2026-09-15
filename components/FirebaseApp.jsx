@@ -11021,49 +11021,39 @@ const DashboardWithFirebase = ({
                       borderRadius: '16px',
                       padding: '24px',
                       border: '1px solid rgba(16, 185, 129, 0.2)',
-                      transition: 'all 0.2s ease',
-                      cursor: 'pointer'
+                      transition: 'all 0.2s ease'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-4px)';
                       e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.4)';
                       e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.3)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
                       e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.2)';
                       e.currentTarget.style.boxShadow = 'none';
                     }}
-                    onClick={() => {
-                      setEditingEmailTemplate(template);
-                      setEmailTemplateForm({
-                        name: template.name || '',
-                        subject: template.subject || '',
-                        body: template.body || null,
-                        html:
-                          template.html ||
-                          template.body?.html ||
-                          DEFAULT_EMAIL_HTML
-                      });
-                      setShowEmailTemplateModal(true);
-                    }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                      <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#ffffff', margin: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', gap: 8 }}>
+                      <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#ffffff', margin: 0, flex: 1 }}>
                         {template.name || t('emailPage.unnamed')}
                       </h3>
                       <button
-                        onClick={(e) => {
+                        type="button"
+                        title="Excluir template"
+                        onClick={async (e) => {
+                          e.preventDefault();
                           e.stopPropagation();
-                          deleteEmailTemplate(template.id);
+                          await deleteEmailTemplate(template.id);
                         }}
                         style={{
-                          backgroundColor: 'transparent',
-                          border: 'none',
-                          color: '#ef4444',
+                          backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                          border: '1px solid rgba(239, 68, 68, 0.4)',
+                          color: '#f87171',
                           cursor: 'pointer',
-                          padding: '4px',
-                          fontSize: '1.25rem'
+                          padding: '6px 10px',
+                          fontSize: '1rem',
+                          borderRadius: 8,
+                          lineHeight: 1,
+                          flexShrink: 0
                         }}
                       >
                         🗑️
@@ -11072,15 +11062,50 @@ const DashboardWithFirebase = ({
                     <p style={{ fontSize: '0.875rem', color: '#9ca3af', marginBottom: '12px' }}>
                       {t('emailPage.subject')}: {template.subject || t('emailPage.noSubject')}
                     </p>
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap' }}>
                       <button
+                        type="button"
                         onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setEditingEmailTemplate(template);
+                          setEmailTemplateForm({
+                            name: template.name || '',
+                            subject: template.subject || '',
+                            body: template.body || null,
+                            html:
+                              template.html ||
+                              template.body?.html ||
+                              DEFAULT_EMAIL_HTML
+                          });
+                          setShowEmailTemplateModal(true);
+                        }}
+                        style={{
+                          flex: 1,
+                          minWidth: 100,
+                          backgroundColor: 'transparent',
+                          color: '#93c5fd',
+                          border: '1px solid rgba(96,165,250,0.45)',
+                          padding: '8px 16px',
+                          borderRadius: '8px',
+                          fontSize: '0.875rem',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
                           e.stopPropagation();
                           setEditingEmailTemplate(template);
                           setShowSendEmailModal(true);
                         }}
                         style={{
                           flex: 1,
+                          minWidth: 100,
                           backgroundColor: '#10b981',
                           color: 'white',
                           border: 'none',
@@ -11105,8 +11130,6 @@ const DashboardWithFirebase = ({
                 isOpen={showEmailTemplateModal}
                 onClose={handleCloseEmailTemplateModal}
                 template={editingEmailTemplate}
-                formData={emailTemplateForm}
-                setFormData={setEmailTemplateForm}
                 database={database}
                 showToast={showToast}
                 t={t}
