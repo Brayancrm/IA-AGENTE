@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useFirebase } from '../hooks/useFirebase';
 
 export const DEFAULT_EMAIL_HTML = wrapEmailHtml(
   'Olá {{clientName}},\n\nEsta é uma mensagem de {{companyName}}.\n\nPodes editar este texto normalmente.\n\nAté breve!'
@@ -233,6 +234,12 @@ export default function SimpleEmailHtmlEditor({
   height = '100%',
   userId = null
 }) {
+  const { auth } = useFirebase();
+  const resolvedUserId =
+    userId ||
+    auth?.currentUser?.uid ||
+    null;
+
   const [advanced, setAdvanced] = useState(false);
   const [plain, setPlain] = useState(
     () =>
@@ -287,15 +294,19 @@ export default function SimpleEmailHtmlEditor({
     console.log('[email-import] ficheiro:', file.name, file.size, file.type);
     try {
       if (lower.endsWith('.zip')) {
-        if (!userId) {
-          setImportStatus('Erro: sessão sem userId. Recarrega a página.');
+        const uid = resolvedUserId;
+        if (!uid) {
+          setImportStatus(
+            'Erro: sessão sem userId. Faz logout/login ou recarrega a página (Ctrl+F5).'
+          );
+          console.warn('[email-import] userId prop=', userId, 'auth=', auth?.currentUser?.uid);
           return;
         }
         setImportingPack(true);
         setImportStatus('A enviar ZIP e a subir imagens… (pode demorar)');
         const fd = new FormData();
         fd.append('file', file);
-        fd.append('userId', userId);
+        fd.append('userId', uid);
         const r = await fetch(`${BACKEND_URL}/api/email/templates/import-zip`, {
           method: 'POST',
           body: fd

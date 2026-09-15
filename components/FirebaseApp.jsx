@@ -11177,6 +11177,7 @@ const DashboardWithFirebase = ({
                 database={database}
                 showToast={showToast}
                 t={t}
+                userId={user?.uid || user?.id || null}
               />
             )}
 
