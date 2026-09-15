@@ -86,6 +86,7 @@ import {
   Bell
 } from 'lucide-react';
 import MasterNotificationsPage from './MasterNotificationsPage';
+import MasterEmailCampaignsPage from './MasterEmailCampaignsPage';
 
 const MOBILE_SUPPORT_WA_URL =
   'https://wa.me/5561991442727?text=Ol%C3%A1%2C%20vim%20pela%20ferramenta%20DadosIA.';
@@ -11468,6 +11469,15 @@ const DashboardWithFirebase = ({
                 database={database}
                 user={user}
                 showToast={showToast}
+              />
+            )}
+
+            {user?.isMaster && (
+              <MasterEmailCampaignsPage
+                user={user}
+                isMobile={isMobile}
+                showToast={showToast}
+                emailTemplates={emailTemplates}
               />
             )}
           </div>

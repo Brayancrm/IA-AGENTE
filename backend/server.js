@@ -10,6 +10,7 @@ const os = require('os');
 const FormData = require('form-data');
 const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
 const Stripe = require('stripe');
+const { registerEmailCampaignRoutes } = require('./emailCampaigns');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // Inicializar AWS SES
@@ -2246,10 +2247,18 @@ async function createSessionInternal(userId) {
   const disconnectReason = String(sessionMeta.disconnectReason || '').trim();
   const needsFreshQr =
     !!sessionMeta.needsRelink ||
-    ['disconnectedMobile', 'UNPAIRED', 'CONFLICT', 'UNLAUNCHED', 'qrReadFail', 'manual'].includes(
+    ['disconnectedMobile', 'UNPAIRED', 'CONFLICT', 'UNLAUNCHED', 'qrReadFail'].includes(
       disconnectReason
+    );
+  const shouldCloseExisting =
+    !!sessionMeta.needsRelink ||
+    sessionMeta.status !== 'connected' ||
+    ['disconnectedMobile', 'UNPAIRED', 'CONFLICT', 'UNLAUNCHED', 'qrReadFail', 'error'].includes(
+      sessionMeta.status
     ) ||
-    sessionMeta.status === 'disconnected';
+    ['disconnectedMobile', 'UNPAIRED', 'CONFLICT', 'UNLAUNCHED', 'qrReadFail'].includes(
+      disconnectReason
+    );
 
   const tokensBase = getWppTokensBase();
   ensureDirSync(tokensBase);
@@ -2258,7 +2267,7 @@ async function createSessionInternal(userId) {
     // Cliente em memória mas Firebase diz desligado → fechar e gerar QR de novo
     const existingClient = activeClients.get(userId);
     if (existingClient) {
-      if (needsFreshQr || sessionMeta.status !== 'connected') {
+      if (shouldCloseExisting) {
         console.log('🔄 [WPP] Sessão em memória inválida — a fechar para novo QR');
         await forceCloseWhatsAppSession(userId);
         await sleepMs(2000);
@@ -12304,6 +12313,13 @@ app.post('/api/email/send', async (req, res) => {
       });
     }
 
+    if (!(await isRegisteredMasterUid(userId))) {
+      return res.status(403).json({
+        success: false,
+        error: 'Apenas o utilizador master pode enviar emails.'
+      });
+    }
+
     if (!sesClient) {
       return res.status(500).json({ 
         success: false, 
@@ -12467,4 +12483,7 @@ app.post('/api/email/send', async (req, res) => {
     });
   }
 });
+
+// Campanhas em massa (master) + tracking + SNS
+registerEmailCampaignRoutes(app, { db, sesClient });
 

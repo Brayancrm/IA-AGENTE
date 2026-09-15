@@ -83,6 +83,22 @@
     "email_sends": {
       ".read": "auth != null",
       ".write": "auth != null"
+    },
+    "email_campaigns": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "email_campaign_recipients": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "email_unsubscribes": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "email_ses_messages": {
+      ".read": false,
+      ".write": false
     }
   }
 }
