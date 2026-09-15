@@ -1016,15 +1016,32 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
       let finalSubject = subject;
       let finalName = name;
 
-      if (templateId && (!finalHtml || !finalSubject)) {
+      // Preferir HTML do Firebase (evita POST enorme com imagens base64)
+      if (templateId) {
         const tSnap = await db.ref(`email_templates/${templateId}`).once('value');
         if (!tSnap.exists()) {
           return res.status(404).json({ success: false, error: 'Template não encontrado' });
         }
         const t = tSnap.val();
-        finalHtml = finalHtml || t.html;
+        finalHtml = t.html || finalHtml;
         finalSubject = finalSubject || t.subject;
         finalName = finalName || t.name;
+      }
+
+      if (!finalHtml) {
+        return res.status(400).json({
+          success: false,
+          error: 'Template sem HTML. Guarde o template com HTML antes de lançar.'
+        });
+      }
+
+      // Aviso SES: emails muito grandes falham (~10MB)
+      const htmlBytes = Buffer.byteLength(String(finalHtml), 'utf8');
+      if (htmlBytes > 9 * 1024 * 1024) {
+        return res.status(400).json({
+          success: false,
+          error: `HTML do template demasiado grande (${Math.round(htmlBytes / 1024 / 1024)}MB). Reduz imagens ou usa URLs em vez de embutir no ZIP.`
+        });
       }
 
       const result = await createAndQueueCampaign(db, sesClient, {

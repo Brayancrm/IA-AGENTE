@@ -249,8 +249,8 @@ export default function MasterEmailCampaignsPage({
           userId: user.uid,
           templateId: selectedTemplate.id,
           name: name.trim() || selectedTemplate.name,
-          subject: subject.trim(),
-          html: selectedTemplate.html,
+          subject: subject.trim() || selectedTemplate.subject,
+          // Não enviar html aqui — evita 413; o backend lê do Firebase
           audience: audienceMode === 'list' ? `list:${selectedListId}` : audienceMode,
           listId: audienceMode === 'list' ? selectedListId : null
         };
