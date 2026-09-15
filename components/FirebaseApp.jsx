@@ -85,7 +85,8 @@ import {
   Bell
 } from 'lucide-react';
 import MasterNotificationsPage from './MasterNotificationsPage';
-import SimpleEmailHtmlEditor, { DEFAULT_EMAIL_HTML } from './SimpleEmailHtmlEditor';
+import { DEFAULT_EMAIL_HTML } from './SimpleEmailHtmlEditor';
+import EmailTemplateModal from './EmailTemplateModal';
 import MasterEmailCampaignsPage from './MasterEmailCampaignsPage';
 
 const MOBILE_SUPPORT_WA_URL =
@@ -3950,225 +3951,8 @@ const DashboardWithFirebase = ({
     };
   }, [user?.isMaster, user?.uid, currentPage, BACKEND_URL, t]);
   
-  // Componente EmailTemplateModal — editor HTML simples (sem BeeFree)
-  const EmailTemplateModal = ({ isOpen, onClose, template, formData, setFormData, database, showToast }) => {
-    if (!isOpen) return null;
+  // EmailTemplateModal: components/EmailTemplateModal.jsx
 
-    const saveTemplate = async () => {
-      if (!database) {
-        showToast(t('toast.databaseUnavailable'), 'error');
-        return;
-      }
-      if (!formData.name?.trim() || !formData.subject?.trim()) {
-        showToast(t('toast.templateNameSubjectRequired'), 'error');
-        return;
-      }
-      const html = String(formData.html || '').trim();
-      if (!html) {
-        showToast('O HTML do email é obrigatório', 'error');
-        return;
-      }
-
-      try {
-        const templateToSave = {
-          name: formData.name.trim(),
-          subject: formData.subject.trim(),
-          html,
-          body: { html },
-          createdAt: template?.createdAt || new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-
-        if (template?.id) {
-          await set(ref(database, `email_templates/${template.id}`), templateToSave);
-          showToast(t('toast.templateUpdated'), 'success');
-        } else {
-          await set(push(ref(database, 'email_templates')), templateToSave);
-          showToast(t('toast.templateCreated'), 'success');
-        }
-        onClose();
-      } catch (error) {
-        console.error('❌ Erro ao salvar template:', error);
-        showToast(
-          `${t('toast.flowTemplateSaveError')}: ${error.message || t('toast.unknownError')}`,
-          'error'
-        );
-      }
-    };
-
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.9)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000,
-          padding: '20px'
-        }}
-        onClick={onClose}
-      >
-        <div
-          style={{
-            backgroundColor: '#1a1f36',
-            borderRadius: '24px',
-            padding: '32px',
-            maxWidth: '95vw',
-            maxHeight: '95vh',
-            width: '100%',
-            height: '100%',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-            border: '1px solid rgba(16, 185, 129, 0.2)',
-            position: 'relative',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#ffffff', margin: 0 }}>
-              {template ? 'Editar Template' : 'Criar Template'}
-            </h2>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                backgroundColor: 'transparent',
-                border: 'none',
-                color: '#9ca3af',
-                fontSize: '1.5rem',
-                cursor: 'pointer',
-                width: '32px',
-                height: '32px'
-              }}
-            >
-              ×
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '16px' }}>
-            <div>
-              <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-                Nome do Template
-              </label>
-              <input
-                type="text"
-                value={formData.name || ''}
-                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                placeholder="Ex: Boas-vindas"
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  borderRadius: '12px',
-                  border: '2px solid rgba(255,255,255,0.1)',
-                  backgroundColor: '#0f1419',
-                  color: '#ffffff',
-                  fontSize: '1rem',
-                  boxSizing: 'border-box',
-                  outline: 'none'
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-                Assunto do Email
-              </label>
-              <input
-                type="text"
-                value={formData.subject || ''}
-                onChange={(e) => setFormData((prev) => ({ ...prev, subject: e.target.value }))}
-                placeholder="Ex: Bem-vindo ao {{companyName}}!"
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  borderRadius: '12px',
-                  border: '2px solid rgba(255,255,255,0.1)',
-                  backgroundColor: '#0f1419',
-                  color: '#ffffff',
-                  fontSize: '1rem',
-                  boxSizing: 'border-box',
-                  outline: 'none'
-                }}
-              />
-              <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px', margin: 0 }}>
-                Variáveis: {'{{clientName}}'}, {'{{clientEmail}}'}, {'{{companyName}}'}
-              </p>
-            </div>
-          </div>
-
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-              Corpo do Email
-            </label>
-            <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: '0 0 8px' }}>
-              Escreve à esquerda. A direita é só pré-visualização.
-            </p>
-            <div
-              style={{
-                flex: 1,
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '12px',
-                overflow: 'hidden',
-                minHeight: 280
-              }}
-            >
-              <SimpleEmailHtmlEditor
-                value={formData.html || ''}
-                onChange={(html) => setFormData((prev) => ({ ...prev, html }))}
-                height="100%"
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                flex: 1,
-                backgroundColor: '#6b7280',
-                color: 'white',
-                padding: '12px 24px',
-                borderRadius: '12px',
-                border: 'none',
-                cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '1rem'
-              }}
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={saveTemplate}
-              style={{
-                flex: 1,
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                color: 'white',
-                padding: '12px 24px',
-                borderRadius: '12px',
-                border: 'none',
-                cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '1rem',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-              }}
-            >
-              {template ? 'Atualizar Template' : 'Salvar Template'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }; 
   // Função auxiliar para padding responsivo
   const getResponsivePadding = () => isMobile ? '16px' : '40px';
   const getResponsiveFontSize = (desktopSize) => isMobile ? `${parseFloat(desktopSize) * 0.75}rem` : desktopSize;
@@ -11325,6 +11109,7 @@ const DashboardWithFirebase = ({
                 setFormData={setEmailTemplateForm}
                 database={database}
                 showToast={showToast}
+                t={t}
               />
             )}
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 export const DEFAULT_EMAIL_HTML = wrapEmailHtml(
   'Olá {{clientName}},\n\nEsta é uma mensagem de {{companyName}}.\n\nPodes editar este texto normalmente.\n\nAté breve!'
@@ -55,9 +55,8 @@ function escapeHtml(s) {
 
 function htmlToPlainHint(html) {
   if (!html) return '';
-  // Se já for o nosso HTML gerado, tenta extrair texto; senão devolve vazio para o user reescrever
   try {
-    const withoutTags = String(html)
+    return String(html)
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<\/p>/gi, '\n\n')
       .replace(/<[^>]+>/g, '')
@@ -68,33 +67,35 @@ function htmlToPlainHint(html) {
       .replace(/&quot;/g, '"')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
-    return withoutTags;
   } catch {
     return '';
   }
 }
 
 /**
- * Editor simples: escreve texto normal → gera HTML do email.
- * Modo avançado opcional para colar HTML completo.
+ * Editor simples: texto normal → HTML.
+ * Estado local + debounce para não perder foco a cada tecla.
  */
 export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%' }) {
   const [advanced, setAdvanced] = useState(false);
-  const [plain, setPlain] = useState(() => htmlToPlainHint(value) || 'Olá {{clientName}},\n\nEsta é uma mensagem de {{companyName}}.\n\nAté breve!');
+  const [plain, setPlain] = useState(
+    () =>
+      htmlToPlainHint(value) ||
+      'Olá {{clientName}},\n\nEsta é uma mensagem de {{companyName}}.\n\nAté breve!'
+  );
+  const [htmlDraft, setHtmlDraft] = useState(() => value || '');
+  const [previewHtml, setPreviewHtml] = useState(() => value || wrapEmailHtml(plain));
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
-  const previewHtml = useMemo(() => {
-    if (advanced) return value || '';
-    return wrapEmailHtml(plain);
-  }, [advanced, value, plain]);
-
-  const onPlainChange = (text) => {
-    setPlain(text);
-    onChange?.(wrapEmailHtml(text));
-  };
-
-  const onHtmlChange = (html) => {
-    onChange?.(html);
-  };
+  useEffect(() => {
+    const html = advanced ? htmlDraft : wrapEmailHtml(plain);
+    const t = setTimeout(() => {
+      setPreviewHtml(html);
+      onChangeRef.current?.(html);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [plain, htmlDraft, advanced]);
 
   return (
     <div
@@ -124,11 +125,9 @@ export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%'
           type="button"
           onClick={() => {
             if (!advanced) {
-              // ao entrar em avançado, usa HTML atual
-              onChange?.(wrapEmailHtml(plain));
+              setHtmlDraft(wrapEmailHtml(plain));
             } else {
-              // ao sair, tenta voltar a texto
-              const hint = htmlToPlainHint(value);
+              const hint = htmlToPlainHint(htmlDraft || value);
               if (hint) setPlain(hint);
             }
             setAdvanced((v) => !v);
@@ -158,8 +157,8 @@ export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%'
         <div style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid #e5e7eb', minHeight: 0 }}>
           {advanced ? (
             <textarea
-              value={value || ''}
-              onChange={(e) => onHtmlChange(e.target.value)}
+              value={htmlDraft}
+              onChange={(e) => setHtmlDraft(e.target.value)}
               spellCheck={false}
               placeholder="Cole o HTML completo do email…"
               style={textareaStyle}
@@ -167,7 +166,7 @@ export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%'
           ) : (
             <textarea
               value={plain}
-              onChange={(e) => onPlainChange(e.target.value)}
+              onChange={(e) => setPlain(e.target.value)}
               spellCheck
               placeholder={'Olá {{clientName}},\n\nEscreve aqui a tua mensagem…'}
               style={{ ...textareaStyle, fontFamily: 'inherit', fontSize: '0.95rem' }}
