@@ -4106,8 +4106,11 @@ const DashboardWithFirebase = ({
 
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
             <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-              Corpo do Email (HTML)
+              Corpo do Email
             </label>
+            <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: '0 0 8px' }}>
+              Escreve à esquerda. A direita é só pré-visualização.
+            </p>
             <div
               style={{
                 flex: 1,
