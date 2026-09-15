@@ -984,6 +984,27 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
     }
   });
 
+  app.delete('/api/email/templates/:userId/:templateId', async (req, res) => {
+    try {
+      const { userId, templateId } = req.params;
+      if (!(await assertMaster(db, userId))) {
+        return res.status(403).json({ success: false, error: 'Apenas master' });
+      }
+      if (!templateId) {
+        return res.status(400).json({ success: false, error: 'templateId obrigatório' });
+      }
+      const snap = await db.ref(`email_templates/${templateId}`).once('value');
+      if (!snap.exists()) {
+        return res.status(404).json({ success: false, error: 'Template não encontrado' });
+      }
+      await db.ref(`email_templates/${templateId}`).remove();
+      res.json({ success: true });
+    } catch (e) {
+      console.error('❌ delete template:', e);
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
   app.post('/api/email/campaigns', async (req, res) => {
     try {
       const { userId, name, subject, html, templateId, audience, listId } = req.body || {};

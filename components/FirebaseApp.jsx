@@ -2324,23 +2324,14 @@ const FirebaseApp = () => {
     }
   };
 
-  const deleteEmailTemplate = async (templateId) => {
-    if (!user || !database || !user.isMaster) {
-      showToast(t('toast.masterOnlyDeleteTemplates'), 'error');
-      return;
-    }
-
-    if (!window.confirm('Tem certeza que deseja excluir este template? Esta ação não pode ser desfeita.')) {
-      return;
-    }
-
+  const deleteEmailTemplateLegacy = async (templateId) => {
+    // Mantido no FirebaseApp antigo; o Dashboard usa a versão com API.
+    console.warn('deleteEmailTemplateLegacy chamado — use DashboardWithFirebase');
+    if (!templateId) return;
     try {
-      const templateRef = ref(database, `email_templates/${templateId}`);
-      await remove(templateRef);
-      showToast(t('toast.emailTemplateDeleted'), 'success');
-    } catch (error) {
-      console.error('Erro ao deletar template:', error);
-      showToast(`${t('toast.emailTemplateDeleteError')}: ${error.message}`, 'error');
+      if (database) await remove(ref(database, `email_templates/${templateId}`));
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -3565,9 +3556,9 @@ const DashboardWithFirebase = ({
   const [reportsData, setReportsData] = useState(null);
   const [reportsLoading, setReportsLoading] = useState(false);
 
-  const BACKEND_URL = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BACKEND_URL
-    ? process.env.NEXT_PUBLIC_BACKEND_URL
-    : 'http://localhost:3001';
+  const BACKEND_URL =
+    (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BACKEND_URL) ||
+    'https://ia-agente-production.up.railway.app';
 
   const normalizePlanKeyClient = useCallback((v) => {
     return String(v || '')
@@ -4135,6 +4126,59 @@ const DashboardWithFirebase = ({
     setEmailTemplateForm({ name: '', subject: '', body: null, html: DEFAULT_EMAIL_HTML });
   }, []); // Sem dependências - função sempre a mesma
   
+  const deleteEmailTemplate = async (templateId) => {
+    if (!user?.uid || !user?.isMaster) {
+      showToast(t('toast.masterOnlyDeleteTemplates') || 'Apenas master', 'error');
+      return;
+    }
+    if (!templateId) {
+      showToast('Template inválido', 'error');
+      return;
+    }
+    if (!window.confirm('Tem certeza que deseja excluir este template? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    // Optimistic: tira da lista já
+    setEmailTemplates((prev) => prev.filter((x) => x.id !== templateId));
+
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/email/templates/${user.uid}/${templateId}`, {
+        method: 'DELETE'
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data.success) {
+        throw new Error(data.error || `Erro HTTP ${r.status}`);
+      }
+      if (editingEmailTemplate?.id === templateId) {
+        setEditingEmailTemplate(null);
+        setShowEmailTemplateModal(false);
+        setShowSendEmailModal(false);
+      }
+      showToast(t('toast.emailTemplateDeleted') || 'Template excluído', 'success');
+    } catch (error) {
+      console.error('Erro ao deletar template:', error);
+      // Recarrega lista se falhou
+      try {
+        if (database) {
+          const snap = await get(ref(database, 'email_templates'));
+          if (snap.exists()) {
+            const templatesData = snap.val();
+            setEmailTemplates(
+              Object.keys(templatesData).map((key) => ({ id: key, ...templatesData[key] }))
+            );
+          }
+        }
+      } catch (_) {
+        /* ignore */
+      }
+      showToast(
+        `${t('toast.emailTemplateDeleteError') || 'Erro ao excluir'}: ${error.message}`,
+        'error'
+      );
+    }
+  };
+
   // Listener para Email Templates (movido para dentro do DashboardWithFirebase)
   useEffect(() => {
     if (!user || !database || !user.isMaster) return;
