@@ -50,6 +50,12 @@ As regras que você mostrou na foto (com `whatsapp_sessions`, `conversations`, `
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    // Imagens de email (BeeFree) — leitura pública para Gmail/mobile
+    match /email-assets/{allPaths=**} {
+      allow read: if true;
+      allow write: if false; // só Admin SDK
+    }
+
     // Permitir upload de fotos de perfil para usuários autenticados
     match /user_photos/{userId}/{allPaths=**} {
       // Permitir leitura para o próprio usuário

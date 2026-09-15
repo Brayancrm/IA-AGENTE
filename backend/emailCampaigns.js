@@ -103,14 +103,25 @@ async function htmlPackFromZipBuffer(buffer, userId) {
       metadata: {
         contentType: mime,
         cacheControl: 'public, max-age=31536000',
+        contentDisposition: 'inline',
         metadata: {
           firebaseStorageDownloadTokens: token
         }
       }
     });
-    const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(
-      dest
-    )}?alt=media&token=${token}`;
+
+    // URL pública simples — Gmail mobile falha mais com firebasestorage...?token=
+    let publicUrl = `https://storage.googleapis.com/${bucket.name}/${dest}`;
+    try {
+      await file.makePublic();
+    } catch (pubErr) {
+      console.warn(
+        `⚠️ [email-template] makePublic falhou (${fileName}): ${pubErr.message} — a usar URL com token`
+      );
+      publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(
+        dest
+      )}?alt=media&token=${token}`;
+    }
 
     const norm = normalizeZipPath(imgPath);
     const relFromHtml = normalizeZipPath(
