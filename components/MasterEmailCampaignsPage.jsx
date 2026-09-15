@@ -289,6 +289,39 @@ export default function MasterEmailCampaignsPage({
 
   const stats = detail?.campaign?.stats || {};
 
+  const downloadListTemplate = (format = 'csv') => {
+    const rows = [
+      ['email', 'nome'],
+      ['joao@email.com', 'João Silva'],
+      ['maria@email.com', 'Maria Santos'],
+      ['cliente@empresa.com', 'Carlos']
+    ];
+
+    if (format === 'xlsx') {
+      // CSV com BOM também abre bem no Excel; evita dependência extra no browser
+      format = 'csv';
+    }
+
+    const csv = rows
+      .map((r) =>
+        r
+          .map((cell) => {
+            const s = String(cell ?? '');
+            return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+          })
+          .join(',')
+      )
+      .join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'modelo-lista-emails.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast?.('Modelo descarregado (email + nome na mesma linha)', 'success');
+  };
+
   return (
     <div style={{ marginTop: 32 }}>
       {/* Importação */}
@@ -301,14 +334,80 @@ export default function MasterEmailCampaignsPage({
           marginBottom: 24
         }}
       >
-        <h3 style={{ margin: '0 0 8px', color: '#fff', fontSize: '1.15rem' }}>
-          Importar lista (CSV / Excel / ODS)
-        </h3>
-        <p style={{ margin: '0 0 16px', color: '#9ca3af', fontSize: '0.875rem' }}>
-          Até ~100 mil emails. Colunas: <code style={{ color: '#93c5fd' }}>email</code> (obrigatório) e{' '}
-          <code style={{ color: '#93c5fd' }}>name</code>/<code style={{ color: '#93c5fd' }}>nome</code>{' '}
-          (opcional). Duplicados são removidos. Aceita .csv, .xlsx, .xls e .ods.
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'space-between',
+            gap: 12,
+            alignItems: 'flex-start',
+            marginBottom: 8
+          }}
+        >
+          <h3 style={{ margin: 0, color: '#fff', fontSize: '1.15rem' }}>
+            Importar lista (CSV / Excel / ODS)
+          </h3>
+          <button
+            type="button"
+            onClick={() => downloadListTemplate('csv')}
+            style={{
+              background: 'transparent',
+              border: '1px solid rgba(96,165,250,0.5)',
+              color: '#93c5fd',
+              borderRadius: 10,
+              padding: '8px 14px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontSize: '0.85rem'
+            }}
+          >
+            Baixar modelo da planilha
+          </button>
+        </div>
+
+        <p style={{ margin: '0 0 12px', color: '#9ca3af', fontSize: '0.875rem' }}>
+          Até ~100 mil emails. Cada linha = 1 pessoa: a coluna{' '}
+          <code style={{ color: '#93c5fd' }}>nome</code> da mesma linha é usada em{' '}
+          <code style={{ color: '#6ee7b7' }}>{'{{clientName}}'}</code> no template.
+          Duplicados são removidos. Aceita .csv, .xlsx, .xls e .ods.
         </p>
+
+        <div
+          style={{
+            background: '#0f172a',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 10,
+            padding: 12,
+            marginBottom: 16,
+            overflowX: 'auto'
+          }}
+        >
+          <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: 8 }}>
+            Exemplo (nome e email na mesma linha):
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', color: '#e5e7eb' }}>
+            <thead>
+              <tr style={{ color: '#93c5fd', textAlign: 'left' }}>
+                <th style={{ padding: '6px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>email</th>
+                <th style={{ padding: '6px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>nome</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ padding: '6px 8px' }}>joao@email.com</td>
+                <td style={{ padding: '6px 8px' }}>João Silva</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '6px 8px' }}>maria@email.com</td>
+                <td style={{ padding: '6px 8px' }}>Maria Santos</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style={{ fontSize: '0.75rem', color: '#6ee7b7', marginTop: 8 }}>
+            No email: Olá {'{{clientName}}'} → “Olá João Silva” / “Olá Maria Santos”
+          </div>
+        </div>
+
         <div
           style={{
             display: 'grid',
