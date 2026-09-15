@@ -143,7 +143,7 @@ try {
     storageBucket:
       process.env.FIREBASE_STORAGE_BUCKET ||
       process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
-      'ia-agente-b2f46.appspot.com'
+      'ia-agente-b2f46.firebasestorage.app'
   });
   console.log('✅ Firebase Admin inicializado');
   console.log('   Storage bucket:', admin.app().options.storageBucket);
