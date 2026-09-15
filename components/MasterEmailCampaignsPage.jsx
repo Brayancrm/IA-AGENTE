@@ -207,7 +207,7 @@ export default function MasterEmailCampaignsPage({
     }
   };
 
-  const launch = async () => {
+  const launch = () => {
     if (!user?.uid) return;
     if (!selectedTemplate?.html) {
       showToast?.('Escolha um template com HTML exportado (guarde o template no editor).', 'error');
@@ -241,32 +241,38 @@ export default function MasterEmailCampaignsPage({
       return;
     }
 
+    // Liberta o UI (reduz aviso INP) antes do pedido de rede
     setCreating(true);
-    try {
-      const body = {
-        userId: user.uid,
-        templateId: selectedTemplate.id,
-        name: name.trim() || selectedTemplate.name,
-        subject: subject.trim(),
-        html: selectedTemplate.html,
-        audience: audienceMode === 'list' ? `list:${selectedListId}` : audienceMode,
-        listId: audienceMode === 'list' ? selectedListId : null
-      };
-      const r = await fetch(`${BACKEND_URL}/api/email/campaigns`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      const data = await r.json();
-      if (!data.success) throw new Error(data.error || 'Falha ao criar campanha');
-      showToast?.(`Campanha na fila: ${Number(data.total).toLocaleString('pt-PT')} emails`, 'success');
-      await loadCampaigns();
-      if (data.campaignId) await loadDetail(data.campaignId);
-    } catch (e) {
-      showToast?.(e.message || 'Erro', 'error');
-    } finally {
-      setCreating(false);
-    }
+    setTimeout(async () => {
+      try {
+        const body = {
+          userId: user.uid,
+          templateId: selectedTemplate.id,
+          name: name.trim() || selectedTemplate.name,
+          subject: subject.trim(),
+          html: selectedTemplate.html,
+          audience: audienceMode === 'list' ? `list:${selectedListId}` : audienceMode,
+          listId: audienceMode === 'list' ? selectedListId : null
+        };
+        const r = await fetch(`${BACKEND_URL}/api/email/campaigns`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await r.json();
+        if (!data.success) throw new Error(data.error || 'Falha ao criar campanha');
+        showToast?.(
+          `Campanha na fila: ${Number(data.total).toLocaleString('pt-PT')} emails`,
+          'success'
+        );
+        await loadCampaigns();
+        if (data.campaignId) await loadDetail(data.campaignId);
+      } catch (e) {
+        showToast?.(e.message || 'Erro', 'error');
+      } finally {
+        setCreating(false);
+      }
+    }, 0);
   };
 
   const cancel = async (campaignId) => {
@@ -284,6 +290,74 @@ export default function MasterEmailCampaignsPage({
       if (selectedId === campaignId) loadDetail(campaignId);
     } catch (e) {
       showToast?.(e.message, 'error');
+    }
+  };
+
+  const deleteCampaign = async (campaignId, e) => {
+    e?.stopPropagation?.();
+    if (!window.confirm('Apagar esta campanha do histórico?')) return;
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/email/campaigns/${user.uid}/${campaignId}`, {
+        method: 'DELETE'
+      });
+      const data = await r.json();
+      if (!data.success) throw new Error(data.error || 'Erro');
+      showToast?.('Campanha apagada', 'success');
+      if (selectedId === campaignId) {
+        setSelectedId(null);
+        setDetail(null);
+      }
+      loadCampaigns();
+    } catch (err) {
+      showToast?.(err.message, 'error');
+    }
+  };
+
+  const clearHistory = async () => {
+    if (!campaigns.length) return;
+    if (
+      !window.confirm(
+        `Apagar todo o histórico (${campaigns.length} campanhas)? Esta ação não pode ser desfeita.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/email/campaigns/${user.uid}`, {
+        method: 'DELETE'
+      });
+      const data = await r.json();
+      if (!data.success) throw new Error(data.error || 'Erro');
+      showToast?.(`Histórico limpo (${data.deleted || 0} campanhas)`, 'success');
+      setSelectedId(null);
+      setDetail(null);
+      loadCampaigns();
+    } catch (e) {
+      showToast?.(e.message, 'error');
+    }
+  };
+
+  const downloadReport = async (campaignId) => {
+    if (!user?.uid || !campaignId) return;
+    try {
+      const r = await fetch(
+        `${BACKEND_URL}/api/email/campaigns/${user.uid}/${campaignId}/report`
+      );
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.error || `Erro ${r.status}`);
+      }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const campName = detail?.campaign?.name || campaignId;
+      a.download = `relatorio-${String(campName).replace(/[^\w\-]+/g, '_').slice(0, 40)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast?.('Relatório descarregado (nome, email, status)', 'success');
+    } catch (e) {
+      showToast?.(e.message || 'Erro ao baixar relatório', 'error');
     }
   };
 
@@ -618,7 +692,34 @@ export default function MasterEmailCampaignsPage({
         }}
       >
         <div>
-          <h4 style={{ color: '#fff', margin: '0 0 12px' }}>Histórico</h4>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 12
+            }}
+          >
+            <h4 style={{ color: '#fff', margin: 0 }}>Histórico</h4>
+            {campaigns.length > 0 && (
+              <button
+                type="button"
+                onClick={clearHistory}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(248,113,113,0.5)',
+                  color: '#fca5a5',
+                  borderRadius: 8,
+                  padding: '6px 10px',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem'
+                }}
+              >
+                Limpar histórico
+              </button>
+            )}
+          </div>
           {loading ? (
             <p style={{ color: '#9ca3af' }}>A carregar…</p>
           ) : campaigns.length === 0 ? (
@@ -626,29 +727,57 @@ export default function MasterEmailCampaignsPage({
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {campaigns.map((c) => (
-                <button
+                <div
                   key={c.id}
-                  type="button"
-                  onClick={() => loadDetail(c.id)}
                   style={{
-                    textAlign: 'left',
+                    display: 'flex',
+                    gap: 8,
+                    alignItems: 'stretch',
                     background: selectedId === c.id ? '#12261f' : '#12182b',
                     border:
                       selectedId === c.id
                         ? '1px solid rgba(16,185,129,0.5)'
                         : '1px solid rgba(255,255,255,0.08)',
                     borderRadius: 12,
-                    padding: 14,
-                    cursor: 'pointer',
-                    color: '#fff'
+                    overflow: 'hidden'
                   }}
                 >
-                  <div style={{ fontWeight: 600, marginBottom: 4 }}>{c.name || c.subject}</div>
-                  <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>
-                    {statusLabel(c.status)} · {c.stats?.sent || 0}/{c.stats?.total || 0} enviados ·{' '}
-                    {c.createdAt ? new Date(c.createdAt).toLocaleString('pt-PT') : ''}
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => loadDetail(c.id)}
+                    style={{
+                      flex: 1,
+                      textAlign: 'left',
+                      background: 'transparent',
+                      border: 'none',
+                      padding: 14,
+                      cursor: 'pointer',
+                      color: '#fff'
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>{c.name || c.subject}</div>
+                    <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>
+                      {statusLabel(c.status)} · {c.stats?.sent || 0}/{c.stats?.total || 0} enviados ·{' '}
+                      {c.createdAt ? new Date(c.createdAt).toLocaleString('pt-PT') : ''}
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    title="Apagar"
+                    onClick={(e) => deleteCampaign(c.id, e)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      borderLeft: '1px solid rgba(255,255,255,0.06)',
+                      color: '#f87171',
+                      cursor: 'pointer',
+                      padding: '0 12px',
+                      fontSize: '1rem'
+                    }}
+                  >
+                    🗑️
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -663,30 +792,59 @@ export default function MasterEmailCampaignsPage({
               padding: 16
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
               <div>
                 <h4 style={{ margin: 0, color: '#fff' }}>{detail.campaign.name}</h4>
                 <div style={{ color: '#9ca3af', fontSize: '0.85rem', marginTop: 4 }}>
                   {statusLabel(detail.campaign.status)} · {detail.campaign.subject}
                 </div>
               </div>
-              {(detail.campaign.status === 'queued' || detail.campaign.status === 'sending') && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', height: 'fit-content' }}>
                 <button
                   type="button"
-                  onClick={() => cancel(detail.campaign.id)}
+                  onClick={() => downloadReport(detail.campaign.id)}
                   style={{
                     background: 'transparent',
-                    border: '1px solid #ef4444',
+                    border: '1px solid rgba(96,165,250,0.5)',
+                    color: '#93c5fd',
+                    borderRadius: 8,
+                    padding: '8px 12px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Baixar relatório
+                </button>
+                {(detail.campaign.status === 'queued' || detail.campaign.status === 'sending') && (
+                  <button
+                    type="button"
+                    onClick={() => cancel(detail.campaign.id)}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid #ef4444',
+                      color: '#fca5a5',
+                      borderRadius: 8,
+                      padding: '8px 12px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={(e) => deleteCampaign(detail.campaign.id, e)}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid rgba(248,113,113,0.4)',
                     color: '#fca5a5',
                     borderRadius: 8,
                     padding: '8px 12px',
-                    cursor: 'pointer',
-                    height: 'fit-content'
+                    cursor: 'pointer'
                   }}
                 >
-                  Cancelar
+                  Apagar
                 </button>
-              )}
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
@@ -705,6 +863,7 @@ export default function MasterEmailCampaignsPage({
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
                 <thead>
                   <tr style={{ color: '#9ca3af', textAlign: 'left' }}>
+                    <th style={{ padding: '6px 4px' }}>Nome</th>
                     <th style={{ padding: '6px 4px' }}>Email</th>
                     <th style={{ padding: '6px 4px' }}>Estado</th>
                     <th style={{ padding: '6px 4px' }}>Enviado</th>
@@ -713,6 +872,7 @@ export default function MasterEmailCampaignsPage({
                 <tbody>
                   {(detail.recipients || []).slice(0, 100).map((r) => (
                     <tr key={r.id} style={{ borderTop: '1px solid rgba(255,255,255,0.06)', color: '#e5e7eb' }}>
+                      <td style={{ padding: '6px 4px' }}>{r.name || '—'}</td>
                       <td style={{ padding: '6px 4px' }}>{r.email}</td>
                       <td style={{ padding: '6px 4px' }}>{statusLabel(r.status)}</td>
                       <td style={{ padding: '6px 4px', color: '#9ca3af' }}>

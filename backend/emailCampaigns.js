@@ -1023,7 +1023,7 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
       res.json({
         success: true,
         campaign: { id: campaignId, ...camp },
-        recipients: recipients.slice(0, 500)
+        recipients: recipients.slice(0, 2000)
       });
     } catch (e) {
       res.status(500).json({ success: false, error: e.message });
@@ -1047,6 +1047,99 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
       });
       stopWorker(campaignId);
       res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  async function deleteCampaignData(db, campaignId) {
+    stopWorker(campaignId);
+    await db.ref(`email_campaign_recipients/${campaignId}`).remove();
+    await db.ref(`email_campaigns/${campaignId}`).remove();
+  }
+
+  app.delete('/api/email/campaigns/:userId/:campaignId', async (req, res) => {
+    try {
+      const { userId, campaignId } = req.params;
+      if (!(await assertMaster(db, userId))) {
+        return res.status(403).json({ success: false, error: 'Apenas master' });
+      }
+      const snap = await db.ref(`email_campaigns/${campaignId}`).once('value');
+      if (!snap.exists() || snap.val().masterUid !== userId) {
+        return res.status(404).json({ success: false, error: 'Campanha não encontrada' });
+      }
+      await deleteCampaignData(db, campaignId);
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  app.delete('/api/email/campaigns/:userId', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      if (!(await assertMaster(db, userId))) {
+        return res.status(403).json({ success: false, error: 'Apenas master' });
+      }
+      const snap = await db.ref('email_campaigns').once('value');
+      let deleted = 0;
+      if (snap.exists()) {
+        const entries = Object.entries(snap.val()).filter(([, c]) => c && c.masterUid === userId);
+        for (const [id] of entries) {
+          await deleteCampaignData(db, id);
+          deleted += 1;
+        }
+      }
+      res.json({ success: true, deleted });
+    } catch (e) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  app.get('/api/email/campaigns/:userId/:campaignId/report', async (req, res) => {
+    try {
+      const { userId, campaignId } = req.params;
+      if (!(await assertMaster(db, userId))) {
+        return res.status(403).json({ success: false, error: 'Apenas master' });
+      }
+      const snap = await db.ref(`email_campaigns/${campaignId}`).once('value');
+      if (!snap.exists() || snap.val().masterUid !== userId) {
+        return res.status(404).json({ success: false, error: 'Campanha não encontrada' });
+      }
+      const camp = snap.val();
+      const recSnap = await db.ref(`email_campaign_recipients/${campaignId}`).once('value');
+      const rows = [['nome', 'email', 'status', 'enviado_em', 'erro']];
+      if (recSnap.exists()) {
+        const list = Object.values(recSnap.val() || {});
+        list.sort((a, b) =>
+          String(a.sentAt || a.createdAt || '').localeCompare(String(b.sentAt || b.createdAt || ''))
+        );
+        for (const r of list) {
+          if (!r) continue;
+          rows.push([
+            r.name || '',
+            r.email || '',
+            r.status || '',
+            r.sentAt || r.openedAt || r.deliveredAt || '',
+            r.error || ''
+          ]);
+        }
+      }
+
+      const escapeCsv = (v) => {
+        const s = String(v ?? '');
+        return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const csv = '\uFEFF' + rows.map((row) => row.map(escapeCsv).join(';')).join('\n');
+      const safeName = String(camp.name || campaignId)
+        .replace(/[^\w\-]+/g, '_')
+        .slice(0, 40);
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="relatorio-${safeName}.csv"`
+      );
+      res.send(csv);
     } catch (e) {
       res.status(500).json({ success: false, error: e.message });
     }
