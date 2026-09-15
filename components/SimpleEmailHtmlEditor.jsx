@@ -77,6 +77,41 @@ function looksLikeHtml(s) {
   return /<\/?(html|body|table|div|p|span|a)\b/i.test(t) || t.includes('<!DOCTYPE');
 }
 
+/** Garante viewport + CSS fluido ao importar HTML externo (BeeFree). */
+export function normalizeImportedEmailHtml(html) {
+  let out = String(html || '');
+  if (!out.trim()) return out;
+
+  const fluidCss = `
+<style type="text/css">
+  img { max-width: 100% !important; height: auto !important; }
+  table { max-width: 100% !important; }
+  @media only screen and (max-width: 620px) {
+    .container, .wrapper, .email-container { width: 100% !important; max-width: 100% !important; }
+  }
+</style>`;
+
+  if (!/name=["']viewport["']/i.test(out)) {
+    const viewport =
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0"/>';
+    if (/<head[^>]*>/i.test(out)) {
+      out = out.replace(/<head[^>]*>/i, (m) => `${m}\n${viewport}`);
+    } else {
+      out = `<head>${viewport}</head>${out}`;
+    }
+  }
+
+  if (!/max-width:\s*100%\s*!important/.test(out)) {
+    if (/<\/head>/i.test(out)) {
+      out = out.replace(/<\/head>/i, `${fluidCss}\n</head>`);
+    } else {
+      out = `${fluidCss}${out}`;
+    }
+  }
+
+  return out;
+}
+
 const btnStyle = {
   border: '1px solid #d1d5db',
   background: '#fff',
@@ -115,7 +150,7 @@ export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%'
   }, [plain, htmlDraft, advanced]);
 
   const applyImportedHtml = (raw) => {
-    const html = String(raw || '').trim();
+    const html = normalizeImportedEmailHtml(String(raw || '').trim());
     if (!html) return false;
     if (!looksLikeHtml(html)) return false;
     setHtmlDraft(html);

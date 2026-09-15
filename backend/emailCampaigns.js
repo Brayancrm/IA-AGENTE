@@ -76,8 +76,53 @@ function replaceVars(text, vars) {
   return out;
 }
 
-function injectTracking(html, { openUrl, unsubUrl, clickBase, campaignId, recipientId }) {
+/**
+ * Melhora HTML exportado (BeeFree etc.) para clientes móveis:
+ * viewport + imagens/tabelas fluidas. Não reescreve o design.
+ */
+function normalizeEmailHtml(html) {
   let out = String(html || '');
+  if (!out.trim()) return out;
+
+  const fluidCss = `
+<style type="text/css">
+  /* dadosIA mobile helpers */
+  img { max-width: 100% !important; height: auto !important; }
+  table { max-width: 100% !important; }
+  .rge-mobile-hide { display: none !important; }
+  @media only screen and (max-width: 620px) {
+    .container, .wrapper, .email-container { width: 100% !important; max-width: 100% !important; }
+    td, th { box-sizing: border-box !important; }
+  }
+</style>`;
+
+  if (!/name=["']viewport["']/i.test(out)) {
+    const viewport =
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0"/>';
+    if (/<head[^>]*>/i.test(out)) {
+      out = out.replace(/<head[^>]*>/i, (m) => `${m}\n${viewport}`);
+    } else if (/<html[^>]*>/i.test(out)) {
+      out = out.replace(/<html[^>]*>/i, (m) => `${m}\n<head>${viewport}</head>`);
+    } else {
+      out = `<head>${viewport}</head>${out}`;
+    }
+  }
+
+  if (!out.includes('dadosIA mobile helpers')) {
+    if (/<\/head>/i.test(out)) {
+      out = out.replace(/<\/head>/i, `${fluidCss}\n</head>`);
+    } else if (/<body[^>]*>/i.test(out)) {
+      out = out.replace(/<body[^>]*>/i, (m) => `${fluidCss}\n${m}`);
+    } else {
+      out = `${fluidCss}${out}`;
+    }
+  }
+
+  return out;
+}
+
+function injectTracking(html, { openUrl, unsubUrl, clickBase, campaignId, recipientId }) {
+  let out = normalizeEmailHtml(html);
   out = out.replace(/href\s*=\s*["'](https?:\/\/[^"']+)["']/gi, (full, url) => {
     const lower = String(url).toLowerCase();
     if (
@@ -94,7 +139,7 @@ function injectTracking(html, { openUrl, unsubUrl, clickBase, campaignId, recipi
 
   const pixel = `<img src="${openUrl}" width="1" height="1" alt="" style="display:none;width:1px;height:1px;border:0;" />`;
   const unsub = `
-<p style="margin-top:24px;font-size:12px;color:#6b7280;text-align:center;">
+<p style="margin-top:24px;font-size:12px;color:#6b7280;text-align:center;line-height:1.4;">
   Se não quiser receber estes emails,
   <a href="${unsubUrl}" style="color:#6b7280;text-decoration:underline;">cancele a inscrição</a>.
 </p>`;
