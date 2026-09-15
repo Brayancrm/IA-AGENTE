@@ -157,8 +157,8 @@ export default function MasterEmailCampaignsPage({
   const onImportFile = async (file) => {
     if (!file || !user?.uid) return;
     const lower = file.name.toLowerCase();
-    if (!lower.endsWith('.csv') && !lower.endsWith('.xlsx') && !lower.endsWith('.xls')) {
-      showToast?.('Use ficheiro .csv ou .xlsx', 'error');
+    if (!lower.endsWith('.csv') && !lower.endsWith('.xlsx') && !lower.endsWith('.xls') && !lower.endsWith('.ods')) {
+      showToast?.('Use ficheiro .csv, .xlsx ou .ods', 'error');
       return;
     }
     setImporting(true);
@@ -302,12 +302,12 @@ export default function MasterEmailCampaignsPage({
         }}
       >
         <h3 style={{ margin: '0 0 8px', color: '#fff', fontSize: '1.15rem' }}>
-          Importar lista (CSV / Excel)
+          Importar lista (CSV / Excel / ODS)
         </h3>
         <p style={{ margin: '0 0 16px', color: '#9ca3af', fontSize: '0.875rem' }}>
           Até ~100 mil emails. Colunas: <code style={{ color: '#93c5fd' }}>email</code> (obrigatório) e{' '}
           <code style={{ color: '#93c5fd' }}>name</code>/<code style={{ color: '#93c5fd' }}>nome</code>{' '}
-          (opcional). Duplicados são removidos.
+          (opcional). Duplicados são removidos. Aceita .csv, .xlsx, .xls e .ods.
         </p>
         <div
           style={{
@@ -341,7 +341,7 @@ export default function MasterEmailCampaignsPage({
             {importing ? 'A importar…' : 'Escolher ficheiro'}
             <input
               type="file"
-              accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              accept=".csv,.xlsx,.xls,.ods,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.oasis.opendocument.spreadsheet"
               style={{ display: 'none' }}
               disabled={importing}
               onChange={(e) => {

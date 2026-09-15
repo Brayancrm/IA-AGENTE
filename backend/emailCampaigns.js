@@ -885,7 +885,7 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
       if (!req.file || !req.file.buffer) {
         return res.status(400).json({
           success: false,
-          error: 'Envie um ficheiro .csv ou .xlsx no campo "file"'
+          error: 'Envie um ficheiro .csv, .xlsx ou .ods no campo "file"'
         });
       }
 
