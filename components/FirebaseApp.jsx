@@ -41,7 +41,6 @@ import {
   applyFixedApproachesToSteps
 } from '../utils/assistantWizardHelpers';
 import { useI18n } from '../contexts/I18nContext';
-import BeefreeEditor from './BeefreeEditor';
 import SetupChecklist from './SetupChecklist';
 // Unlayer Editor será carregado via script tag (embed)
 
@@ -86,6 +85,7 @@ import {
   Bell
 } from 'lucide-react';
 import MasterNotificationsPage from './MasterNotificationsPage';
+import SimpleEmailHtmlEditor, { DEFAULT_EMAIL_HTML } from './SimpleEmailHtmlEditor';
 import MasterEmailCampaignsPage from './MasterEmailCampaignsPage';
 
 const MOBILE_SUPPORT_WA_URL =
@@ -2312,7 +2312,7 @@ const FirebaseApp = () => {
 
           setShowEmailTemplateModal(false);
           setEditingEmailTemplate(null);
-          setEmailTemplateForm({ name: '', subject: '', body: null });
+          setEmailTemplateForm({ name: '', subject: '', body: null, html: DEFAULT_EMAIL_HTML });
         });
       } else {
         showToast(t('toast.editorNotReadyUnlayer'), 'error');
@@ -3950,54 +3950,51 @@ const DashboardWithFirebase = ({
     };
   }, [user?.isMaster, user?.uid, currentPage, BACKEND_URL, t]);
   
-  // Componente EmailTemplateModal (movido para dentro do DashboardWithFirebase)
-  // MIGRADO PARA BEEFREE - Editor mais estável e gratuito
-  const EmailTemplateModal = React.memo(({ isOpen, onClose, template, formData, setFormData, database, showToast }) => {
-    const beefreeEditorRef = React.useRef(null);
-    const [editorReady, setEditorReady] = useState(false);
-    
-    // API Key do Beefree
-    const beefreeClientId = process.env.NEXT_PUBLIC_BEEFREE_CLIENT_ID;
-    const beefreeClientSecret = process.env.NEXT_PUBLIC_BEEFREE_CLIENT_SECRET;
-
-    // Callback quando editor estiver pronto
-    const handleEditorReady = React.useCallback((editorInstance) => {
-      console.log('✅ Editor Beefree pronto');
-      beefreeEditorRef.current = editorInstance;
-      setEditorReady(true);
-    }, []);
-
-    // Preparar conteúdo inicial para o editor
-    const getInitialContent = React.useCallback(() => {
-      if (!template?.body) return null;
-      
-      // Se for formato Unlayer antigo, tentar extrair HTML
-      if (template.body.design) {
-        return template.body.design;
-      }
-      
-      // Se for HTML direto
-      if (template.html) {
-        return template.html;
-      }
-      
-      // Se for objeto com design
-      if (typeof template.body === 'object') {
-        return template.body;
-      }
-      
-      return null;
-    }, [template]);
-    
-    // Resetar estado quando modal fechar
-    React.useEffect(() => {
-      if (!isOpen) {
-        setEditorReady(false);
-        beefreeEditorRef.current = null;
-      }
-    }, [isOpen]);
-
+  // Componente EmailTemplateModal — editor HTML simples (sem BeeFree)
+  const EmailTemplateModal = ({ isOpen, onClose, template, formData, setFormData, database, showToast }) => {
     if (!isOpen) return null;
+
+    const saveTemplate = async () => {
+      if (!database) {
+        showToast(t('toast.databaseUnavailable'), 'error');
+        return;
+      }
+      if (!formData.name?.trim() || !formData.subject?.trim()) {
+        showToast(t('toast.templateNameSubjectRequired'), 'error');
+        return;
+      }
+      const html = String(formData.html || '').trim();
+      if (!html) {
+        showToast('O HTML do email é obrigatório', 'error');
+        return;
+      }
+
+      try {
+        const templateToSave = {
+          name: formData.name.trim(),
+          subject: formData.subject.trim(),
+          html,
+          body: { html },
+          createdAt: template?.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        if (template?.id) {
+          await set(ref(database, `email_templates/${template.id}`), templateToSave);
+          showToast(t('toast.templateUpdated'), 'success');
+        } else {
+          await set(push(ref(database, 'email_templates')), templateToSave);
+          showToast(t('toast.templateCreated'), 'success');
+        }
+        onClose();
+      } catch (error) {
+        console.error('❌ Erro ao salvar template:', error);
+        showToast(
+          `${t('toast.flowTemplateSaveError')}: ${error.message || t('toast.unknownError')}`,
+          'error'
+        );
+      }
+    };
 
     return (
       <div
@@ -4035,12 +4032,12 @@ const DashboardWithFirebase = ({
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
           <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#ffffff', margin: 0 }}>
               {template ? 'Editar Template' : 'Criar Template'}
             </h2>
             <button
+              type="button"
               onClick={onClose}
               style={{
                 backgroundColor: 'transparent',
@@ -4049,28 +4046,14 @@ const DashboardWithFirebase = ({
                 fontSize: '1.5rem',
                 cursor: 'pointer',
                 width: '32px',
-                height: '32px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '8px',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                e.target.style.color = '#ffffff';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = 'transparent';
-                e.target.style.color = '#9ca3af';
+                height: '32px'
               }}
             >
               ×
             </button>
           </div>
 
-          {/* Formulário */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '16px' }}>
             <div>
               <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
                 Nome do Template
@@ -4078,10 +4061,7 @@ const DashboardWithFirebase = ({
               <input
                 type="text"
                 value={formData.name || ''}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setFormData(prev => ({ ...prev, name: value }));
-                }}
+                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                 placeholder="Ex: Boas-vindas"
                 style={{
                   width: '100%',
@@ -4092,11 +4072,8 @@ const DashboardWithFirebase = ({
                   color: '#ffffff',
                   fontSize: '1rem',
                   boxSizing: 'border-box',
-                  outline: 'none',
-                  transition: 'border-color 0.2s ease'
+                  outline: 'none'
                 }}
-                onFocus={(e) => e.target.style.borderColor = '#10b981'}
-                onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
               />
             </div>
 
@@ -4107,10 +4084,7 @@ const DashboardWithFirebase = ({
               <input
                 type="text"
                 value={formData.subject || ''}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setFormData(prev => ({ ...prev, subject: value }));
-                }}
+                onChange={(e) => setFormData((prev) => ({ ...prev, subject: e.target.value }))}
                 placeholder="Ex: Bem-vindo ao {{companyName}}!"
                 style={{
                   width: '100%',
@@ -4121,57 +4095,39 @@ const DashboardWithFirebase = ({
                   color: '#ffffff',
                   fontSize: '1rem',
                   boxSizing: 'border-box',
-                  outline: 'none',
-                  transition: 'border-color 0.2s ease'
+                  outline: 'none'
                 }}
-                onFocus={(e) => e.target.style.borderColor = '#10b981'}
-                onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
               />
               <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px', margin: 0 }}>
-                Use variáveis: {'{{clientName}}'}, {'{{clientEmail}}'}, {'{{companyName}}'}
+                Variáveis: {'{{clientName}}'}, {'{{clientEmail}}'}, {'{{companyName}}'}
               </p>
             </div>
           </div>
 
-          {/* Editor Unlayer */}
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
             <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#ffffff' }}>
-              Corpo do Email
+              Corpo do Email (HTML)
             </label>
-            <div style={{ flex: 1, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', overflow: 'hidden', position: 'relative', backgroundColor: '#ffffff' }}>
-              {beefreeClientId && beefreeClientSecret ? (
-                <BeefreeEditor
-                  ref={beefreeEditorRef}
-                  clientId={beefreeClientId}
-                  clientSecret={beefreeClientSecret}
-                  initialContent={getInitialContent()}
-                  onReady={handleEditorReady}
-                  height="100%"
-                />
-              ) : (
-                <div style={{ 
-                  padding: '40px', 
-                  textAlign: 'center', 
-                  color: '#991b1b',
-                  backgroundColor: '#fee2e2'
-                }}>
-                  <strong>Erro:</strong> Credenciais do Beefree não configuradas.
-                  <br />
-                  <small>
-                    1. Crie conta em <a href="https://developers.beefree.io" target="_blank" rel="noopener" style={{ color: '#059669' }}>developers.beefree.io</a>
-                    <br />
-                    2. Crie uma aplicação e obtenha Client ID e Client Secret
-                    <br />
-                    3. Configure NEXT_PUBLIC_BEEFREE_CLIENT_ID e NEXT_PUBLIC_BEEFREE_CLIENT_SECRET no .env.local
-                  </small>
-                </div>
-              )}
+            <div
+              style={{
+                flex: 1,
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                minHeight: 280
+              }}
+            >
+              <SimpleEmailHtmlEditor
+                value={formData.html || ''}
+                onChange={(html) => setFormData((prev) => ({ ...prev, html }))}
+                height="100%"
+              />
             </div>
           </div>
 
-          {/* Botões */}
           <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
             <button
+              type="button"
               onClick={onClose}
               style={{
                 flex: 1,
@@ -4182,81 +4138,14 @@ const DashboardWithFirebase = ({
                 border: 'none',
                 cursor: 'pointer',
                 fontWeight: '600',
-                fontSize: '1rem',
-                transition: 'all 0.2s ease'
+                fontSize: '1rem'
               }}
             >
               Cancelar
             </button>
             <button
-              onClick={async () => {
-                if (!beefreeEditorRef.current) {
-                  showToast(t('toast.editorNotReadyWait'), 'error');
-                  return;
-                }
-
-                if (!database) {
-                  showToast(t('toast.databaseUnavailable'), 'error');
-                  return;
-                }
-
-                if (!formData.name || !formData.subject) {
-                  showToast(t('toast.templateNameSubjectRequired'), 'error');
-                  return;
-                }
-                
-                try {
-                  // Exportar HTML do editor Beefree usando método do ref
-                  if (beefreeEditorRef.current && beefreeEditorRef.current.exportHtml) {
-                    beefreeEditorRef.current.exportHtml(async (data) => {
-                      if (!data) {
-                        showToast(t('toast.editorExportRetry'), 'error');
-                        return;
-                      }
-
-                      try {
-                        // Atualizar formData com o design
-                        setFormData(prev => ({ ...prev, body: { design: data.design || data } }));
-                        
-                        // Salvar template
-                        const templateToSave = {
-                          name: formData.name.trim(),
-                          subject: formData.subject.trim(),
-                          body: { design: data.design || data }, // JSON do Beefree
-                          html: data.html, // HTML compilado
-                          createdAt: template?.createdAt || new Date().toISOString(),
-                          updatedAt: new Date().toISOString()
-                        };
-
-                        if (template) {
-                          // Atualizar template existente
-                          const templateRef = ref(database, `email_templates/${template.id}`);
-                          await set(templateRef, templateToSave);
-                          console.log('✅ Template atualizado:', template.id);
-                          showToast(t('toast.templateUpdated'), 'success');
-                        } else {
-                          // Criar novo template
-                          const templatesRef = ref(database, 'email_templates');
-                          const newTemplateRef = push(templatesRef);
-                          await set(newTemplateRef, templateToSave);
-                          console.log('✅ Template criado:', newTemplateRef.key);
-                          showToast(t('toast.templateCreated'), 'success');
-                        }
-
-                        onClose();
-                      } catch (error) {
-                        console.error('❌ Erro ao salvar template:', error);
-                        showToast(`${t('toast.flowTemplateSaveError')}: ${error.message || t('toast.unknownError')}`, 'error');
-                      }
-                    });
-                  } else {
-                    showToast(t('toast.editorNotReadyFullLoad'), 'error');
-                  }
-                } catch (error) {
-                  console.error('❌ Erro ao exportar HTML do editor:', error);
-                  showToast(`${t('toast.flowEditorExportError')}: ${error.message || t('toast.unknownError')}`, 'error');
-                }
-              }}
+              type="button"
+              onClick={saveTemplate}
               style={{
                 flex: 1,
                 background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
@@ -4267,16 +4156,7 @@ const DashboardWithFirebase = ({
                 cursor: 'pointer',
                 fontWeight: '600',
                 fontSize: '1rem',
-                transition: 'all 0.2s ease',
                 boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
               }}
             >
               {template ? 'Atualizar Template' : 'Salvar Template'}
@@ -4285,28 +4165,7 @@ const DashboardWithFirebase = ({
         </div>
       </div>
     );
-  }, (prevProps, nextProps) => {
-    // Comparação customizada para evitar re-renders desnecessários
-    // Só re-renderiza se isOpen, template ou database mudarem
-    // IGNORA mudanças em formData, showToast, setFormData e onClose para evitar reinicialização do editor
-    // Essas funções podem mudar a cada render mas não devem causar re-render do modal
-    // React.memo: retorna true se props são iguais (NÃO re-renderiza), false se diferentes (re-renderiza)
-    const propsChanged = (
-      prevProps.isOpen !== nextProps.isOpen ||
-      prevProps.template !== nextProps.template ||
-      prevProps.database !== nextProps.database
-    );
-    
-    if (propsChanged) {
-      console.log('🔄 EmailTemplateModal: Props importantes mudaram, re-renderizando');
-      return false; // Props mudaram, deve re-renderizar
-    }
-    
-    // Props importantes são iguais, NÃO re-renderiza (ignora mudanças em formData, funções, etc)
-    // Isso evita que o editor seja reinicializado quando o usuário digita
-    return true; // Props são iguais, NÃO re-renderiza
-  });
-  
+  }; 
   // Função auxiliar para padding responsivo
   const getResponsivePadding = () => isMobile ? '16px' : '40px';
   const getResponsiveFontSize = (desktopSize) => isMobile ? `${parseFloat(desktopSize) * 0.75}rem` : desktopSize;
@@ -4476,7 +4335,8 @@ const DashboardWithFirebase = ({
   const [emailTemplateForm, setEmailTemplateForm] = useState({
     name: '',
     subject: '',
-    body: null // JSON do Unlayer
+    body: null,
+    html: DEFAULT_EMAIL_HTML
   });
   const [emailSends, setEmailSends] = useState([]);
   const [showSendEmailModal, setShowSendEmailModal] = useState(false);
@@ -4485,7 +4345,7 @@ const DashboardWithFirebase = ({
   const handleCloseEmailTemplateModal = useCallback(() => {
     setShowEmailTemplateModal(false);
     setEditingEmailTemplate(null);
-    setEmailTemplateForm({ name: '', subject: '', body: null });
+    setEmailTemplateForm({ name: '', subject: '', body: null, html: DEFAULT_EMAIL_HTML });
   }, []); // Sem dependências - função sempre a mesma
   
   // Listener para Email Templates (movido para dentro do DashboardWithFirebase)
@@ -11304,7 +11164,12 @@ const DashboardWithFirebase = ({
               <button
                 onClick={() => {
                   setEditingEmailTemplate(null);
-                  setEmailTemplateForm({ name: '', subject: '', body: null });
+                  setEmailTemplateForm({
+                    name: '',
+                    subject: '',
+                    body: null,
+                    html: DEFAULT_EMAIL_HTML
+                  });
                   setShowEmailTemplateModal(true);
                 }}
                 style={{
@@ -11387,7 +11252,11 @@ const DashboardWithFirebase = ({
                       setEmailTemplateForm({
                         name: template.name || '',
                         subject: template.subject || '',
-                        body: template.body || null
+                        body: template.body || null,
+                        html:
+                          template.html ||
+                          template.body?.html ||
+                          DEFAULT_EMAIL_HTML
                       });
                       setShowEmailTemplateModal(true);
                     }}
