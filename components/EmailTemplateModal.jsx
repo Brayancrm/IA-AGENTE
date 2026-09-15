@@ -188,7 +188,8 @@ export default function EmailTemplateModal({
             Corpo do Email
           </label>
           <p style={{ fontSize: '0.8rem', color: '#9ca3af', margin: '0 0 8px' }}>
-            Escreve à esquerda. A direita é só pré-visualização.
+            Escreve à esquerda, ou usa <strong style={{ color: '#93c5fd' }}>Importar HTML</strong> para colar
+            designs do BeeFree / Really Good Emails.
           </p>
           <div
             style={{
