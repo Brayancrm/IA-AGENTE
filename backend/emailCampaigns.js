@@ -1,8 +1,11 @@
 /**
  * Campanhas de email em massa (só master) via AWS SES.
- * Tracking: delivery/bounce/complaint (SNS) + open/click (pixel + redirect) + unsubscribe.
+ * Listas importadas (CSV/XLSX) em chunks — preparado para ~50k–100k emails.
+ * Tracking: SNS + open/click + unsubscribe.
  */
 const crypto = require('crypto');
+const multer = require('multer');
+const XLSX = require('xlsx');
 const { SendEmailCommand } = require('@aws-sdk/client-ses');
 
 const TRACK_SECRET =
@@ -15,8 +18,23 @@ const SEND_INTERVAL_MS = Math.max(
   parseInt(process.env.EMAIL_CAMPAIGN_INTERVAL_MS || '120', 10) || 120
 );
 
+const LIST_CHUNK_SIZE = Math.max(
+  100,
+  parseInt(process.env.EMAIL_LIST_CHUNK_SIZE || '400', 10) || 400
+);
+
+const MAX_LIST_ROWS = Math.max(
+  1000,
+  parseInt(process.env.EMAIL_LIST_MAX_ROWS || '100000', 10) || 100000
+);
+
 /** @type {Map<string, { timer: NodeJS.Timeout|null, busy: boolean }>} */
 const campaignWorkers = new Map();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 }
+});
 
 function publicBaseUrl() {
   return String(
@@ -60,29 +78,19 @@ function replaceVars(text, vars) {
 
 function injectTracking(html, { openUrl, unsubUrl, clickBase, campaignId, recipientId }) {
   let out = String(html || '');
-
-  // Wrap http(s) links for click tracking (skip unsubscribe/mailto/tel/#)
-  out = out.replace(
-    /href\s*=\s*["'](https?:\/\/[^"']+)["']/gi,
-    (full, url) => {
-      const lower = String(url).toLowerCase();
-      if (
-        lower.includes('/api/email/t/') ||
-        lower.includes('unsubscribe') ||
-        lower.startsWith('mailto:') ||
-        lower.startsWith('tel:')
-      ) {
-        return full;
-      }
-      const token = signPayload({
-        t: 'c',
-        c: campaignId,
-        r: recipientId,
-        u: url
-      });
-      return `href="${clickBase}/api/email/t/c/${token}"`;
+  out = out.replace(/href\s*=\s*["'](https?:\/\/[^"']+)["']/gi, (full, url) => {
+    const lower = String(url).toLowerCase();
+    if (
+      lower.includes('/api/email/t/') ||
+      lower.includes('unsubscribe') ||
+      lower.startsWith('mailto:') ||
+      lower.startsWith('tel:')
+    ) {
+      return full;
     }
-  );
+    const token = signPayload({ t: 'c', c: campaignId, r: recipientId, u: url });
+    return `href="${clickBase}/api/email/t/c/${token}"`;
+  });
 
   const pixel = `<img src="${openUrl}" width="1" height="1" alt="" style="display:none;width:1px;height:1px;border:0;" />`;
   const unsub = `
@@ -114,6 +122,180 @@ async function isUnsubscribed(db, email) {
   const key = hashEmail(email);
   const snap = await db.ref(`email_unsubscribes/${key}`).once('value');
   return snap.exists();
+}
+
+function looksLikeEmail(v) {
+  const e = String(v || '').trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+}
+
+function normalizeHeader(h) {
+  return String(h || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+/** Extrai {email,name}[] de buffer CSV/XLSX */
+function parseEmailFileBuffer(buffer, originalName = '') {
+  const wb = XLSX.read(buffer, { type: 'buffer', raw: false });
+  const sheetName = wb.SheetNames[0];
+  if (!sheetName) return { rows: [], skipped: 0 };
+  const sheet = wb.Sheets[sheetName];
+  const json = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+  if (!Array.isArray(json) || !json.length) {
+    // fallback: sem header — primeira coluna = email
+    const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+    const rows = [];
+    const seen = new Set();
+    let skipped = 0;
+    for (const line of aoa || []) {
+      if (!Array.isArray(line) || !line.length) continue;
+      const email = String(line[0] || '').trim().toLowerCase();
+      if (!looksLikeEmail(email)) {
+        skipped += 1;
+        continue;
+      }
+      if (seen.has(email)) {
+        skipped += 1;
+        continue;
+      }
+      seen.add(email);
+      rows.push({
+        email,
+        name: String(line[1] || '').trim() || email.split('@')[0]
+      });
+      if (rows.length >= MAX_LIST_ROWS) break;
+    }
+    return { rows, skipped, fileName: originalName };
+  }
+
+  const headers = Object.keys(json[0] || {}).map(normalizeHeader);
+  let emailKey = Object.keys(json[0] || {}).find((k) => {
+    const h = normalizeHeader(k);
+    return h === 'email' || h === 'e-mail' || h === 'mail' || h === 'correo' || h.includes('email');
+  });
+  let nameKey = Object.keys(json[0] || {}).find((k) => {
+    const h = normalizeHeader(k);
+    return h === 'name' || h === 'nome' || h === 'nombre' || h === 'full name' || h === 'cliente';
+  });
+
+  if (!emailKey) {
+    // primeira coluna que parecer email nos dados
+    for (const k of Object.keys(json[0] || {})) {
+      const sample = json.slice(0, 20).some((r) => looksLikeEmail(r[k]));
+      if (sample) {
+        emailKey = k;
+        break;
+      }
+    }
+  }
+
+  if (!emailKey) {
+    const err = new Error(
+      'Coluna de email não encontrada. Use cabeçalho "email" (e opcional "name"/"nome").'
+    );
+    err.status = 400;
+    throw err;
+  }
+
+  const rows = [];
+  const seen = new Set();
+  let skipped = 0;
+  for (const row of json) {
+    const email = String(row[emailKey] || '').trim().toLowerCase();
+    if (!looksLikeEmail(email)) {
+      skipped += 1;
+      continue;
+    }
+    if (seen.has(email)) {
+      skipped += 1;
+      continue;
+    }
+    seen.add(email);
+    const name = nameKey ? String(row[nameKey] || '').trim() : '';
+    rows.push({ email, name: name || email.split('@')[0] });
+    if (rows.length >= MAX_LIST_ROWS) break;
+  }
+
+  return { rows, skipped, headers, fileName: originalName };
+}
+
+async function writeListChunks(db, listId, rows) {
+  const chunkCount = Math.ceil(rows.length / LIST_CHUNK_SIZE) || 0;
+  for (let i = 0; i < chunkCount; i++) {
+    const slice = rows.slice(i * LIST_CHUNK_SIZE, (i + 1) * LIST_CHUNK_SIZE);
+    const key = String(i).padStart(5, '0');
+    await db.ref(`email_list_chunks/${listId}/${key}`).set({
+      items: slice.map((r) => ({ e: r.email, n: r.name || '' })),
+      n: slice.length,
+      i
+    });
+  }
+  return chunkCount;
+}
+
+async function createListFromRows(db, { masterUid, name, rows, fileName, skipped }) {
+  const listRef = db.ref('email_lists').push();
+  const listId = listRef.key;
+  const now = new Date().toISOString();
+  await listRef.set({
+    masterUid,
+    name: name || fileName || 'Lista importada',
+    count: rows.length,
+    skipped: skipped || 0,
+    chunkSize: LIST_CHUNK_SIZE,
+    chunkCount: 0,
+    status: 'writing',
+    fileName: fileName || null,
+    createdAt: now,
+    updatedAt: now
+  });
+
+  const chunkCount = await writeListChunks(db, listId, rows);
+  await listRef.update({
+    status: 'ready',
+    chunkCount,
+    updatedAt: new Date().toISOString()
+  });
+
+  return {
+    listId,
+    count: rows.length,
+    skipped: skipped || 0,
+    chunkCount
+  };
+}
+
+async function getNextFromList(db, listId, cursor) {
+  const metaSnap = await db.ref(`email_lists/${listId}`).once('value');
+  if (!metaSnap.exists()) return { done: true };
+  const meta = metaSnap.val();
+  const chunkCount = Number(meta.chunkCount) || 0;
+  let chunk = Number(cursor?.chunk) || 0;
+  let index = Number(cursor?.index) || 0;
+
+  while (chunk < chunkCount) {
+    const key = String(chunk).padStart(5, '0');
+    const snap = await db.ref(`email_list_chunks/${listId}/${key}`).once('value');
+    const data = snap.val();
+    const items = (data && data.items) || [];
+    if (index < items.length) {
+      const item = items[index];
+      return {
+        done: false,
+        contact: {
+          email: item.e,
+          name: item.n || String(item.e || '').split('@')[0]
+        },
+        nextCursor: { chunk, index: index + 1 }
+      };
+    }
+    chunk += 1;
+    index = 0;
+  }
+  return { done: true };
 }
 
 async function collectAudience(db, masterUid, audience) {
@@ -164,7 +346,7 @@ async function collectAudience(db, masterUid, audience) {
 
 async function bumpStat(db, campaignId, field, delta = 1) {
   const ref = db.ref(`email_campaigns/${campaignId}/stats/${field}`);
-  await ref.transaction((cur) => (Number(cur) || 0) + delta);
+  await ref.transaction((cur) => Math.max(0, (Number(cur) || 0) + delta));
 }
 
 function stopWorker(campaignId) {
@@ -199,6 +381,40 @@ function startWorker(db, sesClient, campaignId) {
         });
       }
 
+      // Campanha baseada em lista importada (cursor) — não pré-carrega 50k nós
+      if (camp.listId) {
+        const next = await getNextFromList(db, camp.listId, camp.listCursor || { chunk: 0, index: 0 });
+        if (next.done) {
+          await db.ref(`email_campaigns/${campaignId}`).update({
+            status: 'completed',
+            completedAt: new Date().toISOString()
+          });
+          stopWorker(campaignId);
+          return;
+        }
+
+        await db.ref(`email_campaigns/${campaignId}`).update({
+          listCursor: next.nextCursor
+        });
+
+        const contact = next.contact;
+        const recRef = db.ref(`email_campaign_recipients/${campaignId}`).push();
+        const recipientId = recRef.key;
+        const recipient = {
+          email: contact.email,
+          name: contact.name || '',
+          source: 'list',
+          listId: camp.listId,
+          status: 'queued',
+          createdAt: new Date().toISOString()
+        };
+        await recRef.set(recipient);
+        await bumpStat(db, campaignId, 'queued', 1);
+        await sendOne(db, sesClient, campaignId, camp, recipientId, recipient);
+        return;
+      }
+
+      // Campanha clássica (CRM/users) com recipients pré-criados
       const recSnap = await db.ref(`email_campaign_recipients/${campaignId}`).once('value');
       if (!recSnap.exists()) {
         await db.ref(`email_campaigns/${campaignId}`).update({
@@ -364,7 +580,32 @@ function encodeSesKey(messageId) {
     .slice(0, 200);
 }
 
-async function createAndQueueCampaign(db, sesClient, { masterUid, name, subject, html, audience }) {
+async function writeRecipientsInBatches(db, campaignId, filtered, now) {
+  const BATCH = 400;
+  for (let i = 0; i < filtered.length; i += BATCH) {
+    const slice = filtered.slice(i, i + BATCH);
+    const updates = {};
+    slice.forEach((r) => {
+      const id = db.ref(`email_campaign_recipients/${campaignId}`).push().key;
+      updates[`email_campaign_recipients/${campaignId}/${id}`] = {
+        email: r.email,
+        name: r.name || '',
+        phoneKey: r.phoneKey || null,
+        uid: r.uid || null,
+        source: r.source || 'crm',
+        status: 'queued',
+        createdAt: now
+      };
+    });
+    await db.ref().update(updates);
+  }
+}
+
+async function createAndQueueCampaign(
+  db,
+  sesClient,
+  { masterUid, name, subject, html, audience, listId }
+) {
   if (!(await assertMaster(db, masterUid))) {
     const err = new Error('Apenas o utilizador master pode criar campanhas.');
     err.status = 403;
@@ -374,6 +615,54 @@ async function createAndQueueCampaign(db, sesClient, { masterUid, name, subject,
     const err = new Error('Assunto e HTML são obrigatórios.');
     err.status = 400;
     throw err;
+  }
+
+  const campRef = db.ref('email_campaigns').push();
+  const campaignId = campRef.key;
+  const now = new Date().toISOString();
+
+  // Lista importada
+  if (listId || (typeof audience === 'string' && audience.startsWith('list:'))) {
+    const lid = listId || String(audience).slice(5);
+    const listSnap = await db.ref(`email_lists/${lid}`).once('value');
+    if (!listSnap.exists() || listSnap.val().masterUid !== masterUid) {
+      const err = new Error('Lista não encontrada.');
+      err.status = 404;
+      throw err;
+    }
+    const list = listSnap.val();
+    if (list.status !== 'ready' || !list.count) {
+      const err = new Error('Lista ainda não está pronta ou está vazia.');
+      err.status = 400;
+      throw err;
+    }
+
+    await campRef.set({
+      masterUid,
+      name: name || subject.slice(0, 80),
+      subject,
+      html,
+      audience: `list:${lid}`,
+      listId: lid,
+      listCursor: { chunk: 0, index: 0 },
+      status: 'queued',
+      createdAt: now,
+      stats: {
+        total: list.count,
+        queued: 0,
+        sent: 0,
+        delivered: 0,
+        bounced: 0,
+        complained: 0,
+        opened: 0,
+        clicked: 0,
+        failed: 0,
+        unsubscribed: 0
+      }
+    });
+
+    startWorker(db, sesClient, campaignId);
+    return { campaignId, total: list.count, status: 'queued', listId: lid };
   }
 
   const recipients = await collectAudience(db, masterUid, audience || 'crm');
@@ -387,10 +676,6 @@ async function createAndQueueCampaign(db, sesClient, { masterUid, name, subject,
     err.status = 400;
     throw err;
   }
-
-  const campRef = db.ref('email_campaigns').push();
-  const campaignId = campRef.key;
-  const now = new Date().toISOString();
 
   await campRef.set({
     masterUid,
@@ -414,21 +699,7 @@ async function createAndQueueCampaign(db, sesClient, { masterUid, name, subject,
     }
   });
 
-  const updates = {};
-  filtered.forEach((r) => {
-    const id = db.ref(`email_campaign_recipients/${campaignId}`).push().key;
-    updates[`email_campaign_recipients/${campaignId}/${id}`] = {
-      email: r.email,
-      name: r.name || '',
-      phoneKey: r.phoneKey || null,
-      uid: r.uid || null,
-      source: r.source || 'crm',
-      status: 'queued',
-      createdAt: now
-    };
-  });
-  await db.ref().update(updates);
-
+  await writeRecipientsInBatches(db, campaignId, filtered, now);
   startWorker(db, sesClient, campaignId);
 
   return {
@@ -509,7 +780,6 @@ async function handleSesSns(db, body) {
     }
   }
 
-  // Confirmação de subscription SNS
   if (msg.Type === 'SubscriptionConfirmation' && msg.SubscribeURL) {
     try {
       const axios = require('axios');
@@ -546,11 +816,9 @@ async function handleSesSns(db, body) {
   const recRef = db.ref(`email_campaign_recipients/${campaignId}/${recipientId}`);
   const now = new Date().toISOString();
 
-  if (type === 'Delivery' || type === 'DeliveryDelay') {
-    if (type === 'Delivery') {
-      await recRef.update({ status: 'delivered', deliveredAt: now });
-      await bumpStat(db, campaignId, 'delivered');
-    }
+  if (type === 'Delivery') {
+    await recRef.update({ status: 'delivered', deliveredAt: now });
+    await bumpStat(db, campaignId, 'delivered');
   } else if (type === 'Bounce') {
     const bounce = notification.bounce || {};
     await recRef.update({
@@ -583,9 +851,97 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
     'base64'
   );
 
+  // ---- Listas importadas ----
+  app.get('/api/email/lists/:userId', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      if (!(await assertMaster(db, userId))) {
+        return res.status(403).json({ success: false, error: 'Apenas master' });
+      }
+      const snap = await db.ref('email_lists').once('value');
+      const lists = [];
+      if (snap.exists()) {
+        Object.entries(snap.val()).forEach(([id, L]) => {
+          if (L && L.masterUid === userId) lists.push({ id, ...L });
+        });
+      }
+      lists.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+      res.json({ success: true, lists });
+    } catch (e) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  app.post('/api/email/lists/import', upload.single('file'), async (req, res) => {
+    try {
+      const userId = String(req.body?.userId || '').trim();
+      const name = String(req.body?.name || '').trim();
+      if (!userId) {
+        return res.status(400).json({ success: false, error: 'userId obrigatório' });
+      }
+      if (!(await assertMaster(db, userId))) {
+        return res.status(403).json({ success: false, error: 'Apenas master' });
+      }
+      if (!req.file || !req.file.buffer) {
+        return res.status(400).json({
+          success: false,
+          error: 'Envie um ficheiro .csv ou .xlsx no campo "file"'
+        });
+      }
+
+      const parsed = parseEmailFileBuffer(req.file.buffer, req.file.originalname || '');
+      if (!parsed.rows.length) {
+        return res.status(400).json({
+          success: false,
+          error: 'Nenhum email válido encontrado no ficheiro'
+        });
+      }
+
+      console.log(
+        `📥 [email-list] import ${parsed.rows.length} emails (skip ${parsed.skipped}) por ${userId.slice(0, 8)}…`
+      );
+
+      const result = await createListFromRows(db, {
+        masterUid: userId,
+        name: name || req.file.originalname || 'Lista importada',
+        rows: parsed.rows,
+        fileName: req.file.originalname,
+        skipped: parsed.skipped
+      });
+
+      res.json({
+        success: true,
+        ...result,
+        maxRows: MAX_LIST_ROWS,
+        truncated: parsed.rows.length >= MAX_LIST_ROWS
+      });
+    } catch (e) {
+      console.error('❌ list import:', e);
+      res.status(e.status || 500).json({ success: false, error: e.message });
+    }
+  });
+
+  app.delete('/api/email/lists/:userId/:listId', async (req, res) => {
+    try {
+      const { userId, listId } = req.params;
+      if (!(await assertMaster(db, userId))) {
+        return res.status(403).json({ success: false, error: 'Apenas master' });
+      }
+      const snap = await db.ref(`email_lists/${listId}`).once('value');
+      if (!snap.exists() || snap.val().masterUid !== userId) {
+        return res.status(404).json({ success: false, error: 'Lista não encontrada' });
+      }
+      await db.ref(`email_list_chunks/${listId}`).remove();
+      await db.ref(`email_lists/${listId}`).remove();
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
   app.post('/api/email/campaigns', async (req, res) => {
     try {
-      const { userId, name, subject, html, templateId, audience } = req.body || {};
+      const { userId, name, subject, html, templateId, audience, listId } = req.body || {};
       if (!userId) {
         return res.status(400).json({ success: false, error: 'userId obrigatório' });
       }
@@ -610,7 +966,8 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
         name: finalName,
         subject: finalSubject,
         html: finalHtml,
-        audience: audience || 'crm'
+        audience: audience || 'crm',
+        listId: listId || null
       });
 
       res.json({ success: true, ...result });
@@ -660,7 +1017,9 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
           recipients.push({ id, ...r });
         });
       }
-      recipients.sort((a, b) => String(b.sentAt || b.createdAt || '').localeCompare(String(a.sentAt || a.createdAt || '')));
+      recipients.sort((a, b) =>
+        String(b.sentAt || b.createdAt || '').localeCompare(String(a.sentAt || a.createdAt || ''))
+      );
       res.json({
         success: true,
         campaign: { id: campaignId, ...camp },
@@ -697,9 +1056,27 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
     try {
       const { userId } = req.params;
       const audience = req.query.audience || 'crm';
+      const listId = req.query.listId || null;
       if (!(await assertMaster(db, userId))) {
         return res.status(403).json({ success: false, error: 'Apenas master' });
       }
+
+      if (listId || (typeof audience === 'string' && audience.startsWith('list:'))) {
+        const lid = listId || String(audience).slice(5);
+        const snap = await db.ref(`email_lists/${lid}`).once('value');
+        if (!snap.exists() || snap.val().masterUid !== userId) {
+          return res.status(404).json({ success: false, error: 'Lista não encontrada' });
+        }
+        const count = Number(snap.val().count) || 0;
+        return res.json({
+          success: true,
+          total: count,
+          unsubscribed: null,
+          sendable: count,
+          note: 'Unsubs são filtrados no envio (não pré-contados na lista)'
+        });
+      }
+
       const list = await collectAudience(db, userId, audience);
       let unsub = 0;
       for (const r of list) {
@@ -716,7 +1093,6 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
     }
   });
 
-  // Tracking: open pixel
   app.get('/api/email/t/o/:token', async (req, res) => {
     try {
       await handleOpen(db, req.params.token);
@@ -726,12 +1102,11 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
     res.set({
       'Content-Type': 'image/gif',
       'Cache-Control': 'no-store, no-cache, must-revalidate, private',
-      'Pragma': 'no-cache'
+      Pragma: 'no-cache'
     });
     res.send(PIXEL_GIF);
   });
 
-  // Tracking: click
   app.get('/api/email/t/c/:token', async (req, res) => {
     try {
       const url = await handleClick(db, req.params.token);
@@ -744,7 +1119,6 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
     res.status(404).send('Link inválido');
   });
 
-  // Unsubscribe
   app.get('/api/email/t/u/:token', async (req, res) => {
     try {
       const result = await handleUnsubscribe(db, req.params.token);
@@ -766,7 +1140,6 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
     res.status(400).type('html').send('<p>Link de cancelamento inválido ou expirado.</p>');
   });
 
-  // SES → SNS webhook
   app.post('/api/email/ses-sns', async (req, res) => {
     try {
       const result = await handleSesSns(db, req.body);
@@ -777,7 +1150,6 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
     }
   });
 
-  // Resume workers for queued/sending campaigns after restart
   setTimeout(async () => {
     try {
       const snap = await db.ref('email_campaigns').once('value');

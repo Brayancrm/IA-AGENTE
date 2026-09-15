@@ -99,6 +99,14 @@
     "email_ses_messages": {
       ".read": false,
       ".write": false
+    },
+    "email_lists": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "email_list_chunks": {
+      ".read": "auth != null",
+      ".write": "auth != null"
     }
   }
 }

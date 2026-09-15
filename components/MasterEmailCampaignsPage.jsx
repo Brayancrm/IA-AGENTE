@@ -30,6 +30,8 @@ function statusLabel(s) {
     completed: 'Concluída',
     cancelled: 'Cancelada',
     draft: 'Rascunho',
+    ready: 'Pronta',
+    writing: 'A gravar',
     sent: 'Enviado',
     delivered: 'Entregue',
     opened: 'Aberto',
@@ -48,15 +50,19 @@ export default function MasterEmailCampaignsPage({
   emailTemplates = []
 }) {
   const [campaigns, setCampaigns] = useState([]);
+  const [lists, setLists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(null);
-  const [audience, setAudience] = useState('crm');
+  const [audienceMode, setAudienceMode] = useState('list'); // list | crm | users | all
+  const [selectedListId, setSelectedListId] = useState('');
   const [counts, setCounts] = useState({ sendable: 0, total: 0, unsubscribed: 0 });
   const [templateId, setTemplateId] = useState('');
   const [name, setName] = useState('');
   const [subject, setSubject] = useState('');
+  const [listName, setListName] = useState('');
 
   const selectedTemplate = useMemo(
     () => emailTemplates.find((t) => t.id === templateId) || null,
@@ -76,18 +82,36 @@ export default function MasterEmailCampaignsPage({
     }
   }, [user?.uid]);
 
+  const loadLists = useCallback(async () => {
+    if (!user?.uid) return;
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/email/lists/${user.uid}`);
+      const data = await r.json();
+      if (data.success) {
+        setLists(data.lists || []);
+        if (!selectedListId && data.lists?.length) {
+          setSelectedListId(data.lists[0].id);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [user?.uid, selectedListId]);
+
   const loadCounts = useCallback(async () => {
     if (!user?.uid) return;
     try {
-      const r = await fetch(
-        `${BACKEND_URL}/api/email/audience-count/${user.uid}?audience=${encodeURIComponent(audience)}`
-      );
+      let url = `${BACKEND_URL}/api/email/audience-count/${user.uid}?audience=${encodeURIComponent(audienceMode)}`;
+      if (audienceMode === 'list' && selectedListId) {
+        url = `${BACKEND_URL}/api/email/audience-count/${user.uid}?listId=${encodeURIComponent(selectedListId)}`;
+      }
+      const r = await fetch(url);
       const data = await r.json();
       if (data.success) setCounts(data);
     } catch (_) {
       /* ignore */
     }
-  }, [user?.uid, audience]);
+  }, [user?.uid, audienceMode, selectedListId]);
 
   const loadDetail = useCallback(
     async (campaignId) => {
@@ -108,7 +132,8 @@ export default function MasterEmailCampaignsPage({
 
   useEffect(() => {
     loadCampaigns();
-  }, [loadCampaigns]);
+    loadLists();
+  }, [loadCampaigns, loadLists]);
 
   useEffect(() => {
     loadCounts();
@@ -129,6 +154,59 @@ export default function MasterEmailCampaignsPage({
     return () => clearInterval(id);
   }, [selectedId, loadCampaigns, loadDetail]);
 
+  const onImportFile = async (file) => {
+    if (!file || !user?.uid) return;
+    const lower = file.name.toLowerCase();
+    if (!lower.endsWith('.csv') && !lower.endsWith('.xlsx') && !lower.endsWith('.xls')) {
+      showToast?.('Use ficheiro .csv ou .xlsx', 'error');
+      return;
+    }
+    setImporting(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('userId', user.uid);
+      fd.append('name', listName.trim() || file.name.replace(/\.(csv|xlsx|xls)$/i, ''));
+
+      const r = await fetch(`${BACKEND_URL}/api/email/lists/import`, {
+        method: 'POST',
+        body: fd
+      });
+      const data = await r.json();
+      if (!data.success) throw new Error(data.error || 'Falha no import');
+      showToast?.(
+        `Lista importada: ${data.count.toLocaleString('pt-PT')} emails` +
+          (data.skipped ? ` (${data.skipped} ignorados)` : '') +
+          (data.truncated ? ' — atingiu o limite máximo' : ''),
+        'success'
+      );
+      setListName('');
+      await loadLists();
+      setSelectedListId(data.listId);
+      setAudienceMode('list');
+    } catch (e) {
+      showToast?.(e.message || 'Erro no import', 'error');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const deleteList = async (listId) => {
+    if (!window.confirm('Apagar esta lista permanentemente?')) return;
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/email/lists/${user.uid}/${listId}`, {
+        method: 'DELETE'
+      });
+      const data = await r.json();
+      if (!data.success) throw new Error(data.error || 'Erro');
+      showToast?.('Lista apagada', 'success');
+      if (selectedListId === listId) setSelectedListId('');
+      loadLists();
+    } catch (e) {
+      showToast?.(e.message, 'error');
+    }
+  };
+
   const launch = async () => {
     if (!user?.uid) return;
     if (!selectedTemplate?.html) {
@@ -139,13 +217,25 @@ export default function MasterEmailCampaignsPage({
       showToast?.('Assunto obrigatório', 'error');
       return;
     }
+    if (audienceMode === 'list' && !selectedListId) {
+      showToast?.('Selecione ou importe uma lista', 'error');
+      return;
+    }
     if (!counts.sendable) {
       showToast?.('Nenhum destinatário enviável nesta audiência', 'error');
       return;
     }
+    const label =
+      audienceMode === 'list'
+        ? 'lista importada'
+        : audienceMode === 'crm'
+          ? 'CRM'
+          : audienceMode === 'users'
+            ? 'Utilizadores'
+            : 'Todos';
     if (
       !window.confirm(
-        `Enviar campanha para ~${counts.sendable} emails (${audience === 'crm' ? 'CRM' : audience === 'users' ? 'Utilizadores' : 'Todos'})?`
+        `Enviar campanha para ~${Number(counts.sendable).toLocaleString('pt-PT')} emails (${label})?\n\nListas grandes são enviadas em fila (pode demorar).`
       )
     ) {
       return;
@@ -153,21 +243,23 @@ export default function MasterEmailCampaignsPage({
 
     setCreating(true);
     try {
+      const body = {
+        userId: user.uid,
+        templateId: selectedTemplate.id,
+        name: name.trim() || selectedTemplate.name,
+        subject: subject.trim(),
+        html: selectedTemplate.html,
+        audience: audienceMode === 'list' ? `list:${selectedListId}` : audienceMode,
+        listId: audienceMode === 'list' ? selectedListId : null
+      };
       const r = await fetch(`${BACKEND_URL}/api/email/campaigns`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.uid,
-          templateId: selectedTemplate.id,
-          name: name.trim() || selectedTemplate.name,
-          subject: subject.trim(),
-          html: selectedTemplate.html,
-          audience
-        })
+        body: JSON.stringify(body)
       });
       const data = await r.json();
       if (!data.success) throw new Error(data.error || 'Falha ao criar campanha');
-      showToast?.(`Campanha na fila: ${data.total} emails`, 'success');
+      showToast?.(`Campanha na fila: ${Number(data.total).toLocaleString('pt-PT')} emails`, 'success');
       await loadCampaigns();
       if (data.campaignId) await loadDetail(data.campaignId);
     } catch (e) {
@@ -199,6 +291,129 @@ export default function MasterEmailCampaignsPage({
 
   return (
     <div style={{ marginTop: 32 }}>
+      {/* Importação */}
+      <div
+        style={{
+          backgroundColor: '#1a1f36',
+          border: '1px solid rgba(96,165,250,0.3)',
+          borderRadius: 16,
+          padding: isMobile ? 16 : 24,
+          marginBottom: 24
+        }}
+      >
+        <h3 style={{ margin: '0 0 8px', color: '#fff', fontSize: '1.15rem' }}>
+          Importar lista (CSV / Excel)
+        </h3>
+        <p style={{ margin: '0 0 16px', color: '#9ca3af', fontSize: '0.875rem' }}>
+          Até ~100 mil emails. Colunas: <code style={{ color: '#93c5fd' }}>email</code> (obrigatório) e{' '}
+          <code style={{ color: '#93c5fd' }}>name</code>/<code style={{ color: '#93c5fd' }}>nome</code>{' '}
+          (opcional). Duplicados são removidos.
+        </p>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : '1fr auto',
+            gap: 12,
+            alignItems: 'end',
+            marginBottom: 16
+          }}
+        >
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>Nome da lista</span>
+            <input
+              value={listName}
+              onChange={(e) => setListName(e.target.value)}
+              style={inputStyle}
+              placeholder="Ex: Leads março 2026"
+            />
+          </label>
+          <label
+            style={{
+              background: importing ? '#374151' : 'linear-gradient(135deg,#3b82f6,#2563eb)',
+              color: '#fff',
+              borderRadius: 10,
+              padding: '12px 18px',
+              fontWeight: 600,
+              cursor: importing ? 'wait' : 'pointer',
+              textAlign: 'center'
+            }}
+          >
+            {importing ? 'A importar…' : 'Escolher ficheiro'}
+            <input
+              type="file"
+              accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              style={{ display: 'none' }}
+              disabled={importing}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (f) onImportFile(f);
+              }}
+            />
+          </label>
+        </div>
+
+        {lists.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {lists.map((L) => (
+              <div
+                key={L.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  alignItems: 'center',
+                  background: selectedListId === L.id ? '#0f1c33' : '#12182b',
+                  border:
+                    selectedListId === L.id
+                      ? '1px solid rgba(96,165,250,0.5)'
+                      : '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 10,
+                  padding: '10px 12px'
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedListId(L.id);
+                    setAudienceMode('list');
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#e5e7eb',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    flex: 1
+                  }}
+                >
+                  <div style={{ fontWeight: 600 }}>{L.name}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>
+                    {Number(L.count || 0).toLocaleString('pt-PT')} emails · {statusLabel(L.status)}
+                    {L.fileName ? ` · ${L.fileName}` : ''}
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteList(L.id)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#f87171',
+                    cursor: 'pointer',
+                    fontSize: '1.1rem'
+                  }}
+                  title="Apagar lista"
+                >
+                  🗑️
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Campanha */}
       <div
         style={{
           backgroundColor: '#1a1f36',
@@ -212,8 +427,8 @@ export default function MasterEmailCampaignsPage({
           Campanhas em massa (Master)
         </h3>
         <p style={{ margin: '0 0 20px', color: '#9ca3af', fontSize: '0.9rem' }}>
-          Envio via AWS SES com fila, métricas de entrega/abertura/clique e link de cancelamento.
-          Configure SNS → <code style={{ color: '#6ee7b7' }}>/api/email/ses-sns</code> para delivery/bounce.
+          Listas grandes usam fila com cursor (não carregam 50k de uma vez). Tracking: aberturas/cliques;
+          delivery/bounce via SNS → <code style={{ color: '#6ee7b7' }}>/api/email/ses-sns</code>.
         </p>
 
         <div
@@ -243,12 +458,35 @@ export default function MasterEmailCampaignsPage({
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>Audiência</span>
-            <select value={audience} onChange={(e) => setAudience(e.target.value)} style={selectStyle}>
+            <select
+              value={audienceMode}
+              onChange={(e) => setAudienceMode(e.target.value)}
+              style={selectStyle}
+            >
+              <option value="list">Lista importada (CSV/Excel)</option>
               <option value="crm">Clientes CRM com email</option>
               <option value="users">Utilizadores registados</option>
               <option value="all">CRM + Utilizadores</option>
             </select>
           </label>
+
+          {audienceMode === 'list' && (
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, gridColumn: isMobile ? 'auto' : '1 / -1' }}>
+              <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>Lista</span>
+              <select
+                value={selectedListId}
+                onChange={(e) => setSelectedListId(e.target.value)}
+                style={selectStyle}
+              >
+                <option value="">Selecionar lista…</option>
+                {lists.map((L) => (
+                  <option key={L.id} value={L.id}>
+                    {L.name} ({Number(L.count || 0).toLocaleString('pt-PT')})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>Nome da campanha</span>
@@ -263,9 +501,9 @@ export default function MasterEmailCampaignsPage({
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 16 }}>
           <div style={{ color: '#d1d5db', fontSize: '0.9rem' }}>
-            Enviáveis: <strong style={{ color: '#34d399' }}>{counts.sendable}</strong>
-            {' · '}Total: {counts.total}
-            {' · '}Unsub: {counts.unsubscribed}
+            Enviáveis: <strong style={{ color: '#34d399' }}>{Number(counts.sendable || 0).toLocaleString('pt-PT')}</strong>
+            {' · '}Total: {Number(counts.total || 0).toLocaleString('pt-PT')}
+            {counts.unsubscribed != null ? ` · Unsub: ${counts.unsubscribed}` : ''}
           </div>
           <button
             type="button"
