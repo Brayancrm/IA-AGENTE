@@ -112,6 +112,108 @@ export function normalizeImportedEmailHtml(html) {
   return out;
 }
 
+function mimeFromPath(path) {
+  const p = String(path || '').toLowerCase();
+  if (p.endsWith('.png')) return 'image/png';
+  if (p.endsWith('.jpg') || p.endsWith('.jpeg')) return 'image/jpeg';
+  if (p.endsWith('.gif')) return 'image/gif';
+  if (p.endsWith('.webp')) return 'image/webp';
+  if (p.endsWith('.svg')) return 'image/svg+xml';
+  if (p.endsWith('.bmp')) return 'image/bmp';
+  return 'application/octet-stream';
+}
+
+function normalizeZipPath(p) {
+  return String(p || '')
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/^\/+/, '');
+}
+
+/**
+ * BeeFree "HTML and images" → ZIP com index.html + pasta images/.
+ * Embute imagens como data-URI para o email funcionar no SES/Gmail.
+ */
+export async function htmlPackFromZip(file) {
+  const JSZip = (await import('jszip')).default;
+  const zip = await JSZip.loadAsync(file);
+  const entries = Object.keys(zip.files || {}).filter((k) => !zip.files[k].dir);
+
+  const htmlEntry =
+    entries.find((k) => /(^|\/)index\.html?$/i.test(k)) ||
+    entries.find((k) => /\.html?$/i.test(k) && !/__MACOSX/i.test(k));
+
+  if (!htmlEntry) {
+    throw new Error('ZIP sem ficheiro HTML (procura index.html)');
+  }
+
+  let html = await zip.files[htmlEntry].async('string');
+  const htmlDir = htmlEntry.includes('/')
+    ? htmlEntry.slice(0, htmlEntry.lastIndexOf('/') + 1)
+    : '';
+
+  const imageEntries = entries.filter((k) =>
+    /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(k) && !/__MACOSX/i.test(k)
+  );
+
+  // path relativo (várias formas) → data URI
+  const dataUriByRel = new Map();
+
+  for (const imgPath of imageEntries) {
+    const base64 = await zip.files[imgPath].async('base64');
+    const mime = mimeFromPath(imgPath);
+    const dataUri = `data:${mime};base64,${base64}`;
+    const norm = normalizeZipPath(imgPath);
+    const relFromHtml = normalizeZipPath(
+      htmlDir && norm.startsWith(htmlDir) ? norm.slice(htmlDir.length) : norm
+    );
+    const fileName = norm.split('/').pop();
+
+    [norm, relFromHtml, `./${relFromHtml}`, fileName, `images/${fileName}`]
+      .filter(Boolean)
+      .forEach((key) => dataUriByRel.set(key.toLowerCase(), dataUri));
+  }
+
+  const replaceRef = (ref) => {
+    const raw = String(ref || '').trim();
+    if (!raw || /^data:/i.test(raw) || /^https?:\/\//i.test(raw) || /^cid:/i.test(raw)) {
+      return raw;
+    }
+    const cleaned = normalizeZipPath(raw.split('?')[0].split('#')[0]);
+    const hit =
+      dataUriByRel.get(cleaned.toLowerCase()) ||
+      dataUriByRel.get(cleaned.split('/').pop().toLowerCase());
+    return hit || raw;
+  };
+
+  html = html.replace(
+    /(src|href)\s*=\s*(["'])([^"']+)\2/gi,
+    (full, attr, quote, ref) => {
+      if (attr.toLowerCase() === 'href' && !/\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(ref)) {
+        return full;
+      }
+      const next = replaceRef(ref);
+      return `${attr}=${quote}${next}${quote}`;
+    }
+  );
+
+  html = html.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi, (full, q, ref) => {
+    const next = replaceRef(ref);
+    return `url(${q || ''}${next}${q || ''})`;
+  });
+
+  html = html.replace(
+    /background\s*=\s*(["'])([^"']+)\1/gi,
+    (full, quote, ref) => `background=${quote}${replaceRef(ref)}${quote}`
+  );
+
+  return {
+    html: normalizeImportedEmailHtml(html),
+    imageCount: imageEntries.length,
+    htmlFile: htmlEntry
+  };
+}
+
 const btnStyle = {
   border: '1px solid #d1d5db',
   background: '#fff',
@@ -136,6 +238,7 @@ export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%'
   const [previewHtml, setPreviewHtml] = useState(() => value || wrapEmailHtml(plain));
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
+  const [importingPack, setImportingPack] = useState(false);
   const fileRef = useRef(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -162,20 +265,35 @@ export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%'
     return true;
   };
 
-  const onPickHtmlFile = async (file) => {
+  const onPickImportFile = async (file) => {
     if (!file) return;
     const lower = file.name.toLowerCase();
-    if (!lower.endsWith('.html') && !lower.endsWith('.htm') && file.type && !file.type.includes('html')) {
-      alert('Usa um ficheiro .html');
-      return;
-    }
     try {
-      const text = await file.text();
-      if (!applyImportedHtml(text)) {
-        alert('O ficheiro não parece HTML válido.');
+      if (lower.endsWith('.zip')) {
+        setImportingPack(true);
+        const pack = await htmlPackFromZip(file);
+        if (!applyImportedHtml(pack.html)) {
+          alert('HTML do ZIP inválido.');
+          return;
+        }
+        alert(
+          `Importado: ${pack.htmlFile} + ${pack.imageCount} imagem(ns) embutidas.\nGuarda o template e testa no telemóvel.`
+        );
+        return;
       }
+      if (lower.endsWith('.html') || lower.endsWith('.htm') || (file.type && file.type.includes('html'))) {
+        const text = await file.text();
+        if (!applyImportedHtml(text)) {
+          alert('O ficheiro não parece HTML válido.');
+        }
+        return;
+      }
+      alert('Usa .zip (HTML + imagens do BeeFree) ou .html');
     } catch (e) {
-      alert(e.message || 'Erro ao ler ficheiro');
+      console.error(e);
+      alert(e.message || 'Erro ao importar ficheiro');
+    } finally {
+      setImportingPack(false);
     }
   };
 
@@ -311,22 +429,23 @@ export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%'
             onClick={(e) => e.stopPropagation()}
           >
             <h4 style={{ margin: '0 0 8px', color: '#111827', fontSize: '1.05rem' }}>
-              Importar HTML (BeeFree / Really Good Emails)
+              Importar HTML + imagens (BeeFree)
             </h4>
             <p style={{ margin: '0 0 12px', color: '#6b7280', fontSize: '0.85rem', lineHeight: 1.45 }}>
-              No BeeFree: <strong>Download / Integrations</strong> → <strong>HTML code</strong> (copiar)
-              ou <strong>HTML and images</strong>. Depois cola aqui ou envia o ficheiro .html.
+              No BeeFree escolhe <strong>HTML and images</strong> (descarrega um .zip).
+              Aqui envia esse <strong>.zip</strong> — as imagens ficam embutidas no HTML para o Gmail.
+              Também podes colar só o HTML code ou enviar um .html.
               Mantém {'{{clientName}}'} no design se quiseres personalizar.
             </p>
 
             <textarea
               value={importText}
               onChange={(e) => setImportText(e.target.value)}
-              placeholder="Cola o HTML completo aqui…"
+              placeholder="Cola o HTML completo aqui (opcional se fores enviar .zip)…"
               spellCheck={false}
               style={{
                 ...textareaStyle,
-                minHeight: 180,
+                minHeight: 140,
                 border: '1px solid #e5e7eb',
                 borderRadius: 8,
                 marginBottom: 12
@@ -336,9 +455,10 @@ export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%'
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
               <button
                 type="button"
+                disabled={importingPack}
                 onClick={() => {
                   if (!applyImportedHtml(importText)) {
-                    alert('Cola um HTML válido (exportado do BeeFree).');
+                    alert('Cola um HTML válido ou envia o .zip do BeeFree.');
                   }
                 }}
                 style={{
@@ -346,33 +466,45 @@ export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%'
                   background: '#2563eb',
                   borderColor: '#2563eb',
                   color: '#fff',
-                  fontWeight: 600
+                  fontWeight: 600,
+                  opacity: importingPack ? 0.6 : 1
                 }}
               >
-                Usar este HTML
+                Usar HTML colado
               </button>
               <label
                 style={{
                   ...btnStyle,
                   display: 'inline-flex',
                   alignItems: 'center',
-                  cursor: 'pointer'
+                  cursor: importingPack ? 'wait' : 'pointer',
+                  background: '#059669',
+                  borderColor: '#059669',
+                  color: '#fff',
+                  fontWeight: 600,
+                  opacity: importingPack ? 0.7 : 1
                 }}
               >
-                Enviar ficheiro .html
+                {importingPack ? 'A importar…' : 'Enviar .zip / .html'}
                 <input
                   ref={fileRef}
                   type="file"
-                  accept=".html,.htm,text/html"
+                  accept=".zip,.html,.htm,text/html,application/zip"
                   style={{ display: 'none' }}
+                  disabled={importingPack}
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     e.target.value = '';
-                    if (f) onPickHtmlFile(f);
+                    if (f) onPickImportFile(f);
                   }}
                 />
               </label>
-              <button type="button" onClick={() => setShowImport(false)} style={btnStyle}>
+              <button
+                type="button"
+                disabled={importingPack}
+                onClick={() => setShowImport(false)}
+                style={btnStyle}
+              >
                 Cancelar
               </button>
             </div>
