@@ -325,7 +325,7 @@ export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%'
         </span>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <button type="button" onClick={() => setShowImport(true)} style={{ ...btnStyle, borderColor: '#93c5fd', color: '#1d4ed8' }}>
-            Importar HTML
+            Importar HTML + imagens
           </button>
           <button
             type="button"
@@ -372,7 +372,15 @@ export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%'
             />
           )}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, pointerEvents: 'none' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+            height: '100%',
+            overflow: 'hidden'
+          }}
+        >
           <div
             style={{
               padding: '6px 12px',
@@ -380,21 +388,23 @@ export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%'
               fontWeight: 600,
               color: '#6b7280',
               background: '#f3f4f6',
-              borderBottom: '1px solid #e5e7eb'
+              borderBottom: '1px solid #e5e7eb',
+              flexShrink: 0
             }}
           >
-            Pré-visualização (só leitura)
+            Pré-visualização (podes fazer scroll)
           </div>
           <iframe
             title="Pré-visualização do email"
             srcDoc={previewHtml || '<p style="padding:16px;color:#666">Pré-visualização</p>'}
             sandbox=""
-            tabIndex={-1}
             style={{
               flex: 1,
+              minHeight: 0,
               width: '100%',
               border: 'none',
-              background: '#fff'
+              background: '#fff',
+              overflow: 'auto'
             }}
           />
         </div>
