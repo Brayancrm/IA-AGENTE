@@ -81,7 +81,13 @@ async function htmlPackFromZipBuffer(buffer, userId) {
     (k) => /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(k) && !/__MACOSX/i.test(k)
   );
 
-  const bucket = admin.storage().bucket();
+  const bucketName =
+    process.env.FIREBASE_STORAGE_BUCKET ||
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+    admin.app().options.storageBucket ||
+    'ia-agente-b2f46.firebasestorage.app';
+  const bucket = admin.storage().bucket(bucketName);
+  console.log(`📦 [email-template] a usar Storage bucket: ${bucket.name}`);
   const packId = crypto.randomBytes(8).toString('hex');
   const urlByRel = new Map();
 
