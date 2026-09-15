@@ -227,7 +227,12 @@ const btnStyle = {
 /**
  * Editor simples + importação de HTML (BeeFree / Really Good Emails / etc.).
  */
-export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%' }) {
+export default function SimpleEmailHtmlEditor({
+  value,
+  onChange,
+  height = '100%',
+  userId = null
+}) {
   const [advanced, setAdvanced] = useState(false);
   const [plain, setPlain] = useState(
     () =>
@@ -243,6 +248,10 @@ export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%'
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
+  const BACKEND_URL =
+    (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BACKEND_URL) ||
+    'https://ia-agente-production.up.railway.app';
+
   useEffect(() => {
     const html = advanced ? htmlDraft : wrapEmailHtml(plain);
     const t = setTimeout(() => {
@@ -256,6 +265,13 @@ export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%'
     const html = normalizeImportedEmailHtml(String(raw || '').trim());
     if (!html) return false;
     if (!looksLikeHtml(html)) return false;
+    // Rejeitar templates só com base64 (Gmail corta / não mostra)
+    const dataUriCount = (html.match(/data:image\//gi) || []).length;
+    if (dataUriCount > 2) {
+      alert(
+        'Este HTML tem imagens embutidas (base64). Reimporta o .zip do BeeFree para alojar as imagens em URL — assim o Gmail mostra tudo sem cortar.'
+      );
+    }
     setHtmlDraft(html);
     setPreviewHtml(html);
     setAdvanced(true);
@@ -270,14 +286,28 @@ export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%'
     const lower = file.name.toLowerCase();
     try {
       if (lower.endsWith('.zip')) {
+        if (!userId) {
+          alert('Sessão inválida. Recarrega a página e tenta outra vez.');
+          return;
+        }
         setImportingPack(true);
-        const pack = await htmlPackFromZip(file);
-        if (!applyImportedHtml(pack.html)) {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('userId', userId);
+        const r = await fetch(`${BACKEND_URL}/api/email/templates/import-zip`, {
+          method: 'POST',
+          body: fd
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok || !data.success) {
+          throw new Error(data.error || `Erro HTTP ${r.status}`);
+        }
+        if (!applyImportedHtml(data.html)) {
           alert('HTML do ZIP inválido.');
           return;
         }
         alert(
-          `Importado: ${pack.htmlFile} + ${pack.imageCount} imagem(ns) embutidas.\nGuarda o template e testa no telemóvel.`
+          `Importado com ${data.imageCount || 0} imagem(ns) em URL pública.\nGuarda o template e lança a campanha outra vez.`
         );
         return;
       }
@@ -288,7 +318,7 @@ export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%'
         }
         return;
       }
-      alert('Usa .zip (HTML + imagens do BeeFree) ou .html');
+      alert('Usa .zip (HTML and images do BeeFree) ou .html');
     } catch (e) {
       console.error(e);
       alert(e.message || 'Erro ao importar ficheiro');
@@ -442,9 +472,9 @@ export default function SimpleEmailHtmlEditor({ value, onChange, height = '100%'
               Importar HTML + imagens (BeeFree)
             </h4>
             <p style={{ margin: '0 0 12px', color: '#6b7280', fontSize: '0.85rem', lineHeight: 1.45 }}>
-              No BeeFree escolhe <strong>HTML and images</strong> (descarrega um .zip).
-              Aqui envia esse <strong>.zip</strong> — as imagens ficam embutidas no HTML para o Gmail.
-              Também podes colar só o HTML code ou enviar um .html.
+              No BeeFree escolhe <strong>HTML and images</strong> (.zip). Aqui envia esse ZIP —
+              as imagens vão para o Storage em URL https (o Gmail mostra bem e não corta o email).
+              Não uses HTML colado com imagens embutidas em base64.
               Mantém {'{{clientName}}'} no design se quiseres personalizar.
             </p>
 

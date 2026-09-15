@@ -139,9 +139,14 @@ try {
   // NÃO usar a variável de ambiente que pode estar apontando para o banco default vazio
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    databaseURL: 'https://ia-agente-b2f46.firebaseio.com' // Banco secundário com dados
+    databaseURL: 'https://ia-agente-b2f46.firebaseio.com', // Banco secundário com dados
+    storageBucket:
+      process.env.FIREBASE_STORAGE_BUCKET ||
+      process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+      'ia-agente-b2f46.appspot.com'
   });
   console.log('✅ Firebase Admin inicializado');
+  console.log('   Storage bucket:', admin.app().options.storageBucket);
 } catch (error) {
   console.error('❌ Erro ao inicializar Firebase:', error.message);
   console.log('⚠️ O servidor não pode iniciar sem as credenciais do Firebase.');

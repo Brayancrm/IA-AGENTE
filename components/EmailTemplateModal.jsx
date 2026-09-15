@@ -14,7 +14,8 @@ export default function EmailTemplateModal({
   template,
   database,
   showToast,
-  t
+  t,
+  userId
 }) {
   const [name, setName] = useState('');
   const [subject, setSubject] = useState('');
@@ -205,6 +206,7 @@ export default function EmailTemplateModal({
               value={html}
               onChange={setHtml}
               height="100%"
+              userId={userId}
             />
           </div>
         </div>

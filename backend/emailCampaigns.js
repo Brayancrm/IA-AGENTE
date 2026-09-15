@@ -6,6 +6,8 @@
 const crypto = require('crypto');
 const multer = require('multer');
 const XLSX = require('xlsx');
+const JSZip = require('jszip');
+const admin = require('firebase-admin');
 const { SendEmailCommand } = require('@aws-sdk/client-ses');
 
 const TRACK_SECRET =
@@ -33,8 +35,131 @@ const campaignWorkers = new Map();
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 25 * 1024 * 1024 }
+  limits: { fileSize: 40 * 1024 * 1024 }
 });
+
+function mimeFromPath(path) {
+  const p = String(path || '').toLowerCase();
+  if (p.endsWith('.png')) return 'image/png';
+  if (p.endsWith('.jpg') || p.endsWith('.jpeg')) return 'image/jpeg';
+  if (p.endsWith('.gif')) return 'image/gif';
+  if (p.endsWith('.webp')) return 'image/webp';
+  if (p.endsWith('.svg')) return 'image/svg+xml';
+  if (p.endsWith('.bmp')) return 'image/bmp';
+  return 'application/octet-stream';
+}
+
+function normalizeZipPath(p) {
+  return String(p || '')
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/^\/+/, '');
+}
+
+/**
+ * BeeFree ZIP → HTML com imagens em URLs públicas (Firebase Storage).
+ * Gmail não gosta de data:base64 (corta o email e quebra imagens).
+ */
+async function htmlPackFromZipBuffer(buffer, userId) {
+  const zip = await JSZip.loadAsync(buffer);
+  const entries = Object.keys(zip.files || {}).filter((k) => !zip.files[k].dir);
+
+  const htmlEntry =
+    entries.find((k) => /(^|\/)index\.html?$/i.test(k)) ||
+    entries.find((k) => /\.html?$/i.test(k) && !/__MACOSX/i.test(k));
+
+  if (!htmlEntry) {
+    throw Object.assign(new Error('ZIP sem ficheiro HTML (index.html)'), { status: 400 });
+  }
+
+  let html = await zip.files[htmlEntry].async('string');
+  const htmlDir = htmlEntry.includes('/')
+    ? htmlEntry.slice(0, htmlEntry.lastIndexOf('/') + 1)
+    : '';
+
+  const imageEntries = entries.filter(
+    (k) => /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(k) && !/__MACOSX/i.test(k)
+  );
+
+  const bucket = admin.storage().bucket();
+  const packId = crypto.randomBytes(8).toString('hex');
+  const urlByRel = new Map();
+
+  for (const imgPath of imageEntries) {
+    const bytes = await zip.files[imgPath].async('nodebuffer');
+    const mime = mimeFromPath(imgPath);
+    const fileName = normalizeZipPath(imgPath).split('/').pop();
+    const dest = `email-assets/${userId}/${packId}/${fileName}`;
+    const token = crypto.randomUUID();
+    const file = bucket.file(dest);
+    await file.save(bytes, {
+      resumable: false,
+      metadata: {
+        contentType: mime,
+        cacheControl: 'public, max-age=31536000',
+        metadata: {
+          firebaseStorageDownloadTokens: token
+        }
+      }
+    });
+    const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(
+      dest
+    )}?alt=media&token=${token}`;
+
+    const norm = normalizeZipPath(imgPath);
+    const relFromHtml = normalizeZipPath(
+      htmlDir && norm.startsWith(htmlDir) ? norm.slice(htmlDir.length) : norm
+    );
+    [norm, relFromHtml, `./${relFromHtml}`, fileName, `images/${fileName}`]
+      .filter(Boolean)
+      .forEach((key) => urlByRel.set(String(key).toLowerCase(), publicUrl));
+  }
+
+  const replaceRef = (ref) => {
+    const raw = String(ref || '').trim();
+    if (!raw || /^https?:\/\//i.test(raw) || /^cid:/i.test(raw) || /^data:/i.test(raw)) {
+      return raw;
+    }
+    const cleaned = normalizeZipPath(raw.split('?')[0].split('#')[0]);
+    return (
+      urlByRel.get(cleaned.toLowerCase()) ||
+      urlByRel.get(cleaned.split('/').pop().toLowerCase()) ||
+      raw
+    );
+  };
+
+  html = html.replace(/(src|href)\s*=\s*(["'])([^"']+)\2/gi, (full, attr, quote, ref) => {
+    if (attr.toLowerCase() === 'href' && !/\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(ref)) {
+      return full;
+    }
+    return `${attr}=${quote}${replaceRef(ref)}${quote}`;
+  });
+
+  html = html.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi, (full, q, ref) => {
+    return `url(${q || ''}${replaceRef(ref)}${q || ''})`;
+  });
+
+  html = html.replace(
+    /background\s*=\s*(["'])([^"']+)\1/gi,
+    (full, quote, ref) => `background=${quote}${replaceRef(ref)}${quote}`
+  );
+
+  // Remove data-URIs acidentais enormes se existirem (não devem)
+  // Mantém HTML fluido
+  if (!/name=["']viewport["']/i.test(html)) {
+    const viewport = '<meta name="viewport" content="width=device-width, initial-scale=1.0"/>';
+    if (/<head[^>]*>/i.test(html)) {
+      html = html.replace(/<head[^>]*>/i, (m) => `${m}\n${viewport}`);
+    }
+  }
+
+  return {
+    html,
+    imageCount: imageEntries.length,
+    htmlFile: htmlEntry,
+    packId
+  };
+}
 
 function publicBaseUrl() {
   return String(
@@ -1002,6 +1127,43 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
     } catch (e) {
       console.error('❌ delete template:', e);
       res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  // BeeFree "HTML and images" (.zip) → HTML + imagens no Firebase Storage (URLs https)
+  app.post('/api/email/templates/import-zip', upload.single('file'), async (req, res) => {
+    try {
+      const userId = String(req.body?.userId || '').trim();
+      if (!userId) {
+        return res.status(400).json({ success: false, error: 'userId obrigatório' });
+      }
+      if (!(await assertMaster(db, userId))) {
+        return res.status(403).json({ success: false, error: 'Apenas master' });
+      }
+      if (!req.file?.buffer) {
+        return res.status(400).json({
+          success: false,
+          error: 'Envie o .zip do BeeFree (HTML and images) no campo "file"'
+        });
+      }
+      const name = String(req.file.originalname || '').toLowerCase();
+      if (!name.endsWith('.zip') && req.file.mimetype && !req.file.mimetype.includes('zip')) {
+        return res.status(400).json({ success: false, error: 'Ficheiro deve ser .zip' });
+      }
+
+      const pack = await htmlPackFromZipBuffer(req.file.buffer, userId);
+      console.log(
+        `✅ [email-template] ZIP import: ${pack.imageCount} imagens → Storage (${pack.htmlFile})`
+      );
+      res.json({
+        success: true,
+        html: pack.html,
+        imageCount: pack.imageCount,
+        htmlFile: pack.htmlFile
+      });
+    } catch (e) {
+      console.error('❌ import-zip:', e);
+      res.status(e.status || 500).json({ success: false, error: e.message });
     }
   });
 
