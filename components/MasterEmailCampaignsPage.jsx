@@ -289,37 +289,24 @@ export default function MasterEmailCampaignsPage({
 
   const stats = detail?.campaign?.stats || {};
 
-  const downloadListTemplate = (format = 'csv') => {
-    const rows = [
-      ['email', 'nome'],
-      ['joao@email.com', 'João Silva'],
-      ['maria@email.com', 'Maria Santos'],
-      ['cliente@empresa.com', 'Carlos']
-    ];
-
-    if (format === 'xlsx') {
-      // CSV com BOM também abre bem no Excel; evita dependência extra no browser
-      format = 'csv';
+  const downloadListTemplate = async () => {
+    try {
+      const XLSX = await import('xlsx');
+      const rows = [
+        { email: 'joao@email.com', nome: 'João Silva' },
+        { email: 'maria@email.com', nome: 'Maria Santos' },
+        { email: 'cliente@empresa.com', nome: 'Carlos' }
+      ];
+      const ws = XLSX.utils.json_to_sheet(rows, { header: ['email', 'nome'] });
+      ws['!cols'] = [{ wch: 28 }, { wch: 22 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Lista');
+      XLSX.writeFile(wb, 'modelo-lista-emails.xlsx');
+      showToast?.('Modelo Excel: coluna A = email, coluna B = nome', 'success');
+    } catch (e) {
+      console.error(e);
+      showToast?.(e.message || 'Erro ao gerar modelo', 'error');
     }
-
-    const csv = rows
-      .map((r) =>
-        r
-          .map((cell) => {
-            const s = String(cell ?? '');
-            return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-          })
-          .join(',')
-      )
-      .join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'modelo-lista-emails.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast?.('Modelo descarregado (email + nome na mesma linha)', 'success');
   };
 
   return (
@@ -349,7 +336,7 @@ export default function MasterEmailCampaignsPage({
           </h3>
           <button
             type="button"
-            onClick={() => downloadListTemplate('csv')}
+            onClick={() => downloadListTemplate()}
             style={{
               background: 'transparent',
               border: '1px solid rgba(96,165,250,0.5)',
