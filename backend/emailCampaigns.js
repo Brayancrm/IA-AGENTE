@@ -81,15 +81,11 @@ async function htmlPackFromZipBuffer(buffer, userId) {
     (k) => /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(k) && !/__MACOSX/i.test(k)
   );
 
-  const bucketName =
-    process.env.FIREBASE_STORAGE_BUCKET ||
-    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
-    admin.app().options.storageBucket ||
-    'ia-agente-b2f46.firebasestorage.app';
-  const bucket = admin.storage().bucket(bucketName);
+  const bucket = getEmailStorageBucket();
   console.log(`📦 [email-template] a usar Storage bucket: ${bucket.name}`);
   const packId = crypto.randomBytes(8).toString('hex');
   const urlByRel = new Map();
+  const assetBase = publicBaseUrl();
 
   for (const imgPath of imageEntries) {
     const bytes = await zip.files[imgPath].async('nodebuffer');
@@ -110,17 +106,18 @@ async function htmlPackFromZipBuffer(buffer, userId) {
       }
     });
 
-    // URL pública simples — Gmail mobile falha mais com firebasestorage...?token=
-    let publicUrl = `https://storage.googleapis.com/${bucket.name}/${dest}`;
-    try {
-      await file.makePublic();
-    } catch (pubErr) {
+    // Proxy no nosso backend = URL estável para Gmail mobile (evita ACL/token do Firebase)
+    const tokenUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(
+      dest
+    )}?alt=media&token=${token}`;
+    const publicUrl = assetBase
+      ? `${assetBase}/api/email/assets/${encodeURIComponent(userId)}/${packId}/${encodeURIComponent(fileName)}`
+      : tokenUrl;
+
+    if (!assetBase) {
       console.warn(
-        `⚠️ [email-template] makePublic falhou (${fileName}): ${pubErr.message} — a usar URL com token`
+        '⚠️ [email-template] PUBLIC_SERVER_URL/BACKEND_URL em falta — a usar URL Firebase (pior no mobile)'
       );
-      publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(
-        dest
-      )}?alt=media&token=${token}`;
     }
 
     const norm = normalizeZipPath(imgPath);
@@ -179,9 +176,22 @@ async function htmlPackFromZipBuffer(buffer, userId) {
 }
 
 function publicBaseUrl() {
-  return String(
+  const fromEnv = String(
     process.env.PUBLIC_SERVER_URL || process.env.BACKEND_URL || ''
   ).replace(/\/$/, '');
+  if (fromEnv) return fromEnv;
+  const railway = String(process.env.RAILWAY_PUBLIC_DOMAIN || '').replace(/\/$/, '');
+  if (railway) return railway.startsWith('http') ? railway : `https://${railway}`;
+  return '';
+}
+
+function getEmailStorageBucket() {
+  const bucketName =
+    process.env.FIREBASE_STORAGE_BUCKET ||
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+    admin.app().options.storageBucket ||
+    'ia-agente-b2f46.firebasestorage.app';
+  return admin.storage().bucket(bucketName);
 }
 
 function hashEmail(email) {
@@ -219,22 +229,56 @@ function replaceVars(text, vars) {
 }
 
 /**
+ * Gmail app (Android/iOS) remove background-image/CSS.
+ * Converte backgrounds https em <img> visível dentro do td/th.
+ */
+function promoteBackgroundImages(html) {
+  let out = String(html || '');
+
+  out = out.replace(/<(td|th)(\s[^>]*?)>/gi, (full, tag, attrs) => {
+    if (/\sdata-dadosia-bg=["']1["']/i.test(attrs)) return full;
+
+    let bgUrl = null;
+    const bgAttr = attrs.match(/\bbackground\s*=\s*(["'])([^"']+)\1/i);
+    if (bgAttr && /^https?:\/\//i.test(bgAttr[2].trim())) {
+      bgUrl = bgAttr[2].trim();
+    }
+    if (!bgUrl) {
+      const styleM = attrs.match(/\bstyle\s*=\s*(["'])([\s\S]*?)\1/i);
+      if (styleM) {
+        const um = styleM[2].match(
+          /background(?:-image)?\s*:\s*[^;]*url\(\s*(['"]?)(https?:\/\/[^'")]+)\1\s*\)/i
+        );
+        if (um) bgUrl = um[2].trim();
+      }
+    }
+    if (!bgUrl) return full;
+
+    const safeSrc = bgUrl.replace(/"/g, '&quot;');
+    const img =
+      `<img src="${safeSrc}" alt="" width="100%" border="0" ` +
+      `style="display:block;width:100%;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;" />`;
+    return `<${tag}${attrs} data-dadosia-bg="1">${img}`;
+  });
+
+  return out;
+}
+
+/**
  * Melhora HTML exportado (BeeFree etc.) para clientes móveis:
- * viewport + imagens/tabelas fluidas. Não reescreve o design.
+ * viewport + tabelas fluidas. Evita height:auto !important (quebra imgs no Gmail app).
  */
 function normalizeEmailHtml(html) {
-  let out = String(html || '');
+  let out = promoteBackgroundImages(String(html || ''));
   if (!out.trim()) return out;
 
   const fluidCss = `
 <style type="text/css">
   /* dadosIA mobile helpers */
-  img { max-width: 100% !important; height: auto !important; }
+  img { max-width: 100% !important; }
   table { max-width: 100% !important; }
-  .rge-mobile-hide { display: none !important; }
   @media only screen and (max-width: 620px) {
     .container, .wrapper, .email-container { width: 100% !important; max-width: 100% !important; }
-    td, th { box-sizing: border-box !important; }
   }
 </style>`;
 
@@ -1147,6 +1191,50 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
     }
   });
 
+  // Imagens do template (proxy público) — Gmail mobile precisa de URL estável no nosso domínio
+  app.get('/api/email/assets/:userId/:packId/:fileName', async (req, res) => {
+    try {
+      const userId = String(req.params.userId || '').trim();
+      const packId = String(req.params.packId || '').trim();
+      const fileName = String(req.params.fileName || '')
+        .trim()
+        .replace(/\\/g, '/')
+        .split('/')
+        .pop();
+
+      if (!userId || !packId || !fileName || !/^[\w.\-()+\s%]+$/i.test(fileName)) {
+        return res.status(400).send('Bad request');
+      }
+      if (!/^[a-zA-Z0-9_-]+$/.test(packId) || !/^[a-zA-Z0-9_-]+$/.test(userId)) {
+        return res.status(400).send('Bad request');
+      }
+
+      const dest = `email-assets/${userId}/${packId}/${fileName}`;
+      const file = getEmailStorageBucket().file(dest);
+      const [exists] = await file.exists();
+      if (!exists) {
+        return res.status(404).send('Not found');
+      }
+
+      const [meta] = await file.getMetadata();
+      res.setHeader('Content-Type', meta.contentType || mimeFromPath(fileName));
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+
+      const stream = file.createReadStream();
+      stream.on('error', (err) => {
+        console.error('❌ [email-asset]', dest, err.message);
+        if (!res.headersSent) res.status(500).end();
+        else res.end();
+      });
+      stream.pipe(res);
+    } catch (e) {
+      console.error('❌ [email-asset]', e.message);
+      if (!res.headersSent) res.status(500).send('Error');
+    }
+  });
+
   // BeeFree "HTML and images" (.zip) → HTML + imagens no Firebase Storage (URLs https)
   app.post('/api/email/templates/import-zip', upload.single('file'), async (req, res) => {
     try {
@@ -1169,14 +1257,17 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
       }
 
       const pack = await htmlPackFromZipBuffer(req.file.buffer, userId);
+      // Já aplica fixes mobile no HTML guardado no template
+      const htmlReady = normalizeEmailHtml(pack.html);
       console.log(
-        `✅ [email-template] ZIP import: ${pack.imageCount} imagens → Storage (${pack.htmlFile})`
+        `✅ [email-template] ZIP import: ${pack.imageCount} imagens → Storage (${pack.htmlFile}) base=${publicBaseUrl() || 'NONE'}`
       );
       res.json({
         success: true,
-        html: pack.html,
+        html: htmlReady,
         imageCount: pack.imageCount,
-        htmlFile: pack.htmlFile
+        htmlFile: pack.htmlFile,
+        assetBase: publicBaseUrl() || null
       });
     } catch (e) {
       console.error('❌ import-zip:', e);
