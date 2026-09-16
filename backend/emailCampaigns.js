@@ -229,19 +229,52 @@ function replaceVars(text, vars) {
 }
 
 /**
- * Gmail app (Android/iOS) remove background-image/CSS.
- * Converte backgrounds https em <img> visível dentro do td/th.
+ * Reescreve URLs Firebase → proxy do backend (Gmail mobile busca melhor no nosso domínio).
+ */
+function rewriteAssetUrlsToProxy(html) {
+  const base = publicBaseUrl();
+  if (!base) return String(html || '');
+
+  let out = String(html || '');
+
+  out = out.replace(
+    /https:\/\/firebasestorage\.googleapis\.com\/v0\/b\/[^/"'\s]+\/o\/([^?"'\s]+)\?[^"'\s)]*/gi,
+    (full, encodedPath) => {
+      try {
+        const path = decodeURIComponent(encodedPath);
+        const m = path.match(/^email-assets\/([^/]+)\/([^/]+)\/(.+)$/);
+        if (!m) return full;
+        return `${base}/api/email/assets/${encodeURIComponent(m[1])}/${m[2]}/${encodeURIComponent(m[3])}`;
+      } catch {
+        return full;
+      }
+    }
+  );
+
+  out = out.replace(
+    /https:\/\/storage\.googleapis\.com\/[^/"'\s]+\/email-assets\/([^/"'\s]+)\/([^/"'\s]+)\/([^"'\s)]+)/gi,
+    (_, userId, packId, fileName) =>
+      `${base}/api/email/assets/${encodeURIComponent(userId)}/${packId}/${encodeURIComponent(fileName)}`
+  );
+
+  return out;
+}
+
+/**
+ * Gmail desktop aceita background-image; Gmail app NÃO.
+ * Empresas usam <img src="..."> — convertemos backgrounds https em <img>.
  */
 function promoteBackgroundImages(html) {
   let out = String(html || '');
 
-  out = out.replace(/<(td|th)(\s[^>]*?)>/gi, (full, tag, attrs) => {
+  out = out.replace(/<(td|th|table|div)(\s[^>]*?)>/gi, (full, tag, attrs) => {
     if (/\sdata-dadosia-bg=["']1["']/i.test(attrs)) return full;
 
     let bgUrl = null;
     const bgAttr = attrs.match(/\bbackground\s*=\s*(["'])([^"']+)\1/i);
-    if (bgAttr && /^https?:\/\//i.test(bgAttr[2].trim())) {
-      bgUrl = bgAttr[2].trim();
+    if (bgAttr) {
+      const v = bgAttr[2].trim();
+      if (/^https?:\/\//i.test(v)) bgUrl = v;
     }
     if (!bgUrl) {
       const styleM = attrs.match(/\bstyle\s*=\s*(["'])([\s\S]*?)\1/i);
@@ -252,12 +285,13 @@ function promoteBackgroundImages(html) {
         if (um) bgUrl = um[2].trim();
       }
     }
-    if (!bgUrl) return full;
+    if (!bgUrl || !/^https?:\/\//i.test(bgUrl)) return full;
 
+    // Evita duplicar se já houver indício de img de fundo tratada
     const safeSrc = bgUrl.replace(/"/g, '&quot;');
     const img =
       `<img src="${safeSrc}" alt="" width="100%" border="0" ` +
-      `style="display:block;width:100%;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;" />`;
+      `style="display:block;width:100%;max-width:100%;border:0;outline:none;text-decoration:none;" />`;
     return `<${tag}${attrs} data-dadosia-bg="1">${img}`;
   });
 
@@ -265,20 +299,76 @@ function promoteBackgroundImages(html) {
 }
 
 /**
- * Melhora HTML exportado (BeeFree etc.) para clientes móveis:
- * viewport + tabelas fluidas. Evita height:auto !important (quebra imgs no Gmail app).
+ * Gmail remove o <style> INTEIRO se tiver url(...) — e aí o layout mobile parte-se.
+ * Tiramos só as regras com url(); o resto (media queries) fica.
+ */
+function stripUrlsFromStyleTags(html) {
+  return String(html || '').replace(/<style([^>]*)>([\s\S]*?)<\/style>/gi, (full, attrs, css) => {
+    if (String(attrs).includes('dadosIA')) return full;
+    const cleaned = css
+      .replace(/background-image\s*:\s*[^;{}]*url\([^)]*\)\s*;?/gi, '')
+      .replace(/background\s*:\s*[^;{}]*url\([^)]*\)[^;{}]*;?/gi, '')
+      .replace(/list-style-image\s*:\s*[^;{}]*url\([^)]*\)\s*;?/gi, '');
+    return `<style${attrs}>${cleaned}</style>`;
+  });
+}
+
+/** Imagens BeeFree “escondidas” para mobile (display:none / 0px) voltam a aparecer. */
+function unhideContentImages(html) {
+  return String(html || '').replace(/<img\b([^>]*)>/gi, (full, attrs) => {
+    const isPixel =
+      /\bwidth=["']1["']/i.test(attrs) ||
+      /\bheight=["']1["']/i.test(attrs) ||
+      /width:\s*1px/i.test(attrs) ||
+      /height:\s*1px/i.test(attrs);
+    if (isPixel) return full;
+
+    let a = attrs
+      .replace(/display\s*:\s*none\s*!important;?/gi, 'display:block;')
+      .replace(/display\s*:\s*none;?/gi, 'display:block;')
+      .replace(/visibility\s*:\s*hidden;?/gi, 'visibility:visible;')
+      .replace(/max-height\s*:\s*0\s*!important;?/gi, '')
+      .replace(/max-height\s*:\s*0px?;?/gi, '')
+      .replace(/max-width\s*:\s*0\s*!important;?/gi, '')
+      .replace(/overflow\s*:\s*hidden;?/gi, '')
+      .replace(/\swidth=["']0["']/gi, ' width="100%"')
+      .replace(/\sheight=["']0["']/gi, '');
+
+    if (!/\sstyle=/i.test(a)) {
+      a += ` style="display:block;max-width:100%;border:0;"`;
+    }
+    return `<img${a}>`;
+  });
+}
+
+/**
+ * HTML BeeFree/RGE → compatível com Gmail app (como emails de outras empresas).
  */
 function normalizeEmailHtml(html) {
-  let out = promoteBackgroundImages(String(html || ''));
+  let out = String(html || '');
   if (!out.trim()) return out;
 
+  out = rewriteAssetUrlsToProxy(out);
+  out = promoteBackgroundImages(out);
+  out = stripUrlsFromStyleTags(out);
+  out = unhideContentImages(out);
+
   const fluidCss = `
-<style type="text/css">
-  /* dadosIA mobile helpers */
+<style type="text/css" data-dadosia="1">
+  /* dadosIA mobile helpers — sem url() (Gmail apaga style com url) */
   img { max-width: 100% !important; }
   table { max-width: 100% !important; }
   @media only screen and (max-width: 620px) {
-    .container, .wrapper, .email-container { width: 100% !important; max-width: 100% !important; }
+    .container, .wrapper, .email-container, .u_body, .u_row, .u_column {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+    .u_column, .column, .stack-column, td.column {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+    img { display: block !important; max-width: 100% !important; width: auto !important; }
   }
 </style>`;
 

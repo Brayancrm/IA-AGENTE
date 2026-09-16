@@ -321,8 +321,9 @@ export default function SimpleEmailHtmlEditor({
           return;
         }
         setImportStatus('');
+        const baseOk = data.assetBase ? `URLs: ${data.assetBase}` : 'AVISO: backend sem PUBLIC_SERVER_URL — imagens podem falhar no telemóvel';
         alert(
-          `Importado com ${data.imageCount || 0} imagem(ns).\nGuarda o template e lança a campanha.`
+          `Importado com ${data.imageCount || 0} imagem(ns).\n${baseOk}\nGuarda o template e lança a campanha.`
         );
         return;
       }
