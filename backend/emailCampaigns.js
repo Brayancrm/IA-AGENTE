@@ -86,11 +86,36 @@ async function htmlPackFromZipBuffer(buffer, userId) {
   const packId = crypto.randomBytes(8).toString('hex');
   const urlByRel = new Map();
   const assetBase = publicBaseUrl();
+  let imgIndex = 0;
 
   for (const imgPath of imageEntries) {
-    const bytes = await zip.files[imgPath].async('nodebuffer');
-    const mime = mimeFromPath(imgPath);
-    const fileName = normalizeZipPath(imgPath).split('/').pop();
+    let bytes = await zip.files[imgPath].async('nodebuffer');
+    let mime = mimeFromPath(imgPath);
+    const originalName = normalizeZipPath(imgPath).split('/').pop() || `image-${imgIndex}.bin`;
+    // Nomes simples — evita 404 no proxy por caracteres estranhos do BeeFree
+    const ext =
+      (originalName.match(/(\.(png|jpe?g|gif|webp|svg|bmp))$/i) || [])[1] ||
+      (mime.includes('gif') ? '.gif' : mime.includes('png') ? '.png' : '.jpg');
+    let fileName = `img${imgIndex}${ext.toLowerCase()}`;
+    imgIndex += 1;
+
+    // Comprime imagens grandes (Gmail mobile falha com CID de ~2MB)
+    if (bytes.length > 350000 && !mime.includes('gif')) {
+      try {
+        const sharp = require('sharp');
+        bytes = await sharp(bytes)
+          .rotate()
+          .resize({ width: 600, withoutEnlargement: true })
+          .jpeg({ quality: 78, mozjpeg: true })
+          .toBuffer();
+        mime = 'image/jpeg';
+        fileName = fileName.replace(/\.\w+$/i, '.jpg');
+        console.log(`🗜️ [email-template] ${originalName} → ${fileName} (${bytes.length} bytes)`);
+      } catch (compErr) {
+        console.warn(`⚠️ [email-template] compress skip ${originalName}:`, compErr.message);
+      }
+    }
+
     const dest = `email-assets/${userId}/${packId}/${fileName}`;
     const token = crypto.randomUUID();
     const file = bucket.file(dest);
@@ -101,10 +126,16 @@ async function htmlPackFromZipBuffer(buffer, userId) {
         cacheControl: 'public, max-age=31536000',
         contentDisposition: 'inline',
         metadata: {
-          firebaseStorageDownloadTokens: token
+          firebaseStorageDownloadTokens: token,
+          originalName
         }
       }
     });
+
+    const [exists] = await file.exists();
+    if (!exists) {
+      console.error(`❌ [email-template] upload não persistiu: ${dest}`);
+    }
 
     // Proxy no nosso backend = URL estável para Gmail mobile (evita ACL/token do Firebase)
     const tokenUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(
@@ -124,7 +155,7 @@ async function htmlPackFromZipBuffer(buffer, userId) {
     const relFromHtml = normalizeZipPath(
       htmlDir && norm.startsWith(htmlDir) ? norm.slice(htmlDir.length) : norm
     );
-    [norm, relFromHtml, `./${relFromHtml}`, fileName, `images/${fileName}`]
+    [norm, relFromHtml, `./${relFromHtml}`, originalName, fileName, `images/${originalName}`]
       .filter(Boolean)
       .forEach((key) => urlByRel.set(String(key).toLowerCase(), publicUrl));
   }
@@ -509,6 +540,126 @@ function unhideContentImages(html) {
 }
 
 /**
+ * BeeFree/RGE no Gmail app: CSS/background/3 colunas escondem o conteúdo.
+ * Reconstrói email simples (coluna única) — texto + <img> empilhados, como empresas fazem.
+ */
+function escapeHtmlText(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function rebuildStackedEmailHtml(html) {
+  const source = String(html || '');
+  if (!source.trim()) return source;
+  if (/data-dadosia-stacked=["']1["']/i.test(source)) return source;
+
+  const blocks = [];
+  const pushImg = (src) => {
+    const s = String(src || '').trim();
+    if (!s || /^(data:|javascript:)/i.test(s)) return;
+    if (/spacer|pixel|tracking|1x1|open\.gif|\/t\/o\//i.test(s)) return;
+    if (blocks.some((b) => b.type === 'img' && b.src === s)) return;
+    blocks.push({ type: 'img', src: s });
+  };
+  const pushText = (raw) => {
+    const t = String(raw || '')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (t.length < 2) return;
+    if (/^designed with rge/i.test(t)) return;
+    if (/cancele a inscrição|unsubscribe|cancelar inscrição/i.test(t)) return;
+    if (blocks.some((b) => b.type === 'text' && b.value === t)) return;
+    blocks.push({ type: 'text', value: t });
+  };
+
+  // Ordem aproximada: percorre o HTML e vai intercalando texto / imgs
+  const tokens = source.split(/(<img\b[^>]*>)/gi);
+  for (const token of tokens) {
+    if (/^<img\b/i.test(token)) {
+      const isPixel =
+        /\bwidth=["']1["']/i.test(token) ||
+        /\bheight=["']1["']/i.test(token) ||
+        /width:\s*1px/i.test(token);
+      if (isPixel) continue;
+      const m = token.match(/\bsrc\s*=\s*["']([^"']+)["']/i);
+      if (m) pushImg(m[1]);
+      continue;
+    }
+    const chunk = token
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '\n')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&#(\d+);/g, (_, n) => {
+        try {
+          return String.fromCharCode(Number(n));
+        } catch {
+          return ' ';
+        }
+      });
+    chunk.split(/\n+/).forEach((line) => pushText(line));
+  }
+
+  source.replace(/\bbackground\s*=\s*["']([^"']+)["']/gi, (_, u) => {
+    if (/^https?:\/\//i.test(u) || /^cid:/i.test(u)) pushImg(u);
+    return _;
+  });
+  source.replace(/url\(\s*['"]?(https?:\/\/[^'")]+|cid:[^'")]+)['"]?\s*\)/gi, (_, u) => {
+    pushImg(u);
+    return _;
+  });
+
+  if (!blocks.length) return source;
+
+  const inner = blocks
+    .map((b) => {
+      if (b.type === 'img') {
+        const src = escapeHtmlText(b.src);
+        return (
+          `<img src="${src}" width="600" alt="" border="0" ` +
+          `style="display:block;width:100%;max-width:600px;height:auto;margin:0 auto;border:0;outline:none;" />`
+        );
+      }
+      return (
+        `<p style="margin:14px 16px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;` +
+        `font-size:20px;line-height:1.35;text-align:center;font-weight:700;">${escapeHtmlText(b.value)}</p>`
+      );
+    })
+    .join('\n');
+
+  console.log(
+    `📱 [email-html] stacked: ${blocks.filter((b) => b.type === 'img').length} imgs, ` +
+      `${blocks.filter((b) => b.type === 'text').length} textos`
+  );
+
+  return `<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>email</title>
+</head>
+<body data-dadosia-stacked="1" style="margin:0;padding:0;background:#000000;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#000000;width:100%;">
+<tr><td align="center" style="background:#000000;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#000000;">
+<tr><td align="center" style="padding:12px 0;background:#000000;">
+${inner}
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
+/**
  * HTML BeeFree/RGE → compatível com Gmail app (como emails de outras empresas).
  */
 function normalizeEmailHtml(html) {
@@ -517,49 +668,8 @@ function normalizeEmailHtml(html) {
 
   out = rewriteAssetUrlsToProxy(out);
   out = promoteBackgroundImages(out);
-  out = stripUrlsFromStyleTags(out);
-  out = unhideContentImages(out);
-
-  const fluidCss = `
-<style type="text/css" data-dadosia="1">
-  /* dadosIA mobile helpers — sem url() (Gmail apaga style com url) */
-  img { max-width: 100% !important; }
-  table { max-width: 100% !important; }
-  @media only screen and (max-width: 620px) {
-    .container, .wrapper, .email-container, .u_body, .u_row, .u_column {
-      width: 100% !important;
-      max-width: 100% !important;
-    }
-    .u_column, .column, .stack-column, td.column {
-      display: block !important;
-      width: 100% !important;
-      max-width: 100% !important;
-    }
-    img { display: block !important; max-width: 100% !important; width: auto !important; }
-  }
-</style>`;
-
-  if (!/name=["']viewport["']/i.test(out)) {
-    const viewport =
-      '<meta name="viewport" content="width=device-width, initial-scale=1.0"/>';
-    if (/<head[^>]*>/i.test(out)) {
-      out = out.replace(/<head[^>]*>/i, (m) => `${m}\n${viewport}`);
-    } else if (/<html[^>]*>/i.test(out)) {
-      out = out.replace(/<html[^>]*>/i, (m) => `${m}\n<head>${viewport}</head>`);
-    } else {
-      out = `<head>${viewport}</head>${out}`;
-    }
-  }
-
-  if (!out.includes('dadosIA mobile helpers')) {
-    if (/<\/head>/i.test(out)) {
-      out = out.replace(/<\/head>/i, `${fluidCss}\n</head>`);
-    } else if (/<body[^>]*>/i.test(out)) {
-      out = out.replace(/<body[^>]*>/i, (m) => `${fluidCss}\n${m}`);
-    } else {
-      out = `${fluidCss}${out}`;
-    }
-  }
+  // Nuclear: Gmail app não renderiza o layout BeeFree (só texto + logo).
+  out = rebuildStackedEmailHtml(out);
 
   return out;
 }
