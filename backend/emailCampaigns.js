@@ -540,136 +540,53 @@ function unhideContentImages(html) {
 }
 
 /**
- * BeeFree/RGE no Gmail app: CSS/background/3 colunas escondem o conteúdo.
- * Reconstrói email simples (coluna única) — texto + <img> empilhados, como empresas fazem.
- */
-function escapeHtmlText(s) {
-  return String(s || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function rebuildStackedEmailHtml(html) {
-  const source = String(html || '');
-  if (!source.trim()) return source;
-  if (/data-dadosia-stacked=["']1["']/i.test(source)) return source;
-
-  const blocks = [];
-  const pushImg = (src) => {
-    const s = String(src || '').trim();
-    if (!s || /^(data:|javascript:)/i.test(s)) return;
-    if (/spacer|pixel|tracking|1x1|open\.gif|\/t\/o\//i.test(s)) return;
-    if (blocks.some((b) => b.type === 'img' && b.src === s)) return;
-    blocks.push({ type: 'img', src: s });
-  };
-  const pushText = (raw) => {
-    const t = String(raw || '')
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    if (t.length < 2) return;
-    if (/^designed with rge/i.test(t)) return;
-    if (/cancele a inscrição|unsubscribe|cancelar inscrição/i.test(t)) return;
-    if (blocks.some((b) => b.type === 'text' && b.value === t)) return;
-    blocks.push({ type: 'text', value: t });
-  };
-
-  // Ordem aproximada: percorre o HTML e vai intercalando texto / imgs
-  const tokens = source.split(/(<img\b[^>]*>)/gi);
-  for (const token of tokens) {
-    if (/^<img\b/i.test(token)) {
-      const isPixel =
-        /\bwidth=["']1["']/i.test(token) ||
-        /\bheight=["']1["']/i.test(token) ||
-        /width:\s*1px/i.test(token);
-      if (isPixel) continue;
-      const m = token.match(/\bsrc\s*=\s*["']([^"']+)["']/i);
-      if (m) pushImg(m[1]);
-      continue;
-    }
-    const chunk = token
-      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '\n')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&#(\d+);/g, (_, n) => {
-        try {
-          return String.fromCharCode(Number(n));
-        } catch {
-          return ' ';
-        }
-      });
-    chunk.split(/\n+/).forEach((line) => pushText(line));
-  }
-
-  source.replace(/\bbackground\s*=\s*["']([^"']+)["']/gi, (_, u) => {
-    if (/^https?:\/\//i.test(u) || /^cid:/i.test(u)) pushImg(u);
-    return _;
-  });
-  source.replace(/url\(\s*['"]?(https?:\/\/[^'")]+|cid:[^'")]+)['"]?\s*\)/gi, (_, u) => {
-    pushImg(u);
-    return _;
-  });
-
-  if (!blocks.length) return source;
-
-  const inner = blocks
-    .map((b) => {
-      if (b.type === 'img') {
-        const src = escapeHtmlText(b.src);
-        return (
-          `<img src="${src}" width="600" alt="" border="0" ` +
-          `style="display:block;width:100%;max-width:600px;height:auto;margin:0 auto;border:0;outline:none;" />`
-        );
-      }
-      return (
-        `<p style="margin:14px 16px;color:#ffffff;font-family:Arial,Helvetica,sans-serif;` +
-        `font-size:20px;line-height:1.35;text-align:center;font-weight:700;">${escapeHtmlText(b.value)}</p>`
-      );
-    })
-    .join('\n');
-
-  console.log(
-    `📱 [email-html] stacked: ${blocks.filter((b) => b.type === 'img').length} imgs, ` +
-      `${blocks.filter((b) => b.type === 'text').length} textos`
-  );
-
-  return `<!DOCTYPE html>
-<html lang="pt">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>email</title>
-</head>
-<body data-dadosia-stacked="1" style="margin:0;padding:0;background:#000000;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#000000;width:100%;">
-<tr><td align="center" style="background:#000000;">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#000000;">
-<tr><td align="center" style="padding:12px 0;background:#000000;">
-${inner}
-</td></tr>
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
-}
-
-/**
- * HTML BeeFree/RGE → compatível com Gmail app (como emails de outras empresas).
+ * HTML BeeFree/RGE → Gmail mobile sem destruir layout nem links/botões.
+ * Imagens ficam fiáveis via CID no envio; aqui só ajustes leves.
  */
 function normalizeEmailHtml(html) {
   let out = String(html || '');
   if (!out.trim()) return out;
 
+  // Templates “stacked” antigos perderam layout/links — avisar nos logs
+  if (/data-dadosia-stacked=["']1["']/i.test(out)) {
+    console.warn(
+      '⚠️ [email-html] template empilhado antigo (sem botões/layout). Reimporta o ZIP BeeFree.'
+    );
+  }
+
   out = rewriteAssetUrlsToProxy(out);
-  out = promoteBackgroundImages(out);
-  // Nuclear: Gmail app não renderiza o layout BeeFree (só texto + logo).
-  out = rebuildStackedEmailHtml(out);
+  // NÃO converter backgrounds em <img> (parte o brasão/watermark do RGE)
+  // NÃO reconstruir HTML empilhado (parte layout e remove <a href> dos botões)
+  out = stripUrlsFromStyleTags(out);
+  out = unhideContentImages(out);
+
+  const fluidCss = `
+<style type="text/css" data-dadosia="1">
+  /* dadosIA mobile helpers — sem url(); sem height:auto !important (quebra Gmail app) */
+  img { max-width: 100% !important; }
+</style>`;
+
+  if (!/name=["']viewport["']/i.test(out)) {
+    const viewport =
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0"/>';
+    if (/<head[^>]*>/i.test(out)) {
+      out = out.replace(/<head[^>]*>/i, (m) => `${m}\n${viewport}`);
+    } else if (/<html[^>]*>/i.test(out)) {
+      out = out.replace(/<html[^>]*>/i, (m) => `${m}\n<head>${viewport}</head>`);
+    } else {
+      out = `<head>${viewport}</head>${out}`;
+    }
+  }
+
+  if (!out.includes('dadosIA mobile helpers')) {
+    if (/<\/head>/i.test(out)) {
+      out = out.replace(/<\/head>/i, `${fluidCss}\n</head>`);
+    } else if (/<body[^>]*>/i.test(out)) {
+      out = out.replace(/<body[^>]*>/i, (m) => `${fluidCss}\n${m}`);
+    } else {
+      out = `${fluidCss}${out}`;
+    }
+  }
 
   return out;
 }
