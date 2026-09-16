@@ -540,53 +540,191 @@ function unhideContentImages(html) {
 }
 
 /**
- * HTML BeeFree/RGE → Gmail mobile sem destruir layout nem links/botões.
- * Imagens ficam fiáveis via CID no envio; aqui só ajustes leves.
+ * Gmail app (Android) NÃO renderiza bem HTML BeeFree/RGE (backgrounds + colunas).
+ * Não é “plano BeeFree”: é limitação do cliente de email.
+ * Montamos versão mobile-safe em coluna única, MANTENDO links/botões <a href>.
+ */
+function escapeHtmlText(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function rebuildMobileSafeEmailHtml(html) {
+  const source = String(html || '');
+  if (!source.trim()) return source;
+  if (/data-dadosia-mobile=["']1["']/i.test(source)) return source;
+
+  const blocks = [];
+  const seenImg = new Set();
+  const seenText = new Set();
+
+  const pushTextFromHtml = (rawHtml) => {
+    const chunk = String(rawHtml || '')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '\n')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&#(\d+);/g, (_, n) => {
+        try {
+          return String.fromCharCode(Number(n));
+        } catch {
+          return ' ';
+        }
+      });
+    chunk.split(/\n+/).forEach((line) => {
+      const t = String(line || '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (t.length < 2) return;
+      if (/^designed with rge/i.test(t)) return;
+      if (/cancele a inscrição|unsubscribe|cancelar inscrição/i.test(t)) return;
+      const key = t.toLowerCase();
+      if (seenText.has(key)) return;
+      seenText.add(key);
+      blocks.push({ type: 'text', value: t });
+    });
+  };
+
+  const pushImg = (src) => {
+    const s = String(src || '').trim();
+    if (!s || /^(data:|javascript:)/i.test(s)) return false;
+    if (/spacer|pixel|tracking|1x1|open\.gif|\/t\/o\//i.test(s)) return false;
+    if (seenImg.has(s)) return false;
+    seenImg.add(s);
+    blocks.push({ type: 'img', src: s });
+    return true;
+  };
+
+  const tokenRe = /<a\b[^>]*>[\s\S]*?<\/a>|<img\b[^>]*>/gi;
+  let last = 0;
+  let match;
+  while ((match = tokenRe.exec(source)) !== null) {
+    pushTextFromHtml(source.slice(last, match.index));
+    const token = match[0];
+    last = match.index + token.length;
+
+    if (/^<a\b/i.test(token)) {
+      const hm = token.match(/\bhref\s*=\s*["']([^"']+)["']/i);
+      const href = hm ? hm[1].trim() : '';
+      const inner = token.replace(/^<a\b[^>]*>/i, '').replace(/<\/a>$/i, '');
+      const imgM = inner.match(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/i);
+      const text = inner
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (!href || href === '#' || /^javascript:/i.test(href)) {
+        if (imgM) pushImg(imgM[1]);
+        else pushTextFromHtml(text);
+        continue;
+      }
+
+      blocks.push({
+        type: 'link',
+        href,
+        img: imgM ? imgM[1].trim() : null,
+        text: text || 'Clique aqui'
+      });
+      if (imgM) seenImg.add(imgM[1].trim());
+      if (text) seenText.add(text.toLowerCase());
+      continue;
+    }
+
+    // <img>
+    const isPixel =
+      /\bwidth=["']1["']/i.test(token) ||
+      /\bheight=["']1["']/i.test(token) ||
+      /width:\s*1px/i.test(token);
+    if (isPixel) continue;
+    const sm = token.match(/\bsrc\s*=\s*["']([^"']+)["']/i);
+    if (sm) pushImg(sm[1]);
+  }
+  pushTextFromHtml(source.slice(last));
+
+  // Backgrounds que ainda não entraram como <img>
+  source.replace(/\bbackground\s*=\s*["']([^"']+)["']/gi, (_, u) => {
+    if (/^https?:\/\//i.test(u) || /^cid:/i.test(u)) pushImg(u);
+    return _;
+  });
+
+  if (!blocks.length) return source;
+
+  const imgStyle =
+    'display:block;width:100%;max-width:560px;height:auto;margin:12px auto;border:0;outline:none;';
+  const textStyle =
+    'margin:10px 16px;color:#111111;font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1.35;text-align:center;font-weight:700;';
+  const btnStyle =
+    'display:inline-block;padding:14px 22px;border:2px solid #111111;background:#f3f4f6;color:#111111;' +
+    'text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;';
+
+  const inner = blocks
+    .map((b) => {
+      if (b.type === 'img') {
+        return `<img src="${escapeHtmlText(b.src)}" width="560" alt="" border="0" style="${imgStyle}" />`;
+      }
+      if (b.type === 'link') {
+        if (b.img) {
+          return (
+            `<a href="${escapeHtmlText(b.href)}" target="_blank" style="text-decoration:none;">` +
+            `<img src="${escapeHtmlText(b.img)}" width="560" alt="${escapeHtmlText(b.text)}" border="0" style="${imgStyle}" />` +
+            `</a>`
+          );
+        }
+        return (
+          `<p style="margin:18px 16px;text-align:center;">` +
+          `<a href="${escapeHtmlText(b.href)}" target="_blank" style="${btnStyle}">${escapeHtmlText(b.text)}</a>` +
+          `</p>`
+        );
+      }
+      return `<p style="${textStyle}">${escapeHtmlText(b.value)}</p>`;
+    })
+    .join('\n');
+
+  console.log(
+    `📱 [email-html] mobile-safe: ${blocks.filter((b) => b.type === 'img').length} imgs, ` +
+      `${blocks.filter((b) => b.type === 'link').length} links, ` +
+      `${blocks.filter((b) => b.type === 'text').length} textos`
+  );
+
+  return `<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>email</title>
+</head>
+<body data-dadosia-mobile="1" style="margin:0;padding:0;background:#000000;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#000000;width:100%;">
+<tr><td align="center" style="padding:16px 8px;background:#000000;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border-collapse:collapse;">
+<tr><td align="center" style="padding:20px 12px;background:#ffffff;">
+${inner}
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
+/**
+ * HTML BeeFree/RGE → versão que o Gmail app consegue mostrar (com links).
  */
 function normalizeEmailHtml(html) {
   let out = String(html || '');
   if (!out.trim()) return out;
 
-  // Templates “stacked” antigos perderam layout/links — avisar nos logs
-  if (/data-dadosia-stacked=["']1["']/i.test(out)) {
-    console.warn(
-      '⚠️ [email-html] template empilhado antigo (sem botões/layout). Reimporta o ZIP BeeFree.'
-    );
-  }
-
   out = rewriteAssetUrlsToProxy(out);
-  // NÃO converter backgrounds em <img> (parte o brasão/watermark do RGE)
-  // NÃO reconstruir HTML empilhado (parte layout e remove <a href> dos botões)
-  out = stripUrlsFromStyleTags(out);
   out = unhideContentImages(out);
-
-  const fluidCss = `
-<style type="text/css" data-dadosia="1">
-  /* dadosIA mobile helpers — sem url(); sem height:auto !important (quebra Gmail app) */
-  img { max-width: 100% !important; }
-</style>`;
-
-  if (!/name=["']viewport["']/i.test(out)) {
-    const viewport =
-      '<meta name="viewport" content="width=device-width, initial-scale=1.0"/>';
-    if (/<head[^>]*>/i.test(out)) {
-      out = out.replace(/<head[^>]*>/i, (m) => `${m}\n${viewport}`);
-    } else if (/<html[^>]*>/i.test(out)) {
-      out = out.replace(/<html[^>]*>/i, (m) => `${m}\n<head>${viewport}</head>`);
-    } else {
-      out = `<head>${viewport}</head>${out}`;
-    }
-  }
-
-  if (!out.includes('dadosIA mobile helpers')) {
-    if (/<\/head>/i.test(out)) {
-      out = out.replace(/<\/head>/i, `${fluidCss}\n</head>`);
-    } else if (/<body[^>]*>/i.test(out)) {
-      out = out.replace(/<body[^>]*>/i, (m) => `${fluidCss}\n${m}`);
-    } else {
-      out = `${fluidCss}${out}`;
-    }
-  }
+  // Mobile-safe COM botões/links (Gmail app não aguenta layout BeeFree original)
+  out = rebuildMobileSafeEmailHtml(out);
 
   return out;
 }
