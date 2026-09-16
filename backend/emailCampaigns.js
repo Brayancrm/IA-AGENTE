@@ -8,7 +8,7 @@ const multer = require('multer');
 const XLSX = require('xlsx');
 const JSZip = require('jszip');
 const admin = require('firebase-admin');
-const { SendEmailCommand } = require('@aws-sdk/client-ses');
+const { SendEmailCommand, SendRawEmailCommand } = require('@aws-sdk/client-ses');
 
 const TRACK_SECRET =
   process.env.EMAIL_TRACKING_SECRET ||
@@ -192,6 +192,173 @@ function getEmailStorageBucket() {
     admin.app().options.storageBucket ||
     'ia-agente-b2f46.firebasestorage.app';
   return admin.storage().bucket(bucketName);
+}
+
+/** Cache de bytes por URL (reutilizado entre destinatários da mesma campanha). */
+const assetBytesCache = new Map();
+
+function collectHostedImageUrls(html) {
+  const urls = new Set();
+  const add = (u) => {
+    const url = String(u || '').trim();
+    if (!url || !/^https?:\/\//i.test(url)) return;
+    if (
+      /\/api\/email\/assets\//i.test(url) ||
+      /firebasestorage\.googleapis\.com/i.test(url) ||
+      /storage\.googleapis\.com\/[^/]+\/email-assets\//i.test(url)
+    ) {
+      urls.add(url.split('#')[0]);
+    }
+  };
+
+  String(html || '').replace(
+    /(?:src|background)\s*=\s*["']([^"']+)["']/gi,
+    (_, u) => {
+      add(u);
+      return _;
+    }
+  );
+  String(html || '').replace(/url\(\s*['"]?([^'")]+)['"]?\s*\)/gi, (_, u) => {
+    add(u);
+    return _;
+  });
+  return [...urls];
+}
+
+async function loadHostedAssetBytes(url) {
+  if (assetBytesCache.has(url)) return assetBytesCache.get(url);
+
+  let dest = null;
+  const proxy = url.match(/\/api\/email\/assets\/([^/]+)\/([^/]+)\/([^/?#]+)/i);
+  if (proxy) {
+    dest = `email-assets/${decodeURIComponent(proxy[1])}/${proxy[2]}/${decodeURIComponent(proxy[3])}`;
+  } else {
+    const fb = url.match(/\/o\/([^?]+)\?/i);
+    if (fb) {
+      try {
+        const path = decodeURIComponent(fb[1]);
+        if (path.startsWith('email-assets/')) dest = path;
+      } catch {
+        /* ignore */
+      }
+    }
+    const gcs = url.match(/storage\.googleapis\.com\/[^/]+\/(email-assets\/[^?#]+)/i);
+    if (gcs) dest = decodeURIComponent(gcs[1]);
+  }
+
+  if (!dest) {
+    assetBytesCache.set(url, null);
+    return null;
+  }
+
+  try {
+    const file = getEmailStorageBucket().file(dest);
+    const [exists] = await file.exists();
+    if (!exists) {
+      console.warn('⚠️ [email-cid] ficheiro em falta:', dest);
+      assetBytesCache.set(url, null);
+      return null;
+    }
+    const [bytes] = await file.download();
+    const [meta] = await file.getMetadata();
+    const packed = {
+      bytes,
+      contentType: meta.contentType || mimeFromPath(dest)
+    };
+    assetBytesCache.set(url, packed);
+    return packed;
+  } catch (e) {
+    console.warn('⚠️ [email-cid] download falhou:', dest, e.message);
+    assetBytesCache.set(url, null);
+    return null;
+  }
+}
+
+/**
+ * Embute imagens hositadas como CID (multipart/related).
+ * No Gmail app aparecem sempre — não dependem do proxy externo.
+ */
+async function embedHostedImagesAsCid(html) {
+  const urls = collectHostedImageUrls(html);
+  if (!urls.length) return { html, attachments: [] };
+
+  let out = html;
+  const attachments = [];
+  let idx = 0;
+
+  for (const url of urls) {
+    const loaded = await loadHostedAssetBytes(url);
+    if (!loaded?.bytes?.length) continue;
+    const cid = `img${idx}.${crypto.randomBytes(4).toString('hex')}@dadosia`;
+    idx += 1;
+    // substitui todas as ocorrências da URL (src, background, css url)
+    out = out.split(url).join(`cid:${cid}`);
+    attachments.push({
+      cid,
+      contentType: loaded.contentType,
+      bytes: loaded.bytes
+    });
+  }
+
+  console.log(
+    `📎 [email-cid] ${attachments.length}/${urls.length} imagens embutidas no MIME`
+  );
+  return { html: out, attachments };
+}
+
+function encodeRfc2047Subject(subject) {
+  const s = String(subject || '');
+  if (/^[\x20-\x7E]*$/.test(s)) return s;
+  return `=?UTF-8?B?${Buffer.from(s, 'utf8').toString('base64')}?=`;
+}
+
+function foldBase64(b64) {
+  return String(b64 || '').replace(/.{1,76}/g, (line) => `${line}\r\n`).trim();
+}
+
+function buildRawMimeEmail({ from, to, subject, html, attachments, configurationSet }) {
+  const relatedBoundary = `----=_Related_${crypto.randomBytes(10).toString('hex')}`;
+  const parts = [];
+
+  parts.push(`From: ${from}`);
+  parts.push(`To: ${to}`);
+  parts.push(`Subject: ${encodeRfc2047Subject(subject)}`);
+  parts.push('MIME-Version: 1.0');
+  if (configurationSet) {
+    parts.push(`X-SES-CONFIGURATION-SET: ${configurationSet}`);
+  }
+
+  if (!attachments?.length) {
+    parts.push('Content-Type: text/html; charset=UTF-8');
+    parts.push('Content-Transfer-Encoding: base64');
+    parts.push('');
+    parts.push(foldBase64(Buffer.from(String(html || ''), 'utf8').toString('base64')));
+    return Buffer.from(parts.join('\r\n'), 'utf8');
+  }
+
+  parts.push(
+    `Content-Type: multipart/related; type="text/html"; boundary="${relatedBoundary}"`
+  );
+  parts.push('');
+  parts.push(`--${relatedBoundary}`);
+  parts.push('Content-Type: text/html; charset=UTF-8');
+  parts.push('Content-Transfer-Encoding: base64');
+  parts.push('');
+  parts.push(foldBase64(Buffer.from(String(html || ''), 'utf8').toString('base64')));
+
+  for (const att of attachments) {
+    parts.push(`--${relatedBoundary}`);
+    parts.push(`Content-Type: ${att.contentType || 'application/octet-stream'}`);
+    parts.push('Content-Transfer-Encoding: base64');
+    parts.push(`Content-ID: <${att.cid}>`);
+    parts.push('Content-Disposition: inline');
+    parts.push('');
+    parts.push(foldBase64(Buffer.from(att.bytes).toString('base64')));
+  }
+
+  parts.push(`--${relatedBoundary}--`);
+  parts.push('');
+  return Buffer.from(parts.join('\r\n'), 'utf8');
 }
 
 function hashEmail(email) {
@@ -849,20 +1016,47 @@ async function sendOne(db, sesClient, campaignId, camp, recipientId, recipient) 
   const source = fromName ? `"${fromName.replace(/"/g, '')}" <${fromEmail}>` : fromEmail;
 
   try {
-    const commandPayload = {
-      Source: source,
-      Destination: { ToAddresses: [email] },
-      Message: {
-        Subject: { Data: subject, Charset: 'UTF-8' },
-        Body: { Html: { Data: html, Charset: 'UTF-8' } }
-      }
-    };
-    if (process.env.AWS_SES_CONFIGURATION_SET) {
-      commandPayload.ConfigurationSetName = process.env.AWS_SES_CONFIGURATION_SET;
-    }
-    const command = new SendEmailCommand(commandPayload);
+    // CID = imagens dentro do email (Gmail mobile mostra; outras empresas fazem assim)
+    const { html: htmlCid, attachments } = await embedHostedImagesAsCid(html);
+    const configurationSet = process.env.AWS_SES_CONFIGURATION_SET || undefined;
 
-    const result = await sesClient.send(command);
+    let result;
+    if (attachments.length > 0) {
+      const raw = buildRawMimeEmail({
+        from: source,
+        to: email,
+        subject,
+        html: htmlCid,
+        attachments,
+        configurationSet
+      });
+      result = await sesClient.send(
+        new SendRawEmailCommand({
+          RawMessage: { Data: raw },
+          Destinations: [email],
+          Source: fromEmail,
+          ...(configurationSet ? { ConfigurationSetName: configurationSet } : {})
+        })
+      );
+    } else {
+      const commandPayload = {
+        Source: source,
+        Destination: { ToAddresses: [email] },
+        Message: {
+          Subject: { Data: subject, Charset: 'UTF-8' },
+          Body: { Html: { Data: html, Charset: 'UTF-8' } }
+        }
+      };
+      if (configurationSet) {
+        commandPayload.ConfigurationSetName = configurationSet;
+      }
+      result = await sesClient.send(new SendEmailCommand(commandPayload));
+      const sample = [...String(html).matchAll(/<img[^>]+src=["']([^"']+)["']/gi)]
+        .map((m) => m[1])
+        .slice(0, 5);
+      console.warn('⚠️ [email-cid] nenhuma imagem embutida; srcs=', sample);
+    }
+
     const messageId = result?.MessageId || null;
 
     await recRef.update({
@@ -1300,6 +1494,7 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
       }
 
       const dest = `email-assets/${userId}/${packId}/${fileName}`;
+      console.log(`📥 [email-asset] GET ${dest}`);
       const file = getEmailStorageBucket().file(dest);
       const [exists] = await file.exists();
       if (!exists) {
@@ -1349,9 +1544,13 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
       const pack = await htmlPackFromZipBuffer(req.file.buffer, userId);
       // Já aplica fixes mobile no HTML guardado no template
       const htmlReady = normalizeEmailHtml(pack.html);
+      const sampleSrcs = [...String(htmlReady).matchAll(/<img[^>]+src=["']([^"']+)["']/gi)]
+        .map((m) => m[1])
+        .slice(0, 8);
       console.log(
         `✅ [email-template] ZIP import: ${pack.imageCount} imagens → Storage (${pack.htmlFile}) base=${publicBaseUrl() || 'NONE'}`
       );
+      console.log(`🖼️ [email-template] img srcs:`, sampleSrcs);
       res.json({
         success: true,
         html: htmlReady,
@@ -1383,9 +1582,11 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
           return res.status(404).json({ success: false, error: 'Template não encontrado' });
         }
         const t = tSnap.val();
-        finalHtml = t.html || finalHtml;
+        finalHtml = normalizeEmailHtml(t.html || finalHtml);
         finalSubject = finalSubject || t.subject;
         finalName = finalName || t.name;
+      } else if (finalHtml) {
+        finalHtml = normalizeEmailHtml(finalHtml);
       }
 
       if (!finalHtml) {
