@@ -1389,19 +1389,90 @@ async function createAndQueueCampaign(
   };
 }
 
-async function handleOpen(db, token) {
-  const payload = verifyToken(token.replace(/\.gif$/i, ''));
+function isLikelyBotUserAgent(ua) {
+  const s = String(ua || '').toLowerCase().trim();
+  // Sem UA = quase sempre scanner / prefetch
+  if (!s) return true;
+  return /(?:^|[^a-z])(?:bot|crawler|spider|crawl|slurp|wget|curl|python-requests|python-urllib|go-http-client|java\/|scrapy|headless|phantom|selenium|puppeteer|preview|scanner|virus|malware|proofpoint|mimecast|barracuda|fireeye|symantec|trendmicro|mailscanner|spamassassin|postfix|microsoft office existence discovery|yahoo.*external.*cache)(?:[^a-z]|$)/i.test(
+    s
+  );
+}
+
+/**
+ * Aberturas “fantasma”: antivírus/proxies pedem o pixel sem o humano abrir.
+ * - Ignora UA de bot / vazio
+ * - Se o 1º hit for logo após o envio, guarda como suspeito; só conta num hit depois do atraso
+ *   (assim um prefetch imediato + cache do Gmail não marca “Aberto” sozinho)
+ */
+async function handleOpen(db, token, meta = {}) {
+  const openTracking = String(process.env.EMAIL_OPEN_TRACKING || 'on').toLowerCase();
+  if (openTracking === 'off' || openTracking === 'false' || openTracking === '0') {
+    return false;
+  }
+
+  const payload = verifyToken(String(token || '').replace(/\.gif$/i, ''));
   if (!payload || payload.t !== 'o') return false;
   const { c: campaignId, r: recipientId } = payload;
   const recRef = db.ref(`email_campaign_recipients/${campaignId}/${recipientId}`);
   const snap = await recRef.once('value');
   if (!snap.exists()) return false;
-  const rec = snap.val();
+  const rec = snap.val() || {};
   if (rec.openedAt) return true;
-  await recRef.update({
-    openedAt: new Date().toISOString(),
-    status: rec.status === 'sent' || rec.status === 'delivered' ? 'opened' : rec.status
-  });
+
+  const now = Date.now();
+  const sentMs = rec.sentAt ? Date.parse(rec.sentAt) : 0;
+  // Atraso curto: só para descartar scanners no instante do envio (não 2min — o Gmail faz cache do pixel)
+  const minDelayMs = Math.max(
+    0,
+    parseInt(process.env.EMAIL_OPEN_MIN_DELAY_MS || '8000', 10) || 8000
+  );
+  const ua = String(meta.userAgent || '');
+  const tooSoon = Boolean(sentMs && now - sentMs < minDelayMs);
+  const botUa = isLikelyBotUserAgent(ua);
+
+  if (botUa) {
+    console.log(
+      `👁️ [email-open] ignorado (bot_ua) camp=${campaignId} rec=${recipientId} ua=${ua.slice(0, 80)}`
+    );
+    await recRef.update({
+      openPixelHitAt: new Date().toISOString(),
+      openIgnoredReason: 'bot_ua',
+      openIgnoredUa: ua.slice(0, 240) || null
+    });
+    return false;
+  }
+
+  if (tooSoon) {
+    console.log(
+      `👁️ [email-open] suspeito too_soon camp=${campaignId} rec=${recipientId} (+${now - sentMs}ms)`
+    );
+    await recRef.update({
+      openPixelHitAt: new Date().toISOString(),
+      openSuspectAt: new Date().toISOString(),
+      openIgnoredReason: 'too_soon',
+      openIgnoredUa: ua.slice(0, 240) || null
+    });
+    return false;
+  }
+
+  // Se só houve hit “too_soon” antes e este é o 2º pedido após o atraso → conta
+  // Se é o 1º pedido já fora do atraso → conta (abertura real típica)
+
+  const openedAt = new Date().toISOString();
+  const patch = {
+    openedAt,
+    status: rec.status === 'sent' || rec.status === 'delivered' ? 'opened' : rec.status,
+    openUa: ua.slice(0, 240) || null,
+    openIgnoredReason: null
+  };
+
+  // SNS delivery ausente: inferir entrega na 1ª abertura válida
+  if (!rec.deliveredAt) {
+    patch.deliveredAt = openedAt;
+    await bumpStat(db, campaignId, 'delivered');
+  }
+
+  await recRef.update(patch);
   await bumpStat(db, campaignId, 'opened');
   return true;
 }
@@ -1413,11 +1484,22 @@ async function handleClick(db, token) {
   const recRef = db.ref(`email_campaign_recipients/${campaignId}/${recipientId}`);
   const snap = await recRef.once('value');
   if (snap.exists()) {
-    const rec = snap.val();
-    const patch = { lastClickedAt: new Date().toISOString() };
+    const rec = snap.val() || {};
+    const nowIso = new Date().toISOString();
+    const patch = { lastClickedAt: nowIso };
     if (!rec.clickedAt) {
-      patch.clickedAt = patch.lastClickedAt;
+      patch.clickedAt = nowIso;
       await bumpStat(db, campaignId, 'clicked');
+    }
+    // Clique = prova humana de abertura (mais fiável que o pixel)
+    if (!rec.openedAt) {
+      patch.openedAt = nowIso;
+      patch.status = rec.status === 'sent' || rec.status === 'delivered' || !rec.status ? 'opened' : rec.status;
+      await bumpStat(db, campaignId, 'opened');
+    }
+    if (!rec.deliveredAt) {
+      patch.deliveredAt = nowIso;
+      await bumpStat(db, campaignId, 'delivered');
     }
     await recRef.update(patch);
   }
@@ -1997,7 +2079,10 @@ function registerEmailCampaignRoutes(app, { db, sesClient }) {
 
   app.get('/api/email/t/o/:token', async (req, res) => {
     try {
-      await handleOpen(db, req.params.token);
+      await handleOpen(db, req.params.token, {
+        userAgent: req.get('user-agent') || '',
+        ip: req.ip || req.headers['x-forwarded-for'] || ''
+      });
     } catch (e) {
       console.warn('open track:', e.message);
     }
