@@ -2370,8 +2370,13 @@ const FirebaseApp = () => {
 
       const data = await response.json();
       
-      if (data.status === 'success' || data.status === 'already_active') {
-        showToast(t('toast.whatsappSessionStarted'), 'success');
+      if (data.status === 'success') {
+        showToast(
+          'QR Code a gerar… Escaneie com o WhatsApp no telemóvel (Aparelhos conectados).',
+          'success'
+        );
+      } else if (data.status === 'already_active') {
+        showToast('Sessão WhatsApp já estava ativa.', 'success');
       } else {
         throw new Error(data.error || 'Erro ao criar sessão');
       }

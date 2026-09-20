@@ -2244,6 +2244,21 @@ async function wipeWppTokenDir(userId) {
   }
 }
 
+/** Apaga tokens + perfil Chrome — obrigatório após “Desconectar” para o QR voltar a aparecer. */
+async function wipeWppSessionData(userId) {
+  await wipeWppTokenDir(userId);
+  const profileDir = getWppChromeProfileDir(userId);
+  try {
+    if (fs.existsSync(profileDir)) {
+      fs.rmSync(profileDir, { recursive: true, force: true });
+      console.log('🧹 [WPP] Perfil Chrome apagado (forçar novo QR):', profileDir);
+    }
+  } catch (e) {
+    console.warn('⚠️ [WPP] Erro ao apagar perfil Chrome:', e.message);
+    cleanChromiumSingletonArtifacts(profileDir);
+  }
+}
+
 async function createSessionInternal(userId) {
   console.log(`📱 Verificando sessão WhatsApp para usuário: ${userId}`);
   
@@ -2253,6 +2268,7 @@ async function createSessionInternal(userId) {
   const disconnectReason = String(sessionMeta.disconnectReason || '').trim();
   const needsFreshQr =
     !!sessionMeta.needsRelink ||
+    disconnectReason === 'manual' ||
     ['disconnectedMobile', 'UNPAIRED', 'CONFLICT', 'UNLAUNCHED', 'qrReadFail'].includes(
       disconnectReason
     );
@@ -2303,7 +2319,7 @@ async function createSessionInternal(userId) {
     const tokenDir = path.join(tokensBase, `user_${userId}`);
     
     if (needsFreshQr) {
-      await wipeWppTokenDir(userId);
+      await wipeWppSessionData(userId);
     } else if (fs.existsSync(tokenDir)) {
       const files = fs.readdirSync(tokenDir);
       if (files.length > 0) {
@@ -9155,9 +9171,26 @@ app.post('/api/sessions/create', async (req, res) => {
     const mustReset =
       forceReconnect === true ||
       !!session.needsRelink ||
+      reason === 'manual' ||
       session.status === 'disconnected' ||
       session.status === 'error' ||
       ['disconnectedMobile', 'UNPAIRED', 'CONFLICT', 'UNLAUNCHED', 'qrReadFail'].includes(reason);
+
+    // Após desconectar (ou forceReconnect), apagar tokens — senão “conecta” sem QR e sem WhatsApp real
+    if (forceReconnect === true || reason === 'manual' || !!session.needsRelink) {
+      console.log(`🧹 [WPP] create: a limpar sessão local para novo QR (${userId.slice(0, 8)}…)`);
+      if (activeClients.has(userId)) {
+        await forceCloseWhatsAppSession(userId);
+        await sleepMs(1500);
+      }
+      await wipeWppSessionData(userId);
+      await db.ref(`whatsapp_sessions/${userId}`).update({
+        needsRelink: true,
+        qrCode: null,
+        sessionToken: null,
+        sessionSaved: false
+      });
+    }
 
     if (activeClients.has(userId)) {
       if (mustReset) {
@@ -9205,16 +9238,20 @@ app.post('/api/sessions/disconnect', async (req, res) => {
     }
     
     await forceCloseWhatsAppSession(userId);
+    await wipeWppSessionData(userId);
     await db.ref(`whatsapp_sessions/${userId}`).update({
       status: 'disconnected',
       lastActivity: new Date().toISOString(),
       disconnectReason: 'manual',
-      needsRelink: null,
+      needsRelink: true,
       qrCode: null,
       connectedWid: null,
-      connectedLineKey: null
+      connectedLineKey: null,
+      sessionToken: null,
+      sessionSaved: false,
+      phoneNumber: null
     });
-    console.log('✅ Sessão desconectada:', userId);
+    console.log('✅ Sessão desconectada (tokens limpos):', userId);
     
     await sleepMs(500);
     
