@@ -3524,7 +3524,11 @@ async function handleIncomingMessage(userId, message, client) {
         let catalogClosingDeferred = false;
         let textToSendClient = aiResponse;
         if (!isAudioMessage) {
-          const mentionedEarly = detectMentionedProducts(aiResponse, aiResult.catalogItemsMap);
+          const mentionedEarly = detectMentionedProducts(
+            aiResponse,
+            aiResult.catalogItemsMap,
+            messageText
+          );
           const sendProductImagesEarly = aiConfig?.showCatalogImagesWhenOffering !== false;
           const catalogImagesOnceEarly = aiConfig?.catalogImagesOncePerConversation !== false;
           const allowCatalogAuxEarly = userWantsCatalogAuxResend(messageText);
@@ -3647,7 +3651,11 @@ async function handleIncomingMessage(userId, message, client) {
         await detectAndSaveAppointment(userId, message.from, aiResponse, sanitizedNumber);
         
         // Detectar produtos mencionados e enviar imagens automaticamente
-        const mentionedItems = detectMentionedProducts(aiResponse, aiResult.catalogItemsMap);
+        const mentionedItems = detectMentionedProducts(
+          aiResponse,
+          aiResult.catalogItemsMap,
+          messageText
+        );
         const sendProductImages = aiConfig?.showCatalogImagesWhenOffering !== false;
         const catalogImagesOncePerConversation = aiConfig?.catalogImagesOncePerConversation !== false;
         const allowCatalogAuxResend = userWantsCatalogAuxResend(messageText);
@@ -3669,17 +3677,23 @@ async function handleIncomingMessage(userId, message, client) {
               const hadPriorCatalogOffer = auxSnap.exists() || legacyImgSnap.exists();
               
               if (catalogImagesOncePerConversation && !allowCatalogAuxResend && hadPriorCatalogOffer) {
-                if (!auxSnap.exists() && legacyImgSnap.exists()) {
-                  await markSentCatalogAux(userId, sanitizedNumber, dedupeKey, item.name);
-                  console.log(
-                    `📋 Migrado legado sent_catalog_images → omitindo card extra para: ${item.name}`
-                  );
-                } else {
-                  console.log(
-                    `📋 Card do catálogo já enviado para: ${item.name} — omitindo mensagem extra`
-                  );
+                const photoNeverSent = !!(item.image && sendProductImages && !legacyImgSnap.exists());
+                if (!photoNeverSent) {
+                  if (!auxSnap.exists() && legacyImgSnap.exists()) {
+                    await markSentCatalogAux(userId, sanitizedNumber, dedupeKey, item.name);
+                    console.log(
+                      `📋 Migrado legado sent_catalog_images → omitindo card extra para: ${item.name}`
+                    );
+                  } else {
+                    console.log(
+                      `📋 Card do catálogo já enviado para: ${item.name} — omitindo mensagem extra`
+                    );
+                  }
+                  continue;
                 }
-                continue;
+                console.log(
+                  `📸 Card em texto já registado, mas a foto de ${item.name} ainda não saiu — enviando agora`
+                );
               }
               
               let skipImageAlreadySent = false;
@@ -3741,30 +3755,18 @@ async function handleIncomingMessage(userId, message, client) {
                     ? `📤 Reenviando só a foto (legenda curta): ${item.name}`
                     : `📤 Enviando imagem de: ${item.name}`
                 );
-                
-                // Verificar se é Base64 ou URL
-                const isBase64 = item.image.startsWith('data:image/');
-                
-                if (isBase64) {
-                  console.log(`📸 Imagem em Base64 detectada para: ${item.name}`);
-                  // Enviar imagem Base64 diretamente
-                  await client.sendImageFromBase64(
-                    message.from,
-                    item.image,
-                    item.name,
-                    imageCaption
-                  );
-                } else {
-                  console.log(`🌐 URL de imagem detectada para: ${item.name}`);
-                  // Enviar imagem por URL
-                  await client.sendImage(
-                    message.from,
-                    item.image,
-                    item.name,
-                    imageCaption
+
+                const media = await prepareCatalogMediaForWhatsApp(item.image);
+                if (!media) {
+                  throw new Error(
+                    'foto do catálogo vazia ou num formato que o servidor não conseguiu ler'
                   );
                 }
-                
+                console.log(
+                  `📤 Mídia pronta (${media.kind}, ${Math.round(media.dataUrl.length / 1024)} KB em base64) para: ${item.name}`
+                );
+                await sendWhatsAppCatalogImage(client, message.from, media, imageCaption);
+
                 console.log(`✅ Imagem enviada: ${item.name}`);
 
                 if (!usePhotoOnlyCaption) {
@@ -3785,14 +3787,16 @@ async function handleIncomingMessage(userId, message, client) {
                 
                 // Salvar envio da imagem no histórico
                 const imageRef = conversationMessagesRef(userId, sanitizedNumber).push();
+                const historyMedia =
+                  media.dataUrl && media.dataUrl.length <= 400000 ? media.dataUrl : null;
                 await imageRef.set({
                   from: message.to || '',
                   to: message.from || '',
                   body: imageCaption,
-                  imageUrl: isBase64 ? null : item.image,
-                  imageBase64: isBase64 ? item.image : null,
+                  imageUrl: media.kind === 'image' && /^https?:\/\//i.test(item.image) ? item.image : null,
+                  imageBase64: historyMedia,
                   timestamp: new Date().toISOString(),
-                  type: 'image',
+                  type: media.kind === 'video' ? 'video' : 'image',
                   isFromMe: true,
                   aiGenerated: true,
                   productName: item.name
@@ -3856,7 +3860,7 @@ async function handleIncomingMessage(userId, message, client) {
                 await new Promise(resolve => setTimeout(resolve, 1000));
               }
             } catch (itemError) {
-              console.error(`❌ Erro ao processar item ${item.name}:`, itemError.message);
+              console.error(`❌ Erro ao processar item ${item.name}:`, formatUnknownError(itemError));
               // Continuar mesmo se houver erro
             }
           }
@@ -4563,27 +4567,69 @@ ${stripeMarkerInstr}
 }
 
 // Função para detectar produtos mencionados na resposta e retornar suas imagens
-function detectMentionedProducts(responseText, catalogItemsMap) {
-  const mentionedItems = [];
+function catalogItemToMention(itemData) {
+  return {
+    catalogItemId: itemData.catalogItemId || null,
+    name: itemData.name,
+    image: itemData.image || null,
+    price: itemData.price,
+    currency: itemData.currency || 'BRL',
+    /** Obrigatório para preço por país no card — antes caía sempre no preço base (ex.: EUR). */
+    pricesByCurrency: normalizeCatalogPricesByCurrency(itemData.pricesByCurrency),
+    description: itemData.description,
+    link: itemData.link || null,
+    tvLoginProduct: !!itemData.tvLoginProduct,
+    tvPlanKey: itemData.tvPlanKey || ''
+  };
+}
 
-  for (const [, itemData] of Object.entries(catalogItemsMap)) {
-    if (!itemData?.name) continue;
-    if (messageMentionsProduct(responseText, itemData.name)) {
-      if (itemData.image || itemData.link) {
-        mentionedItems.push({
-          catalogItemId: itemData.catalogItemId || null,
-          name: itemData.name,
-          image: itemData.image || null,
-          price: itemData.price,
-          currency: itemData.currency || 'BRL',
-          /** Obrigatório para preço por país no card — antes caía sempre no preço base (ex.: EUR). */
-          pricesByCurrency: normalizeCatalogPricesByCurrency(itemData.pricesByCurrency),
-          description: itemData.description,
-          link: itemData.link || null,
-          tvLoginProduct: !!itemData.tvLoginProduct,
-          tvPlanKey: itemData.tvPlanKey || ''
-        });
-      }
+/** A IA colou a descrição do catálogo no texto (a foto devia ir à parte e não foi). */
+function catalogDescriptionMentioned(bodyText, description) {
+  const desc = normalizeForProductNameMatch(description);
+  const body = normalizeForProductNameMatch(bodyText);
+  if (!desc || !body || desc.length < 36) return false;
+  const probe = desc.slice(0, 64);
+  return probe.length >= 36 && body.includes(probe.slice(0, 48));
+}
+
+function userAsksAboutCatalogOffer(userMessage) {
+  const t = normalizeMessageForIntent(userMessage);
+  if (!t || t.length < 3) return false;
+  return /\b(plano|planos|produto|produtos|servico|servicos|preco|valor|informacao|informacoes|catalogo|assine|assinatura|wplay)\b/.test(
+    t
+  );
+}
+
+function detectMentionedProducts(responseText, catalogItemsMap, userText) {
+  const mentionedItems = [];
+  const blobs = [responseText, userText].filter((t) => typeof t === 'string' && t.trim());
+  const entries = Object.values(catalogItemsMap || {}).filter((item) => item && item.name);
+
+  const pushItem = (itemData) => {
+    if (!(itemData.image || itemData.link)) return;
+    const id = itemData.catalogItemId || itemData.name;
+    if (mentionedItems.some((m) => (m.catalogItemId || m.name) === id)) return;
+    mentionedItems.push(catalogItemToMention(itemData));
+  };
+
+  for (const itemData of entries) {
+    const hit = blobs.some(
+      (b) =>
+        messageMentionsProduct(b, itemData.name) ||
+        catalogDescriptionMentioned(b, itemData.description)
+    );
+    if (hit) pushItem(itemData);
+  }
+
+  // Um único item com foto: o cliente pediu o plano/produto e a IA pode ter usado
+  // a marca ("Wplay / TV") em vez do nome exacto do catálogo.
+  if (!mentionedItems.length && userText && userAsksAboutCatalogOffer(userText)) {
+    const withImage = entries.filter((item) => item.image);
+    if (withImage.length === 1) {
+      console.log(
+        `📸 Único item com foto no catálogo (${withImage[0].name}) — cliente pediu informações do plano/produto`
+      );
+      pushItem(withImage[0]);
     }
   }
 
@@ -4673,7 +4719,8 @@ async function willSendFullCatalogImageCard(
     const legacyImgSnap = await metaRef.child(`sent_catalog_images/${dedupeKey}`).once('value');
     const hadPriorCatalogOffer = auxSnap.exists() || legacyImgSnap.exists();
 
-    if (catalogImagesOncePerConversation && !allowCatalogAuxResend && hadPriorCatalogOffer) {
+    const photoNeverSent = !!(item.image && sendProductImages && !legacyImgSnap.exists());
+    if (catalogImagesOncePerConversation && !allowCatalogAuxResend && hadPriorCatalogOffer && !photoNeverSent) {
       continue;
     }
 
@@ -6452,6 +6499,278 @@ async function tryGetPnFromLidViaWajs(client, lidJid) {
 }
 
 /**
+ * Mesma escolha de JID do texto: chat @lid só recebe no @lid.
+ * Cair para @c.us deixa ack 0 (mensagem fantasma no Web, não chega no telemóvel).
+ */
+async function resolveOutboundChatJids(client, originalJid) {
+  const jid = String(originalJid || '').trim();
+  if (!jid) return [];
+  const candidates = [];
+  if (/@lid$/i.test(jid)) {
+    console.log(`📤 [WPP] Envio só via LID (sem mapear para @c.us): ${jid}`);
+    candidates.push(jid);
+    return candidates;
+  }
+  if (/@c\.us$/i.test(jid)) {
+    try {
+      const page0 = client && (client.page || client.waPage || client.pupPage);
+      if (page0 && typeof page0.evaluate === 'function') {
+        const lid = await page0.evaluate(async (pn) => {
+          try {
+            if (!window.WPP?.contact?.queryExists) return null;
+            const r = await WPP.contact.queryExists(pn);
+            const wid = r && (r.wid || r.id || r);
+            const ser =
+              (wid && wid._serialized) ||
+              (typeof wid === 'string' ? wid : null);
+            return ser && String(ser).includes('@lid') ? String(ser) : null;
+          } catch (_) {
+            return null;
+          }
+        }, jid);
+        if (lid && lid !== jid) {
+          candidates.push(lid);
+          console.log(`📤 [WPP] PN→LID para envio: ${jid} → ${lid}`);
+        }
+      }
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  candidates.push(jid);
+  return candidates;
+}
+
+function formatUnknownError(err) {
+  if (!err) return 'erro desconhecido';
+  if (typeof err === 'string') return err;
+  if (err.message) return String(err.message);
+  if (err.text) return String(err.text);
+  try {
+    return JSON.stringify(err);
+  } catch (_) {
+    return String(err);
+  }
+}
+
+/** Legenda de imagem/vídeo no WhatsApp: acima disto o envio da mídia é recusado. */
+function truncateWhatsAppCaption(text) {
+  const s = String(text || '');
+  const max = 1024;
+  if (s.length <= max) return s;
+  return `${s.slice(0, max - 1).trimEnd()}…`;
+}
+
+let sharpModule;
+function getSharp() {
+  if (sharpModule !== undefined) return sharpModule;
+  try {
+    sharpModule = require('sharp');
+  } catch (e) {
+    console.warn('⚠️ sharp indisponível para fotos do catálogo:', e.message);
+    sharpModule = null;
+  }
+  return sharpModule;
+}
+
+function looksLikeVideoBuffer(buffer) {
+  if (!buffer || buffer.length < 12) return false;
+  if (buffer.slice(4, 8).toString('ascii') === 'ftyp') return true;
+  if (buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3) return true;
+  return false;
+}
+
+async function bufferToJpegDataUrl(buffer) {
+  const sharp = getSharp();
+  if (!sharp) return null;
+  const resizeOpts = { width: 1280, height: 1280, fit: 'inside', withoutEnlargement: true };
+  let jpeg;
+  try {
+    jpeg = await sharp(buffer, { failOn: 'none', animated: false })
+      .rotate()
+      .resize(resizeOpts)
+      .jpeg({ quality: 82, mozjpeg: true })
+      .toBuffer();
+  } catch (e) {
+    jpeg = await sharp(buffer, { failOn: 'none' })
+      .rotate()
+      .resize(resizeOpts)
+      .jpeg({ quality: 82 })
+      .toBuffer();
+  }
+  if (!jpeg || !jpeg.length) return null;
+  return `data:image/jpeg;base64,${jpeg.toString('base64')}`;
+}
+
+async function downloadRemoteMedia(url) {
+  const r = await axios.get(url, {
+    responseType: 'arraybuffer',
+    timeout: 20000,
+    maxContentLength: 16 * 1024 * 1024,
+    maxBodyLength: 16 * 1024 * 1024,
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; DadosIA/1.0)',
+      Accept: '*/*'
+    },
+    validateStatus: (s) => s >= 200 && s < 400
+  });
+  const contentType = String(r.headers?.['content-type'] || '')
+    .split(';')[0]
+    .trim()
+    .toLowerCase();
+  return { buffer: Buffer.from(r.data), contentType };
+}
+
+/**
+ * A foto do catálogo ia pelo sendImage nativo: nome com "/" (ex. "Wplay / TV"),
+ * base64 grande e MIME que o WhatsApp recusa (webp/heic) faziam o envio cair
+ * no catch — o texto seguia, a foto não. Normaliza para JPEG pequeno, ou vídeo.
+ */
+async function prepareCatalogMediaForWhatsApp(image) {
+  const raw = String(image || '').trim();
+  if (!raw) return null;
+
+  const videoFromBuffer = (buffer, contentType) => {
+    const mime = String(contentType || '').startsWith('video/') ? contentType : 'video/mp4';
+    return {
+      dataUrl: `data:${mime};base64,${buffer.toString('base64')}`,
+      kind: 'video',
+      filename: 'catalogo.mp4'
+    };
+  };
+
+  if (raw.startsWith('data:video/')) {
+    return { dataUrl: raw, kind: 'video', filename: 'catalogo.mp4' };
+  }
+
+  if (raw.startsWith('data:image/')) {
+    const comma = raw.indexOf(',');
+    if (comma < 0) return { dataUrl: raw, kind: 'image', filename: 'catalogo.jpg' };
+    try {
+      const jpegUrl = await bufferToJpegDataUrl(Buffer.from(raw.slice(comma + 1), 'base64'));
+      if (jpegUrl) return { dataUrl: jpegUrl, kind: 'image', filename: 'catalogo.jpg' };
+    } catch (e) {
+      console.warn('⚠️ [foto] sharp não converteu data URL:', e.message);
+    }
+    return { dataUrl: raw, kind: 'image', filename: 'catalogo.jpg' };
+  }
+
+  if (/^https?:\/\//i.test(raw)) {
+    const remote = await downloadRemoteMedia(raw);
+    const videoByExt = /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(raw);
+    if (videoByExt || remote.contentType.startsWith('video/') || looksLikeVideoBuffer(remote.buffer)) {
+      return videoFromBuffer(remote.buffer, remote.contentType);
+    }
+    try {
+      const jpegUrl = await bufferToJpegDataUrl(remote.buffer);
+      if (jpegUrl) return { dataUrl: jpegUrl, kind: 'image', filename: 'catalogo.jpg' };
+    } catch (e) {
+      console.warn('⚠️ [foto] sharp não converteu URL:', e.message);
+    }
+    if (remote.contentType.startsWith('image/')) {
+      return {
+        dataUrl: `data:${remote.contentType};base64,${remote.buffer.toString('base64')}`,
+        kind: 'image',
+        filename: 'catalogo.jpg'
+      };
+    }
+    return null;
+  }
+
+  return null;
+}
+
+/**
+ * Envia a mídia pelo mesmo WPP.chat.sendFileMessage do texto (não pelo sendImage
+ * nativo, que parte no getMessageById / nome de ficheiro inválido).
+ */
+async function sendWhatsAppCatalogImage(client, to, media, caption) {
+  await new Promise((r) => setTimeout(r, 400));
+  const cap = truncateWhatsAppCaption(caption);
+  const dataUrl = media.dataUrl;
+  const filename = media.filename || (media.kind === 'video' ? 'catalogo.mp4' : 'catalogo.jpg');
+  const kind = media.kind === 'video' ? 'video' : 'image';
+  const page = client && (client.page || client.waPage || client.pupPage);
+  const candidates = await resolveOutboundChatJids(client, to);
+  const errors = [];
+
+  if (!candidates.length) {
+    throw new Error('foto do catálogo: destinatário vazio');
+  }
+  if (dataUrl.length > 8 * 1024 * 1024) {
+    throw new Error('mídia do catálogo grande demais para o WhatsApp (máx. ~6 MB)');
+  }
+
+  if (page && typeof page.evaluate === 'function') {
+    for (const jid of candidates) {
+      try {
+        const result = await page.evaluate(
+          async (cid, b64, fname, capText, mediaKind) => {
+            const out = { ok: false, ack: null, id: null, error: null };
+            try {
+              if (!window.WPP?.chat?.sendFileMessage) {
+                out.error = 'no_sendFileMessage';
+                return out;
+              }
+              try {
+                if (typeof WPP.chat.find === 'function') await WPP.chat.find(cid);
+              } catch (_) {}
+              const r = await WPP.chat.sendFileMessage(cid, b64, {
+                type: mediaKind,
+                filename: fname,
+                caption: capText || '',
+                waitForAck: false
+              });
+              out.ack = typeof r?.ack === 'number' ? r.ack : null;
+              out.id =
+                (r && r.id && (r.id._serialized || (typeof r.id === 'string' ? r.id : null))) ||
+                null;
+              out.ok = true;
+              return out;
+            } catch (e) {
+              out.error = String((e && (e.message || e.text)) || e).slice(0, 300);
+              return out;
+            }
+          },
+          jid,
+          dataUrl,
+          filename,
+          cap,
+          kind
+        );
+        if (result && result.ok) {
+          console.log(
+            `✅ [WPP] mídia catálogo (${kind}) → ${jid} ack=${result.ack} id=${result.id || '?'}`
+          );
+          return result;
+        }
+        errors.push(`${jid}:${result && result.error}`);
+        console.warn(`⚠️ [WPP] mídia catálogo falhou → ${jid}:`, result && result.error);
+      } catch (e) {
+        errors.push(`${jid}:${e.message}`);
+        console.warn(`⚠️ [WPP] mídia catálogo exception → ${jid}:`, e.message);
+      }
+    }
+  }
+
+  if (kind === 'image' && client && typeof client.sendImageFromBase64 === 'function') {
+    for (const jid of candidates) {
+      try {
+        const r = await client.sendImageFromBase64(jid, dataUrl, filename, cap);
+        console.log(`✅ [WPP] mídia catálogo nativa → ${jid}`);
+        return r;
+      } catch (e) {
+        const msg = formatUnknownError(e);
+        errors.push(`native:${jid}:${msg}`);
+        console.warn(`⚠️ [WPP] sendImageFromBase64 → ${jid}:`, msg.slice(0, 220));
+      }
+    }
+  }
+
+  throw new Error(errors.filter(Boolean).join(' | ') || 'falha ao enviar foto do catálogo');
+}
+
+/**
  * sendText do WPPConnect chama WAPI.getMessageById após enviar — na WA Web atual
  * MsgStore.get está undefined. Enviamos só via WPP.chat (sem softOk falso).
  */
@@ -6698,38 +7017,8 @@ function patchClientSafeSendText(client) {
     if (!originalJid) throw new Error('sendText: destinatário vazio');
     if (!text.trim()) throw new Error('sendText: texto vazio');
 
-    const candidates = [originalJid];
-    // Contatos migrados para @lid: enviar só para o @lid.
-    // Tentar @c.us depois causa ack:0 (mensagem fantasma no Web, não chega ao telemóvel).
-    if (/@lid$/i.test(originalJid)) {
-      console.log(`📤 [WPP] Envio só via LID (sem mapear para @c.us): ${originalJid}`);
-    } else if (/@c\.us$/i.test(originalJid)) {
-      // Opcional: se tivermos LID do PN, preferir LID
-      try {
-        const page0 = client.page || client.waPage || client.pupPage;
-        if (page0 && typeof page0.evaluate === 'function') {
-          const lid = await page0.evaluate(async (pn) => {
-            try {
-              if (!window.WPP?.contact?.queryExists) return null;
-              const r = await WPP.contact.queryExists(pn);
-              const wid = r && (r.wid || r.id || r);
-              const ser =
-                (wid && wid._serialized) ||
-                (typeof wid === 'string' ? wid : null);
-              return ser && String(ser).includes('@lid') ? String(ser) : null;
-            } catch (_) {
-              return null;
-            }
-          }, originalJid);
-          if (lid && lid !== originalJid) {
-            candidates.unshift(lid);
-            console.log(`📤 [WPP] PN→LID para envio: ${originalJid} → ${lid}`);
-          }
-        }
-      } catch (_) {
-        /* ignore */
-      }
-    }
+    const candidates = await resolveOutboundChatJids(client, originalJid);
+    if (!candidates.length) throw new Error('sendText: destinatário vazio');
 
     const page = client.page || client.waPage || client.pupPage;
     if (!page || typeof page.evaluate !== 'function') {
@@ -7131,6 +7420,11 @@ function normalizeForProductNameMatch(text) {
   return stripEmojisForMatch(base);
 }
 
+const PRODUCT_MATCH_STOPWORDS = new Set([
+  'de', 'da', 'do', 'das', 'dos', 'e', 'em', 'no', 'na', 'nos', 'nas',
+  'um', 'uma', 'o', 'a', 'os', 'as', 'para', 'com', 'por', 'ao', 'aos'
+]);
+
 function relaxedMessageMentionsProduct(bodyText, productName) {
   const p = normalizeForProductNameMatch(productName);
   const m = normalizeForProductNameMatch(bodyText);
@@ -7139,21 +7433,30 @@ function relaxedMessageMentionsProduct(bodyText, productName) {
     .replace(/\//g, ' ')
     .split(/\s+/)
     .map((x) => x.trim())
-    .filter((x) => x.length >= 3);
+    .filter((x) => x.length >= 2 && !PRODUCT_MATCH_STOPWORDS.has(x));
   if (!tokens.length) return false;
+  if (tokens.length === 1 && tokens[0].length < 4) return false;
   const matched = tokens.filter((tk) => m.includes(tk)).length;
-  // Evita falso positivo: exige boa cobertura do nome
-  return matched >= Math.max(2, Math.ceil(tokens.length * 0.6));
+  const need = tokens.length === 1 ? 1 : Math.max(2, Math.ceil(tokens.length * 0.6));
+  return matched >= need;
 }
 
 function messageMentionsProduct(bodyText, productName) {
   const p = normalizeForProductNameMatch(productName);
   if (!p) return false;
   const m = normalizeForProductNameMatch(bodyText);
-  if (m.includes(p)) return true;
+  if (p.length < 4) {
+    const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (new RegExp(`(?:^|[^a-z0-9])${escaped}(?:[^a-z0-9]|$)`).test(m)) return true;
+  } else if (m.includes(p)) {
+    return true;
+  }
   const parts = p.split('/').map((s) => s.trim()).filter((s) => s.length >= 2);
   if (parts.length >= 2) {
-    return parts.every((part) => m.includes(part));
+    return parts.every((part) => {
+      if (part.length >= 4) return m.includes(part);
+      return new RegExp(`(?:^|[^a-z0-9])${part}(?:[^a-z0-9]|$)`).test(m);
+    });
   }
   return relaxedMessageMentionsProduct(m, p);
 }
