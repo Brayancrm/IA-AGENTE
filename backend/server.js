@@ -6684,7 +6684,92 @@ async function prepareCatalogMediaForWhatsApp(image) {
  * Envia a mídia pelo mesmo WPP.chat.sendFileMessage do texto (não pelo sendImage
  * nativo, que parte no getMessageById / nome de ficheiro inválido).
  */
+/**
+ * WhatsApp Web (out/2026) separou prepRawMedia do módulo MediaPrep.
+ * O wa-js 4.4.3 que estava fixo no projeto fica com MediaPrep undefined e
+ * sendFileMessage rebenta em todas as fotos/áudios/vídeos. O texto não usa
+ * esse caminho, por isso a resposta chega e a foto não.
+ * O 4.7.2 já corrige o binding; este patch cobre a sessão se o bundle antigo
+ * ainda estiver injectado até o browser reiniciar.
+ */
+async function patchWhatsAppMediaPrep(client) {
+  const page = client && (client.page || client.waPage || client.pupPage);
+  if (!page || typeof page.evaluate !== 'function') return { ok: false, reason: 'no_page' };
+  try {
+    const result = await page.evaluate(() => {
+      try {
+        const W = window.WPP;
+        if (!W || !W.whatsapp) return { ok: false, reason: 'no_wpp' };
+        const current = W.whatsapp.MediaPrep;
+        const prepOf = (mod) => {
+          if (!mod) return null;
+          if (typeof mod.prepRawMedia === 'function') return mod.prepRawMedia;
+          if (mod.default && typeof mod.default.prepRawMedia === 'function') return mod.default.prepRawMedia;
+          return null;
+        };
+        if (prepOf(current)) return { ok: true, reason: 'already' };
+        const req =
+          typeof window.require === 'function'
+            ? window.require
+            : typeof require === 'function'
+              ? require
+              : null;
+        if (!req) return { ok: false, reason: 'no_require' };
+        let prepFn = null;
+        let legacy = null;
+        try {
+          prepFn = prepOf(req('WAWebPrepRawMedia'));
+        } catch (_) {}
+        try {
+          legacy = req('WAWebMediaPrep');
+        } catch (_) {}
+        if (typeof prepFn !== 'function') return { ok: false, reason: 'no_prepRawMedia' };
+        const merged = Object.assign(
+          {},
+          legacy || {},
+          legacy && legacy.default ? legacy.default : {},
+          { prepRawMedia: prepFn }
+        );
+        try {
+          Object.defineProperty(W.whatsapp, 'MediaPrep', {
+            configurable: true,
+            get: () => merged
+          });
+        } catch (_) {
+          W.whatsapp.MediaPrep = merged;
+        }
+        return { ok: !!prepOf(W.whatsapp.MediaPrep), reason: 'patched' };
+      } catch (e) {
+        return { ok: false, reason: String((e && e.message) || e).slice(0, 200) };
+      }
+    });
+    if (result && result.reason === 'patched') {
+      console.log('🩹 [WPP] MediaPrep religado (prepRawMedia do WhatsApp Web novo)');
+    } else if (result && !result.ok && result.reason !== 'already') {
+      console.warn('⚠️ [WPP] MediaPrep não religado:', result.reason);
+    }
+    return result || { ok: false, reason: 'empty' };
+  } catch (e) {
+    console.warn('⚠️ [WPP] patch MediaPrep:', e.message);
+    return { ok: false, reason: e.message };
+  }
+}
+
+function logWaJsVersionOnce() {
+  if (logWaJsVersionOnce.done) return;
+  logWaJsVersionOnce.done = true;
+  try {
+    const pkgPath = require.resolve('@wppconnect/wa-js/package.json');
+    const pkg = require(pkgPath);
+    console.log('📦 [WPP] wa-js:', pkg.version);
+  } catch (e) {
+    console.warn('⚠️ [WPP] versão wa-js:', e.message);
+  }
+}
+
 async function sendWhatsAppCatalogImage(client, to, media, caption) {
+  logWaJsVersionOnce();
+  await patchWhatsAppMediaPrep(client);
   await new Promise((r) => setTimeout(r, 400));
   const cap = truncateWhatsAppCaption(caption);
   const dataUrl = media.dataUrl;
@@ -7098,6 +7183,8 @@ function patchClientSafeSendText(client) {
 
   client.__iaSafeSendTextPatched = true;
   console.log('🩹 [WPP] sendText patch ativo (WPP.chat only, sem softOk falso)');
+  logWaJsVersionOnce();
+  patchWhatsAppMediaPrep(client).catch((e) => console.warn('⚠️ [WPP] MediaPrep:', e.message));
 }
 
 function pushWppStringCandidate(out, v) {
@@ -9453,7 +9540,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online',
     service: 'WhatsApp IA Backend',
-    version: '1.0.17-tv-subscription-checkout',
+    version: '1.0.19-wajs-media-prep',
     activeSessions: activeClients.size,
     timestamp: new Date().toISOString()
   });
