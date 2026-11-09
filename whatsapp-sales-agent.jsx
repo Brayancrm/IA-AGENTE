@@ -349,9 +349,19 @@ const WhatsAppSalesAgent = () => {
         body: JSON.stringify({ userId: user.uid }),
       });
 
-      const data = await response.json();
+      const raw = await response.text();
+      let data = {};
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        if (response.status === 502 || response.status === 504 || response.status === 524) {
+          data = { status: 'pending' };
+        } else {
+          throw new Error('Resposta inválida do servidor');
+        }
+      }
       
-      if (data.status === 'success' || data.status === 'already_active') {
+      if (data.status === 'success' || data.status === 'already_active' || data.status === 'pending') {
         showToast('Sessão WhatsApp iniciada! Escaneie o QR Code.', 'success');
         // Iniciar verificação periódica do QR Code
         const interval = setInterval(checkWhatsAppSession, 3000);

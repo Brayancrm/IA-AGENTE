@@ -9540,13 +9540,15 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online',
     service: 'WhatsApp IA Backend',
-    version: '1.0.19-wajs-media-prep',
+    version: '1.0.20-session-create-async',
     activeSessions: activeClients.size,
     timestamp: new Date().toISOString()
   });
 });
 
-// Criar/Conectar sessão WhatsApp
+// Criar/Conectar sessão WhatsApp.
+// O Chrome + QR demoram mais do que o gateway (504 em api.dadosia.com.br).
+// A resposta volta já; o QR e o erro chegam pelo Firebase.
 app.post('/api/sessions/create', async (req, res) => {
   try {
     const { userId, forceReconnect } = req.body;
@@ -9555,10 +9557,17 @@ app.post('/api/sessions/create', async (req, res) => {
       return res.status(400).json({ error: 'userId é obrigatório' });
     }
 
+    if (wppSessionCreationInFlight.has(userId)) {
+      return res.json({
+        status: 'success',
+        message: 'O QR Code já está a ser gerado. Aguarde nesta página.'
+      });
+    }
+
     const sessionSnap = await db.ref(`whatsapp_sessions/${userId}`).once('value');
     const session = sessionSnap.val() || {};
     const reason = String(session.disconnectReason || '').trim();
-    const mustReset =
+    const resetForQr =
       forceReconnect === true ||
       !!session.needsRelink ||
       reason === 'manual' ||
@@ -9566,49 +9575,35 @@ app.post('/api/sessions/create', async (req, res) => {
       session.status === 'error' ||
       ['disconnectedMobile', 'UNPAIRED', 'CONFLICT', 'UNLAUNCHED', 'qrReadFail'].includes(reason);
 
-    // Após desconectar (ou forceReconnect), apagar tokens — senão “conecta” sem QR e sem WhatsApp real
-    if (forceReconnect === true || reason === 'manual' || !!session.needsRelink) {
-      console.log(`🧹 [WPP] create: a limpar sessão local para novo QR (${userId.slice(0, 8)}…)`);
-      if (activeClients.has(userId)) {
-        await forceCloseWhatsAppSession(userId);
-        await sleepMs(1500);
+    if (!resetForQr && activeClients.has(userId)) {
+      const client = activeClients.get(userId);
+      const healthy = client ? await isWppClientHealthy(client) : false;
+      if (healthy) {
+        return res.json({
+          status: 'already_active',
+          message: 'Sessão já está ativa'
+        });
       }
-      await wipeWppSessionData(userId);
-      await db.ref(`whatsapp_sessions/${userId}`).update({
-        needsRelink: true,
-        qrCode: null,
-        sessionToken: null,
-        sessionSaved: false
-      });
     }
 
-    if (activeClients.has(userId)) {
-      if (mustReset) {
-        console.log(`🔄 [WPP] Reconexão: fechando sessão existente de ${userId}`);
-        await forceCloseWhatsAppSession(userId);
-        await sleepMs(2500);
-      } else {
-        const client = activeClients.get(userId);
-        const healthy = client ? await isWppClientHealthy(client) : false;
-        if (healthy) {
-          return res.json({
-            status: 'already_active',
-            message: 'Sessão já está ativa'
-          });
-        }
-        console.log(`🔄 [WPP] Sessão zombie — a recriar (${userId})`);
-        await forceCloseWhatsAppSession(userId);
-        await sleepMs(2500);
-      }
-    }
-    
-    await createSession(userId);
-    
-    res.json({ 
-      status: 'success', 
-      message: 'Sessão criada. Escaneie o QR Code no dashboard.' 
+    await db.ref(`whatsapp_sessions/${userId}`).update({
+      status: 'connecting',
+      lastActivity: new Date().toISOString(),
+      error: null,
+      qrCode: null,
+      ...(resetForQr
+        ? { needsRelink: true, disconnectReason: null, disconnectedAt: null }
+        : {})
     });
-    
+
+    createSession(userId).catch((error) => {
+      console.error('❌ Erro ao criar sessão (background):', error);
+    });
+
+    res.json({
+      status: 'success',
+      message: 'Sessão a iniciar. O QR Code aparece nesta página em seguida.'
+    });
   } catch (error) {
     console.error('❌ Erro ao criar sessão:', error);
     res.status(500).json({ 

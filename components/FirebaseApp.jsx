@@ -96,6 +96,24 @@ const MOBILE_BOTTOM_PRIMARY_IDS = ['dashboard', 'conversas', 'crm', 'catalog'];
 /** Limite alinhado ao backend (trySendPanelTestAndroidApk maxContentLength). */
 const PANEL_TEST_APK_MAX_BYTES = 45 * 1024 * 1024;
 
+async function readFetchJson(response) {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (response.status === 502 || response.status === 504 || response.status === 524) {
+      return {
+        status: 'pending',
+        error:
+          'O servidor ainda está a abrir o WhatsApp. O QR aparece nesta página — aguarde sem clicar outra vez.'
+      };
+    }
+    const snippet = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
+    throw new Error(snippet || `Resposta inválida do servidor (HTTP ${response.status})`);
+  }
+}
+
 /** Mensagem amigável para whatsapp_sessions.disconnectReason (backend/server.js). */
 function resolveWhatsAppDisconnectDisplay(reason, needsRelink, t) {
   if (!reason && !needsRelink) return null;
@@ -2345,21 +2363,6 @@ const FirebaseApp = () => {
     setIsConnecting(true);
     
     try {
-      const needsReset =
-        whatsappStatus === 'disconnected' ||
-        whatsappStatus === 'error' ||
-        whatsappNeedsRelink ||
-        !!whatsappDisconnectReason;
-
-      if (needsReset) {
-        await fetch(`${API_BASE}/api/sessions/disconnect`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.uid })
-        });
-        await new Promise((resolve) => setTimeout(resolve, 2800));
-      }
-
       const response = await fetch(`${API_BASE}/api/sessions/create`, {
         method: 'POST',
         headers: {
@@ -2368,11 +2371,11 @@ const FirebaseApp = () => {
         body: JSON.stringify({ userId: user.uid, forceReconnect: true })
       });
 
-      const data = await response.json();
+      const data = await readFetchJson(response);
       
-      if (data.status === 'success') {
+      if (data.status === 'success' || data.status === 'pending') {
         showToast(
-          'QR Code a gerar… Escaneie com o WhatsApp no telemóvel (Aparelhos conectados).',
+          'QR Code a gerar… Permanece nesta página e escaneia quando aparecer.',
           'success'
         );
       } else if (data.status === 'already_active') {
@@ -2529,19 +2532,6 @@ const FirebaseApp = () => {
     if (!user) return;
 
     try {
-      // Primeiro desconecta
-      await fetch(`${API_BASE}/api/sessions/disconnect`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ userId: user.uid })
-      });
-
-      // Aguarda o Chromium fechar o perfil (evita "browser already running" no mesmo userDataDir)
-      await new Promise(resolve => setTimeout(resolve, 2800));
-
-      // Depois reconecta para gerar novo QR Code
       setIsConnecting(true);
       const response = await fetch(`${API_BASE}/api/sessions/create`, {
         method: 'POST',
@@ -2551,9 +2541,9 @@ const FirebaseApp = () => {
         body: JSON.stringify({ userId: user.uid, forceReconnect: true })
       });
 
-      const data = await response.json();
+      const data = await readFetchJson(response);
       
-      if (data.status === 'success' || data.status === 'already_active') {
+      if (data.status === 'success' || data.status === 'already_active' || data.status === 'pending') {
         showToast(t('toast.newQrGenerated'), 'success');
       } else {
         throw new Error(data.error || 'Erro ao gerar novo QR Code');
